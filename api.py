@@ -250,8 +250,8 @@ def register():
             return jsonify({'error': 'Username already exists'}), 409
         
         # Hash credentials
-        hashed_password = main.hash_password(password)
-        hashed_pin = main.hash_pin(pin)
+        hashed_password = hash_password(password)
+        hashed_pin = hash_pin(pin)
         
         # Create user
         cur.execute("INSERT INTO users (username, password, pin, last_login) VALUES (?,?,?,?)",
@@ -286,7 +286,7 @@ def login():
         user = cur.execute("SELECT username, password FROM users WHERE username=?", (username,)).fetchone()
         conn.close()
         
-        if not user or not main.verify_password(user[1], password):
+        if not user or not verify_password(user[1], password):
             return jsonify({'error': 'Invalid credentials'}), 401
         
         log_event(username, 'api', 'user_login', 'Login via API')
