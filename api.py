@@ -1539,6 +1539,56 @@ def get_patient_detail(username):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ===== ADMIN / TESTING ENDPOINTS =====
+@app.route('/api/admin/reset-users', methods=['POST'])
+def reset_all_users():
+    """DANGER: Delete all users, approvals, and notifications (for testing only)"""
+    try:
+        data = request.json
+        confirm = data.get('confirm')
+        
+        # Require explicit confirmation
+        if confirm != 'DELETE_ALL_USERS':
+            return jsonify({'error': 'Must provide confirm="DELETE_ALL_USERS" to proceed'}), 400
+        
+        conn = sqlite3.connect("therapist_app.db")
+        cur = conn.cursor()
+        
+        # Delete all users and related data
+        cur.execute("DELETE FROM users")
+        cur.execute("DELETE FROM patient_approvals")
+        cur.execute("DELETE FROM notifications")
+        cur.execute("DELETE FROM sessions")
+        cur.execute("DELETE FROM chat_history")
+        cur.execute("DELETE FROM mood_logs")
+        cur.execute("DELETE FROM gratitude_logs")
+        cur.execute("DELETE FROM cbt_records")
+        cur.execute("DELETE FROM clinical_scales")
+        cur.execute("DELETE FROM safety_plans")
+        cur.execute("DELETE FROM ai_memory")
+        cur.execute("DELETE FROM community_posts")
+        cur.execute("DELETE FROM alerts")
+        
+        conn.commit()
+        
+        # Get counts to verify
+        user_count = cur.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        approval_count = cur.execute("SELECT COUNT(*) FROM patient_approvals").fetchone()[0]
+        
+        conn.close()
+        
+        log_event('admin', 'api', 'database_reset', 'All users and data deleted for testing')
+        
+        return jsonify({
+            'success': True,
+            'message': 'All users and related data deleted',
+            'users_remaining': user_count,
+            'approvals_remaining': approval_count
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({'error': 'Endpoint not found'}), 404
