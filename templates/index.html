@@ -744,7 +744,20 @@
             <h1>🌿 Healing Space</h1>
             <p class="subtitle">Complete Mental Health Companion</p>
             
-            <div id="loginForm">
+            <!-- Landing Page -->
+            <div id="landingPage">
+                <h2 style="text-align: center; margin-bottom: 30px;">Welcome! Please select:</h2>
+                <button class="btn" onclick="showPatientAuth()" style="width: 100%; margin-bottom: 15px; padding: 20px; font-size: 18px;">
+                    👤 I'm a Patient
+                </button>
+                <button class="btn btn-secondary" onclick="showClinicianAuth()" style="width: 100%; padding: 20px; font-size: 18px;">
+                    👨‍⚕️ I'm a Clinician
+                </button>
+            </div>
+            
+            <!-- Patient Login Form -->
+            <div id="patientLoginForm" class="hidden">
+                <h3 style="text-align: center; margin-bottom: 20px;">Patient Login</h3>
                 <div class="form-group">
                     <label>Username</label>
                     <input type="text" id="loginUsername" placeholder="Enter username">
@@ -757,11 +770,34 @@
                     <label>PIN (4 digits) - 2FA</label>
                     <input type="password" id="loginPin" placeholder="Enter your 4-digit PIN" maxlength="4">
                 </div>
-                <button class="btn" onclick="login()">Login</button>
-                <button class="btn btn-secondary" onclick="showRegister()">Create Account</button>
+                <button class="btn" onclick="login('user')">Login</button>
+                <button class="btn btn-secondary" onclick="showPatientRegister()">Create Patient Account</button>
+                <button class="btn btn-secondary" onclick="showLanding()">Back</button>
             </div>
             
+            <!-- Clinician Login Form -->
+            <div id="clinicianLoginForm" class="hidden">
+                <h3 style="text-align: center; margin-bottom: 20px;">Clinician Login</h3>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="clinicianLoginUsername" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="clinicianLoginPassword" placeholder="Enter password">
+                </div>
+                <div class="form-group">
+                    <label>PIN (4 digits) - 2FA</label>
+                    <input type="password" id="clinicianLoginPin" placeholder="Enter your 4-digit PIN" maxlength="4">
+                </div>
+                <button class="btn" onclick="login('clinician')">Login</button>
+                <button class="btn btn-secondary" onclick="showClinicianRegister()">Create Clinician Account</button>
+                <button class="btn btn-secondary" onclick="showLanding()">Back</button>
+            </div>
+            
+            <!-- Patient Registration Form -->
             <div id="registerForm" class="hidden">
+                <h3 style="text-align: center; margin-bottom: 20px;">Create Patient Account</h3>
                 <div class="form-group">
                     <label>Username</label>
                     <input type="text" id="regUsername" placeholder="Choose username">
@@ -786,11 +822,12 @@
                     <small style="color: #666; display: block; margin-top: 5px;">Your assigned mental health professional</small>
                 </div>
                 <button class="btn" onclick="register()">Create Account</button>
-                <button class="btn btn-secondary" onclick="showLogin()">Back to Login</button>
-                <button class="btn btn-secondary" onclick="showClinicianRegister()">I'm a Clinician</button>
+                <button class="btn btn-secondary" onclick="showPatientAuth()">Back to Login</button>
             </div>
             
+            <!-- Clinician Registration Form -->
             <div id="clinicianRegisterForm" class="hidden">
+                <h3 style="text-align: center; margin-bottom: 20px;">Create Clinician Account</h3>
                 <div class="form-group">
                     <label>Username</label>
                     <input type="text" id="clinicianUsername" placeholder="Choose username">
@@ -803,11 +840,101 @@
                     <label>Password</label>
                     <input type="password" id="clinicianPassword" placeholder="Choose password (min 8 chars)">
                 </div>
+                <div class="form-group">
+                    <label>PIN (4 digits) - 2FA</label>
+                    <input type="password" id="clinicianPin" placeholder="Choose 4-digit PIN" maxlength="4">
+                </div>
                 <button class="btn" onclick="registerClinician()">Create Clinician Account</button>
-                <button class="btn btn-secondary" onclick="showLogin()">Back to Login</button>
+                <button class="btn btn-secondary" onclick="showClinicianAuth()">Back to Login</button>
             </div>
             
             <div id="authMessage" class="hidden"></div>
+        </div>
+    </div>
+    
+    <!-- Legal Disclaimer Modal -->
+    <div id="disclaimerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: white; border-radius: 15px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; padding: 40px; box-shadow: 0 10px 50px rgba(0,0,0,0.3);">
+            <h2 style="color: #667eea; margin-bottom: 20px; text-align: center;">⚖️ Important Legal Disclaimer</h2>
+            
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+                <strong style="color: #856404;">⚠️ Please Read Carefully</strong>
+            </div>
+            
+            <div style="text-align: left; line-height: 1.8; color: #333; font-size: 14px;">
+                <p><strong>1. NOT A SUBSTITUTE FOR PROFESSIONAL CARE</strong></p>
+                <p>Healing Space is an AI-powered mental health support tool designed to complement, not replace, professional mental health services. This application does NOT provide medical advice, diagnosis, or treatment. The AI responses are generated by algorithms and should not be considered professional medical or therapeutic advice.</p>
+                
+                <p><strong>2. EMERGENCY SITUATIONS</strong></p>
+                <p>If you are experiencing a mental health emergency, suicidal thoughts, or are in immediate danger, DO NOT rely on this application. Please:</p>
+                <ul style="margin-left: 20px;">
+                    <li>Call emergency services (999 in UK, 911 in US)</li>
+                    <li>Contact the National Suicide Prevention Lifeline: 988 (US) or 116 123 (UK)</li>
+                    <li>Go to your nearest emergency department</li>
+                    <li>Call your mental health crisis team</li>
+                </ul>
+                
+                <p><strong>3. CLINICAL RELATIONSHIPS</strong></p>
+                <p>Any clinician-patient relationships formed through this platform do not constitute a formal therapeutic or medical relationship unless separately established through proper professional channels. Clinicians using this platform must adhere to all applicable professional standards, ethical guidelines, and legal requirements of their jurisdiction and licensing body.</p>
+                
+                <p><strong>4. DATA PRIVACY & CONFIDENTIALITY</strong></p>
+                <p>While we implement security measures to protect your data, no electronic system can guarantee 100% security. Users acknowledge that:</p>
+                <ul style="margin-left: 20px;">
+                    <li>Data is stored electronically and transmitted over the internet</li>
+                    <li>Absolute confidentiality cannot be guaranteed</li>
+                    <li>You should not share information you wish to keep completely private</li>
+                    <li>Data may be subject to legal disclosure requirements</li>
+                </ul>
+                
+                <p><strong>5. AI LIMITATIONS</strong></p>
+                <p>The AI system powering this application:</p>
+                <ul style="margin-left: 20px;">
+                    <li>Cannot fully understand complex emotional or psychological states</li>
+                    <li>May produce errors, misunderstandings, or inappropriate responses</li>
+                    <li>Does not have professional judgment or clinical training</li>
+                    <li>Cannot assess medical conditions or prescribe treatments</li>
+                </ul>
+                
+                <p><strong>6. USER RESPONSIBILITY</strong></p>
+                <p>By using Healing Space, you acknowledge and agree that:</p>
+                <ul style="margin-left: 20px;">
+                    <li>You are responsible for seeking appropriate professional help when needed</li>
+                    <li>You will not rely solely on this application for mental health treatment</li>
+                    <li>You understand the limitations of AI-based support</li>
+                    <li>You will use this tool as a supplement to, not replacement for, professional care</li>
+                </ul>
+                
+                <p><strong>7. LIABILITY DISCLAIMER</strong></p>
+                <p>The creators, developers, and operators of Healing Space expressly disclaim all liability for any harm, injury, or damages arising from use of this application. This includes but is not limited to:</p>
+                <ul style="margin-left: 20px;">
+                    <li>Reliance on AI-generated advice or suggestions</li>
+                    <li>Data breaches or privacy violations</li>
+                    <li>Technical failures or errors</li>
+                    <li>Misdiagnosis or missed diagnoses</li>
+                    <li>Delayed or inadequate treatment</li>
+                </ul>
+                
+                <p><strong>8. AGE REQUIREMENT</strong></p>
+                <p>Users must be 18 years or older, or have parental/guardian consent if under 18. This application is not designed for children under 13.</p>
+                
+                <p><strong>9. JURISDICTION & COMPLIANCE</strong></p>
+                <p>Users are responsible for ensuring their use of this application complies with all applicable local, state, national, and international laws and regulations. Healthcare professionals must comply with all licensing requirements and professional standards of their jurisdiction.</p>
+                
+                <p><strong>10. CHANGES TO SERVICE</strong></p>
+                <p>Healing Space reserves the right to modify, suspend, or terminate services at any time without notice. We are not liable for any modification or discontinuation of services.</p>
+                
+                <hr style="margin: 25px 0; border: none; border-top: 2px solid #e0e0e0;">
+                
+                <p style="text-align: center; font-weight: bold; color: #667eea; margin-top: 20px;">
+                    By clicking "I Accept," you acknowledge that you have read, understood, and agree to this disclaimer.
+                </p>
+            </div>
+            
+            <div style="display: flex; gap: 15px; margin-top: 30px; justify-content: center;">
+                <button class="btn" onclick="acceptDisclaimer()" style="min-width: 200px; padding: 15px;">
+                    ✓ I Accept
+                </button>
+            </div>
         </div>
     </div>
     
@@ -1305,10 +1432,54 @@
         ];
         
         // Auth Functions
-        async function login() {
-            const username = document.getElementById('loginUsername').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            const pin = document.getElementById('loginPin').value;
+        // Auth Navigation Functions
+        function showLanding() {
+            hideAllAuthForms();
+            document.getElementById('landingPage').classList.remove('hidden');
+        }
+        
+        function showPatientAuth() {
+            hideAllAuthForms();
+            document.getElementById('patientLoginForm').classList.remove('hidden');
+        }
+        
+        function showClinicianAuth() {
+            hideAllAuthForms();
+            document.getElementById('clinicianLoginForm').classList.remove('hidden');
+        }
+        
+        function showPatientRegister() {
+            hideAllAuthForms();
+            document.getElementById('registerForm').classList.remove('hidden');
+            loadCliniciansForRegistration();
+        }
+        
+        function showClinicianRegister() {
+            hideAllAuthForms();
+            document.getElementById('clinicianRegisterForm').classList.remove('hidden');
+        }
+        
+        function hideAllAuthForms() {
+            document.getElementById('landingPage').classList.add('hidden');
+            document.getElementById('patientLoginForm').classList.add('hidden');
+            document.getElementById('clinicianLoginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('clinicianRegisterForm').classList.add('hidden');
+            document.getElementById('authMessage').classList.add('hidden');
+        }
+        
+        async function login(userType) {
+            let username, password, pin;
+            
+            if (userType === 'user') {
+                username = document.getElementById('loginUsername').value.trim();
+                password = document.getElementById('loginPassword').value;
+                pin = document.getElementById('loginPin').value;
+            } else {
+                username = document.getElementById('clinicianLoginUsername').value.trim();
+                password = document.getElementById('clinicianLoginPassword').value;
+                pin = document.getElementById('clinicianLoginPin').value;
+            }
             
             if (!username || !password) {
                 showAuthMessage('Please enter username and password', 'error');
@@ -1332,27 +1503,15 @@
                 if (response.ok) {
                     currentUser = username;
                     currentUserRole = data.role || 'user';
-                    document.getElementById('usernameDisplay').textContent = `Welcome, ${username}!`;
-                    document.getElementById('authScreen').style.display = 'none';
-                    document.getElementById('appScreen').style.display = 'block';
                     
-                    // Show professional tab only for clinicians
-                    if (currentUserRole === 'clinician') {
-                        document.getElementById('professionalTabBtn').style.display = 'block';
-                        loadPendingApprovals();
+                    // Check if user needs to accept disclaimer (first login)
+                    if (!data.disclaimer_accepted) {
+                        showDisclaimerModal();
+                        return;
                     }
                     
-                    // Check approval status for patients
-                    if (data.approval_status === 'pending') {
-                        alert('Your clinician has not yet approved your account. Some features may be limited until approval.');
-                    }
-                    
-                    loadNotifications();
-                    addSystemMessage('Welcome to Healing Space! How are you feeling today?');
-                    loadPetStatus();
-                    
-                    // Refresh notifications every 30 seconds
-                    setInterval(loadNotifications, 30000);
+                    // Proceed with normal login
+                    completeLogin(data);
                 } else {
                     showAuthMessage(data.error || 'Login failed', 'error');
                 }
@@ -1360,6 +1519,64 @@
                 showAuthMessage('Connection error. Please try again.', 'error');
                 console.error('Login error:', error);
             }
+        }
+        
+        function showDisclaimerModal() {
+            document.getElementById('disclaimerModal').style.display = 'flex';
+        }
+        
+        async function acceptDisclaimer() {
+            try {
+                await fetch('/api/auth/disclaimer/accept', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUser })
+                });
+                
+                document.getElementById('disclaimerModal').style.display = 'none';
+                
+                // Re-fetch user data and complete login
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username: currentUser, 
+                        password: 'skip',  // We already authenticated
+                        pin: 'skip'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    completeLogin(data);
+                }
+            } catch (error) {
+                console.error('Error accepting disclaimer:', error);
+            }
+        }
+        
+        function completeLogin(data) {
+            document.getElementById('usernameDisplay').textContent = `Welcome, ${currentUser}!`;
+            document.getElementById('authScreen').style.display = 'none';
+            document.getElementById('appScreen').style.display = 'block';
+            
+            // Show professional tab only for clinicians
+            if (currentUserRole === 'clinician') {
+                document.getElementById('professionalTabBtn').style.display = 'block';
+                loadPendingApprovals();
+            }
+            
+            // Check approval status for patients
+            if (data.approval_status === 'pending') {
+                alert('Your clinician has not yet approved your account. Some features may be limited until approval.');
+            }
+            
+            loadNotifications();
+            addSystemMessage('Welcome to Healing Space! How are you feeling today?');
+            loadPetStatus();
+            
+            // Refresh notifications every 30 seconds
+            setInterval(loadNotifications, 30000);
         }
         
         function checkPasswordStrength(password) {
@@ -1449,7 +1666,7 @@
                 if (response.ok) {
                     showAuthMessage('Account created! Awaiting clinician approval.', 'success');
                     setTimeout(() => {
-                        showLogin();
+                        showPatientAuth();
                         document.getElementById('loginUsername').value = username;
                     }, 3000);
                 } else {
@@ -1461,35 +1678,14 @@
             }
         }
         
-        function showLogin() {
-            document.getElementById('loginForm').classList.remove('hidden');
-            document.getElementById('registerForm').classList.add('hidden');
-            document.getElementById('clinicianRegisterForm').classList.add('hidden');
-            document.getElementById('authMessage').classList.add('hidden');
-        }
-        
-        function showRegister() {
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('registerForm').classList.remove('hidden');
-            document.getElementById('clinicianRegisterForm').classList.add('hidden');
-            document.getElementById('authMessage').classList.add('hidden');
-            loadCliniciansForRegistration();
-        }
-        
-        function showClinicianRegister() {
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('registerForm').classList.add('hidden');
-            document.getElementById('clinicianRegisterForm').classList.remove('hidden');
-            document.getElementById('authMessage').classList.add('hidden');
-        }
-        
         async function registerClinician() {
             const username = document.getElementById('clinicianUsername').value.trim();
             const password = document.getElementById('clinicianPassword').value;
+            const pin = document.getElementById('clinicianPin').value;
             const full_name = document.getElementById('clinicianFullName').value.trim();
             
-            if (!username || !password) {
-                showAuthMessage('Please fill in username and password', 'error');
+            if (!username || !password || !pin) {
+                showAuthMessage('Please fill in username, password, and PIN', 'error');
                 return;
             }
             
@@ -1498,11 +1694,16 @@
                 return;
             }
             
+            if (pin.length !== 4 || !/^\d+$/.test(pin)) {
+                showAuthMessage('PIN must be exactly 4 digits', 'error');
+                return;
+            }
+            
             try {
                 const response = await fetch('/api/auth/clinician/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, full_name })
+                    body: JSON.stringify({ username, password, pin, full_name })
                 });
                 
                 const data = await response.json();
@@ -1510,8 +1711,8 @@
                 if (response.ok) {
                     showAuthMessage('Clinician account created successfully! Please login.', 'success');
                     setTimeout(() => {
-                        showLogin();
-                        document.getElementById('loginUsername').value = username;
+                        showClinicianAuth();
+                        document.getElementById('clinicianLoginUsername').value = username;
                     }, 2000);
                 } else {
                     showAuthMessage(data.error || 'Registration failed', 'error');
@@ -1696,10 +1897,19 @@
                 document.getElementById('authScreen').style.display = 'flex';
                 document.getElementById('appScreen').style.display = 'none';
                 document.getElementById('chatMessages').innerHTML = '';
-                document.getElementById('loginUsername').value = '';
-                document.getElementById('loginPassword').value = '';
                 selectedMoodValue = null;
                 medications = [];
+                
+                // Clear login forms
+                document.getElementById('loginUsername').value = '';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('loginPin').value = '';
+                document.getElementById('clinicianLoginUsername').value = '';
+                document.getElementById('clinicianLoginPassword').value = '';
+                document.getElementById('clinicianLoginPin').value = '';
+                
+                // Return to landing page
+                showLanding();
             }
         }
         

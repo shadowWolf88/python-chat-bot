@@ -108,7 +108,8 @@ def init_db():
     
     cursor.execute('''CREATE TABLE IF NOT EXISTS users 
                       (username TEXT PRIMARY KEY, password TEXT, pin TEXT, last_login TIMESTAMP, 
-                       full_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user')''')
+                       full_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user', 
+                       disclaimer_accepted INTEGER DEFAULT 0)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS sessions 
                       (session_id TEXT PRIMARY KEY, username TEXT, title TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS gratitude_logs 
@@ -334,12 +335,19 @@ def login():
             return jsonify({'error': 'Invalid credentials'}), 401
         
         # Verify PIN (2FA)
-        if not check_pin(user[3], pin):
+        stored_pin = user[3]
+        if not check_pin(pin, stored_pin):
             conn.close()
             return jsonify({'error': 'Invalid PIN'}), 401
         
         role = user[2] or 'user'
         clinician_id = user[4]
+        
+        # Check disclaimer acceptance
+        disclaimer_accepted = cur.execute(
+            "SELECT disclaimer_accepted FROM users WHERE username=?",
+            (username,)
+        ).fetchone()[0]
         
         # Check approval status for patients
         approval_status = 'approved'
@@ -361,7 +369,8 @@ def login():
             'username': username,
             'role': role,
             'approval_status': approval_status,
-            'clinician_id': clinician_id
+            'clinician_id': clinician_id,
+            'disclaimer_accepted': bool(disclaimer_accepted)
         }), 200
         
     except Exception as e:
@@ -374,15 +383,20 @@ def clinician_register():
         data = request.json
         username = data.get('username')
         password = data.get('password')
+        pin = data.get('pin')
         full_name = data.get('full_name', '')
         
-        if not username or not password:
-            return jsonify({'error': 'Username and password required'}), 400
+        if not username or not password or not pin:
+            return jsonify({'error': 'Username, password, and PIN required'}), 400
         
         if len(password) < 8:
             return jsonify({'error': 'Password must be at least 8 characters'}), 400
         
+        if len(pin) != 4 or not pin.isdigit():
+            return jsonify({'error': 'PIN must be exactly 4 digits'}), 400
+        
         hashed_password = hash_password(password)
+        hashed_pin = hash_pin(pin)
         
         conn = sqlite3.connect("therapist_app.db")
         cur = conn.cursor()
@@ -395,8 +409,8 @@ def clinician_register():
         
         # Insert new clinician
         cur.execute(
-            "INSERT INTO users (username, password, role, full_name, last_login) VALUES (?,?,?,?,?)",
-            (username, hashed_password, 'clinician', full_name, datetime.now())
+            "INSERT INTO users (username, password, pin, role, full_name, last_login) VALUES (?,?,?,?,?,?)",
+            (username, hashed_password, hashed_pin, 'clinician', full_name, datetime.now())
         )
         conn.commit()
         conn.close()
@@ -404,6 +418,26 @@ def clinician_register():
         log_event(username, 'api', 'clinician_registered', 'Clinician registration via API')
         
         return jsonify({'success': True, 'message': 'Clinician account created successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/disclaimer/accept', methods=['POST'])
+def accept_disclaimer():
+    """Mark disclaimer as accepted for user"""
+    try:
+        data = request.json
+        username = data.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        conn = sqlite3.connect("therapist_app.db")
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET disclaimer_accepted=1 WHERE username=?", (username,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

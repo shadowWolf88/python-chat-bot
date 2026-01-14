@@ -315,7 +315,7 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS users 
                       (username TEXT PRIMARY KEY, password TEXT, pin TEXT, last_login TIMESTAMP, 
                        full_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user', 
-                       clinician_id TEXT)''')
+                       clinician_id TEXT, disclaimer_accepted INTEGER DEFAULT 0)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS sessions 
                       (session_id TEXT PRIMARY KEY, username TEXT, title TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS gratitude_logs 
