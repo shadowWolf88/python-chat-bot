@@ -109,7 +109,7 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS users 
                       (username TEXT PRIMARY KEY, password TEXT, pin TEXT, last_login TIMESTAMP, 
                        full_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user', 
-                       disclaimer_accepted INTEGER DEFAULT 0)''')
+                       clinician_id TEXT, disclaimer_accepted INTEGER DEFAULT 0)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS sessions 
                       (session_id TEXT PRIMARY KEY, username TEXT, title TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS gratitude_logs 
@@ -250,6 +250,16 @@ def register():
         if not username or not password or not pin:
             return jsonify({'error': 'Username, password, and PIN required'}), 400
         
+        # Validate password complexity
+        if len(password) < 8:
+            return jsonify({'error': 'Password must be at least 8 characters'}), 400
+        if not any(c.islower() for c in password) or not any(c.isupper() for c in password):
+            return jsonify({'error': 'Password must contain both uppercase and lowercase letters'}), 400
+        if not any(c.isdigit() for c in password):
+            return jsonify({'error': 'Password must contain at least one number'}), 400
+        if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in password):
+            return jsonify({'error': 'Password must contain at least one special character'}), 400
+        
         if not clinician_id:
             return jsonify({'error': 'Please select your clinician'}), 400
         
@@ -389,8 +399,15 @@ def clinician_register():
         if not username or not password or not pin:
             return jsonify({'error': 'Username, password, and PIN required'}), 400
         
+        # Validate password complexity
         if len(password) < 8:
             return jsonify({'error': 'Password must be at least 8 characters'}), 400
+        if not any(c.islower() for c in password) or not any(c.isupper() for c in password):
+            return jsonify({'error': 'Password must contain both uppercase and lowercase letters'}), 400
+        if not any(c.isdigit() for c in password):
+            return jsonify({'error': 'Password must contain at least one number'}), 400
+        if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in password):
+            return jsonify({'error': 'Password must contain at least one special character'}), 400
         
         if len(pin) != 4 or not pin.isdigit():
             return jsonify({'error': 'PIN must be exactly 4 digits'}), 400
