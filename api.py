@@ -237,12 +237,26 @@ def register():
         username = data.get('username')
         password = data.get('password')
         pin = data.get('pin')
+        clinician_id = data.get('clinician_id')  # Required for patients
         
         if not username or not password or not pin:
             return jsonify({'error': 'Username, password, and PIN required'}), 400
         
+        if not clinician_id:
+            return jsonify({'error': 'Please select your clinician'}), 400
+        
         conn = sqlite3.connect("therapist_app.db")
         cur = conn.cursor()
+        
+        # Verify clinician exists
+        clinician = cur.execute(
+            "SELECT username FROM users WHERE username=? AND role='clinician'",
+            (clinician_id,)
+        ).fetchone()
+        
+        if not clinician:
+            conn.close()
+            return jsonify({'error': 'Invalid clinician ID. Please select a valid clinician.'}), 400
         
         # Check if user exists
         if cur.execute("SELECT username FROM users WHERE username=?", (username,)).fetchone():
@@ -253,13 +267,13 @@ def register():
         hashed_password = hash_password(password)
         hashed_pin = hash_pin(pin)
         
-        # Create user
-        cur.execute("INSERT INTO users (username, password, pin, last_login) VALUES (?,?,?,?)",
-                   (username, hashed_password, hashed_pin, datetime.now()))
+        # Create user with clinician link
+        cur.execute("INSERT INTO users (username, password, pin, last_login, role, clinician_id) VALUES (?,?,?,?,?,?)",
+                   (username, hashed_password, hashed_pin, datetime.now(), 'user', clinician_id))
         conn.commit()
         conn.close()
         
-        log_event(username, 'api', 'user_registered', 'Registration via API')
+        log_event(username, 'api', 'user_registered', f'Registration via API, assigned to clinician: {clinician_id}')
         
         return jsonify({
             'success': True,
@@ -283,7 +297,7 @@ def login():
         
         conn = sqlite3.connect("therapist_app.db")
         cur = conn.cursor()
-        user = cur.execute("SELECT username, password FROM users WHERE username=?", (username,)).fetchone()
+        user = cur.execute("SELECT username, password, role FROM users WHERE username=?", (username,)).fetchone()
         conn.close()
         
         if not user or not verify_password(user[1], password):
@@ -294,9 +308,70 @@ def login():
         return jsonify({
             'success': True,
             'message': 'Login successful',
-            'username': username
+            'username': username,
+            'role': user[2] or 'user'
         }), 200
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/clinician/register', methods=['POST'])
+def clinician_register():
+    """Register a new clinician account"""
+    try:
+        data = request.json
+        username = data.get('username')
+        password = data.get('password')
+        full_name = data.get('full_name', '')
+        
+        if not username or not password:
+            return jsonify({'error': 'Username and password required'}), 400
+        
+        if len(password) < 8:
+            return jsonify({'error': 'Password must be at least 8 characters'}), 400
+        
+        hashed_password = hash_password(password)
+        
+        conn = sqlite3.connect("therapist_app.db")
+        cur = conn.cursor()
+        
+        # Check if username exists
+        existing = cur.execute("SELECT username FROM users WHERE username=?", (username,)).fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'error': 'Username already exists'}), 409
+        
+        # Insert new clinician
+        cur.execute(
+            "INSERT INTO users (username, password, role, full_name, last_login) VALUES (?,?,?,?,?)",
+            (username, hashed_password, 'clinician', full_name, datetime.now())
+        )
+        conn.commit()
+        conn.close()
+        
+        log_event(username, 'api', 'clinician_registered', 'Clinician registration via API')
+        
+        return jsonify({'success': True, 'message': 'Clinician account created successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/clinicians/list', methods=['GET'])
+def get_clinicians():
+    """Get list of all clinicians for patient signup"""
+    try:
+        conn = sqlite3.connect("therapist_app.db")
+        cur = conn.cursor()
+        clinicians = cur.execute(
+            "SELECT username, full_name FROM users WHERE role='clinician' ORDER BY username"
+        ).fetchall()
+        conn.close()
+        
+        return jsonify({
+            'clinicians': [
+                {'username': c[0], 'full_name': c[1] or c[0]}
+                for c in clinicians
+            ]
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1091,13 +1166,21 @@ def get_insights():
 # === PROFESSIONAL DASHBOARD ===
 @app.route('/api/professional/patients', methods=['GET'])
 def get_patients():
-    """Get list of all patients (for professional dashboard)"""
+    """Get list of all patients assigned to logged-in clinician"""
     try:
+        clinician_username = request.args.get('clinician')
+        
+        if not clinician_username:
+            return jsonify({'error': 'Clinician username required'}), 400
+        
         conn = sqlite3.connect("therapist_app.db")
         cur = conn.cursor()
         
-        # Get all users with basic stats
-        users = cur.execute("SELECT username FROM users WHERE is_professional=0 OR is_professional IS NULL").fetchall()
+        # Get only patients assigned to this clinician
+        users = cur.execute(
+            "SELECT username FROM users WHERE role='user' AND clinician_id=?",
+            (clinician_username,)
+        ).fetchall()
         
         patient_list = []
         for user in users:

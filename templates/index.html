@@ -629,7 +629,32 @@
                     <label>PIN (4 digits)</label>
                     <input type="password" id="regPin" placeholder="Choose 4-digit PIN" maxlength="4">
                 </div>
+                <div class="form-group">
+                    <label>Select Your Clinician</label>
+                    <select id="regClinician" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                        <option value="">-- Loading clinicians --</option>
+                    </select>
+                    <small style="color: #666; display: block; margin-top: 5px;">Your assigned mental health professional</small>
+                </div>
                 <button class="btn" onclick="register()">Create Account</button>
+                <button class="btn btn-secondary" onclick="showLogin()">Back to Login</button>
+                <button class="btn btn-secondary" onclick="showClinicianRegister()">I'm a Clinician</button>
+            </div>
+            
+            <div id="clinicianRegisterForm" class="hidden">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="clinicianUsername" placeholder="Choose username">
+                </div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="clinicianFullName" placeholder="Dr. Jane Smith">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="clinicianPassword" placeholder="Choose password (min 8 chars)">
+                </div>
+                <button class="btn" onclick="registerClinician()">Create Clinician Account</button>
                 <button class="btn btn-secondary" onclick="showLogin()">Back to Login</button>
             </div>
             
@@ -1078,6 +1103,7 @@
     
     <script>
         let currentUser = null;
+        let currentUserRole = 'user';
         let selectedMoodValue = null;
         let medications = [];
         let currentAssessment = null;
@@ -1128,9 +1154,16 @@
                 
                 if (response.ok) {
                     currentUser = username;
+                    currentUserRole = data.role || 'user';
                     document.getElementById('usernameDisplay').textContent = `Welcome, ${username}!`;
                     document.getElementById('authScreen').style.display = 'none';
                     document.getElementById('appScreen').style.display = 'block';
+                    
+                    // Show professional tab only for clinicians
+                    if (currentUserRole === 'clinician') {
+                        document.getElementById('professionalTabBtn').style.display = 'block';
+                    }
+                    
                     addSystemMessage('Welcome to Healing Space! How are you feeling today?');
                     loadPetStatus();
                 } else {
@@ -1146,9 +1179,15 @@
             const username = document.getElementById('regUsername').value.trim();
             const password = document.getElementById('regPassword').value;
             const pin = document.getElementById('regPin').value;
+            const clinician_id = document.getElementById('regClinician').value;
             
             if (!username || !password || !pin) {
                 showAuthMessage('Please fill in all fields', 'error');
+                return;
+            }
+            
+            if (!clinician_id) {
+                showAuthMessage('Please select your clinician', 'error');
                 return;
             }
             
@@ -1166,7 +1205,7 @@
                 const response = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, pin })
+                    body: JSON.stringify({ username, password, pin, clinician_id })
                 });
                 
                 const data = await response.json();
@@ -1189,13 +1228,82 @@
         function showLogin() {
             document.getElementById('loginForm').classList.remove('hidden');
             document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('clinicianRegisterForm').classList.add('hidden');
             document.getElementById('authMessage').classList.add('hidden');
         }
         
         function showRegister() {
             document.getElementById('loginForm').classList.add('hidden');
             document.getElementById('registerForm').classList.remove('hidden');
+            document.getElementById('clinicianRegisterForm').classList.add('hidden');
             document.getElementById('authMessage').classList.add('hidden');
+            loadCliniciansForRegistration();
+        }
+        
+        function showClinicianRegister() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('clinicianRegisterForm').classList.remove('hidden');
+            document.getElementById('authMessage').classList.add('hidden');
+        }
+        
+        async function registerClinician() {
+            const username = document.getElementById('clinicianUsername').value.trim();
+            const password = document.getElementById('clinicianPassword').value;
+            const full_name = document.getElementById('clinicianFullName').value.trim();
+            
+            if (!username || !password) {
+                showAuthMessage('Please fill in username and password', 'error');
+                return;
+            }
+            
+            if (password.length < 8) {
+                showAuthMessage('Password must be at least 8 characters', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/clinician/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, full_name })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showAuthMessage('Clinician account created successfully! Please login.', 'success');
+                    setTimeout(() => {
+                        showLogin();
+                        document.getElementById('loginUsername').value = username;
+                    }, 2000);
+                } else {
+                    showAuthMessage(data.error || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                showAuthMessage('Connection error. Please try again.', 'error');
+                console.error('Clinician register error:', error);
+            }
+        }
+        
+        async function loadCliniciansForRegistration() {
+            try {
+                const response = await fetch('/api/clinicians/list');
+                const data = await response.json();
+                
+                const select = document.getElementById('regClinician');
+                if (response.ok && data.clinicians && data.clinicians.length > 0) {
+                    select.innerHTML = '<option value="">-- Select your clinician --</option>' +
+                        data.clinicians.map(c => 
+                            `<option value="${c.username}">${c.full_name || c.username}</option>`
+                        ).join('');
+                } else {
+                    select.innerHTML = '<option value="">No clinicians available yet</option>';
+                }
+            } catch (error) {
+                console.error('Error loading clinicians:', error);
+                document.getElementById('regClinician').innerHTML = '<option value="">Error loading clinicians</option>';
+            }
         }
         
         function showAuthMessage(message, type) {
@@ -1208,6 +1316,8 @@
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
                 currentUser = null;
+                currentUserRole = 'user';
+                document.getElementById('professionalTabBtn').style.display = 'none';
                 document.getElementById('authScreen').style.display = 'flex';
                 document.getElementById('appScreen').style.display = 'none';
                 document.getElementById('chatMessages').innerHTML = '';
@@ -1892,11 +2002,16 @@
         
         // Professional Dashboard Functions
         async function loadPatients() {
+            if (currentUserRole !== 'clinician') {
+                alert('Access denied. Professional dashboard is only for clinicians.');
+                return;
+            }
+            
             const listDiv = document.getElementById('patientList');
             listDiv.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading" style="margin: 0 auto;"></div></div>';
             
             try {
-                const response = await fetch('/api/professional/patients');
+                const response = await fetch(`/api/professional/patients?clinician=${encodeURIComponent(currentUser)}`);
                 const data = await response.json();
                 
                 if (response.ok && data.patients && data.patients.length > 0) {
