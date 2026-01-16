@@ -147,6 +147,9 @@ def init_db():
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, username TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(post_id, username))''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS community_replies
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, username TEXT, message TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS clinician_notes
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT, clinician_username TEXT, patient_username TEXT, note_text TEXT, 
+                       is_highlighted INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS audit_logs
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, actor TEXT, action TEXT, details TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS alerts
@@ -317,10 +320,20 @@ def register():
             conn.close()
             return jsonify({'error': 'Invalid clinician ID. Please select a valid clinician.'}), 400
         
-        # Check if user exists
+        # Check if username exists
         if cur.execute("SELECT username FROM users WHERE username=?", (username,)).fetchone():
             conn.close()
             return jsonify({'error': 'Username already exists'}), 409
+        
+        # Check if email exists
+        if cur.execute("SELECT username FROM users WHERE email=?", (email,)).fetchone():
+            conn.close()
+            return jsonify({'error': 'Email already in use'}), 409
+        
+        # Check if phone exists
+        if cur.execute("SELECT username FROM users WHERE phone=?", (phone,)).fetchone():
+            conn.close()
+            return jsonify({'error': 'Phone number already in use'}), 409
         
         # Hash credentials
         hashed_password = hash_password(password)
@@ -574,10 +587,19 @@ def clinician_register():
         cur = conn.cursor()
         
         # Check if username exists
-        existing = cur.execute("SELECT username FROM users WHERE username=?", (username,)).fetchone()
-        if existing:
+        if cur.execute("SELECT username FROM users WHERE username=?", (username,)).fetchone():
             conn.close()
             return jsonify({'error': 'Username already exists'}), 409
+        
+        # Check if email exists
+        if cur.execute("SELECT username FROM users WHERE email=?", (email,)).fetchone():
+            conn.close()
+            return jsonify({'error': 'Email already in use'}), 409
+        
+        # Check if phone exists
+        if cur.execute("SELECT username FROM users WHERE phone=?", (phone,)).fetchone():
+            conn.close()
+            return jsonify({'error': 'Phone number already in use'}), 409
         
         # Insert new clinician
         cur.execute(
@@ -796,6 +818,65 @@ def reject_patient(approval_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/therapy/chat', methods=['POST'])
+def update_ai_memory(username):
+    """Update AI memory with recent user activity summary"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Get recent activities
+        recent_moods = cur.execute(
+            "SELECT mood_val, notes, entrestamp FROM mood_logs WHERE username=? ORDER BY entrestamp DESC LIMIT 5",
+            (username,)
+        ).fetchall()
+        
+        recent_assessments = cur.execute(
+            "SELECT scale_name, score, severity FROM clinical_scales WHERE username=? ORDER BY entry_timestamp DESC LIMIT 3",
+            (username,)
+        ).fetchall()
+        
+        recent_cbt = cur.execute(
+            "SELECT thought, evidence FROM cbt_records WHERE username=? ORDER BY entry_timestamp DESC LIMIT 3",
+            (username,)
+        ).fetchall()
+        
+        recent_alerts = cur.execute(
+            "SELECT alert_type, details FROM alerts WHERE username=? ORDER BY created_at DESC LIMIT 3",
+            (username,)
+        ).fetchall()
+        
+        # Build memory summary
+        memory_parts = []
+        
+        if recent_moods:
+            avg_mood = sum(m[0] for m in recent_moods) / len(recent_moods)
+            memory_parts.append(f"Recent mood average: {avg_mood:.1f}/10")
+            if recent_moods[0][1]:  # Latest mood note
+                memory_parts.append(f"Latest concern: {recent_moods[0][1][:100]}")
+        
+        if recent_assessments:
+            latest = recent_assessments[0]
+            memory_parts.append(f"Latest assessment: {latest[0]} - {latest[2]} severity (score: {latest[1]})")
+        
+        if recent_cbt:
+            memory_parts.append(f"Working on CBT: {len(recent_cbt)} recent exercises")
+        
+        if recent_alerts:
+            memory_parts.append(f"⚠️ Safety concerns: {len(recent_alerts)} recent alerts")
+        
+        memory_summary = "; ".join(memory_parts) if memory_parts else "New user, no activity yet"
+        
+        # Update or insert memory
+        cur.execute(
+            "INSERT OR REPLACE INTO ai_memory (username, memory_summary, last_updated) VALUES (?,?,?)",
+            (username, memory_summary, datetime.now())
+        )
+        conn.commit()
+        conn.close()
+        
+    except Exception as e:
+        print(f"AI memory update error: {e}")
+
 def therapy_chat():
     """AI therapy chat endpoint"""
     try:
@@ -805,6 +886,9 @@ def therapy_chat():
         
         if not username or not message:
             return jsonify({'error': 'Username and message required'}), 400
+        
+        # Update AI memory before chat
+        update_ai_memory(username)
         
         # Use TherapistAI class
         ai = TherapistAI(username)
@@ -816,6 +900,13 @@ def therapy_chat():
             "SELECT sender, message FROM chat_history WHERE session_id=? ORDER BY timestamp DESC LIMIT 10",
             (f"{username}_session",)
         ).fetchall()
+        
+        # Get AI memory to include in context
+        memory = cur.execute(
+            "SELECT memory_summary FROM ai_memory WHERE username=?",
+            (username,)
+        ).fetchone()
+        
         conn.close()
         
         # Get AI response using existing logic
@@ -875,6 +966,9 @@ def log_mood():
         conn.commit()
         log_id = cur.lastrowid
         conn.close()
+        
+        # Update AI memory with new activity
+        update_ai_memory(username)
         
         log_event(username, 'api', 'mood_logged', f'Mood: {mood_val}')
         
@@ -2271,6 +2365,276 @@ RECOMMENDATIONS:
         }), 200
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ===== CLINICIAN NOTES & PDF EXPORT =====
+@app.route('/api/professional/notes', methods=['POST'])
+def create_clinician_note():
+    """Create a note about a patient"""
+    try:
+        data = request.json
+        clinician_username = data.get('clinician_username')
+        patient_username = data.get('patient_username')
+        note_text = data.get('note_text')
+        is_highlighted = data.get('is_highlighted', False)
+        
+        if not clinician_username or not patient_username or not note_text:
+            return jsonify({'error': 'Clinician, patient, and note text required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO clinician_notes (clinician_username, patient_username, note_text, is_highlighted) VALUES (?,?,?,?)",
+            (clinician_username, patient_username, note_text, 1 if is_highlighted else 0)
+        )
+        note_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        
+        log_event(clinician_username, 'api', 'clinician_note_created', f'Note for {patient_username}')
+        
+        return jsonify({'success': True, 'note_id': note_id}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/professional/notes/<patient_username>', methods=['GET'])
+def get_clinician_notes(patient_username):
+    """Get all notes for a patient"""
+    try:
+        clinician_username = request.args.get('clinician')
+        
+        if not clinician_username:
+            return jsonify({'error': 'Clinician username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        notes = cur.execute(
+            "SELECT id, note_text, is_highlighted, created_at FROM clinician_notes WHERE clinician_username=? AND patient_username=? ORDER BY created_at DESC",
+            (clinician_username, patient_username)
+        ).fetchall()
+        conn.close()
+        
+        return jsonify({'notes': [
+            {
+                'id': n[0],
+                'text': n[1],
+                'highlighted': bool(n[2]),
+                'timestamp': n[3]
+            } for n in notes
+        ]}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/professional/notes/<int:note_id>', methods=['DELETE'])
+def delete_clinician_note(note_id):
+    """Delete a clinician note"""
+    try:
+        data = request.json
+        clinician_username = data.get('clinician_username')
+        
+        if not clinician_username:
+            return jsonify({'error': 'Clinician username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Verify note belongs to clinician
+        note = cur.execute(
+            "SELECT clinician_username FROM clinician_notes WHERE id=?",
+            (note_id,)
+        ).fetchone()
+        
+        if not note:
+            conn.close()
+            return jsonify({'error': 'Note not found'}), 404
+        
+        if note[0] != clinician_username:
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        cur.execute("DELETE FROM clinician_notes WHERE id=?", (note_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/professional/export-summary', methods=['POST'])
+def export_patient_summary():
+    """Generate HTML summary for patient with custom date range (for PDF conversion)"""
+    try:
+        data = request.json
+        clinician_username = data.get('clinician_username')
+        patient_username = data.get('patient_username')
+        start_date = data.get('start_date')  # Optional YYYY-MM-DD
+        end_date = data.get('end_date')  # Optional YYYY-MM-DD
+        
+        if not clinician_username or not patient_username:
+            return jsonify({'error': 'Clinician and patient usernames required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Get patient profile
+        profile = cur.execute(
+            "SELECT full_name, dob, conditions FROM users WHERE username=?",
+            (patient_username,)
+        ).fetchone()
+        
+        # Build date filters
+        mood_filter = ""
+        mood_params = [patient_username]
+        if start_date:
+            mood_filter += " AND entrestamp >= ?"
+            mood_params.append(start_date)
+        if end_date:
+            mood_filter += " AND entrestamp <= ?"
+            mood_params.append(end_date)
+        
+        # Get moods
+        moods = cur.execute(
+            f"SELECT mood_val, sleep_val, exercise_mins, notes, entrestamp FROM mood_logs WHERE username=?{mood_filter} ORDER BY entrestamp DESC",
+            tuple(mood_params)
+        ).fetchall()
+        
+        # Get assessments
+        assess_params = [patient_username]
+        assess_filter = ""
+        if start_date:
+            assess_filter += " AND entry_timestamp >= ?"
+            assess_params.append(start_date)
+        if end_date:
+            assess_filter += " AND entry_timestamp <= ?"
+            assess_params.append(end_date)
+        
+        assessments = cur.execute(
+            f"SELECT scale_name, score, severity, entry_timestamp FROM clinical_scales WHERE username=?{assess_filter} ORDER BY entry_timestamp DESC",
+            tuple(assess_params)
+        ).fetchall()
+        
+        # Get clinician notes
+        notes = cur.execute(
+            "SELECT note_text, is_highlighted, created_at FROM clinician_notes WHERE clinician_username=? AND patient_username=? ORDER BY created_at DESC",
+            (clinician_username, patient_username)
+        ).fetchall()
+        
+        # Get alerts
+        alert_params = [patient_username]
+        alert_filter = ""
+        if start_date:
+            alert_filter += " AND created_at >= ?"
+            alert_params.append(start_date)
+        if end_date:
+            alert_filter += " AND created_at <= ?"
+            alert_params.append(end_date)
+        
+        alerts = cur.execute(
+            f"SELECT alert_type, details, created_at FROM alerts WHERE username=?{alert_filter} ORDER BY created_at DESC",
+            tuple(alert_params)
+        ).fetchall()
+        
+        conn.close()
+        
+        # Calculate stats
+        period_text = "All Time"
+        if start_date and end_date:
+            period_text = f"{start_date} to {end_date}"
+        elif start_date:
+            period_text = f"From {start_date}"
+        elif end_date:
+            period_text = f"Until {end_date}"
+        
+        avg_mood = sum(m[0] for m in moods) / len(moods) if moods else 0
+        avg_sleep = sum(m[1] or 0 for m in moods) / len(moods) if moods else 0
+        
+        # Build HTML
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+        h1 {{ color: #667eea; border-bottom: 3px solid #667eea; padding-bottom: 10px; }}
+        h2 {{ color: #333; margin-top: 30px; border-bottom: 2px solid #e0e0e0; padding-bottom: 5px; }}
+        .header {{ background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; }}
+        .stats {{ display: flex; gap: 30px; margin: 20px 0; }}
+        .stat {{ text-align: center; }}
+        .stat-label {{ font-size: 12px; color: #666; text-transform: uppercase; }}
+        .stat-value {{ font-size: 28px; font-weight: bold; color: #667eea; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
+        th {{ background: #667eea; color: white; padding: 10px; text-align: left; }}
+        td {{ padding: 8px; border-bottom: 1px solid #e0e0e0; }}
+        .highlight {{ background: #fff3cd; padding: 12px; border-left: 4px solid #ffc107; margin: 10px 0; }}
+        .note {{ background: #f8f9fa; padding: 12px; border-radius: 6px; margin: 10px 0; }}
+        .alert {{ background: #ffebee; padding: 12px; border-left: 4px solid #e74c3c; margin: 10px 0; }}
+    </style>
+</head>
+<body>
+    <h1>Clinical Summary: {patient_username}</h1>
+    
+    <div class="header">
+        <p><strong>Patient:</strong> {profile[0] if profile and profile[0] else patient_username}</p>
+        <p><strong>Conditions:</strong> {profile[2] if profile and profile[2] else 'Not specified'}</p>
+        <p><strong>Report Period:</strong> {period_text}</p>
+        <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p><strong>Clinician:</strong> Dr. {clinician_username}</p>
+    </div>
+    
+    <h2>Summary Statistics</h2>
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">{avg_mood:.1f}/10</div>
+            <div class="stat-label">Average Mood</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{avg_sleep:.1f}h</div>
+            <div class="stat-label">Average Sleep</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{len(moods)}</div>
+            <div class="stat-label">Mood Entries</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{len(alerts)}</div>
+            <div class="stat-label">Safety Alerts</div>
+        </div>
+    </div>
+    
+    <h2>Clinician Notes</h2>
+    {''.join([f'<div class="{"highlight" if n[1] else "note"}"><strong>{n[2][:10]}</strong><br>{n[0]}</div>' for n in notes]) if notes else '<p>No clinical notes recorded</p>'}
+    
+    <h2>Assessment Results</h2>
+    {'<table><tr><th>Assessment</th><th>Score</th><th>Severity</th><th>Date</th></tr>' + ''.join([f'<tr><td>{a[0]}</td><td>{a[1]}</td><td>{a[2]}</td><td>{a[3][:10]}</td></tr>' for a in assessments]) + '</table>' if assessments else '<p>No assessments completed in this period</p>'}
+    
+    <h2>Safety Alerts</h2>
+    {''.join([f'<div class="alert"><strong>{a[0]}:</strong> {a[1]}<br><small>{a[2][:19]}</small></div>' for a in alerts]) if alerts else '<p style="color: #28a745;">✓ No safety alerts in this period</p>'}
+    
+    <h2>Mood History (Last 30 Entries)</h2>
+    {'<table><tr><th>Date</th><th>Mood</th><th>Sleep</th><th>Exercise</th><th>Notes</th></tr>' + ''.join([f'<tr><td>{m[4][:10]}</td><td>{m[0]}/10</td><td>{m[1] or 0}h</td><td>{m[2] or 0}min</td><td style="max-width:200px;">{(m[3] or "-")[:50]}</td></tr>' for m in moods[:30]]) + '</table>' if moods else '<p>No mood entries in this period</p>'}
+    
+    <hr style="margin-top: 40px;">
+    <p style="text-align: center; color: #999; font-size: 11px;">Confidential - Generated by Healing Space Therapy App for {clinician_username}</p>
+</body>
+</html>"""
+        
+        return jsonify({
+            'success': True,
+            'html': html,
+            'period': period_text,
+            'stats': {
+                'avg_mood': round(avg_mood, 1),
+                'avg_sleep': round(avg_sleep, 1),
+                'total_entries': len(moods),
+                'alert_count': len(alerts),
+                'assessment_count': len(assessments)
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"Export summary error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 # ===== ADMIN / TESTING ENDPOINTS =====
