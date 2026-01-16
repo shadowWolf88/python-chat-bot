@@ -316,10 +316,22 @@ def register():
         pin = data.get('pin')
         email = data.get('email')
         phone = data.get('phone')
+        full_name = data.get('full_name')
+        dob = data.get('dob')
+        conditions = data.get('conditions')
         clinician_id = data.get('clinician_id')  # Required for patients
         
         if not username or not password or not pin or not email or not phone:
             return jsonify({'error': 'All fields are required'}), 400
+        
+        if not full_name:
+            return jsonify({'error': 'Full name is required'}), 400
+        
+        if not dob:
+            return jsonify({'error': 'Date of birth is required'}), 400
+        
+        if not conditions:
+            return jsonify({'error': 'Medical conditions/diagnosis is required'}), 400
         
         # Validate password complexity
         if len(password) < 8:
@@ -366,9 +378,9 @@ def register():
         hashed_password = hash_password(password)
         hashed_pin = hash_pin(pin)
         
-        # Create user WITHOUT clinician link (pending approval)
-        cur.execute("INSERT INTO users (username, password, pin, email, phone, last_login, role) VALUES (?,?,?,?,?,?,?)",
-                   (username, hashed_password, hashed_pin, email, phone, datetime.now(), 'user'))
+        # Create user with full profile information
+        cur.execute("INSERT INTO users (username, password, pin, email, phone, full_name, dob, conditions, last_login, role) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                   (username, hashed_password, hashed_pin, email, phone, full_name, dob, conditions, datetime.now(), 'user'))
         
         # Create pending approval request
         cur.execute("INSERT INTO patient_approvals (patient_username, clinician_username, status) VALUES (?,?,?)",
@@ -376,7 +388,7 @@ def register():
         
         # Notify clinician of new patient request
         cur.execute("INSERT INTO notifications (recipient_username, message, notification_type) VALUES (?,?,?)",
-                   (clinician_id, f'New patient request from {username}', 'patient_request'))
+                   (clinician_id, f'New patient request from {full_name} ({username})', 'patient_request'))
         
         # Notify patient that request is pending
         cur.execute("INSERT INTO notifications (recipient_username, message, notification_type) VALUES (?,?,?)",
