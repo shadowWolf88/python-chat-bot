@@ -1924,8 +1924,8 @@
                 const data = await response.json();
                 
                 const container = document.getElementById('pendingApprovals');
-                if (response.ok && data.approvals && data.approvals.length > 0) {
-                    container.innerHTML = data.approvals.map(approval => `
+                if (response.ok && data.pending_approvals && data.pending_approvals.length > 0) {
+                    container.innerHTML = data.pending_approvals.map(approval => `
                         <div class="approval-request">
                             <div>
                                 <strong>${approval.patient_username}</strong>
