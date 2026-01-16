@@ -1856,9 +1856,11 @@ def get_patients():
         conn = sqlite3.connect("therapist_app.db")
         cur = conn.cursor()
         
-        # Get only patients assigned to this clinician
+        # Get only APPROVED patients assigned to this clinician
         users = cur.execute(
-            "SELECT username FROM users WHERE role='user' AND clinician_id=?",
+            """SELECT u.username FROM users u
+               JOIN patient_approvals pa ON u.username = pa.patient_username
+               WHERE u.role='user' AND pa.clinician_username=? AND pa.status='approved'""",
             (clinician_username,)
         ).fetchall()
         

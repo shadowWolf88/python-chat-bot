@@ -1770,9 +1770,28 @@
                 loadPendingApprovals();
                 loadPatients(); // Auto-load patients
             } else {
-                // Hide professional tab for patients
+                // PATIENT: Hide professional tab, SHOW all patient tabs
                 document.getElementById('professionalTabBtn').style.display = 'none';
                 document.getElementById('professionalTab').style.display = 'none';
+                
+                // Ensure patient tab buttons are visible
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    if (btn.id !== 'professionalTabBtn') {
+                        btn.style.display = 'inline-block';
+                    }
+                });
+                
+                // Ensure patient tab content exists (will be shown/hidden by switchTab)
+                const patientTabs = ['therapyTab', 'moodTab', 'gratitudeTab', 'cbtTab', 'petTab', 
+                                     'clinicalTab', 'communityTab', 'safetyTab', 'insightsTab', 
+                                     'sleepTab', 'historyTab'];
+                patientTabs.forEach(tabId => {
+                    const tab = document.getElementById(tabId);
+                    if (tab) {
+                        // Don't force display here - let switchTab handle it
+                        tab.style.display = '';
+                    }
+                });
             }
             
             // Check approval status for patients
