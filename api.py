@@ -1901,25 +1901,25 @@ def get_patient_detail(username):
         
         # Profile
         profile = cur.execute(
-            "SELECT full_name, dob, conditions FROM users WHERE username=?",
+            "SELECT full_name, dob, conditions, email, phone FROM users WHERE username=?",
             (username,)
         ).fetchone()
         
         # Recent moods
         moods = cur.execute(
-            "SELECT mood_val, sleep_val, entry_timestamp FROM mood_logs WHERE username=? ORDER BY entry_timestamp DESC LIMIT 10",
+            "SELECT mood_val, sleep_val, exercise_val, notes, entry_timestamp FROM mood_logs WHERE username=? ORDER BY entry_timestamp DESC LIMIT 30",
             (username,)
         ).fetchall()
         
         # Recent alerts
         alerts = cur.execute(
-            "SELECT alert_type, message, entry_timestamp FROM safety_alerts WHERE username=? ORDER BY entry_timestamp DESC LIMIT 5",
+            "SELECT alert_type, message, entry_timestamp FROM safety_alerts WHERE username=? ORDER BY entry_timestamp DESC LIMIT 10",
             (username,)
         ).fetchall()
         
         # Clinical scales
         scales = cur.execute(
-            "SELECT scale_name, score, severity, entry_timestamp FROM clinical_scales WHERE username=? ORDER BY entry_timestamp DESC LIMIT 5",
+            "SELECT scale_name, score, severity, entry_timestamp FROM clinical_scales WHERE username=? ORDER BY entry_timestamp DESC LIMIT 10",
             (username,)
         ).fetchall()
         
@@ -1928,12 +1928,15 @@ def get_patient_detail(username):
         return jsonify({
             'username': username,
             'profile': {
+                'username': username,
                 'name': profile[0] if profile else '',
                 'dob': profile[1] if profile else '',
-                'conditions': profile[2] if profile else ''
+                'conditions': profile[2] if profile else '',
+                'email': profile[3] if profile else '',
+                'phone': profile[4] if profile else ''
             },
             'recent_moods': [
-                {'mood': m[0], 'sleep': m[1], 'timestamp': m[2]} for m in moods
+                {'mood': m[0], 'sleep': m[1] or 0, 'exercise': m[2] or 0, 'notes': m[3] or '', 'timestamp': m[4]} for m in moods
             ],
             'recent_alerts': [
                 {'type': a[0], 'message': a[1], 'timestamp': a[2]} for a in alerts
@@ -1942,6 +1945,160 @@ def get_patient_detail(username):
                 {'name': s[0], 'score': s[1], 'severity': s[2], 'timestamp': s[3]} for s in scales
             ]
         }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/professional/ai-summary', methods=['POST'])
+def generate_ai_summary():
+    """Generate AI clinical summary for a patient"""
+    try:
+        data = request.json
+        username = data.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        # Fetch patient data
+        conn = sqlite3.connect("therapist_app.db")
+        cur = conn.cursor()
+        
+        # Get profile
+        profile = cur.execute(
+            "SELECT full_name, conditions FROM users WHERE username=?",
+            (username,)
+        ).fetchone()
+        
+        # Get recent moods (last 30 days)
+        moods = cur.execute(
+            "SELECT mood_val, sleep_val, exercise_val, notes, entry_timestamp FROM mood_logs WHERE username=? ORDER BY entry_timestamp DESC LIMIT 30",
+            (username,)
+        ).fetchall()
+        
+        # Get recent alerts (last 30 days)
+        alerts = cur.execute(
+            "SELECT alert_type, message, entry_timestamp FROM safety_alerts WHERE username=? AND entry_timestamp > datetime('now', '-30 days') ORDER BY entry_timestamp DESC",
+            (username,)
+        ).fetchall()
+        
+        # Get latest assessments
+        scales = cur.execute(
+            "SELECT scale_name, score, severity FROM clinical_scales WHERE username=? ORDER BY entry_timestamp DESC LIMIT 5",
+            (username,)
+        ).fetchall()
+        
+        # Get recent therapy interactions
+        therapy = cur.execute(
+            "SELECT COUNT(*), MAX(entry_timestamp) FROM chat_history WHERE username=?",
+            (username,)
+        ).fetchone()
+        
+        conn.close()
+        
+        # Build context for AI
+        patient_name = profile[0] if profile else username
+        conditions = profile[1] if profile and profile[1] else "Not specified"
+        
+        avg_mood = sum(m[0] for m in moods) / len(moods) if moods else 0
+        avg_sleep = sum(m[1] or 0 for m in moods) / len(moods) if moods else 0
+        avg_exercise = sum(m[2] or 0 for m in moods) / len(moods) if moods else 0
+        
+        # Mood trend (recent vs older)
+        if len(moods) >= 6:
+            recent_mood = sum(m[0] for m in moods[:3]) / 3
+            older_mood = sum(m[0] for m in moods[-3:]) / 3
+            mood_trend = "improving" if recent_mood > older_mood else "declining" if recent_mood < older_mood else "stable"
+        else:
+            mood_trend = "insufficient data"
+        
+        alert_count = len(alerts)
+        therapy_sessions = therapy[0] if therapy else 0
+        
+        # Build prompt
+        prompt = f"""You are a clinical psychologist reviewing patient data. Generate a concise professional clinical summary (3-4 paragraphs).
+
+Patient: {patient_name}
+Known Conditions: {conditions}
+
+Data Summary (Last 30 Days):
+- Average Mood: {avg_mood:.1f}/10
+- Mood Trend: {mood_trend}
+- Average Sleep: {avg_sleep:.1f} hours
+- Average Exercise: {avg_exercise:.1f} minutes
+- Safety Alerts: {alert_count}
+- Therapy Interactions: {therapy_sessions}
+
+Latest Assessments:
+{chr(10).join([f"- {s[0]}: {s[1]} ({s[2]})" for s in scales]) if scales else "No assessments completed"}
+
+Recent Alerts:
+{chr(10).join([f"- {a[0]}: {a[1]}" for a in alerts[:3]]) if alerts else "No recent alerts"}
+
+Please provide:
+1. Overall clinical impression
+2. Key concerns or risk factors
+3. Notable trends
+4. Recommended clinical actions
+
+Keep it professional and evidence-based."""
+
+        # Call AI API
+        if GROQ_API_KEY and API_URL:
+            try:
+                response = requests.post(
+                    API_URL,
+                    headers={
+                        "Authorization": f"Bearer {GROQ_API_KEY}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "llama-3.3-70b-versatile",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.3,
+                        "max_tokens": 800
+                    },
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    ai_response = response.json()
+                    summary = ai_response['choices'][0]['message']['content']
+                    
+                    return jsonify({
+                        'success': True,
+                        'summary': summary
+                    }), 200
+                else:
+                    # Fallback to basic summary
+                    pass
+            except Exception as e:
+                print(f"AI summary error: {e}")
+                # Fallback to basic summary
+                pass
+        
+        # Fallback: Basic summary
+        summary = f"""CLINICAL SUMMARY - {patient_name}
+
+OVERVIEW:
+Patient has recorded {len(moods)} mood entries over the last 30 days with an average mood rating of {avg_mood:.1f}/10. Mood trend appears {mood_trend}. {"⚠️ ALERT: " + str(alert_count) + " safety alerts have been triggered." if alert_count > 0 else "No safety alerts recorded."}
+
+CURRENT STATUS:
+{"Latest assessment: " + scales[0][0] + " - " + scales[0][2] + " severity (Score: " + str(scales[0][1]) + ")" if scales else "No formal assessments completed."}
+Sleep average: {avg_sleep:.1f} hours per night
+Exercise average: {avg_exercise:.0f} minutes per day
+
+CLINICAL NOTES:
+{"⚠️ REQUIRES IMMEDIATE ATTENTION - Multiple safety alerts indicate elevated risk." if alert_count > 3 else "Patient appears stable based on available data." if alert_count == 0 else "Monitor for concerning patterns."}
+{"Engagement with therapy is " + ("excellent" if therapy_sessions > 20 else "moderate" if therapy_sessions > 5 else "limited") + f" ({therapy_sessions} interactions recorded)." if therapy_sessions else "Patient has not engaged with therapy features yet."}
+
+RECOMMENDATIONS:
+{"URGENT: Schedule immediate clinical assessment due to safety concerns." if alert_count > 3 else "Continue monitoring mood patterns and sleep quality." if avg_mood < 5 else "Maintain current treatment plan."} Consider formal assessment if not completed recently."""
+
+        return jsonify({
+            'success': True,
+            'summary': summary,
+            'fallback': True
+        }), 200
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
