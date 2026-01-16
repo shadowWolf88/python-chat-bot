@@ -812,6 +812,7 @@
                     <input type="password" id="loginPin" placeholder="Enter your 4-digit PIN" maxlength="4">
                 </div>
                 <button class="btn" onclick="login('user')">Login</button>
+                <a href="#" onclick="showForgotPassword('patient'); return false;" style="display: block; text-align: center; margin: 15px 0; color: #667eea; text-decoration: none;">Forgot Password or PIN?</a>
                 <button class="btn btn-secondary" onclick="showPatientRegister()">Create Patient Account</button>
                 <button class="btn btn-secondary" onclick="showLanding()">Back</button>
             </div>
@@ -832,6 +833,7 @@
                     <input type="password" id="clinicianLoginPin" placeholder="Enter your 4-digit PIN" maxlength="4">
                 </div>
                 <button class="btn" onclick="login('clinician')">Login</button>
+                <a href="#" onclick="showForgotPassword('clinician'); return false;" style="display: block; text-align: center; margin: 15px 0; color: #667eea; text-decoration: none;">Forgot Password or PIN?</a>
                 <button class="btn btn-secondary" onclick="showClinicianRegister()">Create Clinician Account</button>
                 <button class="btn btn-secondary" onclick="showLanding()">Back</button>
             </div>
@@ -856,6 +858,14 @@
                     <input type="password" id="regPin" placeholder="Choose 4-digit PIN" maxlength="4">
                 </div>
                 <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="regEmail" placeholder="your.email@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="regPhone" placeholder="+1234567890" required>
+                </div>
+                <div class="form-group">
                     <label>Select Your Clinician</label>
                     <select id="regClinician" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
                         <option value="">-- Loading clinicians --</option>
@@ -878,6 +888,14 @@
                     <input type="text" id="clinicianFullName" placeholder="Dr. Jane Smith">
                 </div>
                 <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="clinicianEmail" placeholder="doctor@clinic.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="clinicianPhone" placeholder="+1234567890" required>
+                </div>
+                <div class="form-group">
                     <label>Password</label>
                     <input type="password" id="clinicianPassword" placeholder="Choose password (min 8 chars)">
                 </div>
@@ -887,6 +905,22 @@
                 </div>
                 <button class="btn" onclick="registerClinician()">Create Clinician Account</button>
                 <button class="btn btn-secondary" onclick="showClinicianAuth()">Back to Login</button>
+            </div>
+            
+            <!-- Forgot Password Form -->
+            <div id="forgotPasswordForm" class="hidden">
+                <h3 style="text-align: center; margin-bottom: 20px;">Reset Password/PIN</h3>
+                <p style="text-align: center; color: #666; margin-bottom: 20px;">Enter your username and email. We'll send you a reset link.</p>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="forgotUsername" placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="forgotEmail" placeholder="Enter your registered email">
+                </div>
+                <button class="btn" onclick="requestPasswordReset()">Send Reset Link</button>
+                <button class="btn btn-secondary" onclick="showLanding()">Back</button>
             </div>
             
             <div id="authMessage" class="hidden"></div>
@@ -1549,12 +1583,48 @@
             document.getElementById('clinicianRegisterForm').classList.remove('hidden');
         }
         
+        function showForgotPassword(userType) {
+            hideAllAuthForms();
+            document.getElementById('forgotPasswordForm').classList.remove('hidden');
+        }
+        
+        async function requestPasswordReset() {
+            const username = document.getElementById('forgotUsername').value.trim();
+            const email = document.getElementById('forgotEmail').value.trim();
+            
+            if (!username || !email) {
+                showAuthMessage('Please enter your username and email', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showAuthMessage('Password reset link sent to your email!', 'success');
+                    setTimeout(() => showLanding(), 3000);
+                } else {
+                    showAuthMessage(data.error || 'Failed to send reset link', 'error');
+                }
+            } catch (error) {
+                showAuthMessage('Connection error. Please try again.', 'error');
+                console.error('Password reset error:', error);
+            }
+        }
+        
         function hideAllAuthForms() {
             document.getElementById('landingPage').classList.add('hidden');
             document.getElementById('patientLoginForm').classList.add('hidden');
             document.getElementById('clinicianLoginForm').classList.add('hidden');
             document.getElementById('registerForm').classList.add('hidden');
             document.getElementById('clinicianRegisterForm').classList.add('hidden');
+            document.getElementById('forgotPasswordForm').classList.add('hidden');
             document.getElementById('authMessage').classList.add('hidden');
         }
         
@@ -1688,9 +1758,11 @@
             const username = document.getElementById('regUsername').value.trim();
             const password = document.getElementById('regPassword').value;
             const pin = document.getElementById('regPin').value;
+            const email = document.getElementById('regEmail').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
             const clinician_id = document.getElementById('regClinician').value;
             
-            if (!username || !password || !pin) {
+            if (!username || !password || !pin || !email || !phone) {
                 showAuthMessage('Please fill in all fields', 'error');
                 return;
             }
@@ -1732,7 +1804,9 @@
                 type: 'patient',
                 username, 
                 password, 
-                pin, 
+                pin,
+                email,
+                phone,
                 clinician_id 
             };
             showDisclaimerModal();
@@ -1746,7 +1820,9 @@
                     body: JSON.stringify({ 
                         username: data.username, 
                         password: data.password, 
-                        pin: data.pin, 
+                        pin: data.pin,
+                        email: data.email,
+                        phone: data.phone,
                         clinician_id: data.clinician_id,
                         disclaimer_accepted: true
                     })
@@ -1774,9 +1850,11 @@
             const password = document.getElementById('clinicianPassword').value;
             const pin = document.getElementById('clinicianPin').value;
             const full_name = document.getElementById('clinicianFullName').value.trim();
+            const email = document.getElementById('clinicianEmail').value.trim();
+            const phone = document.getElementById('clinicianPhone').value.trim();
             
-            if (!username || !password || !pin) {
-                showAuthMessage('Please fill in username, password, and PIN', 'error');
+            if (!username || !password || !pin || !email || !phone) {
+                showAuthMessage('Please fill in all required fields', 'error');
                 return;
             }
             
@@ -1796,8 +1874,10 @@
                 type: 'clinician',
                 username, 
                 password, 
-                pin, 
-                full_name 
+                pin,
+                full_name,
+                email,
+                phone
             };
             showDisclaimerModal();
         }
@@ -1812,6 +1892,8 @@
                         password: data.password, 
                         pin: data.pin, 
                         full_name: data.full_name,
+                        email: data.email,
+                        phone: data.phone,
                         disclaimer_accepted: true
                     })
                 });

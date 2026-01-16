@@ -9,8 +9,12 @@ import os
 import json
 import hashlib
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys
+import secrets
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Import existing modules (avoid importing main.py which has tkinter)
 from secrets_manager import SecretsManager
@@ -144,6 +148,27 @@ def init_db():
                       (session_id TEXT, sender TEXT, message TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
     
+    # Add email and phone columns if they don't exist
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN phone TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN reset_token TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN reset_token_expiry DATETIME")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
     conn.commit()
     conn.close()
 
@@ -245,10 +270,12 @@ def register():
         username = data.get('username')
         password = data.get('password')
         pin = data.get('pin')
+        email = data.get('email')
+        phone = data.get('phone')
         clinician_id = data.get('clinician_id')  # Required for patients
         
-        if not username or not password or not pin:
-            return jsonify({'error': 'Username, password, and PIN required'}), 400
+        if not username or not password or not pin or not email or not phone:
+            return jsonify({'error': 'All fields are required'}), 400
         
         # Validate password complexity
         if len(password) < 8:
@@ -286,8 +313,8 @@ def register():
         hashed_pin = hash_pin(pin)
         
         # Create user WITHOUT clinician link (pending approval)
-        cur.execute("INSERT INTO users (username, password, pin, last_login, role) VALUES (?,?,?,?,?)",
-                   (username, hashed_password, hashed_pin, datetime.now(), 'user'))
+        cur.execute("INSERT INTO users (username, password, pin, email, phone, last_login, role) VALUES (?,?,?,?,?,?,?)",
+                   (username, hashed_password, hashed_pin, email, phone, datetime.now(), 'user'))
         
         # Create pending approval request
         cur.execute("INSERT INTO patient_approvals (patient_username, clinician_username, status) VALUES (?,?,?)",
@@ -386,6 +413,109 @@ def login():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/auth/forgot-password', methods=['POST'])
+def forgot_password():
+    """Send password reset email"""
+    try:
+        data = request.json
+        username = data.get('username')
+        email = data.get('email')
+        
+        if not username or not email:
+            return jsonify({'error': 'Username and email required'}), 400
+        
+        conn = sqlite3.connect("therapist_app.db")
+        cur = conn.cursor()
+        
+        # Verify user exists and email matches
+        user = cur.execute(
+            "SELECT email FROM users WHERE username=? AND email=?",
+            (username, email)
+        ).fetchone()
+        
+        if not user:
+            # Don't reveal if user exists for security
+            return jsonify({'success': True, 'message': 'If account exists, reset link sent'}), 200
+        
+        # Generate reset token
+        reset_token = secrets.token_urlsafe(32)
+        expiry = datetime.now() + timedelta(hours=1)
+        
+        # Store token
+        cur.execute(
+            "UPDATE users SET reset_token=?, reset_token_expiry=? WHERE username=?",
+            (reset_token, expiry, username)
+        )
+        conn.commit()
+        conn.close()
+        
+        # Send email
+        send_reset_email(email, username, reset_token)
+        
+        log_event(username, 'api', 'password_reset_requested', f'Reset requested for {email}')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Password reset link sent to your email'
+        }), 200
+        
+    except Exception as e:
+        print(f"Password reset error: {e}")
+        return jsonify({'error': 'Failed to send reset email'}), 500
+
+def send_reset_email(to_email, username, reset_token):
+    """Send password reset email via SMTP"""
+    try:
+        # Get SMTP credentials from environment
+        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_user = os.getenv('SMTP_USER')
+        smtp_password = os.getenv('SMTP_PASSWORD')
+        from_email = os.getenv('FROM_EMAIL', smtp_user)
+        
+        if not smtp_user or not smtp_password:
+            print("SMTP credentials not configured")
+            return
+        
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'Healing Space - Password Reset'
+        msg['From'] = from_email
+        msg['To'] = to_email
+        
+        # Reset URL (use Railway URL or localhost)
+        base_url = os.getenv('APP_URL', 'https://web-production-64594.up.railway.app')
+        reset_url = f"{base_url}/reset-password?token={reset_token}&username={username}"
+        
+        html = f"""
+        <html>
+          <body>
+            <h2>Password Reset Request</h2>
+            <p>Hello {username},</p>
+            <p>You requested to reset your password. Click the link below to reset it:</p>
+            <p><a href="{reset_url}">Reset Password</a></p>
+            <p>This link expires in 1 hour.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+            <br>
+            <p>Best regards,<br>Healing Space Team</p>
+          </body>
+        </html>
+        """
+        
+        msg.attach(MIMEText(html, 'html'))
+        
+        # Send email
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+        
+        print(f"Reset email sent to {to_email}")
+        
+    except Exception as e:
+        print(f"Email send error: {e}")
+        raise
+
 @app.route('/api/auth/clinician/register', methods=['POST'])
 def clinician_register():
     """Register a new clinician account"""
@@ -395,9 +525,11 @@ def clinician_register():
         password = data.get('password')
         pin = data.get('pin')
         full_name = data.get('full_name', '')
+        email = data.get('email')
+        phone = data.get('phone')
         
-        if not username or not password or not pin:
-            return jsonify({'error': 'Username, password, and PIN required'}), 400
+        if not username or not password or not pin or not email or not phone:
+            return jsonify({'error': 'All fields are required'}), 400
         
         # Validate password complexity
         if len(password) < 8:
@@ -426,8 +558,8 @@ def clinician_register():
         
         # Insert new clinician
         cur.execute(
-            "INSERT INTO users (username, password, pin, role, full_name, last_login) VALUES (?,?,?,?,?,?)",
-            (username, hashed_password, hashed_pin, 'clinician', full_name, datetime.now())
+            "INSERT INTO users (username, password, pin, role, full_name, email, phone, last_login) VALUES (?,?,?,?,?,?,?,?)",
+            (username, hashed_password, hashed_pin, 'clinician', full_name, email, phone, datetime.now())
         )
         conn.commit()
         conn.close()
