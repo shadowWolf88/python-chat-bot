@@ -954,10 +954,11 @@ def pet_feed():
 
 @app.route('/api/pet/reward', methods=['POST'])
 def pet_reward():
-    """Reward pet for user self-care actions"""
+    """Reward pet for user self-care actions - matches original desktop app logic"""
     try:
         data = request.json
-        action = data.get('action')  # 'therapy', 'mood', 'gratitude', 'breathing'
+        action = data.get('action')  # 'therapy', 'mood', 'gratitude', 'breathing', 'cbt', 'clinical'
+        activity_type = data.get('activity_type')  # 'cbt', 'clinical', etc.
         
         conn = sqlite3.connect("pet_game.db")
         cur = conn.cursor()
@@ -967,26 +968,299 @@ def pet_reward():
             conn.close()
             return jsonify({'success': False, 'message': 'No pet'}), 200
         
-        # Reward logic (from original pet_game.py)
-        coins_earned = 5
-        xp_earned = 10
-        happiness_boost = 5
+        # Standardized rewards matching pet_game.py
+        base_boost = 3
+        coin_gain = 5
+        xp_gain = 15
         
-        new_coins = pet[8] + coins_earned
-        new_xp = pet[9] + xp_earned
-        new_happiness = min(100, pet[5] + happiness_boost)
+        # Apply specific bonuses (matching original desktop app)
+        hun = base_boost
+        hap = base_boost
+        en = base_boost
+        hyg = base_boost
         
-        cur.execute("UPDATE pet SET coins=?, xp=?, happiness=? WHERE id=?",
-                   (new_coins, new_xp, new_happiness, pet[0]))
+        if action == 'mood':
+            hap += 10
+            en += 5
+        elif action == 'gratitude':
+            hap += 10
+            en += 5
+        elif action == 'therapy':
+            hun += 10
+            hap += 10
+            en += 10
+            hyg += 5
+            xp_gain = 30
+        
+        if activity_type == 'cbt':
+            coin_gain += 10
+            xp_gain += 5
+        elif activity_type == 'clinical':
+            coin_gain += 15
+            xp_gain += 15
+        
+        # Calculate new stats
+        new_hunger = max(0, min(100, pet[4] + hun))
+        new_happiness = max(0, min(100, pet[5] + hap))
+        new_energy = max(0, min(100, pet[6] + en))
+        new_hygiene = max(0, min(100, pet[7] + hyg))
+        new_coins = pet[8] + coin_gain
+        new_xp = pet[9] + xp_gain
+        
+        # Check evolution
+        stage = pet[10]
+        if new_xp >= 500 and stage == 'Baby':
+            stage = 'Child'
+        elif new_xp >= 1500 and stage == 'Child':
+            stage = 'Adult'
+        
+        cur.execute(
+            "UPDATE pet SET hunger=?, happiness=?, energy=?, hygiene=?, coins=?, xp=?, stage=?, last_updated=? WHERE id=?",
+            (new_hunger, new_happiness, new_energy, new_hygiene, new_coins, new_xp, stage, time.time(), pet[0])
+        )
         conn.commit()
         conn.close()
         
         return jsonify({
             'success': True,
-            'coins_earned': coins_earned,
+            'coins_earned': coin_gain,
+            'xp_earned': xp_gain,
             'new_coins': new_coins,
-            'new_xp': new_xp
+            'new_xp': new_xp,
+            'new_stage': stage,
+            'evolved': stage != pet[10]
         }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pet/shop', methods=['GET'])
+def pet_shop():
+    """Get shop items"""
+    try:
+        items = [
+            {'id': 'apple', 'name': '🍎 Apple', 'description': '+20 Hunger', 'cost': 10, 'effect': 'hunger', 'value': 20},
+            {'id': 'cupcake', 'name': '🧁 Cupcake', 'description': '+40 Hunger, +10 Happiness', 'cost': 25, 'effect': 'multi', 'hunger': 40, 'happiness': 10},
+            {'id': 'tophat', 'name': '🎩 Top Hat', 'description': 'Cosmetic', 'cost': 100, 'effect': 'hat', 'value': '🎩'},
+            {'id': 'bow', 'name': '🎀 Bow', 'description': 'Cosmetic', 'cost': 100, 'effect': 'hat', 'value': '🎀'},
+            {'id': 'crown', 'name': '👑 Crown', 'description': 'Cosmetic', 'cost': 500, 'effect': 'hat', 'value': '👑'}
+        ]
+        return jsonify({'items': items}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pet/buy', methods=['POST'])
+def pet_buy():
+    """Purchase shop item"""
+    try:
+        data = request.json
+        item_id = data.get('item_id')
+        
+        # Get shop items
+        items = {
+            'apple': {'cost': 10, 'effect': 'hunger', 'value': 20},
+            'cupcake': {'cost': 25, 'effect': 'multi', 'hunger': 40, 'happiness': 10},
+            'tophat': {'cost': 100, 'effect': 'hat', 'value': '🎩'},
+            'bow': {'cost': 100, 'effect': 'hat', 'value': '🎀'},
+            'crown': {'cost': 500, 'effect': 'hat', 'value': '👑'}
+        }
+        
+        if item_id not in items:
+            return jsonify({'error': 'Invalid item'}), 400
+        
+        item = items[item_id]
+        
+        conn = sqlite3.connect("pet_game.db")
+        cur = conn.cursor()
+        pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
+        
+        if not pet:
+            conn.close()
+            return jsonify({'error': 'No pet found'}), 404
+        
+        if pet[8] < item['cost']:
+            conn.close()
+            return jsonify({'error': 'Not enough coins'}), 400
+        
+        # Apply effect
+        new_coins = pet[8] - item['cost']
+        new_hunger = pet[4]
+        new_happiness = pet[5]
+        new_hat = pet[13] if len(pet) > 13 else 'None'
+        
+        if item['effect'] == 'hunger':
+            new_hunger = min(100, pet[4] + item['value'])
+        elif item['effect'] == 'multi':
+            new_hunger = min(100, pet[4] + item['hunger'])
+            new_happiness = min(100, pet[5] + item['happiness'])
+        elif item['effect'] == 'hat':
+            new_hat = item['value']
+        
+        cur.execute(
+            "UPDATE pet SET hunger=?, happiness=?, coins=?, hat=?, last_updated=? WHERE id=?",
+            (new_hunger, new_happiness, new_coins, new_hat, time.time(), pet[0])
+        )
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'new_coins': new_coins,
+            'new_hunger': new_hunger,
+            'new_happiness': new_happiness,
+            'new_hat': new_hat
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pet/declutter', methods=['POST'])
+def pet_declutter():
+    """Declutter task - throw away worries"""
+    try:
+        data = request.json
+        worries = data.get('worries', [])
+        
+        if not worries or len(worries) == 0:
+            return jsonify({'error': 'Please provide at least one worry'}), 400
+        
+        conn = sqlite3.connect("pet_game.db")
+        cur = conn.cursor()
+        pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
+        
+        if not pet:
+            conn.close()
+            return jsonify({'error': 'No pet found'}), 404
+        
+        # Boost hygiene and happiness
+        new_hygiene = min(100, pet[7] + 40)
+        new_happiness = min(100, pet[5] + 5)
+        new_xp = pet[9] + 15
+        new_coins = pet[8] + 5
+        
+        cur.execute(
+            "UPDATE pet SET hygiene=?, happiness=?, xp=?, coins=?, last_updated=? WHERE id=?",
+            (new_hygiene, new_happiness, new_xp, new_coins, time.time(), pet[0])
+        )
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'The room (and your mind) is clearer!',
+            'coins_earned': 5,
+            'new_coins': new_coins
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pet/adventure', methods=['POST'])
+def pet_adventure():
+    """Start adventure (30 min walk)"""
+    try:
+        conn = sqlite3.connect("pet_game.db")
+        cur = conn.cursor()
+        pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
+        
+        if not pet:
+            conn.close()
+            return jsonify({'error': 'No pet found'}), 404
+        
+        if pet[6] < 20:  # Energy check
+            conn.close()
+            return jsonify({'error': 'Pet is too tired for a walk!'}), 400
+        
+        # Set adventure end time (30 minutes from now)
+        adventure_end = time.time() + (30 * 60)
+        new_energy = pet[6] - 20
+        
+        cur.execute(
+            "UPDATE pet SET energy=?, adventure_end=?, last_updated=? WHERE id=?",
+            (new_energy, adventure_end, time.time(), pet[0])
+        )
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Pet is on an adventure!',
+            'return_time': adventure_end
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pet/check-return', methods=['POST'])
+def pet_check_return():
+    """Check if pet returned from adventure"""
+    try:
+        conn = sqlite3.connect("pet_game.db")
+        cur = conn.cursor()
+        pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
+        
+        if not pet:
+            conn.close()
+            return jsonify({'error': 'No pet found'}), 404
+        
+        adventure_end = pet[11]
+        
+        if adventure_end > 0 and time.time() >= adventure_end:
+            # Pet returned!
+            import random
+            bonus_coins = random.randint(10, 50)
+            
+            new_coins = pet[8] + bonus_coins
+            new_xp = pet[9] + 20
+            
+            cur.execute(
+                "UPDATE pet SET coins=?, xp=?, adventure_end=0, last_updated=? WHERE id=?",
+                (new_coins, new_xp, time.time(), pet[0])
+            )
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                'returned': True,
+                'message': f'{pet[1]} returned with {bonus_coins} coins and a cool leaf! 🍃',
+                'coins_earned': bonus_coins,
+                'new_coins': new_coins
+            }), 200
+        else:
+            conn.close()
+            return jsonify({'returned': False}), 200
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pet/apply-decay', methods=['POST'])
+def pet_apply_decay():
+    """Apply time-based stat decay"""
+    try:
+        conn = sqlite3.connect("pet_game.db")
+        cur = conn.cursor()
+        pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
+        
+        if not pet:
+            conn.close()
+            return jsonify({'error': 'No pet found'}), 404
+        
+        now = time.time()
+        last_updated = pet[12]
+        hours_passed = (now - last_updated) / 3600
+        
+        # Gentle decay (10x slower than normal Tamagotchi)
+        if hours_passed > 1.0:
+            decay = int(hours_passed * 0.5)
+            
+            new_hunger = max(10, pet[4] - decay)
+            new_energy = max(10, pet[6] - decay)
+            new_hygiene = max(10, pet[7] - int(decay / 2))
+            
+            cur.execute(
+                "UPDATE pet SET hunger=?, energy=?, hygiene=?, last_updated=? WHERE id=?",
+                (new_hunger, new_energy, new_hygiene, now, pet[0])
+            )
+            conn.commit()
+        
+        conn.close()
+        return jsonify({'success': True}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

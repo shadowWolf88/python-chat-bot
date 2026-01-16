@@ -128,40 +128,53 @@
         }
         
         .app-content {
-            max-width: 1400px;
-            margin: 20px auto;
-            padding: 0 20px;
+            display: flex;
+            max-width: 1600px;
+            margin: 0 auto;
+            height: calc(100vh - 80px);
         }
         
-        .tabs {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
+        .sidebar {
+            width: 220px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 0;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 20px 30px;
+            overflow-y: auto;
+            background: #f8f9fa;
         }
         
         .tab-btn {
-            background: rgba(255,255,255,0.9);
-            border: 2px solid transparent;
-            padding: 12px 20px;
-            border-radius: 12px;
+            display: block;
+            width: 100%;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            padding: 15px 20px;
+            text-align: left;
             cursor: pointer;
             transition: all 0.3s;
             font-weight: 600;
-            color: #667eea;
+            color: white;
             font-size: 14px;
+            border-left: 4px solid transparent;
+            margin-bottom: 5px;
         }
         
         .tab-btn:hover {
-            background: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: rgba(255,255,255,0.2);
+            border-left-color: white;
         }
         
         .tab-btn.active {
             background: white;
-            border-color: #667eea;
-            box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+            color: #667eea;
+            border-left-color: #ffd700;
+            font-weight: 700;
         }
         
         .tab-content {
@@ -720,11 +733,25 @@
         }
         
         @media (max-width: 768px) {
-            .tabs {
+            .app-content {
                 flex-direction: column;
+                height: auto;
+            }
+            .sidebar {
+                width: 100%;
+                display: flex;
+                overflow-x: auto;
+                padding: 10px 0;
             }
             .tab-btn {
-                width: 100%;
+                min-width: 140px;
+                border-left: none;
+                border-bottom: 4px solid transparent;
+                margin: 0 5px;
+            }
+            .tab-btn.active {
+                border-bottom-color: #ffd700;
+                border-left-color: transparent;
             }
             .mood-scale {
                 grid-template-columns: repeat(2, 1fr);
@@ -962,22 +989,22 @@
         </div>
         
         <div class="app-content">
-            <div class="tabs">
+            <div class="sidebar">
                 <button class="tab-btn active" onclick="switchTab('therapy', this)">🤖 AI Therapy</button>
                 <button class="tab-btn" onclick="switchTab('mood', this)">📊 Mood & Habits</button>
-                <button class="tab-btn" onclick="switchTab('gratitude', this)">🙏 Gratitude Journal</button>
+                <button class="tab-btn" onclick="switchTab('gratitude', this)">🙏 Gratitude</button>
                 <button class="tab-btn" onclick="switchTab('cbt', this)">🧠 CBT Tools</button>
                 <button class="tab-btn" onclick="switchTab('pet', this)">🐶 My Pet</button>
                 <button class="tab-btn" onclick="switchTab('clinical', this)">📋 Assessments</button>
                 <button class="tab-btn" onclick="switchTab('community', this)">👥 Community</button>
                 <button class="tab-btn" onclick="switchTab('safety', this)">🆘 Safety Plan</button>
                 <button class="tab-btn" onclick="switchTab('insights', this)">💡 Insights</button>
-                <button class="tab-btn" onclick="switchTab('sleep', this)">😴 Sleep Hygiene</button>
-                <button class="tab-btn" onclick="switchTab('history', this)">📈 My History</button>
+                <button class="tab-btn" onclick="switchTab('sleep', this)">😴 Sleep</button>
+                <button class="tab-btn" onclick="switchTab('history', this)">📈 History</button>
                 <button class="tab-btn" id="professionalTabBtn" onclick="switchTab('professional', this)" style="display:none;">👨‍⚕️ Professional</button>
             </div>
             
-            <!-- Therapy Chat Tab -->
+            <div class="main-content">\n            <!-- Therapy Chat Tab -->
             <div id="therapyTab" class="tab-content active">
                 <h3>Talk to Your AI Therapist</h3>
                 <p style="color: #666; margin-bottom: 20px;">Share your thoughts and feelings in a safe, confidential space.</p>
@@ -1111,7 +1138,7 @@
             <!-- Pet Game Tab -->
             <div id="petTab" class="tab-content">
                 <div id="petCreate" class="hidden">
-                    <h3>Adopt Your Companion</h3>
+                    <h3>🏡 Adopt Your Companion</h3>
                     <p style="color: #666; margin-bottom: 20px;">Choose a virtual pet to care for as you care for yourself.</p>
                     
                     <div class="form-group">
@@ -1142,34 +1169,78 @@
                 
                 <div id="petDisplay" class="hidden">
                     <div class="pet-container">
-                        <h3 style="text-align: center; margin-bottom: 10px;" id="petNameDisplay"></h3>
-                        <div class="pet-display" id="petEmojiDisplay"></div>
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <div style="font-size: 18px;">🪙 Coins: <span id="petCoins">0</span></div>
-                            <div style="font-size: 14px; margin-top: 5px;">⭐ XP: <span id="petXP">0</span> (<span id="petStage">Baby</span>)</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 id="petNameDisplay" style="margin: 0;"></h3>
+                            <div>
+                                <span style="font-size: 18px; font-weight: bold;">🪙 <span id="petCoins">0</span></span>
+                                <span style="font-size: 14px; margin-left: 15px;">⭐ <span id="petXP">0</span> (<span id="petStage">Baby</span>)</span>
+                            </div>
                         </div>
+                        
+                        <div class="pet-display" id="petEmojiDisplay" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 16px; padding: 40px; text-align: center; font-size: 80px; margin-bottom: 20px; min-height: 150px; display: flex; align-items: center; justify-content: center; position: relative;">
+                            <div id="petStatusMessage" style="position: absolute; top: 10px; left: 10px; right: 10px; font-size: 14px; color: #666; font-weight: 500;"></div>
+                        </div>
+                        
                         <div class="pet-stats">
                             <div class="stat-bar">
-                                <label>Hunger</label>
-                                <div class="progress-bar"><div class="progress-fill" id="hungerBar"></div></div>
+                                <label>🍔 Hunger</label>
+                                <div class="progress-bar"><div class="progress-fill" id="hungerBar" style="background: #e74c3c;"></div></div>
                             </div>
                             <div class="stat-bar">
-                                <label>Happiness</label>
-                                <div class="progress-bar"><div class="progress-fill" id="happinessBar"></div></div>
+                                <label>😊 Happiness</label>
+                                <div class="progress-bar"><div class="progress-fill" id="happinessBar" style="background: #2ecc71;"></div></div>
                             </div>
                             <div class="stat-bar">
-                                <label>Energy</label>
-                                <div class="progress-bar"><div class="progress-fill" id="energyBar"></div></div>
+                                <label>⚡ Energy</label>
+                                <div class="progress-bar"><div class="progress-fill" id="energyBar" style="background: #f1c40f;"></div></div>
                             </div>
                             <div class="stat-bar">
-                                <label>Hygiene</label>
-                                <div class="progress-bar"><div class="progress-fill" id="hygieneBar"></div></div>
+                                <label>🧹 Hygiene</label>
+                                <div class="progress-bar"><div class="progress-fill" id="hygieneBar" style="background: #3498db;"></div></div>
                             </div>
                         </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px;">
+                            <button class="btn" onclick="openShop()" style="background: #e67e22;">🛍️ Shop</button>
+                            <button class="btn" onclick="openDeclutter()" style="background: #9b59b6;">🧹 Declutter</button>
+                            <button class="btn" onclick="startAdventure()" style="background: #27ae60;">🌲 Walk (30m)</button>
+                            <button class="btn" onclick="refreshPet()" style="background: #34495e;">🔄 Refresh</button>
+                        </div>
                     </div>
-                    <p style="color: #666; text-align: center; margin-top: 20px;">
+                    <p style="color: #666; text-align: center; margin-top: 20px; font-size: 14px;">
                         💡 Earn coins and XP by completing self-care actions! Your pet grows as you grow.
                     </p>
+                </div>
+            </div>
+            
+            <!-- Shop Modal -->
+            <div id="shopModal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+                <div style="background: white; padding: 30px; border-radius: 20px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                    <h3>🛍️ Wellness Shop</h3>
+                    <div style="text-align: center; margin-bottom: 20px; font-size: 18px; font-weight: bold;">
+                        Your Coins: 🪙 <span id="shopCoins">0</span>
+                    </div>
+                    <div id="shopItems"></div>
+                    <button class="btn btn-secondary" onclick="closeShop()" style="width: 100%; margin-top: 15px;">Close</button>
+                </div>
+            </div>
+            
+            <!-- Declutter Modal -->
+            <div id="declutterModal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+                <div style="background: white; padding: 30px; border-radius: 20px; max-width: 500px; width: 90%;">
+                    <h3>🧹 Declutter The Mind</h3>
+                    <p style="color: #666; margin-bottom: 20px;">Throw away 3 worries to clean the room:</p>
+                    <div class="form-group">
+                        <input type="text" id="worry1" placeholder="Worry 1...">
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="worry2" placeholder="Worry 2...">
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="worry3" placeholder="Worry 3...">
+                    </div>
+                    <button class="btn" onclick="submitDeclutter()" style="width: 100%; background: #e74c3c;">🗑️ Throw Away</button>
+                    <button class="btn btn-secondary" onclick="closeDeclutter()" style="width: 100%; margin-top: 10px;">Cancel</button>
                 </div>
             </div>
             
@@ -1396,8 +1467,9 @@
                     <div id="patientDetailContent"></div>
                 </div>
             </div>
-        </div>
-    </div>
+            </div> <!-- End of main-content -->
+        </div> <!-- End of app-content -->
+    </div> <!-- End of app screen -->
     
     <script>
         let currentUser = null;
@@ -2133,7 +2205,8 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showMessage('cbtMessage', 'Thought record saved! 🧠 Great work challenging your thoughts!', 'success');
+                    showMessage('cbtMessage', 'Thought record saved! 🧠 Great work challenging your thoughts! (+15 Coins)', 'success');
+                    await rewardPet('cbt', 'cbt');
                     document.getElementById('cbtSituation').value = '';
                     document.getElementById('cbtThought').value = '';
                     document.getElementById('cbtEvidence').value = '';
@@ -2225,17 +2298,21 @@
             document.getElementById('hygieneBar').style.width = pet.hygiene + '%';
         }
         
-        async function rewardPet(action) {
+        async function rewardPet(action, activity_type = null) {
             try {
                 const response = await fetch('/api/pet/reward', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action })
+                    body: JSON.stringify({ action, activity_type })
                 });
                 
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success) {
+                        // Show reward notification
+                        if (data.evolved) {
+                            alert(`🎉 Amazing! Your pet evolved to ${data.new_stage}!`);
+                        }
                         // Refresh pet display if on pet tab
                         if (document.getElementById('petTab').classList.contains('active')) {
                             loadPetStatus();
@@ -2246,6 +2323,177 @@
                 console.error('Pet reward error:', error);
             }
         }
+        
+        async function refreshPet() {
+            await applyPetDecay();
+            await loadPetStatus();
+            await checkPetReturn();
+        }
+        
+        async function applyPetDecay() {
+            try {
+                await fetch('/api/pet/apply-decay', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            } catch (error) {
+                console.error('Pet decay error:', error);
+            }
+        }
+        
+        async function checkPetReturn() {
+            try {
+                const response = await fetch('/api/pet/check-return', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.returned) {
+                        alert(data.message);
+                        loadPetStatus();
+                    }
+                }
+            } catch (error) {
+                console.error('Pet return check error:', error);
+            }
+        }
+        
+        function openShop() {
+            const shopModal = document.getElementById('shopModal');
+            shopModal.classList.remove('hidden');
+            loadShopItems();
+        }
+        
+        function closeShop() {
+            document.getElementById('shopModal').classList.add('hidden');
+        }
+        
+        async function loadShopItems() {
+            try {
+                const response = await fetch('/api/pet/shop');
+                const data = await response.json();
+                
+                const currentCoins = parseInt(document.getElementById('petCoins').textContent);
+                document.getElementById('shopCoins').textContent = currentCoins;
+                
+                const container = document.getElementById('shopItems');
+                container.innerHTML = data.items.map(item => `
+                    <div style="border: 2px solid #e0e0e0; border-radius: 12px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: bold; font-size: 16px;">${item.name}</div>
+                            <div style="font-size: 13px; color: #666;">${item.description}</div>
+                        </div>
+                        <button class="btn" onclick="buyItem('${item.id}')" style="padding: 8px 16px; ${currentCoins < item.cost ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                            🪙 ${item.cost}
+                        </button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Shop load error:', error);
+            }
+        }
+        
+        async function buyItem(itemId) {
+            try {
+                const response = await fetch('/api/pet/buy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ item_id: itemId })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    alert('Item purchased! 🎉');
+                    loadPetStatus();
+                    loadShopItems();
+                } else {
+                    alert(data.error || 'Purchase failed');
+                }
+            } catch (error) {
+                console.error('Buy error:', error);
+                alert('Purchase failed');
+            }
+        }
+        
+        function openDeclutter() {
+            document.getElementById('declutterModal').classList.remove('hidden');
+            document.getElementById('worry1').value = '';
+            document.getElementById('worry2').value = '';
+            document.getElementById('worry3').value = '';
+        }
+        
+        function closeDeclutter() {
+            document.getElementById('declutterModal').classList.add('hidden');
+        }
+        
+        async function submitDeclutter() {
+            const worry1 = document.getElementById('worry1').value.trim();
+            const worry2 = document.getElementById('worry2').value.trim();
+            const worry3 = document.getElementById('worry3').value.trim();
+            
+            const worries = [worry1, worry2, worry3].filter(w => w);
+            
+            if (worries.length === 0) {
+                alert('Please enter at least one worry to throw away');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/pet/declutter', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ worries })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    alert(data.message);
+                    closeDeclutter();
+                    loadPetStatus();
+                } else {
+                    alert(data.error || 'Declutter failed');
+                }
+            } catch (error) {
+                console.error('Declutter error:', error);
+            }
+        }
+        
+        async function startAdventure() {
+            const confirm = window.confirm('Send your pet on a 30-minute walk? (You won\\'t be able to interact during this time)');
+            
+            if (!confirm) return;
+            
+            try {
+                const response = await fetch('/api/pet/adventure', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    alert(data.message);
+                    loadPetStatus();
+                    // Check for return after 30 minutes
+                    setTimeout(() => checkPetReturn(), 31 * 60 * 1000);
+                } else {
+                    alert(data.error || 'Adventure failed');
+                }
+            } catch (error) {
+                console.error('Adventure error:', error);
+            }
+        }
+        
+        // Auto-refresh pet when tab is active
+        setInterval(() => {
+            if (document.getElementById('petTab').classList.contains('active')) {
+                refreshPet();
+            }
+        }, 60000); // Every minute
         
         // Clinical Assessments
         function startPHQ9() {
@@ -2308,7 +2556,8 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alert(`Assessment Complete!\n\nScore: ${data.score}\nSeverity: ${data.severity}\n\nConsult with a mental health professional for personalized care.`);
+                    alert(`Assessment Complete!\n\nScore: ${data.score}\nSeverity: ${data.severity}\n\n+20 Coins for completing assessment!\n\nConsult with a mental health professional for personalized care.`);
+                    await rewardPet('clinical', 'clinical');
                     closeAssessment();
                 } else {
                     alert('Error submitting assessment');
