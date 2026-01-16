@@ -940,6 +940,76 @@ def update_ai_memory(username):
     except Exception as e:
         print(f"AI memory update error: {e}")
 
+def reward_pet(action, activity_type=None):
+    """Helper function to reward pet for user activities"""
+    try:
+        import time
+        conn = sqlite3.connect("pet_game.db")
+        cur = conn.cursor()
+        pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
+        
+        if not pet:
+            conn.close()
+            return False
+        
+        # Standardized rewards matching pet_game.py
+        base_boost = 3
+        coin_gain = 5
+        xp_gain = 15
+        
+        # Apply specific bonuses
+        hun = base_boost
+        hap = base_boost
+        en = base_boost
+        hyg = base_boost
+        
+        if action == 'mood':
+            hap += 10
+            en += 5
+        elif action == 'gratitude':
+            hap += 10
+            en += 5
+        elif action == 'therapy':
+            hun += 10
+            hap += 10
+            en += 10
+            hyg += 5
+            xp_gain = 30
+        
+        if activity_type == 'cbt':
+            coin_gain += 10
+            xp_gain += 5
+        elif activity_type == 'clinical':
+            coin_gain += 15
+            xp_gain += 15
+        
+        # Calculate new stats
+        new_hunger = max(0, min(100, pet[4] + hun))
+        new_happiness = max(0, min(100, pet[5] + hap))
+        new_energy = max(0, min(100, pet[6] + en))
+        new_hygiene = max(0, min(100, pet[7] + hyg))
+        new_coins = pet[8] + coin_gain
+        new_xp = pet[9] + xp_gain
+        
+        # Check evolution
+        stage = pet[10]
+        if new_xp >= 500 and stage == 'Baby':
+            stage = 'Child'
+        elif new_xp >= 1500 and stage == 'Child':
+            stage = 'Adult'
+        
+        cur.execute(
+            "UPDATE pet SET hunger=?, happiness=?, energy=?, hygiene=?, coins=?, xp=?, stage=?, last_updated=? WHERE id=?",
+            (new_hunger, new_happiness, new_energy, new_hygiene, new_coins, new_xp, stage, time.time(), pet[0])
+        )
+        conn.commit()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"Pet reward error: {e}")
+        return False
+
 @app.route('/api/therapy/chat', methods=['POST'])
 def therapy_chat():
     """AI therapy chat endpoint"""
@@ -1201,6 +1271,9 @@ def log_mood():
         # Update AI memory with new activity
         update_ai_memory(username)
         
+        # Reward pet for self-care activity
+        reward_pet('mood')
+        
         log_event(username, 'api', 'mood_logged', f'Mood: {mood_val}')
         
         return jsonify({
@@ -1273,6 +1346,9 @@ def log_gratitude():
         
         # AUTO-UPDATE AI MEMORY
         update_ai_memory(username)
+        
+        # Reward pet for self-care activity
+        reward_pet('gratitude')
         
         log_event(username, 'api', 'gratitude_logged', 'Gratitude entry added, AI memory updated')
         
@@ -1774,6 +1850,9 @@ def cbt_thought_record():
         # AUTO-UPDATE AI MEMORY
         update_ai_memory(username)
         
+        # Reward pet for CBT activity
+        reward_pet('therapy', 'cbt')
+        
         return jsonify({'success': True, 'record_id': record_id}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1839,6 +1918,9 @@ def submit_phq9():
         # AUTO-UPDATE AI MEMORY
         update_ai_memory(username)
         
+        # Reward pet for clinical assessment
+        reward_pet('therapy', 'clinical')
+        
         return jsonify({'success': True, 'score': total, 'severity': severity}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1875,6 +1957,9 @@ def submit_gad7():
         
         # AUTO-UPDATE AI MEMORY
         update_ai_memory(username)
+        
+        # Reward pet for clinical assessment
+        reward_pet('therapy', 'clinical')
         
         return jsonify({'success': True, 'score': total, 'severity': severity}), 201
     except Exception as e:
