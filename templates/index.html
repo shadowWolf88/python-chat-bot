@@ -1807,13 +1807,66 @@
             
             // Only add system message for patients
             if (currentUserRole !== 'clinician') {
-                addSystemMessage('Welcome to Healing Space! How are you feeling today?');
+                // Load chat history first
+                loadChatHistory();
+                
+                // Switch to therapy tab as default
+                switchTab('therapy', document.querySelector('[onclick*="therapy"]'));
+                
+                // Show personalized greeting
+                showPersonalizedGreeting();
+                
                 loadPetStatus();
                 checkMoodStatus(); // Check if mood logged today
             }
             
             // Refresh notifications every 30 seconds
             setInterval(loadNotifications, 30000);
+        }
+        
+        // Load chat history from previous sessions
+        async function loadChatHistory() {
+            try {
+                const response = await fetch(`/api/therapy/history?username=${currentUser}`);
+                const data = await response.json();
+                
+                if (response.ok && data.history && data.history.length > 0) {
+                    // Clear existing messages
+                    document.getElementById('chatMessages').innerHTML = '';
+                    
+                    // Add history
+                    data.history.forEach(msg => {
+                        if (msg.sender === 'user') {
+                            addUserMessage(msg.message);
+                        } else {
+                            addAIMessage(msg.message);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading chat history:', error);
+            }
+        }
+        
+        // Show personalized greeting based on user context
+        async function showPersonalizedGreeting() {
+            try {
+                const response = await fetch('/api/therapy/greeting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUser })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.greeting) {
+                    addAIMessage(data.greeting);
+                }
+            } catch (error) {
+                console.error('Error loading greeting:', error);
+                // Fallback to simple greeting
+                addAIMessage('Welcome back! How are you feeling today?');
+            }
         }
         
         // Check if user has logged mood today

@@ -223,9 +223,36 @@ class TherapistAI:
         self.headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
 
     def get_response(self, user_message, chat_history=None):
-        """Get AI response for therapy chat"""
+        """Get AI response for therapy chat with full context"""
         try:
-            messages = [{"role": "system", "content": "You are a compassionate AI therapist. Provide supportive, empathetic responses."}]
+            # Get user context from AI memory
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            
+            memory = cur.execute(
+                "SELECT memory_summary FROM ai_memory WHERE username=?",
+                (self.username,)
+            ).fetchone()
+            
+            # Get clinician notes for context
+            clinician_notes = cur.execute(
+                "SELECT note_text FROM clinician_notes WHERE patient_username=? ORDER BY created_at DESC LIMIT 3",
+                (self.username,)
+            ).fetchall()
+            
+            conn.close()
+            
+            # Build system prompt with context
+            system_prompt = "You are a compassionate AI therapist. Provide supportive, empathetic responses."
+            
+            if memory:
+                system_prompt += f"\n\nPatient context: {memory[0]}"
+            
+            if clinician_notes:
+                notes_text = "; ".join([note[0] for note in clinician_notes])
+                system_prompt += f"\n\nClinician's recent notes: {notes_text[:300]}"
+            
+            messages = [{"role": "system", "content": system_prompt}]
             
             if chat_history:
                 for sender, msg in chat_history[-10:]:
@@ -817,9 +844,8 @@ def reject_patient(approval_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/therapy/chat', methods=['POST'])
 def update_ai_memory(username):
-    """Update AI memory with recent user activity summary"""
+    """Update AI memory with recent user activity summary including clinician notes"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
@@ -845,6 +871,18 @@ def update_ai_memory(username):
             (username,)
         ).fetchall()
         
+        # Get clinician notes (including face-to-face appointment notes)
+        clinician_notes = cur.execute(
+            "SELECT note_text, created_at FROM clinician_notes WHERE patient_username=? ORDER BY created_at DESC LIMIT 5",
+            (username,)
+        ).fetchall()
+        
+        # Get gratitude entries
+        recent_gratitude = cur.execute(
+            "SELECT entry FROM gratitude_logs WHERE username=? ORDER BY entry_timestamp DESC LIMIT 3",
+            (username,)
+        ).fetchall()
+        
         # Build memory summary
         memory_parts = []
         
@@ -864,6 +902,19 @@ def update_ai_memory(username):
         if recent_alerts:
             memory_parts.append(f"⚠️ Safety concerns: {len(recent_alerts)} recent alerts")
         
+        if clinician_notes:
+            memory_parts.append(f"Clinician notes: {len(clinician_notes)} recent entries")
+            # Include most recent highlighted note
+            highlighted = cur.execute(
+                "SELECT note_text FROM clinician_notes WHERE patient_username=? AND is_highlighted=1 ORDER BY created_at DESC LIMIT 1",
+                (username,)
+            ).fetchone()
+            if highlighted:
+                memory_parts.append(f"Key note: {highlighted[0][:100]}")
+        
+        if recent_gratitude:
+            memory_parts.append(f"Practicing gratitude: {len(recent_gratitude)} recent entries")
+        
         memory_summary = "; ".join(memory_parts) if memory_parts else "New user, no activity yet"
         
         # Update or insert memory
@@ -877,6 +928,7 @@ def update_ai_memory(username):
     except Exception as e:
         print(f"AI memory update error: {e}")
 
+@app.route('/api/therapy/chat', methods=['POST'])
 def therapy_chat():
     """AI therapy chat endpoint"""
     try:
@@ -928,6 +980,84 @@ def therapy_chat():
             'success': True,
             'response': response,
             'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/therapy/history', methods=['GET'])
+def get_chat_history():
+    """Get chat history for a user"""
+    try:
+        username = request.args.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        history = cur.execute(
+            "SELECT sender, message, timestamp FROM chat_history WHERE session_id=? ORDER BY timestamp ASC",
+            (f"{username}_session",)
+        ).fetchall()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'history': [{'sender': h[0], 'message': h[1], 'timestamp': h[2]} for h in history]
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/therapy/greeting', methods=['POST'])
+def get_therapy_greeting():
+    """Get personalized greeting based on user context"""
+    try:
+        data = request.json
+        username = data.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        # Update AI memory with latest context
+        update_ai_memory(username)
+        
+        # Use TherapistAI to generate contextual greeting
+        ai = TherapistAI(username)
+        
+        # Get user context
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        memory = cur.execute(
+            "SELECT memory_summary FROM ai_memory WHERE username=?",
+            (username,)
+        ).fetchone()
+        
+        # Check if they logged mood today
+        logged_today = cur.execute(
+            "SELECT mood_val FROM mood_logs WHERE username=? AND date(entrestamp) = date('now', 'localtime')",
+            (username,)
+        ).fetchone()
+        
+        conn.close()
+        
+        # Build contextual greeting prompt
+        context_parts = []
+        if memory and memory[0]:
+            context_parts.append(f"Patient context: {memory[0]}")
+        if logged_today:
+            context_parts.append(f"They logged their mood today (mood: {logged_today[0]}/10)")
+        else:
+            context_parts.append("They haven't logged their mood today yet")
+        
+        greeting_prompt = f"Greet the user warmly and ask how they're doing today. Context: {'; '.join(context_parts)}. Keep it brief (2-3 sentences)."
+        
+        greeting = ai.get_response(greeting_prompt, [])
+        
+        return jsonify({
+            'success': True,
+            'greeting': greeting
         }), 200
         
     except Exception as e:
@@ -2171,7 +2301,7 @@ def get_patients():
 
 @app.route('/api/professional/patient/<username>', methods=['GET'])
 def get_patient_detail(username):
-    """Get detailed patient data (for professional dashboard)"""
+    """Get detailed patient data including chat history, diary, habits (for professional dashboard)"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
@@ -2182,9 +2312,27 @@ def get_patient_detail(username):
             (username,)
         ).fetchone()
         
-        # Recent moods
+        # Recent moods with ALL habit data
         moods = cur.execute(
-            "SELECT mood_val, sleep_val, exercise_mins, notes, entrestamp FROM mood_logs WHERE username=? ORDER BY entrestamp DESC LIMIT 30",
+            "SELECT mood_val, sleep_val, exercise_mins, outside_mins, water_pints, meds, notes, entrestamp FROM mood_logs WHERE username=? ORDER BY entrestamp DESC LIMIT 30",
+            (username,)
+        ).fetchall()
+        
+        # AI Chat history
+        chat_history = cur.execute(
+            "SELECT sender, message, timestamp FROM chat_history WHERE session_id=? ORDER BY timestamp DESC LIMIT 50",
+            (f"{username}_session",)
+        ).fetchall()
+        
+        # Gratitude entries
+        gratitude = cur.execute(
+            "SELECT entry, entry_timestamp FROM gratitude_logs WHERE username=? ORDER BY entry_timestamp DESC LIMIT 20",
+            (username,)
+        ).fetchall()
+        
+        # CBT records
+        cbt_records = cur.execute(
+            "SELECT situation, thought, evidence, entry_timestamp FROM cbt_records WHERE username=? ORDER BY entry_timestamp DESC LIMIT 20",
             (username,)
         ).fetchall()
         
@@ -2197,6 +2345,12 @@ def get_patient_detail(username):
         # Clinical scales
         scales = cur.execute(
             "SELECT scale_name, score, severity, entry_timestamp FROM clinical_scales WHERE username=? ORDER BY entry_timestamp DESC LIMIT 10",
+            (username,)
+        ).fetchall()
+        
+        # Clinician notes
+        notes = cur.execute(
+            "SELECT id, note_text, is_highlighted, created_at FROM clinician_notes WHERE patient_username=? ORDER BY created_at DESC LIMIT 20",
             (username,)
         ).fetchall()
         
@@ -2213,13 +2367,34 @@ def get_patient_detail(username):
                 'phone': profile[4] if profile else ''
             },
             'recent_moods': [
-                {'mood': m[0], 'sleep': m[1] or 0, 'exercise': m[2] or 0, 'notes': m[3] or '', 'timestamp': m[4]} for m in moods
+                {
+                    'mood': m[0], 
+                    'sleep': m[1] or 0, 
+                    'exercise': m[2] or 0,
+                    'outside': m[3] or 0,
+                    'water': m[4] or 0,
+                    'meds': m[5] or '',
+                    'notes': m[6] or '', 
+                    'timestamp': m[7]
+                } for m in moods
+            ],
+            'chat_history': [
+                {'sender': c[0], 'message': c[1], 'timestamp': c[2]} for c in chat_history
+            ],
+            'gratitude_entries': [
+                {'entry': g[0], 'timestamp': g[1]} for g in gratitude
+            ],
+            'cbt_records': [
+                {'situation': c[0], 'thought': c[1], 'evidence': c[2], 'timestamp': c[3]} for c in cbt_records
             ],
             'recent_alerts': [
                 {'type': a[0], 'message': a[1], 'timestamp': a[2]} for a in alerts
             ],
             'clinical_scales': [
                 {'name': s[0], 'score': s[1], 'severity': s[2], 'timestamp': s[3]} for s in scales
+            ],
+            'clinician_notes': [
+                {'id': n[0], 'note': n[1], 'highlighted': bool(n[2]), 'timestamp': n[3]} for n in notes
             ]
         }), 200
     except Exception as e:
@@ -2245,9 +2420,9 @@ def generate_ai_summary():
             (username,)
         ).fetchone()
         
-        # Get recent moods (last 30 days)
+        # Get recent moods (last 30 days) with ALL habit data
         moods = cur.execute(
-            "SELECT mood_val, sleep_val, exercise_mins, notes, entrestamp FROM mood_logs WHERE username=? ORDER BY entrestamp DESC LIMIT 30",
+            "SELECT mood_val, sleep_val, exercise_mins, outside_mins, water_pints, meds, notes, entrestamp FROM mood_logs WHERE username=? ORDER BY entrestamp DESC LIMIT 30",
             (username,)
         ).fetchall()
         
@@ -2263,11 +2438,29 @@ def generate_ai_summary():
             (username,)
         ).fetchall()
         
-        # Get recent therapy interactions
-        therapy = cur.execute(
-            "SELECT COUNT(*), MAX(entry_timestamp) FROM chat_history WHERE username=?",
+        # Get recent therapy chat messages (sample themes)
+        chat_messages = cur.execute(
+            "SELECT message FROM chat_history WHERE session_id=? AND sender='user' ORDER BY timestamp DESC LIMIT 10",
+            (f"{username}_session",)
+        ).fetchall()
+        
+        # Get gratitude entries
+        gratitude = cur.execute(
+            "SELECT entry FROM gratitude_logs WHERE username=? ORDER BY entry_timestamp DESC LIMIT 5",
             (username,)
-        ).fetchone()
+        ).fetchall()
+        
+        # Get CBT exercises
+        cbt_records = cur.execute(
+            "SELECT situation, thought, evidence FROM cbt_records WHERE username=? ORDER BY entry_timestamp DESC LIMIT 5",
+            (username,)
+        ).fetchall()
+        
+        # Get clinician notes (especially highlighted ones)
+        clinician_notes = cur.execute(
+            "SELECT note_text, is_highlighted FROM clinician_notes WHERE patient_username=? ORDER BY created_at DESC LIMIT 5",
+            (username,)
+        ).fetchall()
         
         conn.close()
         
@@ -2278,6 +2471,8 @@ def generate_ai_summary():
         avg_mood = sum(m[0] for m in moods) / len(moods) if moods else 0
         avg_sleep = sum(m[1] or 0 for m in moods) / len(moods) if moods else 0
         avg_exercise = sum(m[2] or 0 for m in moods) / len(moods) if moods else 0
+        avg_outside = sum(m[3] or 0 for m in moods) / len(moods) if moods else 0
+        avg_water = sum(m[4] or 0 for m in moods) / len(moods) if moods else 0
         
         # Mood trend (recent vs older)
         if len(moods) >= 6:
@@ -2288,33 +2483,49 @@ def generate_ai_summary():
             mood_trend = "insufficient data"
         
         alert_count = len(alerts)
-        therapy_sessions = therapy[0] if therapy else 0
+        gratitude_count = len(gratitude)
+        cbt_count = len(cbt_records)
         
-        # Build prompt
+        # Build prompt with comprehensive data
         prompt = f"""You are a clinical psychologist reviewing patient data. Generate a concise professional clinical summary (3-4 paragraphs).
 
 Patient: {patient_name}
 Known Conditions: {conditions}
 
 Data Summary (Last 30 Days):
-- Average Mood: {avg_mood:.1f}/10
-- Mood Trend: {mood_trend}
+- Average Mood: {avg_mood:.1f}/10 (Trend: {mood_trend})
 - Average Sleep: {avg_sleep:.1f} hours
 - Average Exercise: {avg_exercise:.1f} minutes
+- Average Outdoor Time: {avg_outside:.1f} minutes
+- Average Water Intake: {avg_water:.1f} pints
 - Safety Alerts: {alert_count}
-- Therapy Interactions: {therapy_sessions}
+- Gratitude Entries: {gratitude_count}
+- CBT Exercises Completed: {cbt_count}
 
 Latest Assessments:
 {chr(10).join([f"- {s[0]}: {s[1]} ({s[2]})" for s in scales]) if scales else "No assessments completed"}
+
+Recent Therapy Chat Themes (user concerns):
+{chr(10).join([f"- {msg[0][:100]}" for msg in chat_messages[:5]]) if chat_messages else "No recent therapy sessions"}
+
+Gratitude Practice:
+{chr(10).join([f"- {g[0][:80]}" for g in gratitude[:3]]) if gratitude else "No gratitude entries"}
+
+CBT Work:
+{chr(10).join([f"- Situation: {c[0][:60]}..." for c in cbt_records[:3]]) if cbt_records else "No CBT exercises"}
+
+Clinician Notes:
+{chr(10).join([f"- {'[KEY] ' if n[1] else ''}{n[0][:100]}" for n in clinician_notes]) if clinician_notes else "No clinician notes yet"}
 
 Recent Alerts:
 {chr(10).join([f"- {a[0]}: {a[1]}" for a in alerts[:3]]) if alerts else "No recent alerts"}
 
 Please provide:
-1. Overall clinical impression
+1. Overall clinical impression considering all data sources
 2. Key concerns or risk factors
-3. Notable trends
-4. Recommended clinical actions
+3. Notable trends in mood, habits, and engagement
+4. Recommended clinical actions or interventions
+5. Progress in self-help activities (gratitude, CBT)
 
 Keep it professional and evidence-based."""
 
