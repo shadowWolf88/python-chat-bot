@@ -811,6 +811,10 @@
                     <label>PIN (4 digits) - 2FA</label>
                     <input type="password" id="loginPin" placeholder="Enter your 4-digit PIN" maxlength="4">
                 </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="rememberMe" style="width: auto; margin: 0;">
+                    <label for="rememberMe" style="margin: 0; cursor: pointer;">Remember Me</label>
+                </div>
                 <button class="btn" onclick="login('user')">Login</button>
                 <a href="#" onclick="showForgotPassword('patient'); return false;" style="display: block; text-align: center; margin: 15px 0; color: #667eea; text-decoration: none;">Forgot Password or PIN?</a>
                 <button class="btn btn-secondary" onclick="showPatientRegister()">Create Patient Account</button>
@@ -831,6 +835,10 @@
                 <div class="form-group">
                     <label>PIN (4 digits) - 2FA</label>
                     <input type="password" id="clinicianLoginPin" placeholder="Enter your 4-digit PIN" maxlength="4">
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="clinicianRememberMe" style="width: auto; margin: 0;">
+                    <label for="clinicianRememberMe" style="margin: 0; cursor: pointer;">Remember Me</label>
                 </div>
                 <button class="btn" onclick="login('clinician')">Login</button>
                 <a href="#" onclick="showForgotPassword('clinician'); return false;" style="display: block; text-align: center; margin: 15px 0; color: #667eea; text-decoration: none;">Forgot Password or PIN?</a>
@@ -1688,16 +1696,18 @@
         }
         
         async function login(userType) {
-            let username, password, pin;
+            let username, password, pin, rememberMe;
             
             if (userType === 'user') {
                 username = document.getElementById('loginUsername').value.trim();
                 password = document.getElementById('loginPassword').value;
                 pin = document.getElementById('loginPin').value;
+                rememberMe = document.getElementById('rememberMe').checked;
             } else {
                 username = document.getElementById('clinicianLoginUsername').value.trim();
                 password = document.getElementById('clinicianLoginPassword').value;
                 pin = document.getElementById('clinicianLoginPin').value;
+                rememberMe = document.getElementById('clinicianRememberMe').checked;
             }
             
             if (!username || !password) {
@@ -1722,6 +1732,23 @@
                 if (response.ok) {
                     currentUser = username;
                     currentUserRole = data.role || 'user';
+                    
+                    // Save session data
+                    const sessionData = {
+                        username: username,
+                        role: data.role || 'user',
+                        approval_status: data.approval_status,
+                        clinician_id: data.clinician_id,
+                        disclaimer_accepted: data.disclaimer_accepted
+                    };
+                    
+                    if (rememberMe) {
+                        // Save to localStorage (persists across browser sessions)
+                        localStorage.setItem('healingSpaceSession', JSON.stringify(sessionData));
+                    } else {
+                        // Save to sessionStorage (clears when tab closes)
+                        sessionStorage.setItem('healingSpaceSession', JSON.stringify(sessionData));
+                    }
                     
                     // Proceed with login (disclaimer already accepted during registration)
                     completeLogin(data);
@@ -2321,6 +2348,10 @@
         
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
+                // Clear all session data
+                localStorage.removeItem('healingSpaceSession');
+                sessionStorage.removeItem('healingSpaceSession');
+                
                 currentUser = null;
                 currentUserRole = 'user';
                 document.getElementById('professionalTabBtn').style.display = 'none';
@@ -3772,8 +3803,41 @@
             }
         }
         
-        // Initialize
-        console.log('Healing Space Complete Edition initialized');
+        // Restore session on page load
+        function restoreSession() {
+            // Check localStorage first (Remember Me), then sessionStorage
+            let sessionData = localStorage.getItem('healingSpaceSession');
+            let storage = 'localStorage';
+            
+            if (!sessionData) {
+                sessionData = sessionStorage.getItem('healingSpaceSession');
+                storage = 'sessionStorage';
+            }
+            
+            if (sessionData) {
+                try {
+                    const data = JSON.parse(sessionData);
+                    currentUser = data.username;
+                    currentUserRole = data.role || 'user';
+                    
+                    console.log('Session restored from ' + storage + ' for user:', currentUser);
+                    
+                    // Restore the app state
+                    completeLogin(data);
+                } catch (error) {
+                    console.error('Error restoring session:', error);
+                    // Clear corrupted session data
+                    localStorage.removeItem('healingSpaceSession');
+                    sessionStorage.removeItem('healingSpaceSession');
+                }
+            }
+        }
+        
+        // Initialize and restore session on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('Healing Space Complete Edition initialized');
+            restoreSession();
+        });
     </script>
 </body>
 </html>
