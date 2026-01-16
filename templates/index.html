@@ -1809,10 +1809,29 @@
             if (currentUserRole !== 'clinician') {
                 addSystemMessage('Welcome to Healing Space! How are you feeling today?');
                 loadPetStatus();
+                checkMoodStatus(); // Check if mood logged today
             }
             
             // Refresh notifications every 30 seconds
             setInterval(loadNotifications, 30000);
+        }
+        
+        // Check if user has logged mood today
+        async function checkMoodStatus() {
+            try {
+                const response = await fetch(`/api/mood/check-today?username=${currentUser}`);
+                const data = await response.json();
+                
+                if (response.ok && data.logged_today) {
+                    // Show status indicator that mood is already logged
+                    const moodTab = document.querySelector('[onclick*="mood"]');
+                    if (moodTab && !moodTab.textContent.includes('✓')) {
+                        moodTab.innerHTML = '✓ Mood & Habits';
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking mood status:', error);
+            }
         }
         
         function checkPasswordStrength(password) {
@@ -2358,6 +2377,9 @@
                     document.getElementById('outsideMins').value = '';
                     document.getElementById('moodNotes').value = '';
                     updateMedList();
+                } else if (response.status === 409) {
+                    // Already logged today - show friendly message
+                    showMessage('moodMessage', '✓ You\'ve already logged your mood today! See you tomorrow! 😊', 'success');
                 } else {
                     showMessage('moodMessage', data.error || 'Failed to log mood', 'error');
                 }

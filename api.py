@@ -950,14 +950,26 @@ def log_mood():
         if not username or mood_val is None:
             return jsonify({'error': 'Username and mood_val required'}), 400
         
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Check if user already logged mood today
+        existing_today = cur.execute(
+            """SELECT id FROM mood_logs 
+               WHERE username=? AND date(entrestamp) = date('now', 'localtime')""",
+            (username,)
+        ).fetchone()
+        
+        if existing_today:
+            conn.close()
+            return jsonify({'error': 'You have already logged your mood today. Only one entry per day is allowed.'}), 409
+        
         # Format medications if it's an array
         if isinstance(meds, list):
             meds_str = ", ".join([f"{m.get('name')} {m.get('strength')}mg (x{m.get('quantity', 1)})" for m in meds])
         else:
             meds_str = meds
         
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
         cur.execute(
             """INSERT INTO mood_logs (username, mood_val, sleep_val, meds, notes, sentiment, 
                water_pints, exercise_mins, outside_mins) VALUES (?,?,?,?,?,?,?,?,?)""",
@@ -994,9 +1006,9 @@ def mood_history():
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
         logs = cur.execute(
-            """SELECT id, mood_val, sleep_val, meds, notes, entry_timestamp, 
+            """SELECT id, mood_val, sleep_val, meds, notes, entrestamp, 
                water_pints, exercise_mins, outside_mins 
-               FROM mood_logs WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?""",
+               FROM mood_logs WHERE username=? ORDER BY entrestamp DESC LIMIT ?""",
             (username, limit)
         ).fetchall()
         conn.close()
@@ -2029,7 +2041,7 @@ def get_insights():
         
         # Get recent mood data for trends
         moods = cur.execute(
-            "SELECT mood_val, sleep_val, entry_timestamp FROM mood_logs WHERE username=? ORDER BY entry_timestamp DESC LIMIT 7",
+            "SELECT mood_val, sleep_val, entrestamp FROM mood_logs WHERE username=? ORDER BY entrestamp DESC LIMIT 7",
             (username,)
         ).fetchall()
         
@@ -2682,6 +2694,91 @@ def reset_all_users():
             'message': 'All users and related data deleted',
             'users_remaining': user_count,
             'approvals_remaining': approval_count
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# === DAILY MOOD REMINDER ===
+@app.route('/api/mood/check-reminder', methods=['POST'])
+def check_mood_reminder():
+    """Check if user logged mood today and send reminder notification if not (called at 8pm)"""
+    try:
+        from datetime import datetime
+        
+        # Get current time
+        now = datetime.now()
+        current_hour = now.hour
+        
+        # Only run at 8pm (20:00) or if forced for testing
+        force = request.json.get('force', False) if request.json else False
+        
+        if not force and current_hour != 20:
+            return jsonify({'message': 'Not 8pm yet, reminders not sent'}), 200
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Get all active patients
+        users = cur.execute(
+            "SELECT username FROM users WHERE role='user'"
+        ).fetchall()
+        
+        reminders_sent = 0
+        
+        for user in users:
+            username = user[0]
+            
+            # Check if user logged mood today
+            logged_today = cur.execute(
+                """SELECT id FROM mood_logs 
+                   WHERE username=? AND date(entrestamp) = date('now', 'localtime')""",
+                (username,)
+            ).fetchone()
+            
+            if not logged_today:
+                # Send reminder notification
+                cur.execute(
+                    "INSERT INTO notifications (recipient_username, message, notification_type) VALUES (?,?,?)",
+                    (username, "🕗 Reminder: Don't forget to log your mood and habits for today!", 'mood_reminder')
+                )
+                reminders_sent += 1
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'reminders_sent': reminders_sent,
+            'message': f'Sent {reminders_sent} mood reminders'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/mood/check-today', methods=['GET'])
+def check_mood_today():
+    """Check if user has logged mood today"""
+    try:
+        username = request.args.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        logged_today = cur.execute(
+            """SELECT id, entrestamp FROM mood_logs 
+               WHERE username=? AND date(entrestamp) = date('now', 'localtime')""",
+            (username,)
+        ).fetchone()
+        
+        conn.close()
+        
+        return jsonify({
+            'logged_today': logged_today is not None,
+            'timestamp': logged_today[1] if logged_today else None
         }), 200
         
     except Exception as e:
