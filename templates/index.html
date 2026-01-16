@@ -1807,14 +1807,11 @@
             
             // Only add system message for patients
             if (currentUserRole !== 'clinician') {
-                // Load chat history first
-                loadChatHistory();
+                // Load chat history first, then show greeting
+                initializePatientSession();
                 
                 // Switch to therapy tab as default
                 switchTab('therapy', document.querySelector('[onclick*="therapy"]'));
-                
-                // Show personalized greeting
-                showPersonalizedGreeting();
                 
                 loadPetStatus();
                 checkMoodStatus(); // Check if mood logged today
@@ -1822,6 +1819,19 @@
             
             // Refresh notifications every 30 seconds
             setInterval(loadNotifications, 30000);
+        }
+        
+        // Initialize patient session with chat history and greeting
+        async function initializePatientSession() {
+            try {
+                // Load existing chat history
+                await loadChatHistory();
+                
+                // Then show personalized greeting
+                await showPersonalizedGreeting();
+            } catch (error) {
+                console.error('Error initializing session:', error);
+            }
         }
         
         // Load chat history from previous sessions
@@ -1836,11 +1846,7 @@
                     
                     // Add history
                     data.history.forEach(msg => {
-                        if (msg.sender === 'user') {
-                            addUserMessage(msg.message);
-                        } else {
-                            addAIMessage(msg.message);
-                        }
+                        addMessage(msg.message, msg.sender);
                     });
                 }
             } catch (error) {
@@ -1860,12 +1866,12 @@
                 const data = await response.json();
                 
                 if (response.ok && data.greeting) {
-                    addAIMessage(data.greeting);
+                    addMessage(data.greeting, 'ai');
                 }
             } catch (error) {
                 console.error('Error loading greeting:', error);
                 // Fallback to simple greeting
-                addAIMessage('Welcome back! How are you feeling today?');
+                addMessage('Welcome back! How are you feeling today?', 'ai');
             }
         }
         
