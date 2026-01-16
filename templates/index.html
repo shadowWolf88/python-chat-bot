@@ -11,6 +11,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            pointer-events: auto;
         }
         
         /* Auth Screen */
@@ -22,6 +23,7 @@
             padding: 20px;
             position: relative;
             z-index: 1000;
+            pointer-events: auto;
         }
         
         .auth-box {
@@ -33,6 +35,11 @@
             padding: 40px;
             position: relative;
             z-index: 1001;
+            pointer-events: auto;
+        }
+        
+        .auth-box * {
+            pointer-events: auto;
         }
         
         .auth-box h1 {
@@ -781,10 +788,10 @@
             <!-- Landing Page -->
             <div id="landingPage">
                 <h2 style="text-align: center; margin-bottom: 30px;">Welcome! Please select:</h2>
-                <button class="btn" onclick="showPatientAuth()" style="width: 100%; margin-bottom: 15px; padding: 20px; font-size: 18px;">
+                <button class="btn" onclick="console.log('Patient button clicked'); showPatientAuth();" style="width: 100%; margin-bottom: 15px; padding: 20px; font-size: 18px;">
                     👤 I'm a Patient
                 </button>
-                <button class="btn btn-secondary" onclick="showClinicianAuth()" style="width: 100%; padding: 20px; font-size: 18px;">
+                <button class="btn btn-secondary" onclick="console.log('Clinician button clicked'); showClinicianAuth();" style="width: 100%; padding: 20px; font-size: 18px;">
                     👨‍⚕️ I'm a Clinician
                 </button>
             </div>
@@ -1514,16 +1521,19 @@
         // Auth Functions
         // Auth Navigation Functions
         function showLanding() {
+            console.log('showLanding called');
             hideAllAuthForms();
             document.getElementById('landingPage').classList.remove('hidden');
         }
         
         function showPatientAuth() {
+            console.log('showPatientAuth called');
             hideAllAuthForms();
             document.getElementById('patientLoginForm').classList.remove('hidden');
         }
         
         function showClinicianAuth() {
+            console.log('showClinicianAuth called');
             hideAllAuthForms();
             document.getElementById('clinicianLoginForm').classList.remove('hidden');
         }
