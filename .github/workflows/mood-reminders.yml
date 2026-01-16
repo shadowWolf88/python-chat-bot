@@ -1,0 +1,40 @@
+name: Daily Mood Reminders
+
+on:
+  schedule:
+    # Runs at 8pm UTC daily (adjust timezone as needed)
+    # For UK time (GMT/BST), 8pm is 20:00 UTC in winter, 19:00 UTC in summer
+    - cron: '0 20 * * *'
+  
+  workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Send Mood Reminder Notifications
+        run: |
+          echo "Sending 8pm mood reminders..."
+          
+          RESPONSE=$(curl -X POST ${{ secrets.RAILWAY_APP_URL }}/api/mood/check-reminder \
+            -H "Content-Type: application/json" \
+            -s -w "\nHTTP_CODE:%{http_code}")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | grep -v "HTTP_CODE:")
+          
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Failed to send reminders"
+            exit 1
+          fi
+          
+          echo "✅ Reminders sent successfully"
+      
+      - name: Log Result
+        if: always()
+        run: |
+          echo "Reminder check completed at $(date)"

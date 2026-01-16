@@ -107,7 +107,29 @@ python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 2. Monitor logs in Railway dashboard
 3. Check deployment status and errors
 
-### Step 6: Custom Domain (Optional)
+### Step 6: Set Up 8pm Mood Reminders
+
+After deploying to Railway, set up automated mood reminders:
+
+1. **Add GitHub Secret**:
+   - Go to your GitHub repo → Settings → Secrets and variables → Actions
+   - Add secret: `RAILWAY_APP_URL` = `https://your-app.railway.app`
+
+2. **Enable GitHub Actions**:
+   - The workflow is already in `.github/workflows/mood-reminders.yml`
+   - It will automatically run at 8pm UTC daily
+   - Test it manually from Actions tab
+
+3. **Verify**:
+   ```bash
+   curl -X POST https://your-app.railway.app/api/mood/check-reminder \
+     -H "Content-Type: application/json" \
+     -d '{"force": true}'
+   ```
+
+📖 See [RAILWAY_REMINDERS.md](RAILWAY_REMINDERS.md) for detailed setup instructions.
+
+### Step 7: Custom Domain (Optional)
 
 1. In Railway dashboard, go to Settings → Domains
 2. Click "Generate Domain" for free Railway subdomain
