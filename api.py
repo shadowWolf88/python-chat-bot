@@ -2573,7 +2573,7 @@ def get_insights():
         
         # Get safety plan
         safety = cur.execute(
-            "SELECT triggers, coping_strategies FROM safety_plans WHERE username=?",
+            "SELECT triggers, coping FROM safety_plans WHERE username=?",
             (username,)
         ).fetchone()
         
