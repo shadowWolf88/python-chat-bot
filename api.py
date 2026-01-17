@@ -578,6 +578,45 @@ def login():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/validate-session', methods=['POST'])
+def validate_session():
+    """Validate stored session data"""
+    try:
+        data = request.json
+        username = data.get('username')
+        role = data.get('role', 'user')
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Check if user still exists and get their current role
+        user = cur.execute(
+            "SELECT username, role FROM users WHERE username=?",
+            (username,)
+        ).fetchone()
+        
+        conn.close()
+        
+        if not user:
+            return jsonify({'error': 'Session invalid - user not found'}), 401
+        
+        # Verify role matches
+        if user[1] != role:
+            return jsonify({'error': 'Session invalid - role mismatch'}), 401
+        
+        return jsonify({
+            'success': True,
+            'message': 'Session valid',
+            'username': username,
+            'role': role
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/auth/forgot-password', methods=['POST'])
 def forgot_password():
     """Send password reset email"""

@@ -1897,18 +1897,27 @@
             console.log('showLanding called');
             hideAllAuthForms();
             document.getElementById('landingPage').classList.remove('hidden');
+            // Ensure authScreen is visible
+            document.getElementById('authScreen').style.display = 'flex';
+            document.getElementById('appScreen').style.display = 'none';
         }
         
         function showPatientAuth() {
             console.log('showPatientAuth called');
             hideAllAuthForms();
             document.getElementById('patientLoginForm').classList.remove('hidden');
+            // Ensure authScreen is visible
+            document.getElementById('authScreen').style.display = 'flex';
+            document.getElementById('appScreen').style.display = 'none';
         }
         
         function showClinicianAuth() {
             console.log('showClinicianAuth called');
             hideAllAuthForms();
             document.getElementById('clinicianLoginForm').classList.remove('hidden');
+            // Ensure authScreen is visible
+            document.getElementById('authScreen').style.display = 'flex';
+            document.getElementById('appScreen').style.display = 'none';
         }
         
         console.log('Auth functions defined:', typeof showPatientAuth, typeof showClinicianAuth);
@@ -4919,7 +4928,7 @@
         }
         
         // Restore session on page load
-        function restoreSession() {
+        async function restoreSession() {
             // Check localStorage first (Remember Me), then sessionStorage
             let sessionData = localStorage.getItem('healingSpaceSession');
             let storage = 'localStorage';
@@ -4932,19 +4941,42 @@
             if (sessionData) {
                 try {
                     const data = JSON.parse(sessionData);
-                    currentUser = data.username;
-                    currentUserRole = data.role || 'user';
                     
-                    console.log('Session restored from ' + storage + ' for user:', currentUser);
+                    // Validate session with server before restoring
+                    const response = await fetch('/api/validate-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            username: data.username,
+                            role: data.role || 'user'
+                        })
+                    });
                     
-                    // Restore the app state
-                    completeLogin(data);
+                    if (response.ok) {
+                        currentUser = data.username;
+                        currentUserRole = data.role || 'user';
+                        
+                        console.log('Session restored from ' + storage + ' for user:', currentUser);
+                        
+                        // Restore the app state
+                        completeLogin(data);
+                    } else {
+                        // Session invalid, clear it
+                        console.log('Session validation failed, clearing session data');
+                        localStorage.removeItem('healingSpaceSession');
+                        sessionStorage.removeItem('healingSpaceSession');
+                        showLanding();
+                    }
                 } catch (error) {
                     console.error('Error restoring session:', error);
                     // Clear corrupted session data
                     localStorage.removeItem('healingSpaceSession');
                     sessionStorage.removeItem('healingSpaceSession');
+                    showLanding();
                 }
+            } else {
+                // No session data, show landing page
+                showLanding();
             }
         }
         
@@ -4965,8 +4997,22 @@
         // Initialize and restore session on page load
         window.addEventListener('DOMContentLoaded', function() {
             console.log('Healing Space Complete Edition initialized');
+            
+            // Ensure authScreen is visible by default
+            document.getElementById('authScreen').style.display = 'flex';
+            document.getElementById('appScreen').style.display = 'none';
+            
+            // Try to restore session (will handle visibility if successful)
             restoreSession();
         });
+        
+        // Debug helper: Call this from browser console to clear all session data
+        window.clearAllSessions = function() {
+            localStorage.removeItem('healingSpaceSession');
+            sessionStorage.removeItem('healingSpaceSession');
+            console.log('All session data cleared. Reloading page...');
+            location.reload();
+        };
     </script>
 </body>
 </html>
