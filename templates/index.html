@@ -4996,7 +4996,7 @@
         }
         
         // Initialize and restore session on page load
-        window.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('DOMContentLoaded', async function() {
             console.log('Healing Space Complete Edition initialized');
             
             // Ensure authScreen is visible by default
@@ -5004,7 +5004,7 @@
             document.getElementById('appScreen').style.display = 'none';
             
             // Try to restore session (will handle visibility if successful)
-            restoreSession();
+            await restoreSession();
         });
         
         // Debug helper: Call this from browser console to clear all session data
