@@ -1307,6 +1307,7 @@ class App(ctk.CTk):
         
         ctk.CTkButton(container, text="📊 Mood Tracker", command=self.open_mood_tracker, fg_color="#e67e22", hover_color="#d35400", height=45).pack(pady=5, padx=20, fill="x")
         ctk.CTkButton(container, text="📈 Progress Insights & PDF", command=self.show_insights, fg_color="#3498db", height=45).pack(pady=5, padx=20, fill="x")
+        ctk.CTkButton(container, text="👤 About Me", command=self.open_about_me, fg_color="#1abc9c", height=45).pack(pady=5, padx=20, fill="x")
         ctk.CTkButton(container, text="⚙️ Settings", command=self.open_settings, fg_color="#95a5a6", height=45).pack(pady=5, padx=20, fill="x")
         
         ctk.CTkLabel(self, text="Recent Sessions:", font=("Segoe UI", 12, "italic"), wraplength=500).pack(pady=10)
@@ -1515,6 +1516,188 @@ class App(ctk.CTk):
         ctk.CTkButton(privacy_frame, text="🗑️ Delete My Training Data (GDPR Right)", 
                      command=delete_training_data, fg_color="#e74c3c", height=30).pack(pady=(0, 10))
 
+    # --- NEW: About Me Page ---
+    def open_about_me(self):
+        about_win = ctk.CTkToplevel(self)
+        about_win.title("About Me")
+        about_win.geometry("600x750")
+        about_win.bind('<Escape>', lambda e: about_win.destroy())
+        
+        scroll = ctk.CTkScrollableFrame(about_win)
+        scroll.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        ctk.CTkLabel(scroll, text="👤 About Me", font=("Arial", 24, "bold"), text_color="#3498db").pack(pady=(10, 20))
+        
+        # Fetch user data
+        conn = sqlite3.connect("therapist_app.db")
+        cur = conn.cursor()
+        user_data = cur.execute(
+            "SELECT full_name, dob, conditions, email, phone, clinician_id FROM users WHERE username=?",
+            (self.current_user,)
+        ).fetchone()
+        
+        # Fetch clinician info if assigned
+        clinician_name = None
+        clinician_email = None
+        if user_data and user_data[5]:  # clinician_id exists
+            clinician_info = cur.execute(
+                "SELECT full_name, email FROM users WHERE username=? AND role='clinician'",
+                (user_data[5],)
+            ).fetchone()
+            if clinician_info:
+                try:
+                    clinician_name = decrypt_text(clinician_info[0]) if clinician_info[0] else user_data[5]
+                    clinician_email = decrypt_text(clinician_info[1]) if clinician_info[1] else "Not provided"
+                except:
+                    clinician_name = user_data[5]
+                    clinician_email = "Not available"
+        
+        conn.close()
+        
+        # Personal Information Section
+        info_frame = ctk.CTkFrame(scroll, fg_color="#2c3e50", corner_radius=10)
+        info_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(info_frame, text="📋 Personal Information", font=("Arial", 16, "bold")).pack(pady=(15, 10))
+        
+        # Username (read-only)
+        username_frame = ctk.CTkFrame(info_frame)
+        username_frame.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(username_frame, text="Username:", font=("Arial", 11, "bold"), width=120, anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(username_frame, text=self.current_user, font=("Arial", 11), text_color="#95a5a6").pack(side="left", padx=5)
+        
+        # Editable fields
+        if user_data:
+            try:
+                full_name = decrypt_text(user_data[0]) if user_data[0] else ""
+                dob = decrypt_text(user_data[1]) if user_data[1] else ""
+                conditions = decrypt_text(user_data[2]) if user_data[2] else ""
+                email = decrypt_text(user_data[3]) if user_data[3] else ""
+                phone = decrypt_text(user_data[4]) if user_data[4] else ""
+            except:
+                full_name = dob = conditions = email = phone = ""
+        else:
+            full_name = dob = conditions = email = phone = ""
+        
+        # Full Name
+        name_frame = ctk.CTkFrame(info_frame)
+        name_frame.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(name_frame, text="Full Name:", font=("Arial", 11, "bold"), width=120, anchor="w").pack(side="left", padx=5)
+        name_entry = ctk.CTkEntry(name_frame, width=300)
+        name_entry.insert(0, full_name)
+        name_entry.pack(side="left", padx=5)
+        
+        # Date of Birth
+        dob_frame = ctk.CTkFrame(info_frame)
+        dob_frame.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(dob_frame, text="Date of Birth:", font=("Arial", 11, "bold"), width=120, anchor="w").pack(side="left", padx=5)
+        dob_entry = ctk.CTkEntry(dob_frame, width=300, placeholder_text="DD/MM/YYYY")
+        dob_entry.insert(0, dob)
+        dob_entry.pack(side="left", padx=5)
+        
+        # Email
+        email_frame = ctk.CTkFrame(info_frame)
+        email_frame.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(email_frame, text="Email:", font=("Arial", 11, "bold"), width=120, anchor="w").pack(side="left", padx=5)
+        email_entry = ctk.CTkEntry(email_frame, width=300)
+        email_entry.insert(0, email)
+        email_entry.pack(side="left", padx=5)
+        
+        # Phone
+        phone_frame = ctk.CTkFrame(info_frame)
+        phone_frame.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(phone_frame, text="Phone:", font=("Arial", 11, "bold"), width=120, anchor="w").pack(side="left", padx=5)
+        phone_entry = ctk.CTkEntry(phone_frame, width=300)
+        phone_entry.insert(0, phone)
+        phone_entry.pack(side="left", padx=5)
+        
+        # Medical History
+        ctk.CTkLabel(info_frame, text="Medical History:", font=("Arial", 11, "bold"), anchor="w").pack(padx=20, pady=(10, 5), anchor="w")
+        conditions_text = ctk.CTkTextbox(info_frame, height=100, width=450)
+        conditions_text.insert("1.0", conditions)
+        conditions_text.pack(padx=20, pady=5)
+        
+        # Save button
+        def save_profile():
+            try:
+                new_name = encrypt_text(name_entry.get())
+                new_dob = encrypt_text(dob_entry.get())
+                new_email = encrypt_text(email_entry.get())
+                new_phone = encrypt_text(phone_entry.get())
+                new_conditions = encrypt_text(conditions_text.get("1.0", "end-1c"))
+                
+                conn = sqlite3.connect("therapist_app.db")
+                conn.execute(
+                    "UPDATE users SET full_name=?, dob=?, email=?, phone=?, conditions=? WHERE username=?",
+                    (new_name, new_dob, new_email, new_phone, new_conditions, self.current_user)
+                )
+                conn.commit()
+                conn.close()
+                
+                log_event(self.current_user, 'user', 'profile_updated', 'Updated personal information')
+                messagebox.showinfo("Success", "Profile updated successfully!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to update profile: {str(e)}")
+        
+        ctk.CTkButton(info_frame, text="💾 Save Changes", command=save_profile, 
+                     fg_color="#27ae60", height=35).pack(pady=15)
+        
+        # Clinician Information Section
+        clinician_frame = ctk.CTkFrame(scroll, fg_color="#34495e", corner_radius=10)
+        clinician_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(clinician_frame, text="👨‍⚕️ My Clinician", font=("Arial", 16, "bold")).pack(pady=(15, 10))
+        
+        if clinician_name:
+            ctk.CTkLabel(clinician_frame, text=f"Name: {clinician_name}", 
+                        font=("Arial", 12), anchor="w").pack(padx=20, pady=5, anchor="w")
+            if clinician_email and clinician_email != "Not provided":
+                ctk.CTkLabel(clinician_frame, text=f"Email: {clinician_email}", 
+                            font=("Arial", 12), anchor="w").pack(padx=20, pady=5, anchor="w")
+            ctk.CTkLabel(clinician_frame, text="✅ You have a clinician assigned", 
+                        font=("Arial", 11), text_color="#27ae60").pack(padx=20, pady=10)
+        else:
+            ctk.CTkLabel(clinician_frame, text="No clinician assigned yet", 
+                        font=("Arial", 12), text_color="#95a5a6").pack(padx=20, pady=15)
+            ctk.CTkLabel(clinician_frame, text="Your clinician can be assigned by a healthcare provider.", 
+                        font=("Arial", 10), text_color="#95a5a6", wraplength=500).pack(padx=20, pady=(0, 15))
+        
+        # Account Statistics Section
+        stats_frame = ctk.CTkFrame(scroll, fg_color="#2c3e50", corner_radius=10)
+        stats_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(stats_frame, text="📊 My Activity", font=("Arial", 16, "bold")).pack(pady=(15, 10))
+        
+        # Get statistics
+        conn = sqlite3.connect("therapist_app.db")
+        cur = conn.cursor()
+        
+        mood_count = cur.execute("SELECT COUNT(*) FROM mood_logs WHERE username=?", (self.current_user,)).fetchone()[0]
+        grat_count = cur.execute("SELECT COUNT(*) FROM gratitude_logs WHERE username=?", (self.current_user,)).fetchone()[0]
+        cbt_count = cur.execute("SELECT COUNT(*) FROM cbt_records WHERE username=?", (self.current_user,)).fetchone()[0]
+        session_count = cur.execute("SELECT COUNT(*) FROM sessions WHERE username=?", (self.current_user,)).fetchone()[0]
+        
+        conn.close()
+        
+        stats_grid = ctk.CTkFrame(stats_frame, fg_color="transparent")
+        stats_grid.pack(padx=20, pady=10)
+        
+        # Create stat cards
+        def create_stat_card(parent, label, value, row, col):
+            card = ctk.CTkFrame(parent, fg_color="#34495e", corner_radius=8)
+            card.grid(row=row, column=col, padx=10, pady=5)
+            ctk.CTkLabel(card, text=str(value), font=("Arial", 24, "bold"), 
+                        text_color="#3498db").pack(pady=(10, 0))
+            ctk.CTkLabel(card, text=label, font=("Arial", 10), 
+                        text_color="#95a5a6").pack(pady=(0, 10), padx=15)
+        
+        create_stat_card(stats_grid, "Mood Logs", mood_count, 0, 0)
+        create_stat_card(stats_grid, "Gratitude Entries", grat_count, 0, 1)
+        create_stat_card(stats_grid, "CBT Records", cbt_count, 1, 0)
+        create_stat_card(stats_grid, "Therapy Sessions", session_count, 1, 1)
+        
+        stats_grid.pack(pady=(0, 15))
+    
     # --- NEW: Clinical Access Check ---
     def check_clinical_access(self):
         conn = sqlite3.connect("therapist_app.db")
@@ -1809,7 +1992,14 @@ class App(ctk.CTk):
         if len(logs) < 1:
             ctk.CTkLabel(scroll, text="Log data to see insights!", wraplength=500).pack(pady=50); return
 
-        ctk.CTkButton(scroll, text="📄 Generate ALL-DATA PDF Report", fg_color="#e67e22", command=lambda: self.generate_pdf_report(logs, grats, cbt, plan)).pack(pady=10)
+        # Patient PDF export for personal use
+        pdf_frame = ctk.CTkFrame(scroll, fg_color="#34495e")
+        pdf_frame.pack(pady=10, padx=20, fill="x")
+        ctk.CTkLabel(pdf_frame, text="📄 Export Your Personal Progress Report", font=("Arial", 14, "bold")).pack(pady=(10, 5))
+        ctk.CTkLabel(pdf_frame, text="Download a summary of your wellness journey for your personal records.", 
+                    font=("Arial", 10), text_color="#95a5a6", wraplength=500).pack(pady=(0, 5))
+        ctk.CTkButton(pdf_frame, text="📥 Download My Personal PDF", fg_color="#e67e22", 
+                     command=lambda: self.generate_patient_pdf_report(logs, grats, cbt, plan)).pack(pady=(5, 15))
         ctk.CTkLabel(scroll, text="Visual Consistency (Last 7 Logs)", font=("Arial", 16, "bold"), wraplength=550).pack(pady=10)
         self.draw_habit_chart(scroll, logs[:7])
         ctk.CTkLabel(scroll, text="AI Holistic Progress Opinion", font=("Arial", 16, "bold"), text_color="#3498db", wraplength=550).pack(pady=20)
@@ -1827,60 +2017,108 @@ class App(ctk.CTk):
                 pass
         threading.Thread(target=get_ai_opinion).start()
 
-    def generate_pdf_report(self, logs, grats, cbt, plan):
-        file_path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF files", "*.pdf")])
-        if not file_path: return
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
-        pdf.cell(200, 10, txt=f"Full Wellness Portfolio: {self.current_user}", ln=True, align='C')
-        pdf.ln(5)
+    def generate_patient_pdf_report(self, logs, grats, cbt, plan):
+        """Generate patient-friendly PDF for personal use (not clinical)"""
+        if not HAS_REPORTLAB:
+            messagebox.showerror("Error", "PDF generation unavailable. reportlab library not installed.")
+            return
         
-        # Safety Plan Section
-        pdf.set_font("Arial", 'B', 12); pdf.cell(200, 10, txt="1. Safety Plan", ln=True)
-        pdf.set_font("Arial", size=10); pdf.multi_cell(0, 5, txt=f"Triggers: {plan[0]}\nCoping: {plan[1]}")
-        pdf.ln(5)
-
-        # Mood Logs Section
-        pdf.set_font("Arial", 'B', 12); pdf.cell(200, 10, txt="2. Mood & Health History", ln=True)
-        pdf.set_font("Arial", size=9)
-        for l in logs[:10]:
-            pdf.cell(200, 7, txt=f"[{l[8]}] Mood: {l[0]}/10 | Sleep: {l[1]}h | Meds: {l[2]}", ln=True)
-            pdf.multi_cell(0, 5, txt=f"Notes: {decrypt_text(l[3])}")
-            pdf.ln(2)
-
-        # Gratitude Section
-        pdf.ln(5); pdf.set_font("Arial", 'B', 12); pdf.cell(200, 10, txt="3. Gratitude Journal", ln=True)
-        pdf.set_font("Arial", size=9)
-        for g in grats[:10]:
-            pdf.multi_cell(0, 5, txt=f"[{g[1]}]: {decrypt_text(g[0])}")
-            pdf.ln(2)
-
-        # CBT Section
-        pdf.ln(5); pdf.set_font("Arial", 'B', 12); pdf.cell(200, 10, txt="4. CBT Thought Challenges", ln=True)
-        for c in cbt[:10]:
-            pdf.set_font("Arial", 'I', 9); pdf.cell(0, 5, txt=f"Entry Date: {c[3]}", ln=True)
-            pdf.set_font("Arial", size=9)
-            pdf.multi_cell(0, 5, txt=f"Situation: {decrypt_text(c[0])}\nThought: {decrypt_text(c[1])}\nEvidence: {decrypt_text(c[2])}")
-            pdf.ln(3)
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            initialfile=f"{self.current_user}_personal_progress.pdf",
+            filetypes=[("PDF files", "*.pdf")])
+        if not file_path:
+            return
         
-        # Clinical Scales Section (NEW)
-        pdf.ln(5); pdf.set_font("Arial", 'B', 12); pdf.cell(200, 10, txt="5. Clinical Assessment History (PHQ-9)", ln=True)
-        pdf.set_font("Arial", size=9)
-        conn = sqlite3.connect("therapist_app.db")
-        scales = conn.cursor().execute("SELECT entry_timestamp, score, severity FROM clinical_scales WHERE username=? ORDER BY entry_timestamp DESC LIMIT 10", (self.current_user,)).fetchall()
-        conn.close()
-        if not scales:
-            pdf.cell(0, 5, txt="No clinical assessments recorded yet.", ln=True)
-        for s in scales:
-            pdf.cell(0, 5, txt=f"Date: {s[0]} | Score: {s[1]} | Result: {s[2]}", ln=True)
-
-        pdf.output(file_path)
         try:
-            messagebox.showinfo("Success", "Consolidated PDF Report Exported (Includes Clinical Scales).")
-        except Exception:
-            # If the UI is closing or unavailable, avoid crashing.
-            pass
+            # Create PDF
+            doc = SimpleDocTemplate(file_path, pagesize=letter,
+                                   rightMargin=72, leftMargin=72,
+                                   topMargin=72, bottomMargin=18)
+            
+            styles = getSampleStyleSheet()
+            story = []
+            
+            # Title
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=24,
+                textColor=colors.HexColor('#2c3e50'),
+                spaceAfter=30,
+                alignment=1
+            )
+            story.append(Paragraph(f"My Wellness Journey", title_style))
+            story.append(Paragraph(f"Personal Progress Report", styles['Heading2']))
+            story.append(Spacer(1, 0.2*inch))
+            story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y')}", styles['Normal']))
+            story.append(Paragraph(f"For: {self.current_user}", styles['Normal']))
+            story.append(Spacer(1, 0.5*inch))
+            
+            # Safety Plan
+            story.append(Paragraph("My Safety Plan", styles['Heading2']))
+            story.append(Paragraph(f"<b>When I'm Triggered By:</b> {plan[0]}", styles['Normal']))
+            story.append(Spacer(1, 0.1*inch))
+            story.append(Paragraph(f"<b>I Can Cope By:</b> {plan[1]}", styles['Normal']))
+            story.append(Spacer(1, 0.4*inch))
+            
+            # Mood History
+            story.append(Paragraph("My Mood & Health Journey", styles['Heading2']))
+            if logs:
+                for l in logs[:10]:
+                    notes = decrypt_text(l[3]) if l[3] else "No notes"
+                    mood_text = f"<b>{l[8][:10]}</b>: Mood {l[0]}/10 • Sleep {l[1]}hrs • Exercise {l[5]}min"
+                    story.append(Paragraph(mood_text, styles['Normal']))
+                    if notes and notes != "No notes":
+                        story.append(Paragraph(f"&nbsp;&nbsp;&nbsp;&nbsp;<i>{notes[:200]}</i>", styles['Italic']))
+                    story.append(Spacer(1, 0.15*inch))
+            else:
+                story.append(Paragraph("No mood logs recorded yet.", styles['Normal']))
+            
+            story.append(PageBreak())
+            
+            # Gratitude
+            story.append(Paragraph("What I'm Grateful For", styles['Heading2']))
+            if grats:
+                for g in grats[:15]:
+                    try:
+                        entry_text = decrypt_text(g[0])
+                        story.append(Paragraph(f"• {entry_text}", styles['Normal']))
+                        story.append(Spacer(1, 0.1*inch))
+                    except:
+                        pass
+            else:
+                story.append(Paragraph("No gratitude entries yet.", styles['Normal']))
+            
+            story.append(Spacer(1, 0.4*inch))
+
+            # CBT Records
+            story.append(Paragraph("My Thought Challenges (CBT)", styles['Heading2']))
+            if cbt:
+                for c in cbt[:10]:
+                    try:
+                        situation = decrypt_text(c[0])
+                        thought = decrypt_text(c[1])
+                        evidence = decrypt_text(c[2])
+                        story.append(Paragraph(f"<b>Situation:</b> {situation}", styles['Normal']))
+                        story.append(Paragraph(f"<b>Thought:</b> {thought}", styles['Italic']))
+                        story.append(Paragraph(f"<b>Evidence Against:</b> {evidence}", styles['Normal']))
+                        story.append(Spacer(1, 0.2*inch))
+                    except:
+                        pass
+            else:
+                story.append(Paragraph("No CBT records yet.", styles['Normal']))
+            
+            # Build PDF
+            doc.build(story)
+            messagebox.showinfo("Success", f"Your personal progress report has been saved to:\n{file_path}")
+            log_event(self.current_user, 'user', 'pdf_export', 'Patient exported personal PDF')
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate PDF: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
 
     def draw_habit_chart(self, parent, logs):
         canvas = tk.Canvas(parent, width=500, height=200, bg="#1a1a1a", highlightthickness=0); canvas.pack(pady=10)
