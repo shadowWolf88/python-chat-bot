@@ -3294,6 +3294,129 @@ def check_mood_today():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# === TRAINING DATA MANAGEMENT (GDPR-COMPLIANT) ===
+from training_data_manager import TrainingDataManager
+
+training_manager = TrainingDataManager(DB_PATH)
+
+@app.route('/api/training/consent', methods=['POST'])
+def set_training_consent():
+    """Allow user to opt-in/opt-out of training data collection"""
+    try:
+        data = request.json
+        username = data.get('username')
+        consent = data.get('consent', True)
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        success = training_manager.set_user_consent(username, consent)
+        
+        message = (
+            "Thank you for contributing to mental health AI research! "
+            "Your anonymized data will help improve therapy support for others."
+            if consent else
+            "Your consent has been withdrawn. No training data will be collected."
+        )
+        
+        return jsonify({
+            'success': success,
+            'message': message
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/training/consent/status', methods=['GET'])
+def get_training_consent_status():
+    """Check user's training data consent status"""
+    try:
+        username = request.args.get('username')
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        has_consent = training_manager.check_user_consent(username)
+        
+        return jsonify({
+            'consented': has_consent
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/training/export', methods=['POST'])
+def export_training_data():
+    """Export user's anonymized data to training database (if consented)"""
+    try:
+        data = request.json
+        username = data.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        # Check consent
+        if not training_manager.check_user_consent(username):
+            return jsonify({
+                'error': 'User has not consented to training data usage'
+            }), 403
+        
+        # Export all data types
+        results = {}
+        
+        # Chat sessions
+        success, msg = training_manager.export_chat_session(username)
+        results['chats'] = {'success': success, 'message': msg}
+        
+        # Therapy patterns (CBT, gratitude)
+        success, msg = training_manager.export_therapy_patterns(username)
+        results['patterns'] = {'success': success, 'message': msg}
+        
+        # Treatment outcomes
+        success, msg = training_manager.export_outcome_data(username)
+        results['outcomes'] = {'success': success, 'message': msg}
+        
+        return jsonify({
+            'success': True,
+            'results': results
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/training/delete', methods=['POST'])
+def delete_training_data():
+    """GDPR Right to Deletion - Remove user's training data"""
+    try:
+        data = request.json
+        username = data.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        success = training_manager.delete_user_training_data(username)
+        
+        return jsonify({
+            'success': success,
+            'message': 'All your training data has been permanently deleted'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/training/stats', methods=['GET'])
+def get_training_stats():
+    """Get training database statistics (admin only)"""
+    try:
+        stats = training_manager.get_training_stats()
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({'error': 'Endpoint not found'}), 404

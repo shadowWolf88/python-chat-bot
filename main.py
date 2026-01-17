@@ -28,6 +28,7 @@ from pet_game import PetGame
 from audit import log_event
 from fhir_export import export_patient_fhir
 from secure_transfer import sftp_upload
+from training_data_manager import TrainingDataManager
 from secrets_manager import SecretsManager
 
 # Load runtime mode
@@ -315,7 +316,14 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS users 
                       (username TEXT PRIMARY KEY, password TEXT, pin TEXT, last_login TIMESTAMP, 
                        full_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user', 
-                       clinician_id TEXT, disclaimer_accepted INTEGER DEFAULT 0)''')
+                       clinician_id TEXT, disclaimer_accepted INTEGER DEFAULT 0, training_consent INTEGER DEFAULT 0)''')
+    
+    # Migration: Add training_consent column if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN training_consent INTEGER DEFAULT 0")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     cursor.execute('''CREATE TABLE IF NOT EXISTS sessions 
                       (session_id TEXT PRIMARY KEY, username TEXT, title TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS gratitude_logs 
@@ -910,8 +918,12 @@ class App(ctk.CTk):
         threading.Thread(target=lambda: asyncio.run(amain())).start()
 
     def show_disclaimer(self):
-        disclaimer_text = ("WELCOME TO HEALING SPACE\n\nThis app does not give or replace medical advice.\n\n"
-                           "If in danger, call 999 (UK), 988 (USA/CA).")
+        disclaimer_text = ("WELCOME TO HEALING SPACE\n\n"
+                           "This app does not give or replace medical advice.\n\n"
+                           "If in danger, call 999 (UK), 988 (USA/CA).\n\n"
+                           "📊 Optional: You can contribute anonymized data to AI research.\n"
+                           "See Settings > AI Research Data Contribution to opt-in.\n"
+                           "Your privacy is protected - data is fully anonymized (GDPR-compliant).")
         messagebox.showinfo("Safety Acknowledgment", disclaimer_text)
 
     def clear_screen(self):
@@ -980,6 +992,34 @@ class App(ctk.CTk):
         ctk.CTkLabel(scroll, text="Relevant Medical/Health History:", font=("Arial", 12)).pack(pady=(10, 0))
         self.su_cond = ctk.CTkTextbox(scroll, height=100, width=300, wrap="word"); self.su_cond.pack(pady=10)
         
+        # GDPR-compliant training data consent
+        consent_frame = ctk.CTkFrame(scroll, fg_color="#2c3e50", corner_radius=10)
+        consent_frame.pack(pady=15, padx=20, fill="x")
+        
+        ctk.CTkLabel(consent_frame, text="📊 Optional: Contribute to AI Research", 
+                    font=("Arial", 12, "bold"), text_color="#3498db").pack(pady=(10, 5))
+        
+        consent_text = (
+            "Help improve mental health AI for future patients.\n\n"
+            "✅ Your data will be completely anonymized\n"
+            "✅ No names, emails, or personal identifiers\n"
+            "✅ Used only for AI training\n"
+            "✅ You can withdraw consent anytime\n"
+            "✅ Deletion available (GDPR right)\n\n"
+            "Voluntary - won't affect your treatment"
+        )
+        ctk.CTkLabel(consent_frame, text=consent_text, font=("Arial", 10), 
+                    justify="left", wraplength=280).pack(pady=5, padx=15)
+        
+        self.training_consent_var = ctk.BooleanVar(value=False)
+        self.training_consent_cb = ctk.CTkCheckBox(
+            consent_frame, 
+            text="I consent to contribute my anonymized data",
+            variable=self.training_consent_var,
+            font=("Arial", 10, "bold")
+        )
+        self.training_consent_cb.pack(pady=(5, 15))
+        
         ctk.CTkButton(scroll, text="Register Account", command=self.signup_process, width=300, height=50, fg_color="#2ecc71").pack(pady=20)
         ctk.CTkButton(scroll, text="Back to Login", command=self.setup_login_ui, fg_color="transparent").pack()
         
@@ -1003,17 +1043,35 @@ class App(ctk.CTk):
             messagebox.showerror("Error", "Please enter a 4-digit PIN")
             return
 
+        # Get training consent
+        training_consent = getattr(self, 'training_consent_var', ctk.BooleanVar(value=False)).get()
+        
         try:
             # Hash PIN (bcrypt if available, otherwise PBKDF2) before storing
             hashed_pin = hash_pin(pin)
             conn = sqlite3.connect("therapist_app.db")
             conn.cursor().execute('''INSERT INTO users 
-                (username, password, pin, last_login, full_name, dob, conditions) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)''', 
-                (user, pw, hashed_pin, datetime.now(), encrypt_text(full_name), encrypt_text(dob), encrypt_text(conds)))
+                (username, password, pin, last_login, full_name, dob, conditions, training_consent) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
+                (user, pw, hashed_pin, datetime.now(), encrypt_text(full_name), encrypt_text(dob), encrypt_text(conds), int(training_consent)))
             conn.commit(); conn.close()
+            
+            # Record consent in training database if consented
+            if training_consent:
+                try:
+                    training_mgr = TrainingDataManager()
+                    training_mgr.set_user_consent(user, consent=True)
+                    log_event(user, "system", "training_consent", "User opted in during signup")
+                except Exception as e:
+                    print(f"Training consent recording failed: {e}")
+            
             log_event(user, "system", "signup", "Account created")
-            messagebox.showinfo("Success", "Account created! You can now login.")
+            
+            success_msg = "Account created! You can now login."
+            if training_consent:
+                success_msg += "\n\nThank you for contributing to mental health AI research!"
+            
+            messagebox.showinfo("Success", success_msg)
             self.unbind('<Return>')
             self.setup_login_ui()
         except Exception as e:
@@ -1117,7 +1175,7 @@ class App(ctk.CTk):
     def open_settings(self):
         s = ctk.CTkToplevel(self)
         s.title("Settings")
-        s.geometry("480x420")
+        s.geometry("520x650")
         # Read current settings
         font_size = int(self.ui_settings.get('font_size', '12'))
         appearance = self.ui_settings.get('appearance_mode', 'dark')
@@ -1193,6 +1251,110 @@ class App(ctk.CTk):
                 conn.close()
 
         ctk.CTkButton(s, text="Create Clinician", command=create_clinician, fg_color="#2980b9").pack(pady=8)
+
+        # --- GDPR-Compliant Training Data Consent ---
+        ctk.CTkLabel(s, text="AI Research Data Contribution", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=(12,4))
+        
+        # Get current consent status
+        conn = sqlite3.connect("therapist_app.db")
+        cur = conn.cursor()
+        current_consent = cur.execute(
+            "SELECT training_consent FROM users WHERE username=?", 
+            (self.current_user,)
+        ).fetchone()
+        conn.close()
+        
+        has_consent = current_consent and current_consent[0] == 1
+        
+        privacy_frame = ctk.CTkFrame(s, fg_color="#2c3e50")
+        privacy_frame.pack(pady=4, padx=10, fill="x")
+        
+        status_text = "✅ Currently Contributing" if has_consent else "❌ Not Contributing"
+        status_color = "#27ae60" if has_consent else "#95a5a6"
+        
+        ctk.CTkLabel(privacy_frame, text=status_text, font=("Arial", 12, "bold"), 
+                    text_color=status_color).pack(pady=(10, 5))
+        
+        consent_info = (
+            "Help improve mental health AI:\\n\\n"
+            "• Completely anonymized data\\n"
+            "• No personal identifiers\\n"
+            "• Used only for AI training\\n"
+            "• Can withdraw anytime\\n"
+            "• GDPR-compliant deletion available"
+        )
+        ctk.CTkLabel(privacy_frame, text=consent_info, font=("Arial", 9), 
+                    justify="left", wraplength=450).pack(pady=5, padx=10)
+        
+        consent_var = ctk.BooleanVar(value=has_consent)
+        consent_toggle = ctk.CTkCheckBox(
+            privacy_frame,
+            text="I consent to contribute my anonymized data to AI training",
+            variable=consent_var,
+            font=("Arial", 10, "bold")
+        )
+        consent_toggle.pack(pady=10)
+        
+        def update_consent():
+            new_consent = consent_var.get()
+            try:
+                # Update database
+                conn = sqlite3.connect("therapist_app.db")
+                conn.execute(
+                    "UPDATE users SET training_consent=? WHERE username=?",
+                    (int(new_consent), self.current_user)
+                )
+                conn.commit()
+                conn.close()
+                
+                # Update training database
+                training_mgr = TrainingDataManager()
+                training_mgr.set_user_consent(self.current_user, consent=new_consent)
+                
+                if new_consent:
+                    log_event(self.current_user, "user", "training_consent", "User opted in")
+                    messagebox.showinfo(
+                        "Thank You!", 
+                        "Thank you for contributing to mental health AI research!\\n\\n"
+                        "Your anonymized data will help improve therapy support for others."
+                    )
+                else:
+                    log_event(self.current_user, "user", "training_consent_withdrawn", "User opted out")
+                    messagebox.showinfo(
+                        "Consent Withdrawn", 
+                        "Your consent has been withdrawn.\\n\\n"
+                        "No new training data will be collected.\\n"
+                        "Existing anonymized data remains unless you request deletion."
+                    )
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not update consent: {e}")
+        
+        ctk.CTkButton(privacy_frame, text="Update Consent", command=update_consent, 
+                     fg_color="#3498db", height=35).pack(pady=(5, 10))
+        
+        def delete_training_data():
+            if not messagebox.askyesno(
+                "Delete Training Data",
+                "Are you sure you want to permanently delete all your training data?\\n\\n"
+                "This action cannot be undone.\\n"
+                "You can opt-in again later to contribute new data."
+            ):
+                return
+            
+            try:
+                training_mgr = TrainingDataManager()
+                success, message = training_mgr.delete_user_training_data(self.current_user)
+                
+                if success:
+                    log_event(self.current_user, "user", "training_data_deleted", "GDPR deletion request")
+                    messagebox.showinfo("Deleted", message)
+                else:
+                    messagebox.showwarning("Notice", message)
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not delete training data: {e}")
+        
+        ctk.CTkButton(privacy_frame, text="🗑️ Delete My Training Data (GDPR Right)", 
+                     command=delete_training_data, fg_color="#e74c3c", height=30).pack(pady=(0, 10))
 
     # --- NEW: Clinical Access Check ---
     def check_clinical_access(self):
