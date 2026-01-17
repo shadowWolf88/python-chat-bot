@@ -1176,6 +1176,7 @@
                 <button class="tab-btn" onclick="switchTab('community', this)">👥 Community</button>
                 <button class="tab-btn" onclick="switchTab('safety', this)">🆘 Safety Plan</button>
                 <button class="tab-btn" onclick="switchTab('insights', this)">💡 Insights</button>
+                <button class="tab-btn" onclick="switchTab('appointments', this)">📅 Appointments</button>
                 <button class="tab-btn" onclick="switchTab('aboutme', this)">👤 About Me</button>
                 <button class="tab-btn" onclick="switchTab('sleep', this)">😴 Sleep</button>
                 <button class="tab-btn" onclick="switchTab('history', this)">📈 History</button>
@@ -1588,6 +1589,19 @@
                     <div class="card" style="margin-top: 20px;">
                         <h4>😴 Sleep Hours Trend</h4>
                         <canvas id="sleepChart" width="600" height="200" style="max-width: 100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Appointments Tab -->
+            <div id="appointmentsTab" class="tab-content">
+                <h3>📅 My Appointments</h3>
+                <p style="color: #666; margin-bottom: 20px;">View and manage appointments scheduled by your clinician.</p>
+                
+                <div id="appointmentsList">
+                    <div style="text-align: center; padding: 40px;">
+                        <div class="loading" style="margin: 0 auto;"></div>
+                        <p style="color: #666; margin-top: 10px;">Loading appointments...</p>
                     </div>
                 </div>
             </div>
@@ -2726,6 +2740,11 @@
                 loadProfile();
             }
             
+            // Load appointments when switching to appointments tab
+            if (tabName === 'appointments' && currentUserRole !== 'clinician') {
+                loadPatientAppointments();
+            }
+            
             // Load pending approvals when switching to professional tab
             if (tabName === 'professional' && currentUserRole === 'clinician') {
                 loadPendingApprovals();
@@ -3573,6 +3592,134 @@
             } catch (error) {
                 alert('Connection error');
                 console.error('Safety plan save error:', error);
+            }
+        }
+        
+        // Appointments Functions
+        async function loadPatientAppointments() {
+            try {
+                const response = await fetch(`/api/appointments?patient=${encodeURIComponent(currentUser)}`);
+                const data = await response.json();
+                
+                const listDiv = document.getElementById('appointmentsList');
+                
+                if (response.ok && data.appointments && data.appointments.length > 0) {
+                    listDiv.innerHTML = data.appointments.map(apt => {
+                        const date = new Date(apt.appointment_date);
+                        const dateStr = date.toLocaleDateString('en-GB', { 
+                            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+                        });
+                        const timeStr = date.toLocaleTimeString('en-GB', { 
+                            hour: '2-digit', minute: '2-digit' 
+                        });
+                        
+                        const isPast = date < new Date();
+                        const statusColor = apt.patient_response === 'accepted' ? '#28a745' : 
+                                           apt.patient_response === 'declined' ? '#dc3545' : '#ffc107';
+                        const statusText = apt.patient_response === 'accepted' ? '✓ Accepted' :
+                                          apt.patient_response === 'declined' ? '✗ Declined' : 
+                                          '⏳ Awaiting Response';
+                        
+                        return `
+                            <div class="card" style="margin-bottom: 20px; border-left: 4px solid ${statusColor};">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                                    <div>
+                                        <h4 style="margin: 0 0 5px 0; color: #667eea;">📅 ${apt.appointment_type || 'Consultation'}</h4>
+                                        <p style="margin: 0; color: #666; font-size: 14px;">With ${apt.clinician_username}</p>
+                                    </div>
+                                    <span style="background: ${statusColor}; color: white; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">
+                                        ${statusText}
+                                    </span>
+                                </div>
+                                
+                                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <p style="margin: 0 0 5px 0;"><strong>📆 Date:</strong> ${dateStr}</p>
+                                    <p style="margin: 0 0 5px 0;"><strong>🕐 Time:</strong> ${timeStr}</p>
+                                    ${apt.notes ? `<p style="margin: 10px 0 0 0; padding-top: 10px; border-top: 1px solid #e0e0e0;"><strong>Notes:</strong> ${apt.notes}</p>` : ''}
+                                </div>
+                                
+                                ${!apt.patient_acknowledged && !isPast ? `
+                                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                        <p style="margin: 0 0 10px 0; color: #856404;">
+                                            <strong>⚠️ Please acknowledge this appointment</strong>
+                                        </p>
+                                        <label style="display: flex; align-items: center; cursor: pointer; color: #333;">
+                                            <input type="checkbox" id="ack-${apt.id}" style="width: 20px; height: 20px; margin-right: 10px;">
+                                            <span>I have read and understood this appointment</span>
+                                        </label>
+                                    </div>
+                                    
+                                    <div style="display: flex; gap: 10px;">
+                                        <button class="btn" onclick="respondToAppointment(${apt.id}, 'accepted')" style="flex: 1; background: #28a745;">
+                                            ✓ Accept Appointment
+                                        </button>
+                                        <button class="btn" onclick="respondToAppointment(${apt.id}, 'declined')" style="flex: 1; background: #dc3545;">
+                                            ✗ Decline Appointment
+                                        </button>
+                                    </div>
+                                ` : apt.patient_response_date ? `
+                                    <p style="margin: 0; color: #666; font-size: 13px; text-align: center;">
+                                        Response sent: ${new Date(apt.patient_response_date).toLocaleString('en-GB')}
+                                    </p>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    listDiv.innerHTML = `
+                        <div class="card" style="text-align: center; padding: 40px;">
+                            <p style="font-size: 48px; margin: 0 0 15px 0;">📅</p>
+                            <h4 style="margin: 0 0 10px 0;">No Appointments</h4>
+                            <p style="color: #666; margin: 0;">You don't have any upcoming appointments scheduled.</p>
+                            <p style="color: #999; margin-top: 10px; font-size: 14px;">Your clinician will schedule appointments as needed.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading appointments:', error);
+                document.getElementById('appointmentsList').innerHTML = `
+                    <div class="card" style="text-align: center; padding: 40px;">
+                        <p style="color: #dc3545;">Failed to load appointments. Please try again.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function respondToAppointment(appointmentId, response) {
+            const checkbox = document.getElementById(`ack-${appointmentId}`);
+            
+            if (!checkbox || !checkbox.checked) {
+                alert('⚠️ You must tick the box to confirm you have read the appointment details before responding.');
+                return;
+            }
+            
+            const action = response === 'accepted' ? 'accept' : 'decline';
+            if (!confirm(`Are you sure you want to ${action} this appointment?`)) {
+                return;
+            }
+            
+            try {
+                const apiResponse = await fetch(`/api/appointments/${appointmentId}/respond`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        patient_username: currentUser,
+                        acknowledged: true,
+                        response: response
+                    })
+                });
+                
+                const data = await apiResponse.json();
+                
+                if (apiResponse.ok) {
+                    alert(`✓ Appointment ${response}! Your clinician has been notified.`);
+                    loadPatientAppointments(); // Reload to show updated status
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to respond to appointment'));
+                }
+            } catch (error) {
+                console.error('Error responding to appointment:', error);
+                alert('Failed to respond to appointment. Please try again.');
             }
         }
         
@@ -4489,14 +4636,32 @@
                         const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                         const daysUntil = Math.ceil((date - new Date()) / (1000 * 60 * 60 * 24));
                         
+                        // Patient response status
+                        const responseColor = apt.patient_response === 'accepted' ? '#28a745' : 
+                                             apt.patient_response === 'declined' ? '#dc3545' : '#ffc107';
+                        const responseIcon = apt.patient_response === 'accepted' ? '✓' : 
+                                            apt.patient_response === 'declined' ? '✗' : '⏳';
+                        const responseText = apt.patient_response === 'accepted' ? 'Accepted' :
+                                            apt.patient_response === 'declined' ? 'Declined' : 'Pending';
+                        const ackStatus = apt.patient_acknowledged ? '✓ Read' : '○ Unread';
+                        
                         return `
                             <div style="border: 2px solid ${daysUntil <= 2 ? '#ffc107' : '#e0e0e0'}; border-radius: 8px; padding: 15px; margin-bottom: 10px; background: ${daysUntil <= 2 ? '#fff3cd' : 'white'};">
                                 <div style="display: flex; justify-content: space-between; align-items: start;">
-                                    <div>
+                                    <div style="flex: 1;">
                                         <div style="font-size: 18px; font-weight: bold; color: #333;">${apt.patient_username}</div>
                                         <div style="color: #667eea; margin-top: 5px;">📅 ${dateStr} at ${timeStr}</div>
                                         ${apt.notes ? `<div style="color: #666; margin-top: 8px; font-size: 14px;">${apt.notes}</div>` : ''}
                                         ${daysUntil <= 2 ? `<div style="color: #dc7e14; font-weight: bold; margin-top: 8px;">⚠️ ${daysUntil === 0 ? 'Today!' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`}</div>` : ''}
+                                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                                            <span style="background: ${responseColor}; color: white; padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: bold;">
+                                                ${responseIcon} Patient: ${responseText}
+                                            </span>
+                                            <span style="background: ${apt.patient_acknowledged ? '#28a745' : '#999'}; color: white; padding: 4px 10px; border-radius: 15px; font-size: 12px;">
+                                                ${ackStatus}
+                                            </span>
+                                        </div>
+                                        ${apt.patient_response_date ? `<div style="color: #999; font-size: 12px; margin-top: 5px;">Response: ${new Date(apt.patient_response_date).toLocaleString()}</div>` : ''}
                                     </div>
                                     <button onclick="cancelAppointment(${apt.id})" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px;">Cancel</button>
                                 </div>

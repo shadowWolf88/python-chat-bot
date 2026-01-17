@@ -262,6 +262,22 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # Column already exists
     
+    # Add appointment response tracking columns
+    try:
+        cursor.execute("ALTER TABLE appointments ADD COLUMN patient_acknowledged INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    try:
+        cursor.execute("ALTER TABLE appointments ADD COLUMN patient_response TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists (values: 'pending', 'accepted', 'declined')
+    
+    try:
+        cursor.execute("ALTER TABLE appointments ADD COLUMN patient_response_date DATETIME")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
     conn.commit()
     conn.close()
 
@@ -3600,34 +3616,60 @@ def manage_appointments():
     """Get or create appointments"""
     try:
         if request.method == 'GET':
-            # Get appointments for clinician
+            # Get appointments for clinician or patient
             clinician_username = request.args.get('clinician')
-            if not clinician_username:
-                return jsonify({'error': 'Clinician username required'}), 400
+            patient_username = request.args.get('patient')
+            
+            if not clinician_username and not patient_username:
+                return jsonify({'error': 'Clinician or patient username required'}), 400
             
             conn = sqlite3.connect(DB_PATH)
             cur = conn.cursor()
-            appointments = cur.execute("""
-                SELECT id, patient_username, appointment_date, appointment_type, notes, 
-                       pdf_generated, notification_sent, created_at
-                FROM appointments 
-                WHERE clinician_username=? AND appointment_date >= datetime('now')
-                ORDER BY appointment_date ASC
-            """, (clinician_username,)).fetchall()
+            
+            if clinician_username:
+                # Get appointments for clinician
+                appointments = cur.execute("""
+                    SELECT id, patient_username, appointment_date, appointment_type, notes, 
+                           pdf_generated, notification_sent, created_at, patient_acknowledged,
+                           patient_response, patient_response_date
+                    FROM appointments 
+                    WHERE clinician_username=? AND appointment_date >= datetime('now')
+                    ORDER BY appointment_date ASC
+                """, (clinician_username,)).fetchall()
+            else:
+                # Get appointments for patient
+                appointments = cur.execute("""
+                    SELECT id, clinician_username, appointment_date, appointment_type, notes, 
+                           pdf_generated, notification_sent, created_at, patient_acknowledged,
+                           patient_response, patient_response_date
+                    FROM appointments 
+                    WHERE patient_username=? AND appointment_date >= datetime('now', '-7 days')
+                    ORDER BY appointment_date ASC
+                """, (patient_username,)).fetchall()
+            
             conn.close()
             
             results = []
             for apt in appointments:
-                results.append({
+                result = {
                     'id': apt[0],
-                    'patient_username': apt[1],
                     'appointment_date': apt[2],
                     'appointment_type': apt[3],
                     'notes': apt[4],
                     'pdf_generated': bool(apt[5]),
                     'notification_sent': bool(apt[6]),
-                    'created_at': apt[7]
-                })
+                    'created_at': apt[7],
+                    'patient_acknowledged': bool(apt[8]),
+                    'patient_response': apt[9] or 'pending',
+                    'patient_response_date': apt[10]
+                }
+                
+                if clinician_username:
+                    result['patient_username'] = apt[1]
+                else:
+                    result['clinician_username'] = apt[1]
+                
+                results.append(result)
             
             return jsonify({'appointments': results}), 200
             
@@ -3645,9 +3687,9 @@ def manage_appointments():
             conn = sqlite3.connect(DB_PATH)
             cur = conn.cursor()
             cur.execute("""
-                INSERT INTO appointments (clinician_username, patient_username, appointment_date, notes)
-                VALUES (?, ?, ?, ?)
-            """, (clinician, patient, appt_date, notes))
+                INSERT INTO appointments (clinician_username, patient_username, appointment_date, notes, patient_response)
+                VALUES (?, ?, ?, ?, ?)
+            """, (clinician, patient, appt_date, notes, 'pending'))
             conn.commit()
             appt_id = cur.lastrowid
             conn.close()
@@ -3673,6 +3715,65 @@ def cancel_appointment(appointment_id):
         conn.close()
         
         return jsonify({'success': True, 'message': 'Appointment cancelled'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/appointments/<int:appointment_id>/respond', methods=['POST'])
+def respond_to_appointment(appointment_id):
+    """Patient acknowledges and responds to appointment (accept/decline)"""
+    try:
+        data = request.json
+        patient_username = data.get('patient_username')
+        acknowledged = data.get('acknowledged', False)
+        response = data.get('response')  # 'accepted' or 'declined'
+        
+        if not patient_username:
+            return jsonify({'error': 'Patient username required'}), 400
+        
+        if not acknowledged:
+            return jsonify({'error': 'You must acknowledge reading the appointment'}), 400
+        
+        if response not in ['accepted', 'declined']:
+            return jsonify({'error': 'Response must be accepted or declined'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Verify appointment belongs to patient
+        apt = cur.execute(
+            "SELECT clinician_username FROM appointments WHERE id=? AND patient_username=?",
+            (appointment_id, patient_username)
+        ).fetchone()
+        
+        if not apt:
+            conn.close()
+            return jsonify({'error': 'Appointment not found'}), 404
+        
+        # Update appointment
+        cur.execute("""
+            UPDATE appointments 
+            SET patient_acknowledged=1, patient_response=?, patient_response_date=?
+            WHERE id=?
+        """, (response, datetime.now(), appointment_id))
+        
+        # Notify clinician
+        clinician = apt[0]
+        action = 'accepted' if response == 'accepted' else 'declined'
+        cur.execute("""
+            INSERT INTO notifications (recipient_username, message, notification_type)
+            VALUES (?, ?, ?)
+        """, (clinician, f'{patient_username} has {action} the appointment', 'appointment_response'))
+        
+        conn.commit()
+        conn.close()
+        
+        log_event(patient_username, 'api', f'appointment_{action}', f'Appointment ID: {appointment_id}')
+        
+        return jsonify({
+            'success': True,
+            'message': f'Appointment {action} successfully'
+        }), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
