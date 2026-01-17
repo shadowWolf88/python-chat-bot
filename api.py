@@ -204,6 +204,17 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS chat_history 
                       (session_id TEXT, sender TEXT, message TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS appointments
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                       clinician_username TEXT, 
+                       patient_username TEXT,
+                       appointment_date DATETIME, 
+                       appointment_type TEXT DEFAULT 'consultation',
+                       notes TEXT,
+                       pdf_generated INTEGER DEFAULT 0,
+                       pdf_path TEXT,
+                       notification_sent INTEGER DEFAULT 0,
+                       created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     
     # Add email and phone columns if they don't exist
     try:

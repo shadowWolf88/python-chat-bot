@@ -1638,6 +1638,41 @@
                             <p style="text-align: center; color: #999; padding: 40px;">Loading patient list...</p>
                         </div>
                     </div>
+                    
+                    <!-- Appointments Calendar Section -->
+                    <div class="card" style="margin-top: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h4>📅 Upcoming Appointments</h4>
+                            <button class="btn" onclick="loadAppointments()">🔄 Refresh</button>
+                        </div>
+                        <div id="appointmentsList">
+                            <p style="text-align: center; color: #999; padding: 20px;">Loading appointments...</p>
+                        </div>
+                        <button class="btn" onclick="showNewAppointmentForm()" style="margin-top: 15px;">➕ Schedule New Appointment</button>
+                    </div>
+                    
+                    <!-- New Appointment Form (hidden by default) -->
+                    <div id="newAppointmentForm" class="card" style="margin-top: 20px; display: none; background: #f8f9fa;">
+                        <h4>📅 Schedule New Appointment</h4>
+                        <div class="form-group">
+                            <label>Select Patient</label>
+                            <select id="appointmentPatient" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                                <option value="">Select a patient...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Appointment Date & Time</label>
+                            <input type="datetime-local" id="appointmentDateTime" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Notes (optional)</label>
+                            <textarea id="appointmentNotes" rows="3" placeholder="Appointment purpose, topics to discuss..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;"></textarea>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn" onclick="createAppointment()">📅 Book Appointment</button>
+                            <button class="btn btn-secondary" onclick="cancelNewAppointment()">Cancel</button>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Patient Detail Section -->
@@ -2495,6 +2530,7 @@
             // Load pending approvals when switching to professional tab
             if (tabName === 'professional' && currentUserRole === 'clinician') {
                 loadPendingApprovals();
+                loadAppointments();
             }
         }
         
@@ -3977,6 +4013,144 @@
             } catch (error) {
                 console.error('Error deleting note:', error);
                 alert('Failed to delete note');
+            }
+        }
+        
+        // Appointment Management Functions
+        async function loadAppointments() {
+            if (currentUserRole !== 'clinician') {
+                return;
+            }
+            
+            const listDiv = document.getElementById('appointmentsList');
+            listDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading" style="margin: 0 auto;"></div></div>';
+            
+            try {
+                const response = await fetch(`/api/appointments?clinician=${encodeURIComponent(currentUser)}`);
+                const data = await response.json();
+                
+                if (response.ok && data.appointments) {
+                    if (data.appointments.length === 0) {
+                        listDiv.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No upcoming appointments scheduled.</p>';
+                        return;
+                    }
+                    
+                    const html = data.appointments.map(apt => {
+                        const date = new Date(apt.appointment_date);
+                        const dateStr = date.toLocaleDateString();
+                        const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                        const daysUntil = Math.ceil((date - new Date()) / (1000 * 60 * 60 * 24));
+                        
+                        return `
+                            <div style="border: 2px solid ${daysUntil <= 2 ? '#ffc107' : '#e0e0e0'}; border-radius: 8px; padding: 15px; margin-bottom: 10px; background: ${daysUntil <= 2 ? '#fff3cd' : 'white'};">
+                                <div style="display: flex; justify-content: space-between; align-items: start;">
+                                    <div>
+                                        <div style="font-size: 18px; font-weight: bold; color: #333;">${apt.patient_username}</div>
+                                        <div style="color: #667eea; margin-top: 5px;">📅 ${dateStr} at ${timeStr}</div>
+                                        ${apt.notes ? `<div style="color: #666; margin-top: 8px; font-size: 14px;">${apt.notes}</div>` : ''}
+                                        ${daysUntil <= 2 ? `<div style="color: #dc7e14; font-weight: bold; margin-top: 8px;">⚠️ ${daysUntil === 0 ? 'Today!' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`}</div>` : ''}
+                                    </div>
+                                    <button onclick="cancelAppointment(${apt.id})" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px;">Cancel</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    listDiv.innerHTML = html;
+                } else {
+                    listDiv.innerHTML = '<p style="color: #dc3545; text-align: center;">Error loading appointments</p>';
+                }
+            } catch (error) {
+                console.error('Error loading appointments:', error);
+                listDiv.innerHTML = '<p style="color: #dc3545; text-align: center;">Connection error</p>';
+            }
+        }
+        
+        function showNewAppointmentForm() {
+            document.getElementById('newAppointmentForm').style.display = 'block';
+            
+            // Populate patient dropdown
+            const select = document.getElementById('appointmentPatient');
+            const patientList = document.getElementById('patientList');
+            const patientCards = patientList.querySelectorAll('.patient-card');
+            
+            select.innerHTML = '<option value="">Select a patient...</option>';
+            patientCards.forEach(card => {
+                const username = card.querySelector('strong').textContent;
+                select.innerHTML += `<option value="${username}">${username}</option>`;
+            });
+            
+            // Set minimum date to today
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('appointmentDateTime').min = now.toISOString().slice(0, 16);
+        }
+        
+        function cancelNewAppointment() {
+            document.getElementById('newAppointmentForm').style.display = 'none';
+            document.getElementById('appointmentPatient').value = '';
+            document.getElementById('appointmentDateTime').value = '';
+            document.getElementById('appointmentNotes').value = '';
+        }
+        
+        async function createAppointment() {
+            const patientUsername = document.getElementById('appointmentPatient').value;
+            const dateTime = document.getElementById('appointmentDateTime').value;
+            const notes = document.getElementById('appointmentNotes').value;
+            
+            if (!patientUsername || !dateTime) {
+                alert('Please select a patient and appointment date/time');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/appointments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        clinician_username: currentUser,
+                        patient_username: patientUsername,
+                        appointment_date: dateTime,
+                        notes: notes
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ Appointment scheduled successfully!');
+                    cancelNewAppointment();
+                    loadAppointments();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to create appointment'));
+                }
+            } catch (error) {
+                console.error('Error creating appointment:', error);
+                alert('Connection error. Please try again.');
+            }
+        }
+        
+        async function cancelAppointment(appointmentId) {
+            if (!confirm('Are you sure you want to cancel this appointment?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/appointments/${appointmentId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ Appointment cancelled');
+                    loadAppointments();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to cancel'));
+                }
+            } catch (error) {
+                console.error('Error cancelling appointment:', error);
+                alert('Connection error');
             }
         }
         
