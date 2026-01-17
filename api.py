@@ -3627,14 +3627,14 @@ def manage_appointments():
             cur = conn.cursor()
             
             if clinician_username:
-                # Get appointments for clinician
+                # Get appointments for clinician (show last 30 days and future)
                 appointments = cur.execute("""
                     SELECT id, patient_username, appointment_date, appointment_type, notes, 
                            pdf_generated, notification_sent, created_at, patient_acknowledged,
                            patient_response, patient_response_date
                     FROM appointments 
-                    WHERE clinician_username=? AND appointment_date >= datetime('now')
-                    ORDER BY appointment_date ASC
+                    WHERE clinician_username=? AND appointment_date >= datetime('now', '-30 days')
+                    ORDER BY appointment_date DESC
                 """, (clinician_username,)).fetchall()
             else:
                 # Get appointments for patient
