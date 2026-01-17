@@ -116,6 +116,45 @@ def check_pin(pin: str, stored: str) -> bool:
         return new == dk
     return pin == stored
 
+# Encryption/Decryption functions (avoid importing from main.py)
+def get_encryption_key():
+    """Get or create encryption key"""
+    key = secrets.get_secret("ENCRYPTION_KEY") or os.environ.get("ENCRYPTION_KEY")
+    if not key:
+        if DEBUG:
+            # Development fallback key
+            from cryptography.fernet import Fernet
+            key = Fernet.generate_key().decode()
+        else:
+            raise ValueError("ENCRYPTION_KEY not found")
+    return key
+
+def encrypt_text(text: str) -> str:
+    """Encrypt text using Fernet"""
+    if not text:
+        return ""
+    try:
+        from cryptography.fernet import Fernet
+        key = get_encryption_key()
+        f = Fernet(key.encode() if isinstance(key, str) else key)
+        return f.encrypt(text.encode()).decode()
+    except Exception as e:
+        print(f"Encryption error: {e}")
+        return text  # Fallback to plaintext in debug mode
+
+def decrypt_text(encrypted: str) -> str:
+    """Decrypt text using Fernet"""
+    if not encrypted:
+        return ""
+    try:
+        from cryptography.fernet import Fernet
+        key = get_encryption_key()
+        f = Fernet(key.encode() if isinstance(key, str) else key)
+        return f.decrypt(encrypted.encode()).decode()
+    except Exception as e:
+        # If decryption fails, might be plaintext
+        return encrypted
+
 def init_db():
     """Initialize database with all required tables"""
     conn = sqlite3.connect(DB_PATH)
@@ -3575,7 +3614,6 @@ def patient_profile():
                     SELECT full_name, email FROM users WHERE username=? AND role='clinician'
                 """, (profile[5],)).fetchone()
                 if clinician:
-                    from main import decrypt_text
                     try:
                         clinician_info = {
                             'name': decrypt_text(clinician[0]) if clinician[0] else profile[5],
@@ -3586,19 +3624,21 @@ def patient_profile():
             
             conn.close()
             
-            from main import decrypt_text
             return jsonify({
-                'username': username,
-                'full_name': decrypt_text(profile[0]) if profile[0] else '',
-                'dob': decrypt_text(profile[1]) if profile[1] else '',
-                'email': decrypt_text(profile[2]) if profile[2] else '',
-                'phone': decrypt_text(profile[3]) if profile[3] else '',
-                'conditions': decrypt_text(profile[4]) if profile[4] else '',
-                'clinician': clinician_info,
+                'profile': {
+                    'username': username,
+                    'full_name': decrypt_text(profile[0]) if profile[0] else '',
+                    'dob': decrypt_text(profile[1]) if profile[1] else '',
+                    'email': decrypt_text(profile[2]) if profile[2] else '',
+                    'phone': decrypt_text(profile[3]) if profile[3] else '',
+                    'conditions': decrypt_text(profile[4]) if profile[4] else '',
+                    'assigned_clinician': clinician_info['name'] if clinician_info else None,
+                    'clinician_email': clinician_info['email'] if clinician_info else None
+                },
                 'stats': {
                     'mood_logs': mood_count,
                     'gratitude_entries': grat_count,
-                    'cbt_records': cbt_count,
+                    'cbt_entries': cbt_count,
                     'therapy_sessions': session_count
                 }
             }), 200
@@ -3606,7 +3646,6 @@ def patient_profile():
         elif request.method == 'PUT':
             # Update profile
             data = request.json
-            from main import encrypt_text
             
             cur.execute("""
                 UPDATE users SET full_name=?, dob=?, email=?, phone=?, conditions=?
