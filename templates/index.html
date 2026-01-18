@@ -255,6 +255,33 @@
             flex-direction: column;
         }
         
+        .chat-controls {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .search-bar {
+            flex: 1;
+            display: flex;
+            gap: 5px;
+            min-width: 200px;
+        }
+        
+        .search-bar input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        
+        .chat-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
         .chat-messages {
             flex: 1;
             padding: 20px;
@@ -269,6 +296,24 @@
             max-width: 80%;
             animation: slideIn 0.3s;
             word-wrap: break-word;
+            position: relative;
+        }
+        
+        .message-timestamp {
+            font-size: 0.75rem;
+            color: #999;
+            margin-top: 4px;
+            font-style: italic;
+        }
+        
+        .message.highlight {
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.4);
+            animation: highlightPulse 1s;
+        }
+        
+        @keyframes highlightPulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.4); }
+            50% { box-shadow: 0 0 0 5px rgba(255, 193, 7, 0.6); }
         }
         
         @keyframes slideIn {
@@ -1232,11 +1277,51 @@
                 <h3>Talk to Your AI Therapist</h3>
                 <p style="color: #666; margin-bottom: 20px;">Share your thoughts and feelings in a safe, confidential space.</p>
                 
+                <!-- Chat Controls -->
+                <div class="chat-controls">
+                    <div class="search-bar">
+                        <input type="text" id="chatSearch" placeholder="🔍 Search messages..." oninput="searchMessages()">
+                        <button onclick="clearSearch()" id="clearSearchBtn" style="display:none;">Clear</button>
+                    </div>
+                    <div class="chat-actions">
+                        <button onclick="showExportDialog()" class="btn-secondary">📥 Export Chat</button>
+                        <button onclick="loadChatHistory()" class="btn-secondary">🔄 Refresh</button>
+                    </div>
+                </div>
+                
                 <div class="chat-container">
                     <div class="chat-messages" id="chatMessages"></div>
                     <div class="chat-input-area">
                         <input type="text" id="chatInput" placeholder="Type your message..." onkeypress="if(event.key==='Enter') sendMessage()">
                         <button onclick="sendMessage()">Send</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Export Dialog -->
+            <div id="exportChatDialog" class="modal" style="display:none;">
+                <div class="modal-content" style="max-width: 500px;">
+                    <span class="close" onclick="closeExportDialog()">&times;</span>
+                    <h3>Export Chat History</h3>
+                    <div class="form-group">
+                        <label>From Date:</label>
+                        <input type="date" id="exportFromDate">
+                    </div>
+                    <div class="form-group">
+                        <label>To Date:</label>
+                        <input type="date" id="exportToDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Format:</label>
+                        <select id="exportFormat">
+                            <option value="txt">Text File (.txt)</option>
+                            <option value="json">JSON (.json)</option>
+                            <option value="csv">CSV (.csv)</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button onclick="exportChat()" class="btn">Export</button>
+                        <button onclick="closeExportDialog()" class="btn btn-secondary">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -2809,7 +2894,7 @@
             
             if (!message) return;
             
-            addMessage(message, 'user');
+            addMessage(message, 'user', null, new Date().toISOString());
             input.value = '';
             
             // Show loading
@@ -2830,7 +2915,7 @@
                 if (loadingEl) loadingEl.remove();
                 
                 if (response.ok) {
-                    addMessage(data.response, 'ai');
+                    addMessage(data.response, 'ai', null, new Date().toISOString());
                     // Reward pet for therapy session
                     await rewardPet('therapy');
                 } else {
@@ -2843,14 +2928,156 @@
             }
         }
         
-        function addMessage(text, sender, id) {
+        function addMessage(text, sender, id, timestamp) {
             const messagesDiv = document.getElementById('chatMessages');
             const messageEl = document.createElement('div');
             messageEl.className = `message ${sender}`;
             if (id) messageEl.id = 'msg-' + id;
-            messageEl.innerHTML = text;
+            
+            // Add message content
+            const contentDiv = document.createElement('div');
+            contentDiv.innerHTML = text;
+            messageEl.appendChild(contentDiv);
+            
+            // Add timestamp if provided
+            if (timestamp) {
+                const timestampDiv = document.createElement('div');
+                timestampDiv.className = 'message-timestamp';
+                timestampDiv.textContent = formatTimestamp(timestamp);
+                messageEl.appendChild(timestampDiv);
+                messageEl.dataset.timestamp = timestamp;
+                messageEl.dataset.searchText = text.toLowerCase();
+            }
+            
             messagesDiv.appendChild(messageEl);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            
+            // Format time
+            const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            
+            // Determine date label
+            if (messageDate.getTime() === today.getTime()) {
+                return `Today at ${timeStr}`;
+            } else if (messageDate.getTime() === today.getTime() - 86400000) {
+                return `Yesterday at ${timeStr}`;
+            } else if (date.getTime() > today.getTime() - 7 * 86400000) {
+                return `${date.toLocaleDateString('en-US', { weekday: 'short' })} at ${timeStr}`;
+            } else {
+                return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${timeStr}`;
+            }
+        }
+        
+        async function loadChatHistory() {
+            try {
+                const response = await fetch(`/api/therapy/history?username=${currentUser}`);
+                const data = await response.json();
+                
+                if (response.ok && data.history) {
+                    const messagesDiv = document.getElementById('chatMessages');
+                    messagesDiv.innerHTML = '';
+                    
+                    data.history.forEach(msg => {
+                        addMessage(msg.message, msg.sender, null, msg.timestamp);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading chat history:', error);
+            }
+        }
+        
+        function searchMessages() {
+            const searchTerm = document.getElementById('chatSearch').value.toLowerCase();
+            const messages = document.querySelectorAll('.message[data-search-text]');
+            const clearBtn = document.getElementById('clearSearchBtn');
+            
+            clearBtn.style.display = searchTerm ? 'block' : 'none';
+            
+            messages.forEach(msg => {
+                const text = msg.dataset.searchText;
+                if (!searchTerm || text.includes(searchTerm)) {
+                    msg.style.display = '';
+                    msg.classList.remove('highlight');
+                    if (searchTerm && text.includes(searchTerm)) {
+                        msg.classList.add('highlight');
+                    }
+                } else {
+                    msg.style.display = 'none';
+                }
+            });
+        }
+        
+        function clearSearch() {
+            document.getElementById('chatSearch').value = '';
+            searchMessages();
+        }
+        
+        function showExportDialog() {
+            const dialog = document.getElementById('exportChatDialog');
+            
+            // Set default date range (last 30 days to today)
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+            
+            document.getElementById('exportToDate').value = today.toISOString().split('T')[0];
+            document.getElementById('exportFromDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+            
+            dialog.style.display = 'flex';
+        }
+        
+        function closeExportDialog() {
+            document.getElementById('exportChatDialog').style.display = 'none';
+        }
+        
+        async function exportChat() {
+            const fromDate = document.getElementById('exportFromDate').value;
+            const toDate = document.getElementById('exportToDate').value;
+            const format = document.getElementById('exportFormat').value;
+            
+            if (!fromDate || !toDate) {
+                alert('Please select both from and to dates');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/therapy/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: currentUser,
+                        from_date: fromDate,
+                        to_date: toDate,
+                        format: format
+                    })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `chat_export_${fromDate}_to_${toDate}.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    closeExportDialog();
+                    showMessage('therapyMessage', 'Chat exported successfully!', 'success');
+                } else {
+                    const data = await response.json();
+                    alert('Export failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export chat. Please try again.');
+            }
         }
         
         function addSystemMessage(text) {

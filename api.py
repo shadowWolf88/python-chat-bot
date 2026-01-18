@@ -2,7 +2,7 @@
 Flask API wrapper for Healing Space Therapy App
 Provides REST API endpoints while keeping desktop app intact
 """
-from flask import Flask, request, jsonify, render_template, send_from_directory, make_response
+from flask import Flask, request, jsonify, render_template, send_from_directory, make_response, Response
 from flask_cors import CORS
 import sqlite3
 import os
@@ -1286,6 +1286,89 @@ def get_chat_history():
             'success': True,
             'history': [{'sender': h[0], 'message': h[1], 'timestamp': h[2]} for h in history]
         }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/therapy/export', methods=['POST'])
+def export_chat_history():
+    """Export chat history with date range filter"""
+    import csv
+    import io
+    from datetime import datetime
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        export_format = data.get('format', 'txt')
+        
+        if not username or not from_date or not to_date:
+            return jsonify({'error': 'Username, from_date, and to_date required'}), 400
+        
+        # Convert dates to datetime objects
+        from_datetime = datetime.strptime(from_date, '%Y-%m-%d')
+        to_datetime = datetime.strptime(to_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        history = cur.execute(
+            """SELECT sender, message, timestamp FROM chat_history 
+               WHERE session_id=? 
+               AND datetime(timestamp) BETWEEN datetime(?) AND datetime(?)
+               ORDER BY timestamp ASC""",
+            (f"{username}_session", from_datetime.isoformat(), to_datetime.isoformat())
+        ).fetchall()
+        conn.close()
+        
+        if export_format == 'json':
+            # JSON export
+            output = json.dumps([{
+                'sender': h[0],
+                'message': h[1],
+                'timestamp': h[2]
+            } for h in history], indent=2)
+            
+            return Response(
+                output,
+                mimetype='application/json',
+                headers={'Content-Disposition': f'attachment; filename=chat_export_{from_date}_to_{to_date}.json'}
+            )
+        
+        elif export_format == 'csv':
+            # CSV export
+            output = io.StringIO()
+            writer = csv.writer(output)
+            writer.writerow(['Sender', 'Message', 'Timestamp'])
+            writer.writerows(history)
+            
+            return Response(
+                output.getvalue(),
+                mimetype='text/csv',
+                headers={'Content-Disposition': f'attachment; filename=chat_export_{from_date}_to_{to_date}.csv'}
+            )
+        
+        else:
+            # Text export (default)
+            output = f"Chat History Export for {username}\n"
+            output += f"Date Range: {from_date} to {to_date}\n"
+            output += "=" * 80 + "\n\n"
+            
+            for sender, message, timestamp in history:
+                dt = datetime.fromisoformat(timestamp)
+                formatted_time = dt.strftime('%Y-%m-%d %I:%M %p')
+                output += f"[{formatted_time}] {sender.upper()}:\n"
+                output += f"{message}\n\n"
+            
+            output += "=" * 80 + "\n"
+            output += f"Total messages: {len(history)}\n"
+            
+            return Response(
+                output,
+                mimetype='text/plain',
+                headers={'Content-Disposition': f'attachment; filename=chat_export_{from_date}_to_{to_date}.txt'}
+            )
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
