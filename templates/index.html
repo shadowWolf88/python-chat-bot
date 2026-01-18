@@ -1892,7 +1892,20 @@
                         <!-- Content will be loaded here -->
                     </div>
                 </div>
-            </div> are now in the <head>
+            </div>
+        </div> <!-- End of app-content -->
+    </div> <!-- End of app screen -->
+    
+    <script>
+        console.log('Script loading - v2026.01.17.2');
+        let currentUser = null;
+        let currentUserRole = 'user';
+        let selectedMoodValue = null;
+        let medications = [];
+        let currentAssessment = null;
+        let assessmentScores = [];
+        let tempLoginData = null; // Store login data for disclaimer flow
+        
         const speciesEmojis = {Dog: '🐶', Cat: '🐱', Rabbit: '🐰', Fox: '🦊', Panda: '🐼', Penguin: '🐧'};
         
         const PHQ9_QUESTIONS = [
