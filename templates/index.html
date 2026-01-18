@@ -1337,7 +1337,10 @@
                 <button class="tab-btn" onclick="switchTab('community', this)">👥 Community</button>
                 <button class="tab-btn" onclick="switchTab('safety', this)">🆘 Safety Plan</button>
                 <button class="tab-btn" onclick="switchTab('insights', this)">💡 Insights</button>
-                <button class="tab-btn" onclick="switchTab('appointments', this)">📅 Appointments</button>
+                <button class="tab-btn" onclick="switchTab('appointments', this)">
+                    📅 Appointments
+                    <span id="appointmentBadge" style="background: #e74c3c; color: white; border-radius: 10px; padding: 2px 6px; font-size: 11px; margin-left: 5px; display: none;">!</span>
+                </button>
                 <button class="tab-btn" onclick="switchTab('aboutme', this)">👤 About Me</button>
                 <button class="tab-btn" onclick="switchTab('sleep', this)">😴 Sleep</button>
                 <button class="tab-btn" onclick="switchTab('history', this)">📈 History</button>
@@ -2356,6 +2359,7 @@
                 
                 loadPetStatus();
                 checkMoodStatus(); // Check if mood logged today
+                loadPatientAppointments(); // Load appointments for patient
             }
             
             // Refresh notifications every 30 seconds
@@ -2802,13 +2806,30 @@
                     if (data.notifications.length === 0) {
                         list.innerHTML = '<div class="notification-item">No notifications</div>';
                     } else {
-                        list.innerHTML = data.notifications.map(n => `
-                            <div class="notification-item ${n.read ? '' : 'unread'}" onclick="markNotificationRead(${n.id})">
-                                <strong>${n.notification_type}</strong>
-                                <p>${n.message}</p>
-                                <small>${new Date(n.created_at).toLocaleString()}</small>
-                            </div>
-                        `).join('');
+                        list.innerHTML = data.notifications.map(n => {
+                            // Add emoji and action based on notification type
+                            let emoji = '📬';
+                            let onClick = `markNotificationRead(${n.id})`;
+                            
+                            if (n.notification_type === 'appointment_new') {
+                                emoji = '📅';
+                                onClick = `markNotificationRead(${n.id}); switchTab('appointments')`;
+                            } else if (n.notification_type === 'appointment_response') {
+                                emoji = '✓';
+                            } else if (n.notification_type === 'crisis_alert') {
+                                emoji = '🚨';
+                            } else if (n.notification_type === 'approval') {
+                                emoji = '✅';
+                            }
+                            
+                            return `
+                                <div class="notification-item ${n.read ? '' : 'unread'}" onclick="${onClick}">
+                                    <strong>${emoji} ${n.notification_type}</strong>
+                                    <p>${n.message}</p>
+                                    <small>${new Date(n.created_at).toLocaleString()}</small>
+                                </div>
+                            `;
+                        }).join('');
                     }
                 }
             } catch (error) {
@@ -4183,6 +4204,22 @@
                 const listDiv = document.getElementById('appointmentsList');
                 
                 if (response.ok && data.appointments && data.appointments.length > 0) {
+                    // Count pending appointments that need response
+                    const pendingCount = data.appointments.filter(apt => 
+                        !apt.patient_acknowledged && new Date(apt.appointment_date) > new Date()
+                    ).length;
+                    
+                    // Update badge
+                    const badge = document.getElementById('appointmentBadge');
+                    if (badge) {
+                        if (pendingCount > 0) {
+                            badge.textContent = pendingCount;
+                            badge.style.display = 'inline';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                    
                     listDiv.innerHTML = data.appointments.map(apt => {
                         const date = new Date(apt.appointment_date);
                         const dateStr = date.toLocaleDateString('en-GB', { 
@@ -4245,6 +4282,12 @@
                         `;
                     }).join('');
                 } else {
+                    // No appointments - hide badge
+                    const badge = document.getElementById('appointmentBadge');
+                    if (badge) {
+                        badge.style.display = 'none';
+                    }
+                    
                     listDiv.innerHTML = `
                         <div class="card" style="text-align: center; padding: 40px;">
                             <p style="font-size: 48px; margin: 0 0 15px 0;">📅</p>
@@ -4292,7 +4335,8 @@
                 
                 if (apiResponse.ok) {
                     alert(`✓ Appointment ${response}! Your clinician has been notified.`);
-                    loadPatientAppointments(); // Reload to show updated status
+                    loadPatientAppointments(); // Reload to show updated status and update badge
+                    closeNotifications(); // Close notification panel if open
                 } else {
                     alert('Error: ' + (data.error || 'Failed to respond to appointment'));
                 }

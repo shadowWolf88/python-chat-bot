@@ -4254,8 +4254,18 @@ def manage_appointments():
                 INSERT INTO appointments (clinician_username, patient_username, appointment_date, notes, patient_response)
                 VALUES (?, ?, ?, ?, ?)
             """, (clinician, patient, appt_date, notes, 'pending'))
-            conn.commit()
             appt_id = cur.lastrowid
+            
+            # Send notification to patient
+            from datetime import datetime as dt
+            appt_datetime = dt.fromisoformat(appt_date.replace('Z', '+00:00'))
+            date_str = appt_datetime.strftime('%A, %d %B %Y at %H:%M')
+            cur.execute("""
+                INSERT INTO notifications (recipient_username, message, notification_type)
+                VALUES (?, ?, ?)
+            """, (patient, f'New appointment scheduled with {clinician} on {date_str}. Please view and respond in the Appointments tab.', 'appointment_new'))
+            
+            conn.commit()
             conn.close()
             
             log_event(clinician, 'clinician', 'appointment_booked', f'Booked with {patient}')
@@ -4263,7 +4273,7 @@ def manage_appointments():
             return jsonify({
                 'success': True,
                 'appointment_id': appt_id,
-                'message': 'Appointment created'
+                'message': 'Appointment created and patient notified'
             }), 201
             
     except Exception as e:
