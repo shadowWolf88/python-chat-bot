@@ -3332,24 +3332,6 @@
             }, 1000);
         }
         
-        async function checkPetReturn() {
-            try {
-                const response = await fetch('/api/pet/check-return', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                const data = await response.json();
-                
-                if (data.returned) {
-                    alert('🎉 ' + data.message + ' Earned: 🪙 ' + data.coins_earned + ' coins!');
-                    loadPetStatus();
-                }
-            } catch (error) {
-                console.error('Check return error:', error);
-            }
-        }
-        
         // Auto-refresh pet when tab is active
         setInterval(() => {
             if (document.getElementById('petTab').classList.contains('active')) {
