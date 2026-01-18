@@ -201,8 +201,21 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS notifications
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_username TEXT, message TEXT, 
                        notification_type TEXT, read INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS chat_sessions
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT,
+                       session_name TEXT,
+                       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       last_active DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       is_active INTEGER DEFAULT 0)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS chat_history 
-                      (session_id TEXT, sender TEXT, message TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       session_id TEXT, 
+                       chat_session_id INTEGER,
+                       sender TEXT, 
+                       message TEXT, 
+                       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       FOREIGN KEY (chat_session_id) REFERENCES chat_sessions(id))''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS appointments
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -1222,15 +1235,33 @@ def therapy_chat():
         # Update AI memory before chat
         update_ai_memory(username)
         
+        # Get or create active chat session
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        active_session = cur.execute(
+            "SELECT id FROM chat_sessions WHERE username=? AND is_active=1",
+            (username,)
+        ).fetchone()
+        
+        if not active_session:
+            # Create default session
+            cur.execute(
+                "INSERT INTO chat_sessions (username, session_name, is_active) VALUES (?, 'Main Chat', 1)",
+                (username,)
+            )
+            conn.commit()
+            chat_session_id = cur.lastrowid
+        else:
+            chat_session_id = active_session[0]
+        
         # Use TherapistAI class
         ai = TherapistAI(username)
         
-        # Get conversation history
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
+        # Get conversation history from current session
         history = cur.execute(
-            "SELECT sender, message FROM chat_history WHERE session_id=? ORDER BY timestamp DESC LIMIT 10",
-            (f"{username}_session",)
+            "SELECT sender, message FROM chat_history WHERE chat_session_id=? ORDER BY timestamp DESC LIMIT 10",
+            (chat_session_id,)
         ).fetchall()
         
         # Get AI memory to include in context
@@ -1244,13 +1275,38 @@ def therapy_chat():
         # Get AI response using existing logic
         response = ai.get_response(message, history[::-1])
         
-        # Save to chat history
+        # Save to chat history with session tracking
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
-        cur.execute("INSERT INTO chat_history (session_id, sender, message) VALUES (?,?,?)",
-                   (f"{username}_session", "user", message))
-        cur.execute("INSERT INTO chat_history (session_id, sender, message) VALUES (?,?,?)",
-                   (f"{username}_session", "ai", response))
+        
+        # Get or create active session
+        active_session = cur.execute(
+            "SELECT id FROM chat_sessions WHERE username=? AND is_active=1",
+            (username,)
+        ).fetchone()
+        
+        if not active_session:
+            cur.execute(
+                "INSERT INTO chat_sessions (username, session_name, is_active) VALUES (?, 'Main Chat', 1)",
+                (username,)
+            )
+            conn.commit()
+            chat_session_id = cur.lastrowid
+        else:
+            chat_session_id = active_session[0]
+        
+        # Save messages with both session_id (for clinician access) and chat_session_id (for user organization)
+        cur.execute("INSERT INTO chat_history (session_id, chat_session_id, sender, message) VALUES (?,?,?,?)",
+                   (f"{username}_session", chat_session_id, "user", message))
+        cur.execute("INSERT INTO chat_history (session_id, chat_session_id, sender, message) VALUES (?,?,?,?)",
+                   (f"{username}_session", chat_session_id, "ai", response))
+        
+        # Update session last_active
+        cur.execute(
+            "UPDATE chat_sessions SET last_active=? WHERE id=?",
+            (datetime.now(), chat_session_id)
+        )
+        
         conn.commit()
         conn.close()
         
@@ -1267,19 +1323,42 @@ def therapy_chat():
 
 @app.route('/api/therapy/history', methods=['GET'])
 def get_chat_history():
-    """Get chat history for a user"""
+    """Get chat history for a user (optionally filtered by chat session)"""
     try:
         username = request.args.get('username')
+        chat_session_id = request.args.get('chat_session_id')  # Optional: specific session
         
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
-        history = cur.execute(
-            "SELECT sender, message, timestamp FROM chat_history WHERE session_id=? ORDER BY timestamp ASC",
-            (f"{username}_session",)
-        ).fetchall()
+        
+        if chat_session_id:
+            # Get history for specific chat session
+            history = cur.execute(
+                "SELECT sender, message, timestamp FROM chat_history WHERE chat_session_id=? ORDER BY timestamp ASC",
+                (chat_session_id,)
+            ).fetchall()
+        else:
+            # Get history from active session, or all history if no sessions exist yet
+            active_session = cur.execute(
+                "SELECT id FROM chat_sessions WHERE username=? AND is_active=1",
+                (username,)
+            ).fetchone()
+            
+            if active_session:
+                history = cur.execute(
+                    "SELECT sender, message, timestamp FROM chat_history WHERE chat_session_id=? ORDER BY timestamp ASC",
+                    (active_session[0],)
+                ).fetchall()
+            else:
+                # Backward compatibility: get all messages with old session_id
+                history = cur.execute(
+                    "SELECT sender, message, timestamp FROM chat_history WHERE session_id=? ORDER BY timestamp ASC",
+                    (f"{username}_session",)
+                ).fetchall()
+        
         conn.close()
         
         return jsonify({
@@ -1302,6 +1381,7 @@ def export_chat_history():
         from_date = data.get('from_date')
         to_date = data.get('to_date')
         export_format = data.get('format', 'txt')
+        chat_session_id = data.get('chat_session_id')  # Optional: specific session
         
         if not username or not from_date or not to_date:
             return jsonify({'error': 'Username, from_date, and to_date required'}), 400
@@ -1312,13 +1392,26 @@ def export_chat_history():
         
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
-        history = cur.execute(
-            """SELECT sender, message, timestamp FROM chat_history 
-               WHERE session_id=? 
-               AND datetime(timestamp) BETWEEN datetime(?) AND datetime(?)
-               ORDER BY timestamp ASC""",
-            (f"{username}_session", from_datetime.isoformat(), to_datetime.isoformat())
-        ).fetchall()
+        
+        if chat_session_id:
+            # Export specific session
+            history = cur.execute(
+                """SELECT sender, message, timestamp FROM chat_history 
+                   WHERE chat_session_id=? 
+                   AND datetime(timestamp) BETWEEN datetime(?) AND datetime(?)
+                   ORDER BY timestamp ASC""",
+                (chat_session_id, from_datetime.isoformat(), to_datetime.isoformat())
+            ).fetchall()
+        else:
+            # Export all sessions for this user
+            history = cur.execute(
+                """SELECT sender, message, timestamp FROM chat_history 
+                   WHERE session_id=? 
+                   AND datetime(timestamp) BETWEEN datetime(?) AND datetime(?)
+                   ORDER BY timestamp ASC""",
+                (f"{username}_session", from_datetime.isoformat(), to_datetime.isoformat())
+            ).fetchall()
+        
         conn.close()
         
         if export_format == 'json':
@@ -1369,6 +1462,189 @@ def export_chat_history():
                 headers={'Content-Disposition': f'attachment; filename=chat_export_{from_date}_to_{to_date}.txt'}
             )
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/therapy/sessions', methods=['GET'])
+def get_chat_sessions():
+    """Get all chat sessions for a user"""
+    try:
+        username = request.args.get('username')
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Create default session if none exist
+        existing = cur.execute(
+            "SELECT COUNT(*) FROM chat_sessions WHERE username=?",
+            (username,)
+        ).fetchone()[0]
+        
+        if existing == 0:
+            cur.execute(
+                "INSERT INTO chat_sessions (username, session_name, is_active) VALUES (?, ?, 1)",
+                (username, "Main Chat")
+            )
+            conn.commit()
+        
+        sessions = cur.execute(
+            """SELECT id, session_name, created_at, last_active, is_active,
+               (SELECT COUNT(*) FROM chat_history WHERE chat_session_id = chat_sessions.id) as message_count
+               FROM chat_sessions WHERE username=? ORDER BY last_active DESC""",
+            (username,)
+        ).fetchall()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'sessions': [{
+                'id': s[0],
+                'name': s[1],
+                'created_at': s[2],
+                'last_active': s[3],
+                'is_active': s[4] == 1,
+                'message_count': s[5]
+            } for s in sessions]
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/therapy/sessions', methods=['POST'])
+def create_chat_session():
+    """Create a new chat session"""
+    try:
+        data = request.json
+        username = data.get('username')
+        session_name = data.get('session_name', 'New Chat')
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Deactivate all other sessions
+        cur.execute("UPDATE chat_sessions SET is_active=0 WHERE username=?", (username,))
+        
+        # Create new session
+        cur.execute(
+            "INSERT INTO chat_sessions (username, session_name, is_active) VALUES (?, ?, 1)",
+            (username, session_name)
+        )
+        session_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'session_name': session_name
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/therapy/sessions/<int:session_id>', methods=['PUT'])
+def update_chat_session(session_id):
+    """Update chat session (rename or switch active)"""
+    try:
+        data = request.json
+        username = data.get('username')
+        session_name = data.get('session_name')
+        make_active = data.get('make_active', False)
+        
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Verify session belongs to user
+        owner = cur.execute(
+            "SELECT username FROM chat_sessions WHERE id=?",
+            (session_id,)
+        ).fetchone()
+        
+        if not owner or owner[0] != username:
+            conn.close()
+            return jsonify({'error': 'Session not found or unauthorized'}), 404
+        
+        if session_name:
+            cur.execute(
+                "UPDATE chat_sessions SET session_name=? WHERE id=?",
+                (session_name, session_id)
+            )
+        
+        if make_active:
+            # Deactivate all other sessions
+            cur.execute("UPDATE chat_sessions SET is_active=0 WHERE username=?", (username,))
+            # Activate this session
+            cur.execute("UPDATE chat_sessions SET is_active=1, last_active=? WHERE id=?", 
+                       (datetime.now(), session_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/therapy/sessions/<int:session_id>', methods=['DELETE'])
+def delete_chat_session(session_id):
+    """Delete a chat session and its messages"""
+    try:
+        username = request.args.get('username')
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Verify session belongs to user
+        owner = cur.execute(
+            "SELECT username FROM chat_sessions WHERE id=?",
+            (session_id,)
+        ).fetchone()
+        
+        if not owner or owner[0] != username:
+            conn.close()
+            return jsonify({'error': 'Session not found or unauthorized'}), 404
+        
+        # Check if this is the only session
+        session_count = cur.execute(
+            "SELECT COUNT(*) FROM chat_sessions WHERE username=?",
+            (username,)
+        ).fetchone()[0]
+        
+        if session_count == 1:
+            conn.close()
+            return jsonify({'error': 'Cannot delete your only chat session'}), 400
+        
+        # Delete messages first (cascade)
+        cur.execute("DELETE FROM chat_history WHERE chat_session_id=?", (session_id,))
+        
+        # Delete session
+        cur.execute("DELETE FROM chat_sessions WHERE id=?", (session_id,))
+        
+        # If deleted session was active, activate the most recent one
+        is_active = cur.execute(
+            "SELECT is_active FROM chat_sessions WHERE username=? LIMIT 1",
+            (username,)
+        ).fetchone()
+        
+        if is_active and is_active[0] == 0:
+            most_recent = cur.execute(
+                "SELECT id FROM chat_sessions WHERE username=? ORDER BY last_active DESC LIMIT 1",
+                (username,)
+            ).fetchone()
+            if most_recent:
+                cur.execute("UPDATE chat_sessions SET is_active=1 WHERE id=?", (most_recent[0],))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

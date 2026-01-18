@@ -247,6 +247,79 @@
         }
         
         /* Chat Interface */
+        .chat-sessions {
+            margin-bottom: 15px;
+        }
+        
+        .sessions-header {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .sessions-dropdown {
+            position: relative;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .session-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .session-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .session-item.active {
+            background: #e8f0fe;
+            border-left: 4px solid #4a90e2;
+        }
+        
+        .session-info {
+            flex: 1;
+        }
+        
+        .session-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .session-meta {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 2px;
+        }
+        
+        .session-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .session-actions button {
+            padding: 4px 8px;
+            font-size: 0.85rem;
+            background: transparent;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .session-actions button:hover {
+            background: #f0f0f0;
+        }
+        
         .chat-container {
             border: 2px solid #e0e0e0;
             border-radius: 12px;
@@ -1277,6 +1350,19 @@
                 <h3>Talk to Your AI Therapist</h3>
                 <p style="color: #666; margin-bottom: 20px;">Share your thoughts and feelings in a safe, confidential space.</p>
                 
+                <!-- Chat Sessions Manager -->
+                <div class="chat-sessions">
+                    <div class="sessions-header">
+                        <button onclick="showSessionsDropdown()" class="btn-secondary" id="currentSessionBtn">
+                            💬 Main Chat
+                        </button>
+                        <button onclick="createNewSession()" class="btn-secondary">➕ New Chat</button>
+                    </div>
+                    <div id="sessionsDropdown" class="sessions-dropdown" style="display:none;">
+                        <div id="sessionsList"></div>
+                    </div>
+                </div>
+                
                 <!-- Chat Controls -->
                 <div class="chat-controls">
                     <div class="search-bar">
@@ -1284,7 +1370,7 @@
                         <button onclick="clearSearch()" id="clearSearchBtn" style="display:none;">Clear</button>
                     </div>
                     <div class="chat-actions">
-                        <button onclick="showExportDialog()" class="btn-secondary">📥 Export Chat</button>
+                        <button onclick="showExportDialog()" class="btn-secondary">📥 Export</button>
                         <button onclick="loadChatHistory()" class="btn-secondary">🔄 Refresh</button>
                     </div>
                 </div>
@@ -2279,6 +2365,9 @@
         // Initialize patient session with chat history and greeting
         async function initializePatientSession() {
             try {
+                // Load chat sessions first
+                await loadChatSessions();
+                
                 // First, check if chat needs initialization (first-time user)
                 await initializeChatIfNeeded();
                 
@@ -2974,9 +3063,166 @@
             }
         }
         
+        // Chat Session Management
+        let currentChatSessionId = null;
+        let allChatSessions = [];
+        
+        async function loadChatSessions() {
+            try {
+                const response = await fetch(`/api/therapy/sessions?username=${currentUser}`);
+                const data = await response.json();
+                
+                if (response.ok && data.sessions) {
+                    allChatSessions = data.sessions;
+                    const activeSession = data.sessions.find(s => s.is_active);
+                    if (activeSession) {
+                        currentChatSessionId = activeSession.id;
+                        document.getElementById('currentSessionBtn').textContent = `💬 ${activeSession.name}`;
+                    }
+                    renderSessionsList();
+                }
+            } catch (error) {
+                console.error('Error loading chat sessions:', error);
+            }
+        }
+        
+        function renderSessionsList() {
+            const list = document.getElementById('sessionsList');
+            list.innerHTML = allChatSessions.map(session => `
+                <div class="session-item ${session.is_active ? 'active' : ''}" onclick="switchChatSession(${session.id})">
+                    <div class="session-info">
+                        <div class="session-name">${session.name}</div>
+                        <div class="session-meta">${session.message_count} messages · ${formatSessionDate(session.last_active)}</div>
+                    </div>
+                    <div class="session-actions" onclick="event.stopPropagation()">
+                        <button onclick="renameSession(${session.id})" title="Rename">✏️</button>
+                        <button onclick="deleteSession(${session.id})" title="Delete">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function formatSessionDate(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+            if (diffMins < 10080) return `${Math.floor(diffMins / 1440)}d ago`;
+            return date.toLocaleDateString();
+        }
+        
+        function showSessionsDropdown() {
+            const dropdown = document.getElementById('sessionsDropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        async function createNewSession() {
+            const name = prompt('Enter a name for the new chat:', 'New Chat');
+            if (!name) return;
+            
+            try {
+                const response = await fetch('/api/therapy/sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: currentUser,
+                        session_name: name
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    await loadChatSessions();
+                    await loadChatHistory();
+                    showMessage('therapyMessage', `Created new chat: ${name}`, 'success');
+                }
+            } catch (error) {
+                console.error('Error creating session:', error);
+                alert('Failed to create new chat session');
+            }
+        }
+        
+        async function switchChatSession(sessionId) {
+            try {
+                const response = await fetch(`/api/therapy/sessions/${sessionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: currentUser,
+                        make_active: true
+                    })
+                });
+                
+                if (response.ok) {
+                    await loadChatSessions();
+                    await loadChatHistory();
+                    document.getElementById('sessionsDropdown').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error switching session:', error);
+            }
+        }
+        
+        async function renameSession(sessionId) {
+            const session = allChatSessions.find(s => s.id === sessionId);
+            const newName = prompt('Enter new name:', session.name);
+            if (!newName || newName === session.name) return;
+            
+            try {
+                const response = await fetch(`/api/therapy/sessions/${sessionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: currentUser,
+                        session_name: newName
+                    })
+                });
+                
+                if (response.ok) {
+                    await loadChatSessions();
+                    showMessage('therapyMessage', 'Chat renamed successfully', 'success');
+                }
+            } catch (error) {
+                console.error('Error renaming session:', error);
+            }
+        }
+        
+        async function deleteSession(sessionId) {
+            const session = allChatSessions.find(s => s.id === sessionId);
+            if (!confirm(`Delete "${session.name}"? This will permanently delete all messages in this chat.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/therapy/sessions/${sessionId}?username=${currentUser}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    await loadChatSessions();
+                    await loadChatHistory();
+                    showMessage('therapyMessage', 'Chat deleted', 'success');
+                } else {
+                    alert(data.error || 'Failed to delete chat');
+                }
+            } catch (error) {
+                console.error('Error deleting session:', error);
+                alert('Failed to delete chat session');
+            }
+        }
+        
         async function loadChatHistory() {
             try {
-                const response = await fetch(`/api/therapy/history?username=${currentUser}`);
+                const url = currentChatSessionId 
+                    ? `/api/therapy/history?username=${currentUser}&chat_session_id=${currentChatSessionId}`
+                    : `/api/therapy/history?username=${currentUser}`;
+                
+                const response = await fetch(url);
                 const data = await response.json();
                 
                 if (response.ok && data.history) {
