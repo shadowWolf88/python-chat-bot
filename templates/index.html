@@ -7,6 +7,46 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Healing Space - Mental Health Companion [v2026.01.17]</title>
+    <script>
+        // Functions moved to head to be available for onclick handlers
+        function showLanding() {
+            hideAllAuthForms();
+            document.getElementById('landingPage').classList.remove('hidden');
+        }
+        
+        function showPatientAuth() {
+            hideAllAuthForms();
+            document.getElementById('patientLoginForm').classList.remove('hidden');
+        }
+        
+        function showClinicianAuth() {
+            hideAllAuthForms();
+            document.getElementById('clinicianLoginForm').classList.remove('hidden');
+        }
+
+        function hideAllAuthForms() {
+            // This function will be called by the functions above, so it needs to be here too.
+            // It might be defined again later, which is fine.
+            const authBox = document.querySelector('.auth-box');
+            if (!authBox) return;
+            const forms = authBox.querySelectorAll('.hidden');
+            forms.forEach(form => {
+                if (form.id) { 
+                    form.classList.add('hidden');
+                }
+            });
+            const authMessage = document.getElementById('authMessage');
+            if(authMessage) authMessage.classList.add('hidden');
+
+            // Explicitly show/hide forms
+            document.getElementById('landingPage').classList.add('hidden');
+            document.getElementById('patientLoginForm').classList.add('hidden');
+            document.getElementById('clinicianLoginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('clinicianRegisterForm').classList.add('hidden');
+            document.getElementById('forgotPasswordForm').classList.add('hidden');
+        }
+    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -1852,21 +1892,7 @@
                         <!-- Content will be loaded here -->
                     </div>
                 </div>
-            </div>
-            </div> <!-- End of main-content -->
-        </div> <!-- End of app-content -->
-    </div> <!-- End of app screen -->
-    
-    <script>
-        console.log('Script loading - v2026.01.17.2');
-        let currentUser = null;
-        let currentUserRole = 'user';
-        let selectedMoodValue = null;
-        let medications = [];
-        let currentAssessment = null;
-        let assessmentScores = [];
-        let tempLoginData = null; // Store login data for disclaimer flow
-        
+            </div> are now in the <head>
         const speciesEmojis = {Dog: '🐶', Cat: '🐱', Rabbit: '🐰', Fox: '🦊', Panda: '🐼', Penguin: '🐧'};
         
         const PHQ9_QUESTIONS = [
