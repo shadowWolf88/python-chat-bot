@@ -21,6 +21,7 @@ from email.mime.multipart import MIMEMultipart
 from secrets_manager import SecretsManager
 from audit import log_event
 from fhir_export import export_patient_fhir
+from training_data_manager import TRAINING_DB_PATH
 
 # Import password hashing libraries with fallbacks (same logic as main.py)
 try:
@@ -1360,6 +1361,50 @@ def therapy_chat():
                     ],
                     mood_context=mood_context
                 )
+                
+                # Check if we should trigger background training (Railway only)
+                try:
+                    from training_config import get_training_config, IS_RAILWAY
+                    config = get_training_config()
+                    
+                    if config['enable_auto_training'] and IS_RAILWAY:
+                        # Check number of new messages since last training
+                        conn = sqlite3.connect(TRAINING_DB_PATH)
+                        cur = conn.cursor()
+                        
+                        # Get last trained ID from metrics file
+                        import json
+                        metrics_file = os.path.join(config['model_storage'], 'training_metrics.json')
+                        last_trained_id = 0
+                        if os.path.exists(metrics_file):
+                            try:
+                                with open(metrics_file, 'r') as f:
+                                    metrics = json.load(f)
+                                    last_trained_id = metrics.get('last_trained_id', 0)
+                            except:
+                                pass
+                        
+                        new_count = cur.execute(
+                            "SELECT COUNT(*) FROM training_chats WHERE id > ?",
+                            (last_trained_id,)
+                        ).fetchone()[0]
+                        conn.close()
+                        
+                        # Trigger training if threshold reached
+                        if new_count >= config['auto_train_threshold']:
+                            import threading
+                            from ai_trainer import train_background_model
+                            
+                            def train_async():
+                                print(f"🚀 Auto-triggering training ({new_count} new messages)...")
+                                train_background_model(epochs=config['epochs'])
+                            
+                            thread = threading.Thread(target=train_async, daemon=True)
+                            thread.start()
+                            print(f"✅ Background training started ({new_count} new messages)")
+                except Exception as e:
+                    print(f"Auto-training check error: {e}")
+                
         except Exception as e:
             # Don't break the chat if training collection fails
             print(f"Training data collection error: {e}")
