@@ -1146,7 +1146,7 @@
     </div>
     
     <!-- Main App -->
-    <div id="appScreen" class="app-container" style="display: none;">
+    <div id="appScreen" class="app-container">
         <div class="app-header">
             <h2>🌿 Healing Space</h2>
             <div class="user-info">
@@ -1894,30 +1894,18 @@
         // Auth Functions
         // Auth Navigation Functions
         function showLanding() {
-            console.log('showLanding called');
             hideAllAuthForms();
             document.getElementById('landingPage').classList.remove('hidden');
-            // Ensure authScreen is visible
-            document.getElementById('authScreen').style.display = 'flex';
-            document.getElementById('appScreen').style.display = 'none';
         }
         
         function showPatientAuth() {
-            console.log('showPatientAuth called');
             hideAllAuthForms();
             document.getElementById('patientLoginForm').classList.remove('hidden');
-            // Ensure authScreen is visible
-            document.getElementById('authScreen').style.display = 'flex';
-            document.getElementById('appScreen').style.display = 'none';
         }
         
         function showClinicianAuth() {
-            console.log('showClinicianAuth called');
             hideAllAuthForms();
             document.getElementById('clinicianLoginForm').classList.remove('hidden');
-            // Ensure authScreen is visible
-            document.getElementById('authScreen').style.display = 'flex';
-            document.getElementById('appScreen').style.display = 'none';
         }
         
         console.log('Auth functions defined:', typeof showPatientAuth, typeof showClinicianAuth);
@@ -1992,13 +1980,12 @@
         
         async function login(userType) {
             let username, password, pin, rememberMe;
-            
-            if (userType === 'user') {
-                username = document.getElementById('loginUsername').value.trim();
-                password = document.getElementById('loginPassword').value;
-                pin = document.getElementById('loginPin').value;
-                rememberMe = document.getElementById('rememberMe').checked;
-            } else {
+            document.getElementById('landingPage').classList.add('hidden');
+            document.getElementById('patientLoginForm').classList.add('hidden');
+            document.getElementById('clinicianLoginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('clinicianRegisterForm').classList.add('hidden');
+            document.getElementById('forgotPasswordForm').classList.add('hidden' else {
                 username = document.getElementById('clinicianLoginUsername').value.trim();
                 password = document.getElementById('clinicianLoginPassword').value;
                 pin = document.getElementById('clinicianLoginPin').value;
