@@ -1951,6 +1951,9 @@
                     <button class="clinical-subtab-btn" onclick="switchClinicalTab('overview', this)" id="overviewSubtabBtn" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         📊 Overview
                     </button>
+                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('analytics', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        📈 Analytics
+                    </button>
                     <button class="clinical-subtab-btn" onclick="switchClinicalTab('patients', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         👥 Patients
                     </button>
@@ -1964,10 +1967,10 @@
                 
                 <!-- Overview Subtab -->
                 <div id="clinicalOverviewTab" class="clinical-subtab-content">
-                    <!-- Analytics Dashboard Section -->
+                    <!-- Quick Stats - Only 3 Cards -->
                     <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                        <h4 style="color: white; margin-bottom: 20px;">📊 Analytics Overview</h4>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <h4 style="color: white; margin-bottom: 20px;">📊 Quick Overview</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                             <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 12px; text-align: center;">
                                 <div style="font-size: 36px; font-weight: bold;" id="totalPatientsCount">-</div>
                                 <div style="opacity: 0.9;">Total Patients</div>
@@ -1981,28 +1984,30 @@
                                 <div style="opacity: 0.9;">🚨 High Risk</div>
                             </div>
                         </div>
-                        <div style="background: white; padding: 20px; border-radius: 12px;">
-                            <h5 style="color: #333; margin-bottom: 15px;">Mood Trends (30 Days)</h5>
-                            <canvas id="moodTrendChart" height="80"></canvas>
-                        </div>
+                    </div>
+                </div>
+                
+                <!-- Analytics Subtab -->
+                <div id="clinicalAnalyticsTab" class="clinical-subtab-content" style="display: none;">
+                    <!-- Mood Trends Chart -->
+                    <div class="card" style="margin-bottom: 20px;">
+                        <h4 style="margin-bottom: 15px;">📊 Mood Trends (30 Days)</h4>
+                        <p style="color: #666; margin-bottom: 15px;">Average mood across all patients over the last 30 days</p>
+                        <canvas id="moodTrendChart" height="80"></canvas>
                     </div>
                     
                     <!-- Assessment Summary Cards -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
                         <div class="card">
                             <h5 style="margin-bottom: 15px;">PHQ-9 Depression Scores</h5>
+                            <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Distribution of depression severity across all patients</p>
                             <canvas id="phq9Chart" height="150"></canvas>
                         </div>
                         <div class="card">
                             <h5 style="margin-bottom: 15px;">GAD-7 Anxiety Scores</h5>
+                            <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Distribution of anxiety severity across all patients</p>
                             <canvas id="gad7Chart" height="150"></canvas>
                         </div>
-                    </div>
-                    
-                    <!-- Quick Stats -->
-                    <div class="card">
-                        <h4>📈 Quick Statistics</h4>
-                        <p style="color: #666; margin-top: 10px;">Your analytics dashboard provides real-time insights into your patient cohort's mental health trends.</p>
                     </div>
                 </div>
                 
@@ -3185,6 +3190,8 @@
             // Load data for specific subtabs
             if (subtabName === 'overview') {
                 loadAnalyticsDashboard();
+            } else if (subtabName === 'analytics') {
+                loadAnalyticsDashboard(); // Load same data for charts
             } else if (subtabName === 'patients') {
                 loadPatients();
             } else if (subtabName === 'appointments') {
@@ -4877,6 +4884,11 @@
         }
         
         async function viewPatientDetail(username) {
+            // Hide all clinical tabs when viewing individual patient
+            document.querySelectorAll('.clinical-subtab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
             document.getElementById('patientListSection').style.display = 'none';
             document.getElementById('patientDetailSection').style.display = 'block';
             document.getElementById('patientDetailName').textContent = username;
@@ -5394,6 +5406,9 @@
             document.getElementById('patientListSection').style.display = 'block';
             document.getElementById('patientDetailSection').style.display = 'none';
             currentPatientData = null;
+            
+            // Return to Patients tab
+            switchClinicalTab('patients', document.querySelector('[onclick*="switchClinicalTab(\'patients\'"]'));
         }
         
         function getSeverityColor(severity) {
