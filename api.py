@@ -693,10 +693,14 @@ def login():
         password = data.get('password')
         pin = data.get('pin')  # Required for 2FA
         
+        print(f"🔐 Login attempt for user: {username}")
+        
         if not username or not password:
+            print("❌ Missing username or password")
             return jsonify({'error': 'Username and password required'}), 400
         
         if not pin:
+            print("❌ Missing PIN")
             return jsonify({'error': 'PIN required for 2FA authentication'}), 400
         
         conn = sqlite3.connect(DB_PATH)
@@ -704,19 +708,28 @@ def login():
         user = cur.execute("SELECT username, password, role, pin, clinician_id FROM users WHERE username=?", (username,)).fetchone()
         
         if not user:
+            print(f"❌ User not found: {username}")
             conn.close()
             return jsonify({'error': 'Invalid credentials'}), 401
         
+        print(f"✓ User found: {username}, role: {user[2]}")
+        
         # Verify password
         if not verify_password(user[1], password):
+            print("❌ Password verification failed")
             conn.close()
             return jsonify({'error': 'Invalid credentials'}), 401
+        
+        print("✓ Password verified")
         
         # Verify PIN (2FA)
         stored_pin = user[3]
         if not check_pin(pin, stored_pin):
+            print("❌ PIN verification failed")
             conn.close()
             return jsonify({'error': 'Invalid PIN'}), 401
+        
+        print("✓ PIN verified")
         
         role = user[2] or 'user'
         clinician_id = user[4]
@@ -801,7 +814,10 @@ def forgot_password():
         username = data.get('username')
         email = data.get('email')
         
+        print(f"📧 Password reset request for user: {username}, email: {email}")
+        
         if not username or not email:
+            print("❌ Missing username or email")
             return jsonify({'error': 'Username and email required'}), 400
         
         conn = sqlite3.connect(DB_PATH)
@@ -814,8 +830,12 @@ def forgot_password():
         ).fetchone()
         
         if not user:
+            print(f"⚠️  User/email combination not found (security: returning success anyway)")
             # Don't reveal if user exists for security
+            conn.close()
             return jsonify({'success': True, 'message': 'If account exists, reset link sent'}), 200
+        
+        print(f"✓ User verified: {username}")
         
         # Generate reset token
         reset_token = secrets.token_urlsafe(32)
