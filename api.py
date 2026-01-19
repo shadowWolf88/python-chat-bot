@@ -3496,6 +3496,12 @@ def generate_ai_summary():
             (f"{username}_session",)
         ).fetchall()
         
+        # Count total therapy sessions
+        therapy_sessions = cur.execute(
+            "SELECT COUNT(DISTINCT session_id) FROM chat_history WHERE session_id LIKE ?",
+            (f"{username}_%",)
+        ).fetchone()[0]
+        
         # Get gratitude entries
         gratitude = cur.execute(
             "SELECT entry FROM gratitude_logs WHERE username=? ORDER BY entry_timestamp DESC LIMIT 5",
@@ -4439,6 +4445,448 @@ def patient_profile():
             
             return jsonify({'success': True, 'message': 'Profile updated'}), 200
             
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== ANALYTICS ENDPOINTS ====================
+
+@app.route('/api/analytics/dashboard', methods=['GET'])
+def get_analytics_dashboard():
+    """Get comprehensive analytics for clinician dashboard"""
+    try:
+        clinician = request.args.get('clinician')
+        if not clinician:
+            return jsonify({'error': 'Clinician username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Get clinician's patients
+        patients = cur.execute(
+            "SELECT username FROM users WHERE clinician_id=? AND role='patient'",
+            (clinician,)
+        ).fetchall()
+        
+        patient_usernames = [p[0] for p in patients]
+        
+        if not patient_usernames:
+            conn.close()
+            return jsonify({
+                'total_patients': 0,
+                'active_patients': 0,
+                'high_risk_count': 0,
+                'mood_trends': [],
+                'engagement_data': [],
+                'assessment_summary': {}
+            }), 200
+        
+        # Total and active patients (logged in last 7 days)
+        placeholders = ','.join(['?'] * len(patient_usernames))
+        active = cur.execute(f"""
+            SELECT COUNT(DISTINCT username) FROM sessions 
+            WHERE username IN ({placeholders}) 
+            AND datetime(timestamp) > datetime('now', '-7 days')
+        """, patient_usernames).fetchone()[0]
+        
+        # High risk count (from alerts table)
+        high_risk = cur.execute(f"""
+            SELECT COUNT(DISTINCT username) FROM alerts 
+            WHERE username IN ({placeholders}) 
+            AND resolved=0
+        """, patient_usernames).fetchone()[0]
+        
+        # Mood trends over last 30 days
+        mood_data = cur.execute(f"""
+            SELECT DATE(timestamp) as date, AVG(mood_score) as avg_mood, COUNT(*) as count
+            FROM mood_logs
+            WHERE username IN ({placeholders})
+            AND datetime(timestamp) > datetime('now', '-30 days')
+            GROUP BY DATE(timestamp)
+            ORDER BY date
+        """, patient_usernames).fetchall()
+        
+        # Engagement metrics (sessions per patient in last 7 days)
+        engagement = cur.execute(f"""
+            SELECT u.username, COUNT(s.id) as session_count,
+                   MAX(s.timestamp) as last_active
+            FROM users u
+            LEFT JOIN sessions s ON u.username = s.username 
+                AND datetime(s.timestamp) > datetime('now', '-7 days')
+            WHERE u.username IN ({placeholders})
+            GROUP BY u.username
+            ORDER BY session_count DESC
+        """, patient_usernames).fetchall()
+        
+        # Assessment score summary (latest PHQ-9 and GAD-7)
+        assessment_summary = {
+            'phq9': {'severe': 0, 'moderate': 0, 'mild': 0, 'minimal': 0},
+            'gad7': {'severe': 0, 'moderate': 0, 'mild': 0, 'minimal': 0}
+        }
+        
+        for username in patient_usernames:
+            # Latest PHQ-9
+            phq9 = cur.execute("""
+                SELECT total_score FROM clinical_scales
+                WHERE username=? AND scale_type='PHQ-9'
+                ORDER BY timestamp DESC LIMIT 1
+            """, (username,)).fetchone()
+            
+            if phq9:
+                score = phq9[0]
+                if score >= 20:
+                    assessment_summary['phq9']['severe'] += 1
+                elif score >= 15:
+                    assessment_summary['phq9']['moderate'] += 1
+                elif score >= 10:
+                    assessment_summary['phq9']['mild'] += 1
+                else:
+                    assessment_summary['phq9']['minimal'] += 1
+            
+            # Latest GAD-7
+            gad7 = cur.execute("""
+                SELECT total_score FROM clinical_scales
+                WHERE username=? AND scale_type='GAD-7'
+                ORDER BY timestamp DESC LIMIT 1
+            """, (username,)).fetchone()
+            
+            if gad7:
+                score = gad7[0]
+                if score >= 15:
+                    assessment_summary['gad7']['severe'] += 1
+                elif score >= 10:
+                    assessment_summary['gad7']['moderate'] += 1
+                elif score >= 5:
+                    assessment_summary['gad7']['mild'] += 1
+                else:
+                    assessment_summary['gad7']['minimal'] += 1
+        
+        conn.close()
+        
+        return jsonify({
+            'total_patients': len(patient_usernames),
+            'active_patients': active,
+            'high_risk_count': high_risk,
+            'mood_trends': [
+                {
+                    'date': row[0],
+                    'avg_mood': round(row[1], 1),
+                    'count': row[2]
+                } for row in mood_data
+            ],
+            'engagement_data': [
+                {
+                    'username': row[0],
+                    'session_count': row[1],
+                    'last_active': row[2]
+                } for row in engagement
+            ],
+            'assessment_summary': assessment_summary
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analytics/patient/<username>', methods=['GET'])
+def get_patient_analytics(username):
+    """Get detailed analytics for specific patient"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Mood trend (last 90 days)
+        mood_trend = cur.execute("""
+            SELECT DATE(timestamp) as date, mood_score, notes
+            FROM mood_logs
+            WHERE username=?
+            AND datetime(timestamp) > datetime('now', '-90 days')
+            ORDER BY date
+        """, (username,)).fetchall()
+        
+        # Assessment scores over time
+        assessments = cur.execute("""
+            SELECT scale_type, total_score, timestamp
+            FROM clinical_scales
+            WHERE username=?
+            ORDER BY timestamp DESC
+            LIMIT 20
+        """, (username,)).fetchall()
+        
+        # Activity metrics
+        activity = cur.execute("""
+            SELECT 
+                (SELECT COUNT(*) FROM sessions WHERE username=?) as total_sessions,
+                (SELECT COUNT(*) FROM mood_logs WHERE username=?) as mood_logs,
+                (SELECT COUNT(*) FROM gratitude_logs WHERE username=?) as gratitude_logs,
+                (SELECT COUNT(*) FROM cbt_records WHERE username=?) as cbt_records,
+                (SELECT MAX(timestamp) FROM sessions WHERE username=?) as last_active
+        """, (username, username, username, username, username)).fetchone()
+        
+        # Risk indicators
+        risk_data = cur.execute("""
+            SELECT COUNT(*) as alert_count, MAX(timestamp) as last_alert
+            FROM alerts
+            WHERE username=? AND resolved=0
+        """, (username,)).fetchone()
+        
+        conn.close()
+        
+        return jsonify({
+            'mood_trend': [
+                {'date': row[0], 'score': row[1], 'notes': row[2]}
+                for row in mood_trend
+            ],
+            'assessments': [
+                {'type': row[0], 'score': row[1], 'date': row[2]}
+                for row in assessments
+            ],
+            'activity': {
+                'total_sessions': activity[0] or 0,
+                'mood_logs': activity[1] or 0,
+                'gratitude_logs': activity[2] or 0,
+                'cbt_records': activity[3] or 0,
+                'last_active': activity[4]
+            },
+            'risk': {
+                'active_alerts': risk_data[0] or 0,
+                'last_alert': risk_data[1]
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== REPORT GENERATOR ENDPOINTS ====================
+
+@app.route('/api/reports/generate', methods=['POST'])
+def generate_clinical_report():
+    """Generate clinical report for patient"""
+    try:
+        data = request.json
+        username = data.get('username')
+        report_type = data.get('report_type')  # 'gp_referral', 'progress', 'discharge'
+        clinician = data.get('clinician')
+        
+        if not all([username, report_type, clinician]):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Get patient info
+        patient = cur.execute("""
+            SELECT full_name, dob, email, phone, conditions, created_at
+            FROM users WHERE username=?
+        """, (username,)).fetchone()
+        
+        if not patient:
+            conn.close()
+            return jsonify({'error': 'Patient not found'}), 404
+        
+        # Decrypt patient data
+        full_name = decrypt_text(patient[0]) if patient[0] else username
+        dob = decrypt_text(patient[1]) if patient[1] else 'Not provided'
+        conditions = decrypt_text(patient[4]) if patient[4] else 'None recorded'
+        
+        # Get latest assessments
+        phq9 = cur.execute("""
+            SELECT total_score, timestamp FROM clinical_scales
+            WHERE username=? AND scale_type='PHQ-9'
+            ORDER BY timestamp DESC LIMIT 1
+        """, (username,)).fetchone()
+        
+        gad7 = cur.execute("""
+            SELECT total_score, timestamp FROM clinical_scales
+            WHERE username=? AND scale_type='GAD-7'
+            ORDER BY timestamp DESC LIMIT 1
+        """, (username,)).fetchone()
+        
+        # Get clinician notes
+        notes = cur.execute("""
+            SELECT note_text, created_at, is_highlighted
+            FROM clinician_notes
+            WHERE patient_username=?
+            ORDER BY created_at DESC
+            LIMIT 10
+        """, (username,)).fetchall()
+        
+        # Get mood average
+        mood_avg = cur.execute("""
+            SELECT AVG(mood_score) FROM mood_logs
+            WHERE username=?
+            AND datetime(timestamp) > datetime('now', '-30 days')
+        """, (username,)).fetchone()[0]
+        
+        conn.close()
+        
+        # Generate report content
+        from datetime import datetime
+        report_date = datetime.now().strftime('%d %B %Y')
+        
+        if report_type == 'gp_referral':
+            report_content = f"""
+REFERRAL LETTER TO GP
+
+Date: {report_date}
+Clinician: {clinician}
+
+RE: {full_name}
+DOB: {dob}
+Patient ID: {username}
+
+Dear Doctor,
+
+I am writing to refer the above-named patient for your consideration and ongoing care.
+
+PRESENTING CONCERNS:
+{conditions}
+
+ASSESSMENT FINDINGS:
+- PHQ-9 Score: {phq9[0] if phq9 else 'Not completed'} ({phq9[1] if phq9 else ''})
+- GAD-7 Score: {gad7[0] if gad7 else 'Not completed'} ({gad7[1] if gad7 else ''})
+- Average Mood (30 days): {round(mood_avg, 1) if mood_avg else 'No data'}/10
+
+CLINICAL NOTES:
+"""
+            for note in notes[:5]:
+                report_content += f"- {note[1]}: {note[0]}\n"
+            
+            report_content += f"""
+
+RECOMMENDATION:
+Patient would benefit from continued monitoring and support for mental health concerns.
+
+Yours sincerely,
+{clinician}
+Mental Health Clinician
+"""
+        
+        elif report_type == 'progress':
+            report_content = f"""
+PROGRESS REPORT
+
+Patient: {full_name}
+DOB: {dob}
+Report Date: {report_date}
+Clinician: {clinician}
+
+CURRENT STATUS:
+- Recent PHQ-9: {phq9[0] if phq9 else 'Not completed'}
+- Recent GAD-7: {gad7[0] if gad7 else 'Not completed'}
+- Average Mood: {round(mood_avg, 1) if mood_avg else 'No data'}/10
+- Medical History: {conditions}
+
+PROGRESS NOTES:
+"""
+            for note in notes:
+                marker = '[HIGHLIGHTED] ' if note[2] else ''
+                report_content += f"{marker}{note[1]}: {note[0]}\n\n"
+        
+        elif report_type == 'discharge':
+            report_content = f"""
+DISCHARGE SUMMARY
+
+Patient: {full_name}
+DOB: {dob}
+Discharge Date: {report_date}
+Clinician: {clinician}
+
+TREATMENT SUMMARY:
+Patient has been under care from {patient[5]}.
+
+FINAL ASSESSMENT:
+- PHQ-9: {phq9[0] if phq9 else 'Not completed'}
+- GAD-7: {gad7[0] if gad7 else 'Not completed'}
+- Average Mood: {round(mood_avg, 1) if mood_avg else 'No data'}/10
+
+DISCHARGE PLAN:
+Patient discharged with recommendations for self-care and monitoring.
+
+FOLLOW-UP RECOMMENDATIONS:
+- Continue self-monitoring
+- Contact GP if symptoms worsen
+- Return to service if needed
+
+{clinician}
+Mental Health Clinician
+"""
+        
+        log_event(clinician, 'clinician', 'report_generated', f'{report_type} for {username}')
+        
+        return jsonify({
+            'success': True,
+            'report_content': report_content,
+            'report_type': report_type,
+            'patient': username
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== SEARCH & FILTER ENDPOINTS ====================
+
+@app.route('/api/patients/search', methods=['GET'])
+def search_patients():
+    """Search and filter patients"""
+    try:
+        clinician = request.args.get('clinician')
+        search_query = request.args.get('q', '')
+        filter_type = request.args.get('filter')  # 'high_risk', 'inactive', 'all'
+        
+        if not clinician:
+            return jsonify({'error': 'Clinician username required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Base query
+        query = """
+            SELECT DISTINCT u.username, u.full_name, u.email, u.created_at,
+                   (SELECT COUNT(*) FROM alerts WHERE username=u.username AND resolved=0) as alert_count,
+                   (SELECT MAX(timestamp) FROM sessions WHERE username=u.username) as last_active,
+                   (SELECT total_score FROM clinical_scales WHERE username=u.username AND scale_type='PHQ-9' ORDER BY timestamp DESC LIMIT 1) as phq9_score
+            FROM users u
+            WHERE u.clinician_id=? AND u.role='patient'
+        """
+        params = [clinician]
+        
+        # Add search filter
+        if search_query:
+            query += " AND (u.username LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)"
+            search_term = f'%{search_query}%'
+            params.extend([search_term, search_term, search_term])
+        
+        # Add type filter
+        if filter_type == 'high_risk':
+            query += " AND (SELECT COUNT(*) FROM alerts WHERE username=u.username AND resolved=0) > 0"
+        elif filter_type == 'inactive':
+            query += " AND (SELECT MAX(timestamp) FROM sessions WHERE username=u.username) < datetime('now', '-7 days') OR (SELECT MAX(timestamp) FROM sessions WHERE username=u.username) IS NULL"
+        
+        query += " ORDER BY alert_count DESC, last_active DESC"
+        
+        patients = cur.execute(query, params).fetchall()
+        conn.close()
+        
+        results = []
+        for p in patients:
+            full_name = decrypt_text(p[1]) if p[1] else p[0]
+            email = decrypt_text(p[2]) if p[2] else ''
+            
+            results.append({
+                'username': p[0],
+                'full_name': full_name,
+                'email': email,
+                'created_at': p[3],
+                'alert_count': p[4] or 0,
+                'last_active': p[5],
+                'phq9_score': p[6],
+                'risk_level': 'high' if p[4] and p[4] > 0 else ('moderate' if p[6] and p[6] >= 15 else 'low')
+            })
+        
+        return jsonify({
+            'patients': results,
+            'count': len(results)
+        }), 200
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

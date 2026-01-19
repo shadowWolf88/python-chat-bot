@@ -7,6 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Healing Space - Mental Health Companion [v2026.01.17]</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
         // Functions moved to head to be available for onclick handlers
         function showLanding() {
@@ -1945,6 +1946,41 @@
                 <h3>👨‍⚕️ Clinical Dashboard</h3>
                 <p style="color: #666; margin-bottom: 20px;">Monitor and manage your patients' mental health progress.</p>
                 
+                <!-- Analytics Dashboard Section -->
+                <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h4 style="color: white; margin-bottom: 20px;">📊 Analytics Overview</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 36px; font-weight: bold;" id="totalPatientsCount">-</div>
+                            <div style="opacity: 0.9;">Total Patients</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 36px; font-weight: bold;" id="activePatientsCount">-</div>
+                            <div style="opacity: 0.9;">Active (7 days)</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 36px; font-weight: bold; color: #ffeb3b;" id="highRiskCount">-</div>
+                            <div style="opacity: 0.9;">🚨 High Risk</div>
+                        </div>
+                    </div>
+                    <div style="background: white; padding: 20px; border-radius: 12px;">
+                        <h5 style="color: #333; margin-bottom: 15px;">Mood Trends (30 Days)</h5>
+                        <canvas id="moodTrendChart" height="80"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Assessment Summary Cards -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="card">
+                        <h5 style="margin-bottom: 15px;">PHQ-9 Depression Scores</h5>
+                        <canvas id="phq9Chart" height="150"></canvas>
+                    </div>
+                    <div class="card">
+                        <h5 style="margin-bottom: 15px;">GAD-7 Anxiety Scores</h5>
+                        <canvas id="gad7Chart" height="150"></canvas>
+                    </div>
+                </div>
+                
                 <!-- Pending Approvals Section -->
                 <div class="card" style="margin-bottom: 20px; background: #fff3cd; border-left: 4px solid #ffc107;">
                     <h4>⏳ Pending Patient Requests</h4>
@@ -1953,12 +1989,21 @@
                     </div>
                 </div>
                 
-                <!-- Patient List Section -->
+                <!-- Patient List Section with Search -->
                 <div id="patientListSection">
                     <div class="card">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                             <h4>📋 My Patients</h4>
-                            <button class="btn" onclick="loadPatients()">🔄 Refresh</button>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <input type="text" id="patientSearchInput" placeholder="🔍 Search patients..." style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px; min-width: 200px;">
+                                <select id="patientFilterSelect" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                                    <option value="all">All Patients</option>
+                                    <option value="high_risk">🚨 High Risk</option>
+                                    <option value="inactive">💤 Inactive (7+ days)</option>
+                                </select>
+                                <button class="btn" onclick="searchPatients()" style="padding: 8px 16px;">Search</button>
+                                <button class="btn btn-secondary" onclick="loadPatients()" style="padding: 8px 16px;">🔄 Refresh</button>
+                            </div>
                         </div>
                         <div id="patientList">
                             <p style="text-align: center; color: #999; padding: 40px;">Loading patient list...</p>
@@ -2318,6 +2363,7 @@
                 loadPendingApprovals();
                 loadPatients(); // Auto-load patients
                 loadAppointments(); // Auto-load appointments for clinician
+                loadAnalyticsDashboard(); // Auto-load analytics dashboard
             } else {
                 // PATIENT: Hide professional tab, SHOW all patient tabs
                 document.getElementById('professionalTabBtn').style.display = 'none';
@@ -5519,6 +5565,499 @@
                 button.textContent = '👁️';
                 button.title = 'Show password';
             }
+        }
+        
+        // Analytics Dashboard Functions
+        let moodChartInstance = null;
+        let phq9ChartInstance = null;
+        let gad7ChartInstance = null;
+        
+        async function loadAnalyticsDashboard() {
+            if (currentUserRole !== 'clinician' && currentUserRole !== 'professional') {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/analytics/dashboard?clinician=${encodeURIComponent(currentUser)}&_t=${Date.now()}`, {
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to load analytics:', response.status);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                // Update stat cards
+                document.getElementById('totalPatientsCount').textContent = data.total_patients || 0;
+                document.getElementById('activePatientsCount').textContent = data.active_patients || 0;
+                document.getElementById('highRiskCount').textContent = data.high_risk_count || 0;
+                
+                // Render charts
+                renderMoodTrendChart(data.mood_trends || []);
+                renderAssessmentCharts(data.assessment_summary || { phq9: {}, gad7: {} });
+                
+            } catch (error) {
+                console.error('Error loading analytics dashboard:', error);
+            }
+        }
+        
+        function renderMoodTrendChart(moodTrends) {
+            const canvas = document.getElementById('moodTrendChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Destroy existing chart
+            if (moodChartInstance) {
+                moodChartInstance.destroy();
+            }
+            
+            // Prepare data
+            const labels = moodTrends.map(item => item.date);
+            const avgMoods = moodTrends.map(item => item.avg_mood);
+            const counts = moodTrends.map(item => item.count);
+            
+            moodChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Average Mood',
+                        data: avgMoods,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const index = context.dataIndex;
+                                    return `Entries: ${counts[index]}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 10,
+                            title: {
+                                display: true,
+                                text: 'Mood Score'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderAssessmentCharts(assessmentSummary) {
+            // Render PHQ-9 Chart
+            const phq9Canvas = document.getElementById('phq9Chart');
+            if (phq9Canvas) {
+                const phq9Ctx = phq9Canvas.getContext('2d');
+                
+                if (phq9ChartInstance) {
+                    phq9ChartInstance.destroy();
+                }
+                
+                const phq9Data = assessmentSummary.phq9 || {};
+                phq9ChartInstance = new Chart(phq9Ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Severe', 'Moderate', 'Mild', 'Minimal'],
+                        datasets: [{
+                            data: [
+                                phq9Data.severe || 0,
+                                phq9Data.moderate || 0,
+                                phq9Data.mild || 0,
+                                phq9Data.minimal || 0
+                            ],
+                            backgroundColor: [
+                                '#ef4444',
+                                '#f97316',
+                                '#fbbf24',
+                                '#10b981'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Render GAD-7 Chart
+            const gad7Canvas = document.getElementById('gad7Chart');
+            if (gad7Canvas) {
+                const gad7Ctx = gad7Canvas.getContext('2d');
+                
+                if (gad7ChartInstance) {
+                    gad7ChartInstance.destroy();
+                }
+                
+                const gad7Data = assessmentSummary.gad7 || {};
+                gad7ChartInstance = new Chart(gad7Ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Severe', 'Moderate', 'Mild', 'Minimal'],
+                        datasets: [{
+                            data: [
+                                gad7Data.severe || 0,
+                                gad7Data.moderate || 0,
+                                gad7Data.mild || 0,
+                                gad7Data.minimal || 0
+                            ],
+                            backgroundColor: [
+                                '#dc2626',
+                                '#ea580c',
+                                '#facc15',
+                                '#059669'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Patient Search and Filter Functions
+        async function searchPatients() {
+            const searchInput = document.getElementById('patientSearchInput');
+            const filterSelect = document.getElementById('patientFilterSelect');
+            
+            if (!searchInput || !filterSelect) return;
+            
+            const query = searchInput.value.trim();
+            const filter = filterSelect.value;
+            
+            try {
+                const params = new URLSearchParams({
+                    clinician: currentUser,
+                    filter: filter
+                });
+                
+                if (query) {
+                    params.append('q', query);
+                }
+                
+                const response = await fetch(`/api/patients/search?${params.toString()}&_t=${Date.now()}`, {
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (!response.ok) {
+                    console.error('Search failed:', response.status);
+                    return;
+                }
+                
+                const patients = await response.json();
+                displaySearchResults(patients);
+                
+            } catch (error) {
+                console.error('Error searching patients:', error);
+            }
+        }
+        
+        function displaySearchResults(patients) {
+            const patientList = document.getElementById('patientList');
+            if (!patientList) return;
+            
+            if (patients.length === 0) {
+                patientList.innerHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No patients found matching your search.</p>';
+                return;
+            }
+            
+            patientList.innerHTML = patients.map(patient => {
+                const riskColor = patient.risk_level === 'high' ? '#ef4444' : 
+                                 patient.risk_level === 'moderate' ? '#f97316' : '#10b981';
+                
+                const lastActive = patient.last_active || 'Never';
+                const phq9Score = patient.phq9_score !== null ? patient.phq9_score : 'N/A';
+                
+                return `
+                    <div class="patient-card" style="background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h4 style="margin: 0 0 5px 0; color: #1f2937;">${patient.full_name || patient.username}</h4>
+                                <p style="margin: 0; font-size: 13px; color: #6b7280;">@${patient.username}</p>
+                                ${patient.email ? `<p style="margin: 3px 0 0 0; font-size: 13px; color: #6b7280;">${patient.email}</p>` : ''}
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="display: inline-block; padding: 4px 12px; background: ${riskColor}; color: white; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 5px;">
+                                    ${patient.risk_level.toUpperCase()}
+                                </span>
+                                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">PHQ-9: ${phq9Score}</p>
+                                <p style="margin: 3px 0 0 0; font-size: 12px; color: #6b7280;">Last Active: ${lastActive}</p>
+                            </div>
+                        </div>
+                        ${patient.alert_count > 0 ? `
+                        <div style="margin-top: 10px; padding: 8px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px;">
+                            <p style="margin: 0; font-size: 13px; color: #991b1b; font-weight: 600;">⚠️ ${patient.alert_count} Active Alert${patient.alert_count > 1 ? 's' : ''}</p>
+                        </div>
+                        ` : ''}
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button onclick="viewPatientDetails('${patient.username}')" style="flex: 1; padding: 8px; background: #8b5cf6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">View Details</button>
+                            <button onclick="showReportGenerator('${patient.username}')" style="flex: 1; padding: 8px; background: #06b6d4; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">Generate Report</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Clinical Report Generator Functions
+        function showReportGenerator(username) {
+            const reportType = prompt('Select report type:\n1. GP Referral\n2. Progress Notes\n3. Discharge Summary\n\nEnter 1, 2, or 3:');
+            
+            const types = {
+                '1': 'gp_referral',
+                '2': 'progress',
+                '3': 'discharge'
+            };
+            
+            if (types[reportType]) {
+                generateClinicalReport(username, types[reportType]);
+            }
+        }
+        
+        async function generateClinicalReport(username, reportType) {
+            try {
+                const response = await fetch('/api/reports/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: username,
+                        report_type: reportType,
+                        clinician: currentUser
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert('Error generating report: ' + (error.error || 'Unknown error'));
+                    return;
+                }
+                
+                const data = await response.json();
+                displayReport(data.report, reportType, username);
+                
+            } catch (error) {
+                console.error('Error generating report:', error);
+                alert('Failed to generate report. Please try again.');
+            }
+        }
+        
+        function displayReport(reportText, reportType, username) {
+            // Create modal for report display
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 10000;';
+            
+            const reportTypeNames = {
+                'gp_referral': 'GP Referral Letter',
+                'progress': 'Progress Notes',
+                'discharge': 'Discharge Summary'
+            };
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 15px; max-width: 800px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0; color: #1f2937;">${reportTypeNames[reportType]}</h2>
+                        <button onclick="this.closest('[style*=fixed]').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">×</button>
+                    </div>
+                    <div style="background: #f9fafb; padding: 20px; border-radius: 10px; white-space: pre-wrap; font-family: monospace; font-size: 13px; line-height: 1.6; color: #1f2937;">
+${reportText}
+                    </div>
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button onclick="copyReportToClipboard(this)" style="flex: 1; padding: 12px; background: #8b5cf6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Copy to Clipboard</button>
+                        <button onclick="printReport()" style="flex: 1; padding: 12px; background: #06b6d4; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Print</button>
+                        <button onclick="this.closest('[style*=fixed]').remove()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        function copyReportToClipboard(button) {
+            const reportContent = button.closest('[style*="background: white"]').querySelector('[style*="white-space: pre-wrap"]').textContent;
+            navigator.clipboard.writeText(reportContent).then(() => {
+                const originalText = button.textContent;
+                button.textContent = '✓ Copied!';
+                button.style.background = '#10b981';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#8b5cf6';
+                }, 2000);
+            });
+        }
+        
+        function printReport() {
+            window.print();
+        }
+        
+        async function viewPatientDetails(username) {
+            try {
+                const response = await fetch(`/api/analytics/patient/${username}?_t=${Date.now()}`, {
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (!response.ok) {
+                    alert('Failed to load patient details');
+                    return;
+                }
+                
+                const data = await response.json();
+                displayPatientDetailsModal(username, data);
+                
+            } catch (error) {
+                console.error('Error loading patient details:', error);
+                alert('Failed to load patient details');
+            }
+        }
+        
+        function displayPatientDetailsModal(username, data) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 10000; overflow-y: auto;';
+            
+            const moodTrend = data.mood_trend || [];
+            const assessments = data.assessments || [];
+            const activity = data.activity || {};
+            const risk = data.risk || {};
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 15px; max-width: 900px; width: 90%; margin: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0; color: #1f2937;">Patient Details: ${username}</h2>
+                        <button onclick="this.closest('[style*=fixed]').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">×</button>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; color: white;">
+                            <p style="margin: 0; font-size: 13px; opacity: 0.9;">Sessions</p>
+                            <h3 style="margin: 5px 0 0 0; font-size: 28px;">${activity.total_sessions || 0}</h3>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 15px; border-radius: 10px; color: white;">
+                            <p style="margin: 0; font-size: 13px; opacity: 0.9;">Mood Logs</p>
+                            <h3 style="margin: 5px 0 0 0; font-size: 28px;">${activity.mood_logs || 0}</h3>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 15px; border-radius: 10px; color: white;">
+                            <p style="margin: 0; font-size: 13px; opacity: 0.9;">Last Active</p>
+                            <h3 style="margin: 5px 0 0 0; font-size: 16px;">${activity.last_active || 'Never'}</h3>
+                        </div>
+                    </div>
+                    
+                    ${risk.alert_count > 0 ? `
+                    <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 10px 0; color: #991b1b;">⚠️ Active Alerts (${risk.alert_count})</h4>
+                        ${risk.alerts ? risk.alerts.map(alert => `
+                            <p style="margin: 5px 0; font-size: 13px; color: #7f1d1d;">• ${alert.message} - ${alert.created_at}</p>
+                        `).join('') : ''}
+                    </div>
+                    ` : ''}
+                    
+                    <div style="background: #f9fafb; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 15px 0; color: #1f2937;">Recent Assessment Scores</h3>
+                        <div style="max-height: 200px; overflow-y: auto;">
+                            ${assessments.length > 0 ? assessments.map(assessment => `
+                                <div style="background: white; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong style="color: #1f2937;">${assessment.scale_type}</strong>
+                                        <span style="margin-left: 10px; color: #6b7280; font-size: 12px;">${assessment.date}</span>
+                                    </div>
+                                    <span style="background: ${assessment.severity === 'severe' ? '#ef4444' : assessment.severity === 'moderate' ? '#f97316' : assessment.severity === 'mild' ? '#fbbf24' : '#10b981'}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                                        Score: ${assessment.score} (${assessment.severity})
+                                    </span>
+                                </div>
+                            `).join('') : '<p style="color: #6b7280; text-align: center;">No assessments recorded</p>'}
+                        </div>
+                    </div>
+                    
+                    <div style="background: #f9fafb; padding: 20px; border-radius: 10px;">
+                        <h3 style="margin: 0 0 15px 0; color: #1f2937;">Mood Trend (Last 90 Days)</h3>
+                        <canvas id="patientMoodChart" style="max-height: 250px;"></canvas>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button onclick="showReportGenerator('${username}')" style="flex: 1; padding: 12px; background: #8b5cf6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Generate Report</button>
+                        <button onclick="this.closest('[style*=fixed]').remove()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Render mood trend chart in modal
+            setTimeout(() => {
+                const canvas = document.getElementById('patientMoodChart');
+                if (canvas && moodTrend.length > 0) {
+                    const ctx = canvas.getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: moodTrend.map(item => item.date),
+                            datasets: [{
+                                label: 'Mood Score',
+                                data: moodTrend.map(item => item.mood),
+                                borderColor: '#8b5cf6',
+                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 10,
+                                    title: { display: true, text: 'Mood Score' }
+                                },
+                                x: {
+                                    title: { display: true, text: 'Date' }
+                                }
+                            }
+                        }
+                    });
+                }
+            }, 100);
         }
         
         // Initialize and restore session on page load
