@@ -4290,11 +4290,33 @@ def cancel_appointment(appointment_id):
     """Cancel an appointment"""
     try:
         conn = sqlite3.connect(DB_PATH)
-        conn.execute("DELETE FROM appointments WHERE id=?", (appointment_id,))
-        conn.commit()
-        conn.close()
+        cur = conn.cursor()
         
-        return jsonify({'success': True, 'message': 'Appointment cancelled'}), 200
+        # Get appointment details before deleting
+        apt = cur.execute(
+            "SELECT patient_username, clinician_username, appointment_date, appointment_time FROM appointments WHERE id=?",
+            (appointment_id,)
+        ).fetchone()
+        
+        if apt:
+            patient_username, clinician_username, apt_date, apt_time = apt
+            
+            # Delete the appointment
+            cur.execute("DELETE FROM appointments WHERE id=?", (appointment_id,))
+            
+            # Send notification to patient
+            cur.execute(
+                "INSERT INTO notifications (username, message, read) VALUES (?, ?, 0)",
+                (patient_username, f"Your appointment on {apt_date} at {apt_time} with {clinician_username} has been cancelled.")
+            )
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({'success': True, 'message': 'Appointment cancelled and patient notified'}), 200
+        else:
+            conn.close()
+            return jsonify({'error': 'Appointment not found'}), 404
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

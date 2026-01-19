@@ -5797,10 +5797,12 @@
                 
                 const data = await response.json();
                 
-                // Update stat cards
-                document.getElementById('totalPatientsCount').textContent = data.total_patients || 0;
-                document.getElementById('activePatientsCount').textContent = data.active_patients || 0;
-                document.getElementById('highRiskCount').textContent = data.high_risk_count || 0;
+                console.log('Analytics data received:', data); // Debug logging
+                
+                // Update stat cards - ensure numbers are shown, not dashes
+                document.getElementById('totalPatientsCount').textContent = (data.total_patients !== undefined && data.total_patients !== null) ? data.total_patients : 0;
+                document.getElementById('activePatientsCount').textContent = (data.active_patients !== undefined && data.active_patients !== null) ? data.active_patients : 0;
+                document.getElementById('highRiskCount').textContent = (data.high_risk_count !== undefined && data.high_risk_count !== null) ? data.high_risk_count : 0;
                 
                 // Render charts
                 renderMoodTrendChart(data.mood_trends || []);
