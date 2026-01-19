@@ -2460,8 +2460,10 @@
                 // Auto-switch to professional tab and show it
                 document.getElementById('professionalTab').style.display = 'block';
                 switchTab('professional', document.getElementById('professionalTabBtn'));
-                // Default to overview subtab and load analytics data
-                switchClinicalTab('overview', document.getElementById('overviewSubtabBtn'));
+                // Default to overview subtab and load analytics data (with delay for DOM to render)
+                setTimeout(() => {
+                    switchClinicalTab('overview', document.getElementById('overviewSubtabBtn'));
+                }, 100);
             } else {
                 // PATIENT: Hide professional tab, SHOW all patient tabs
                 document.getElementById('professionalTabBtn').style.display = 'none';

@@ -4558,11 +4558,11 @@ def get_analytics_dashboard():
             )
         """, patient_usernames + patient_usernames).fetchone()[0]
         
-        # High risk count (from alerts table)
+        # High risk count (from alerts table - using status column)
         high_risk = cur.execute(f"""
             SELECT COUNT(DISTINCT username) FROM alerts 
             WHERE username IN ({placeholders}) 
-            AND resolved=0
+            AND (status IS NULL OR status != 'resolved')
         """, patient_usernames).fetchone()[0]
         
         # Mood trends over last 30 days
