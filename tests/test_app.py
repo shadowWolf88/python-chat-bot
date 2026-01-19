@@ -1,3 +1,5 @@
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import os
 import json
 import sqlite3
@@ -18,7 +20,7 @@ import pytest
 import importlib
 
 # Import modules under test
-main = importlib.import_module('main')
+main = importlib.import_module('legacy_desktop.main')
 from fhir_export import export_patient_fhir
 import secure_transfer
 

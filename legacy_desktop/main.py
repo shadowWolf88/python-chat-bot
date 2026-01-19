@@ -24,7 +24,7 @@ except Exception:
     def load_dotenv():
         return
     DOTENV_AVAILABLE = False
-from pet_game import PetGame
+from legacy_desktop.pet_game import PetGame
 from audit import log_event
 from fhir_export import export_patient_fhir
 from secure_transfer import sftp_upload

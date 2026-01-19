@@ -1,0 +1,73 @@
+Healing Space Therapy App – Showcase & Overview (Updated)
+
+---
+
+**What is Healing Space?**
+Healing Space is a comprehensive mental health companion app for patients and clinicians. It combines AI-powered therapy, clinical tools, gamification, and secure data management in both web and desktop interfaces.
+
+---
+
+**Custom AI Therapy – Niche Focus**
+Healing Space is actively training a custom AI therapy bot, designed to go beyond generic models. This bot will:
+- Use real, anonymized therapy data (GDPR-compliant)
+- Adapt to specific mental health niches and user needs
+- Integrate clinician feedback and domain expertise
+- Continuously improve through supervised learning and real-world usage
+
+This approach ensures the AI therapist is tailored for your community, providing more relevant, empathetic, and effective support than off-the-shelf solutions.
+
+---
+
+**Key Features for Patients:**
+- AI Therapy Sessions: Persistent, context-aware conversations with an AI therapist
+- Mood Tracking: Daily logs, sleep, medication, and activity tracking
+- CBT Toolkit: Thought records, gratitude journaling, breathing and grounding exercises
+- Clinical Assessments: PHQ-9, GAD-7, with score tracking and trends
+- Pet Companion: Gamified self-care with a virtual pet and rewards
+- Progress Insights: AI-generated summaries, charts, and exportable reports
+- Community Support: Safe, moderated forums for sharing and encouragement
+- Safety Planning: Crisis detection, safety plans, and emergency resources
+
+**Key Features for Clinicians:**
+- Professional Dashboard: Patient management, clinical notes, and risk monitoring
+- Appointment Calendar: Visual scheduling, urgency indicators, PDF report generation
+- Patient Data Export: CSV, PDF, and FHIR-compliant medical data exports
+- AI Summaries: Automated clinical summaries and insights
+- Notifications: Automated reminders and alerts
+- Audit Logging: Best-effort logging for sensitive actions
+
+---
+
+**Security & Privacy:**
+- End-to-end encryption (Fernet)
+- Passwords hashed with Argon2/bcrypt/PBKDF2
+- GDPR-compliant anonymized training data
+- HMAC-signed FHIR exports
+- 2FA PIN authentication
+
+---
+
+**Technical Highlights:**
+- Dual-mode: Flask REST API (web) + Tkinter GUI (desktop)
+- 3 SQLite databases: therapist_app.db, pet_game.db, ai_training_data.db
+- Groq LLM integration for advanced AI therapy
+- Inline database migrations and auto-backups
+- Optional SFTP, Vault, and email integrations
+
+---
+
+**Documentation & Support:**
+- Full user and clinician guides ([documentation/USER_GUIDE.md](documentation/USER_GUIDE.md))
+- Feature status and API reference ([FEATURE_STATUS.md](FEATURE_STATUS.md), [documentation/00_INDEX.md](documentation/00_INDEX.md))
+- Deployment and setup guides ([documentation/DEPLOYMENT.md](documentation/DEPLOYMENT.md), [documentation/RAILWAY_GUIDE.md](documentation/RAILWAY_GUIDE.md))
+- Troubleshooting and maintenance ([documentation/CLINICIAN_APPOINTMENTS.md](documentation/CLINICIAN_APPOINTMENTS.md))
+
+---
+
+**Why Healing Space?**
+Healing Space bridges the gap between clinical rigor and engaging user experience. It empowers users to manage their wellbeing, while giving clinicians powerful tools for oversight, reporting, and intervention.
+
+**Custom AI Advantage:**
+By training a niche-specific AI bot, Healing Space delivers more personalized, effective, and context-aware support for your community.
+
+For more details, see the full documentation folder or contact the development team.

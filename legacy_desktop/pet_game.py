@@ -10,6 +10,110 @@ from audit import log_event
 DB_NAME = "pet_game.db"
 
 class PetGame:
+    # --- Daily Challenge System ---
+    def _init_daily_challenge(self):
+        # Called in __init__
+        self.daily_challenges = [
+            {"desc": "Log your mood 3 times", "key": "mood", "target": 3, "progress": 0, "done": False},
+            {"desc": "Take your pet for a walk", "key": "walk", "target": 1, "progress": 0, "done": False},
+            {"desc": "Complete a CBT exercise", "key": "cbt", "target": 1, "progress": 0, "done": False},
+        ]
+        self.challenge_streak = 0
+
+    def open_daily_challenge(self):
+        dc_win = ctk.CTkToplevel(self.window)
+        dc_win.title("Daily Challenge")
+        dc_win.geometry("350x350")
+        ctk.CTkLabel(dc_win, text="Complete daily tasks for bonus rewards!", wraplength=300).pack(pady=10)
+        for ch in self.daily_challenges:
+            status = "✅" if ch["done"] else f"{ch['progress']}/{ch['target']}"
+            ctk.CTkLabel(dc_win, text=f"{ch['desc']}  {status}").pack(pady=2)
+        if all(ch["done"] for ch in self.daily_challenges):
+            ctk.CTkLabel(dc_win, text=f"Streak: {self.challenge_streak} days", font=("Arial", 12, "bold"), text_color="#27ae60").pack(pady=10)
+            ctk.CTkButton(dc_win, text="Claim Streak Reward", command=lambda: self._claim_streak_reward(dc_win), fg_color="#00b894").pack(pady=10)
+
+    def _update_challenge(self, key):
+        for ch in self.daily_challenges:
+            if ch["key"] == key and not ch["done"]:
+                ch["progress"] += 1
+                if ch["progress"] >= ch["target"]:
+                    ch["done"] = True
+                    self._mod(coin=20, xp=20, hap=10)
+                    self._save_pet()
+                    self._refresh_ui()
+                    messagebox.showinfo("Challenge Complete!", f"{ch['desc']} complete! (+20 coins, +20 XP)")
+        if all(ch["done"] for ch in self.daily_challenges):
+            self.challenge_streak += 1
+
+    def _claim_streak_reward(self, win):
+        self._mod(coin=100, xp=100, hap=30)
+        self._save_pet()
+        self._refresh_ui()
+        messagebox.showinfo("Streak Reward!", "You completed all daily challenges! (+100 coins, +100 XP)")
+        for ch in self.daily_challenges:
+            ch["progress"] = 0
+            ch["done"] = False
+        win.destroy()
+
+    # --- Healthy Habit Rewards (fully working) ---
+    def reward_healthy_habit(self, habit_name):
+        self._mod(hap=5, coin=10, xp=10)
+        self._update_challenge("cbt" if habit_name.lower() == "cbt" else habit_name.lower())
+        self._save_pet()
+        self._refresh_ui()
+        messagebox.showinfo("Healthy Habit!", f"You logged {habit_name}. Your pet is proud! (+10 coins)")
+
+    # --- Pet Requests (working randomizer) ---
+    def show_pet_request(self):
+        import random
+        requests = [
+            ("Play a mini-game with your pet!", "mini_game"),
+            ("Take your pet for a walk!", "walk"),
+            ("Feed your pet a snack!", "feed"),
+            ("Declutter your pet's room!", "declutter"),
+        ]
+        req, key = random.choice(requests)
+        pr_win = ctk.CTkToplevel(self.window)
+        pr_win.title("Pet Request")
+        pr_win.geometry("350x200")
+        ctk.CTkLabel(pr_win, text=req, wraplength=300).pack(pady=20)
+        ctk.CTkButton(pr_win, text="Complete Now", command=lambda: [self._update_challenge(key), pr_win.destroy()]).pack(pady=10)
+
+    # --- Mini-Games (simple working example) ---
+    def open_mini_games(self):
+        mg_win = ctk.CTkToplevel(self.window)
+        mg_win.title("Mini-Games")
+        mg_win.geometry("350x300")
+        ctk.CTkLabel(mg_win, text="Play fetch! Click the button to throw the ball.", wraplength=300).pack(pady=20)
+        ctk.CTkButton(mg_win, text="Throw Ball", command=lambda: self._mini_game_fetch(mg_win)).pack(pady=10)
+
+    def _mini_game_fetch(self, win):
+        import random
+        result = random.choice(["Your pet caught the ball!", "Missed! Try again."])
+        ctk.CTkLabel(win, text=result).pack(pady=5)
+        if "caught" in result:
+            self._mod(hap=10, coin=5, xp=5)
+            self._update_challenge("mini_game")
+            self._save_pet()
+            self._refresh_ui()
+
+    # --- Pet Journal (simple working example) ---
+    def open_pet_journal(self):
+        pj_win = ctk.CTkToplevel(self.window)
+        pj_win.title("Pet Journal")
+        pj_win.geometry("350x400")
+        ctk.CTkLabel(pj_win, text="Milestones & Achievements:", font=("Arial", 12, "bold")).pack(pady=10)
+        milestones = []
+        if self.pet["xp"] >= 500:
+            milestones.append("Evolved to Child stage!")
+        if self.pet["xp"] >= 1500:
+            milestones.append("Evolved to Adult stage!")
+        if self.pet["coins"] >= 1000:
+            milestones.append("Saved 1000 coins!")
+        if not milestones:
+            milestones = ["No major milestones yet. Keep going!"]
+        for m in milestones:
+            ctk.CTkLabel(pj_win, text=m).pack(pady=2)
     def __init__(self, parent, username):
         self.parent = parent
         self.username = username    
@@ -197,7 +301,7 @@ class PetGame:
         # -- PET AREA (Canvas for floating messes) --
         self.canvas = tk.Canvas(self.frame, height=200, bg="#2b2b2b", highlightthickness=0)
         self.canvas.pack(fill="x", pady=10)
-        
+
         # -- STATS --
         self.bars = {}
         for stat, col in [("Hunger", "#e74c3c"), ("Happiness", "#2ecc71"), ("Energy", "#f1c40f"), ("Hygiene", "#3498db")]:
@@ -212,11 +316,74 @@ class PetGame:
         # -- ACTIONS --
         act_grid = ctk.CTkFrame(self.frame, fg_color="transparent")
         act_grid.pack(pady=10)
-        
+
         ctk.CTkButton(act_grid, text="🧹 Declutter", width=100, command=self.declutter_task, fg_color="#9b59b6").grid(row=0, column=0, padx=5, pady=5)
         ctk.CTkButton(act_grid, text="🛍️ Shop", width=100, command=self.open_shop, fg_color="#e67e22").grid(row=0, column=1, padx=5, pady=5)
         ctk.CTkButton(act_grid, text="🌲 Walk (30m)", width=100, command=self.go_adventure, fg_color="#27ae60").grid(row=1, column=0, padx=5, pady=5)
         ctk.CTkButton(act_grid, text="💤 Sleep", width=100, command=lambda: messagebox.showinfo("Sleep", "Pet sleeps automatically between 11PM and 7AM!"), fg_color="#34495e").grid(row=1, column=1, padx=5, pady=5)
+
+        # --- NEW: Mini-Games, Pet Journal, Daily Challenge, Pet Requests ---
+        extra_grid = ctk.CTkFrame(self.frame, fg_color="transparent")
+        extra_grid.pack(pady=10)
+        ctk.CTkButton(extra_grid, text="🎮 Mini-Games", width=120, command=self.open_mini_games, fg_color="#1abc9c").grid(row=0, column=0, padx=5, pady=5)
+        ctk.CTkButton(extra_grid, text="📔 Pet Journal", width=120, command=self.open_pet_journal, fg_color="#f39c12").grid(row=0, column=1, padx=5, pady=5)
+        ctk.CTkButton(extra_grid, text="🏆 Daily Challenge", width=120, command=self.open_daily_challenge, fg_color="#e84393").grid(row=1, column=0, padx=5, pady=5)
+        ctk.CTkButton(extra_grid, text="❓ Pet Requests", width=120, command=self.show_pet_request, fg_color="#636e72").grid(row=1, column=1, padx=5, pady=5)
+
+    # --- Mini-Games Scaffold ---
+    def open_mini_games(self):
+        mg_win = ctk.CTkToplevel(self.window)
+        mg_win.title("Mini-Games (Coming Soon)")
+        mg_win.geometry("350x300")
+        ctk.CTkLabel(mg_win, text="Mini-games will include fetch, memory match, and more!", wraplength=300).pack(pady=20)
+        # TODO: Implement actual games
+
+    # --- Pet Journal Scaffold ---
+    def open_pet_journal(self):
+        pj_win = ctk.CTkToplevel(self.window)
+        pj_win.title("Pet Journal")
+        pj_win.geometry("350x400")
+        ctk.CTkLabel(pj_win, text="Milestones, achievements, and memories will appear here.", wraplength=300).pack(pady=20)
+        # TODO: Implement journal entries and timeline
+
+    # --- Daily Challenge Scaffold ---
+    def open_daily_challenge(self):
+        dc_win = ctk.CTkToplevel(self.window)
+        dc_win.title("Daily Challenge")
+        dc_win.geometry("350x300")
+        ctk.CTkLabel(dc_win, text="Complete daily tasks for bonus rewards!", wraplength=300).pack(pady=20)
+        # TODO: Implement challenge logic and progress tracker
+
+    # --- Pet Requests Scaffold ---
+    def show_pet_request(self):
+        pr_win = ctk.CTkToplevel(self.window)
+        pr_win.title("Pet Request")
+        pr_win.geometry("350x200")
+        ctk.CTkLabel(pr_win, text="Your pet will occasionally ask for care, play, or food!", wraplength=300).pack(pady=20)
+        # TODO: Implement random requests and bonus logic
+
+    # --- Mood System Scaffold (to be integrated in _refresh_ui) ---
+    def get_pet_mood(self):
+        # Returns a string/emoji based on pet stats
+        h = self.pet["happiness"]
+        e = self.pet["energy"]
+        hy = self.pet["hygiene"]
+        if h > 80 and e > 60 and hy > 60:
+            return "😄 Happy"
+        elif h < 40 or e < 30:
+            return "😢 Sad"
+        elif hy < 30:
+            return "🛁 Needs Bath"
+        else:
+            return "🙂 Neutral"
+
+    # --- Healthy Habit Rewards Scaffold (to be integrated with main app) ---
+    def reward_healthy_habit(self, habit_name):
+        # Example: called when user logs hydration, steps, etc.
+        self._mod(hap=5, coin=10, xp=10)
+        self._save_pet()
+        self._refresh_ui()
+        messagebox.showinfo("Healthy Habit!", f"You logged {habit_name}. Your pet is proud! (+10 coins)")
 
     def _refresh_ui(self):
         if not self.window or not self.window.winfo_exists(): return

@@ -1,0 +1,59 @@
+Healing Space Therapy App – Visual Showcase
+
+---
+
+🌱 **What is Healing Space?**
+A modern mental health companion for patients and clinicians, blending AI therapy, gamification, and clinical rigor in a friendly, secure environment.
+
+---
+
+🧑‍⚕️ **For Clinicians**
+- 📊 Professional Dashboard: Patient list, risk monitoring, clinical notes
+- 🗓️ Appointment Calendar: Color-coded urgency, quick actions, PDF reports
+- 📝 AI Summaries: Automated insights, progress charts
+- 📁 Data Export: CSV, PDF, FHIR formats
+- 🔔 Notifications: Automated reminders, crisis alerts
+
+---
+
+😊 **For Patients**
+- 🤖 AI Therapy: Chat with a context-aware AI therapist
+- 📈 Mood Tracking: Daily logs, sleep, medication, activities
+- 🧠 CBT Toolkit: Thought records, gratitude journal, breathing exercises
+- 🐾 Pet Companion: Virtual pet, rewards, gentle encouragement
+- 🏆 Progress Insights: Charts, summaries, exportable reports
+- 🫂 Community Support: Safe forums, encouragement
+- 🛡️ Safety Planning: Crisis detection, emergency resources
+
+---
+
+🔒 **Security & Privacy**
+- End-to-end encryption (Fernet)
+- Argon2/bcrypt/PBKDF2 password hashing
+- GDPR-compliant anonymized data
+- 2FA PIN authentication
+- HMAC-signed FHIR exports
+
+---
+
+⚙️ **Technical Highlights**
+- Dual-mode: Flask REST API (web) + Tkinter GUI (desktop)
+- 3 SQLite databases: therapist_app.db, pet_game.db, ai_training_data.db
+- Groq LLM integration for advanced AI
+- Inline migrations, auto-backups
+- Optional SFTP, Vault, email integrations
+
+---
+
+📚 **Documentation & Support**
+- Full user & clinician guides
+- Feature status & API reference
+- Deployment & setup guides
+- Troubleshooting & maintenance
+
+---
+
+✨ **Why Healing Space?**
+Empowers users to manage wellbeing with engaging tools, while clinicians benefit from powerful oversight and reporting.
+
+For details, see the documentation folder or contact the team.
