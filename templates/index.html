@@ -1966,14 +1966,11 @@
                     <button class="clinical-subtab-btn" onclick="switchClinicalTab('overview', this)" id="overviewSubtabBtn" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         📊 Overview
                     </button>
-                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('analytics', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
-                        📈 Analytics
-                    </button>
                     <button class="clinical-subtab-btn" onclick="switchClinicalTab('patients', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         👥 Patients
                     </button>
                     <button class="clinical-subtab-btn" onclick="switchClinicalTab('appointments', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
-                        📅 Appointments
+                        📅 Calendar
                     </button>
                     <button class="clinical-subtab-btn" onclick="switchClinicalTab('approvals', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         ⏳ Approvals
@@ -2006,30 +2003,6 @@
                     </div>
                 </div>
                 
-                <!-- Analytics Subtab -->
-                <div id="clinicalAnalyticsTab" class="clinical-subtab-content" style="display: none;">
-                    <!-- Mood Trends Chart -->
-                    <div class="card" style="margin-bottom: 20px;">
-                        <h4 style="margin-bottom: 15px;">📊 Mood Trends (30 Days)</h4>
-                        <p style="color: #666; margin-bottom: 15px;">Average mood across all patients over the last 30 days</p>
-                        <canvas id="moodTrendChart" height="80"></canvas>
-                    </div>
-                    
-                    <!-- Assessment Summary Cards -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
-                        <div class="card">
-                            <h5 style="margin-bottom: 15px;">PHQ-9 Depression Scores</h5>
-                            <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Distribution of depression severity across all patients</p>
-                            <canvas id="phq9Chart" height="150"></canvas>
-                        </div>
-                        <div class="card">
-                            <h5 style="margin-bottom: 15px;">GAD-7 Anxiety Scores</h5>
-                            <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Distribution of anxiety severity across all patients</p>
-                            <canvas id="gad7Chart" height="150"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
                 <!-- Patients Subtab -->
                 <div id="clinicalPatientsTab" class="clinical-subtab-content" style="display: none;">
                     <div class="card">
@@ -2054,19 +2027,65 @@
                 
                 <!-- Appointments Subtab -->
                 <div id="clinicalAppointmentsTab" class="clinical-subtab-content" style="display: none;">
-                    <div class="card">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h4>📅 Appointments Calendar</h4>
-                            <button class="btn" onclick="loadAppointments()">🔄 Refresh</button>
+                    <!-- Calendar Header with Controls -->
+                    <div class="card" style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <button class="btn btn-secondary" onclick="previousMonth()">←</button>
+                                <h3 id="calendarMonth" style="margin: 0; min-width: 200px; text-align: center;">January 2026</h3>
+                                <button class="btn btn-secondary" onclick="nextMonth()">→</button>
+                                <button class="btn btn-secondary" onclick="goToToday()">Today</button>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn" id="monthViewBtn" onclick="setCalendarView('month')" style="background: #667eea;">Month</button>
+                                <button class="btn btn-secondary" id="weekViewBtn" onclick="setCalendarView('week')">Week</button>
+                                <button class="btn btn-secondary" id="dayViewBtn" onclick="setCalendarView('day')">Day</button>
+                                <button class="btn" onclick="showNewAppointmentForm()" style="background: #2ecc71;">➕ New</button>
+                            </div>
                         </div>
-                        <div id="clinicianAppointmentsList">
-                            <p style="text-align: center; color: #999; padding: 20px;">Loading appointments...</p>
-                        </div>
-                        <button class="btn" onclick="showNewAppointmentForm()" style="margin-top: 15px;">➕ Schedule New Appointment</button>
                     </div>
                     
-                    <!-- New Appointment Form (hidden by default) -->
-                    <div id="newAppointmentForm" class="card" style="margin-top: 20px; display: none; background: #f8f9fa;">
+                    <!-- Calendar Grid -->
+                    <div class="card">
+                        <!-- Calendar View Container -->
+                        <div id="calendarViewContainer">
+                            <!-- Month View -->
+                            <div id="monthView">
+                                <!-- Day Headers -->
+                                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 10px;">
+                                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;">Sun</div>
+                                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;">Mon</div>
+                                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;">Tue</div>
+                                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;">Wed</div>
+                                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;">Thu</div>
+                                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;">Fri</div>
+                                    <div style="text-align: center; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;">Sat</div>
+                                </div>
+                                <!-- Calendar Days Grid -->
+                                <div id="calendarDaysGrid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; min-height: 500px;">
+                                    <!-- Days populated by JS -->
+                                </div>
+                            </div>
+                            
+                            <!-- Week View -->
+                            <div id="weekView" style="display: none;">
+                                <div id="weekViewContent">
+                                    <!-- Week schedule populated by JS -->
+                                </div>
+                            </div>
+                            
+                            <!-- Day View -->
+                            <div id="dayView" style="display: none;">
+                                <h4 id="dayViewDate" style="margin-bottom: 20px;">Today's Schedule</h4>
+                                <div id="dayViewContent" style="display: flex; flex-direction: column; gap: 10px;">
+                                    <!-- Day's appointments populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- New Appointment Form (Modal-style) -->
+                    <div id="newAppointmentForm" class="card" style="margin-top: 20px; display: none; background: #f8f9fa; border: 2px solid #667eea;">
                         <h4>📅 Schedule New Appointment</h4>
                         <div class="form-group">
                             <label>Select Patient</label>
@@ -2077,6 +2096,16 @@
                         <div class="form-group">
                             <label>Appointment Date & Time</label>
                             <input type="datetime-local" id="appointmentDateTime" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Duration (minutes)</label>
+                            <select id="appointmentDuration" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                                <option value="15">15 minutes</option>
+                                <option value="30" selected>30 minutes</option>
+                                <option value="45">45 minutes</option>
+                                <option value="60">1 hour</option>
+                                <option value="90">1.5 hours</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Notes (optional)</label>
@@ -3212,8 +3241,6 @@
             // Load data for specific subtabs
             if (subtabName === 'overview') {
                 loadAnalyticsDashboard();
-            } else if (subtabName === 'analytics') {
-                loadAnalyticsDashboard(); // Load same data for charts
             } else if (subtabName === 'patients') {
                 loadPatients();
             } else if (subtabName === 'appointments') {
@@ -5593,133 +5620,269 @@
         }
         
         // Appointment Management Functions
+        // Calendar state
+        let currentCalendarDate = new Date();
+        let calendarView = 'month';  // 'month', 'week', or 'day'
+        let allAppointments = [];
+        
         async function loadAppointments() {
             if (currentUserRole !== 'clinician') {
                 return;
             }
             
-            const listDiv = document.getElementById('clinicianAppointmentsList');
-            listDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading" style="margin: 0 auto;"></div></div>';
-            
             try {
                 const response = await fetch(`/api/appointments?clinician=${encodeURIComponent(currentUser)}&_t=${Date.now()}`, {
                     cache: 'no-store',
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    }
+                    headers: { 'Cache-Control': 'no-cache' }
                 });
                 const data = await response.json();
                 
                 if (response.ok && data.appointments) {
-                    if (data.appointments.length === 0) {
-                        listDiv.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No appointments scheduled.</p>';
-                        return;
-                    }
-                    
-                    // Separate appointments by status
-                    const now = new Date();
-                    const pending = data.appointments.filter(apt => apt.patient_response === 'pending' && new Date(apt.appointment_date) > now);
-                    const confirmed = data.appointments.filter(apt => apt.patient_response === 'accepted' && new Date(apt.appointment_date) > now);
-                    const declined = data.appointments.filter(apt => apt.patient_response === 'declined' && new Date(apt.appointment_date) > now);
-                    const past = data.appointments.filter(apt => new Date(apt.appointment_date) <= now);
-                    
-                    const renderAppointment = (apt) => {
-                        const date = new Date(apt.appointment_date);
-                        const dateStr = date.toLocaleDateString();
-                        const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-                        const daysUntil = Math.ceil((date - now) / (1000 * 60 * 60 * 24));
-                        const isPast = date <= now;
-                        
-                        const responseColor = apt.patient_response === 'accepted' ? '#28a745' : 
-                                             apt.patient_response === 'declined' ? '#dc3545' : '#ffc107';
-                        const responseIcon = apt.patient_response === 'accepted' ? '✓' : 
-                                            apt.patient_response === 'declined' ? '✗' : '⏳';
-                        const responseText = apt.patient_response === 'accepted' ? 'Accepted' :
-                                            apt.patient_response === 'declined' ? 'Declined' : 'Pending Response';
-                        const ackStatus = apt.patient_acknowledged ? '✓ Read' : '○ Unread';
-                        
-                        return `
-                            <div style="border: 2px solid ${isPast ? '#ccc' : daysUntil <= 2 ? '#ffc107' : '#e0e0e0'}; border-radius: 8px; padding: 15px; margin-bottom: 10px; background: ${isPast ? '#f5f5f5' : daysUntil <= 2 ? '#fff3cd' : 'white'}; ${isPast ? 'opacity: 0.7;' : ''}">
-                                <div style="display: flex; justify-content: space-between; align-items: start;">
-                                    <div style="flex: 1;">
-                                        <div style="font-size: 18px; font-weight: bold; color: #333;">${apt.patient_username}</div>
-                                        <div style="color: #667eea; margin-top: 5px;">📅 ${dateStr} at ${timeStr}</div>
-                                        ${apt.notes ? `<div style="color: #666; margin-top: 8px; font-size: 14px;">${apt.notes}</div>` : ''}
-                                        ${!isPast && daysUntil <= 2 ? `<div style="color: #dc7e14; font-weight: bold; margin-top: 8px;">⚠️ ${daysUntil === 0 ? 'Today!' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`}</div>` : ''}
-                                        ${isPast ? `<div style="color: #999; font-weight: bold; margin-top: 8px;">📍 Past Appointment</div>` : ''}
-                                        <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                                            <span style="background: ${responseColor}; color: white; padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: bold;">
-                                                ${responseIcon} ${responseText}
-                                            </span>
-                                            <span style="background: ${apt.patient_acknowledged ? '#28a745' : '#999'}; color: white; padding: 4px 10px; border-radius: 15px; font-size: 12px;">
-                                                ${ackStatus}
-                                            </span>
-                                        </div>
-                                        ${apt.patient_response_date ? `<div style="color: #999; font-size: 12px; margin-top: 5px;">Responded: ${new Date(apt.patient_response_date).toLocaleString()}</div>` : ''}
-                                    </div>
-                                    <button onclick="cancelAppointment(${apt.id})" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px;">Cancel</button>
-                                </div>
-                            </div>
-                        `;
-                    };
-                    
-                    let html = '';
-                    
-                    // Pending Appointments Section
-                    if (pending.length > 0) {
-                        html += `
-                            <div style="margin-bottom: 30px;">
-                                <h4 style="color: #ffc107; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 3px solid #ffc107;">
-                                    ⏳ Pending Patient Response (${pending.length})
-                                </h4>
-                                ${pending.map(renderAppointment).join('')}
-                            </div>
-                        `;
-                    }
-                    
-                    // Confirmed Appointments Section
-                    if (confirmed.length > 0) {
-                        html += `
-                            <div style="margin-bottom: 30px;">
-                                <h4 style="color: #28a745; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 3px solid #28a745;">
-                                    ✓ Confirmed Appointments (${confirmed.length})
-                                </h4>
-                                ${confirmed.map(renderAppointment).join('')}
-                            </div>
-                        `;
-                    }
-                    
-                    // Declined Appointments Section
-                    if (declined.length > 0) {
-                        html += `
-                            <div style="margin-bottom: 30px;">
-                                <h4 style="color: #dc3545; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 3px solid #dc3545;">
-                                    ✗ Declined by Patient (${declined.length})
-                                </h4>
-                                ${declined.map(renderAppointment).join('')}
-                            </div>
-                        `;
-                    }
-                    
-                    // Past Appointments Section
-                    if (past.length > 0) {
-                        html += `
-                            <div style="margin-bottom: 30px;">
-                                <h4 style="color: #999; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 3px solid #ccc;">
-                                    📍 Past Appointments (${past.length})
-                                </h4>
-                                ${past.map(renderAppointment).join('')}
-                            </div>
-                        `;
-                    }
-                    
-                    listDiv.innerHTML = html;
-                } else {
-                    listDiv.innerHTML = '<p style="color: #dc3545; text-align: center;">Error loading appointments</p>';
+                    allAppointments = data.appointments;
+                    renderCalendar();
                 }
             } catch (error) {
                 console.error('Error loading appointments:', error);
-                listDiv.innerHTML = '<p style="color: #dc3545; text-align: center;">Connection error</p>';
+            }
+        }
+        
+        function setCalendarView(view) {
+            calendarView = view;
+            
+            // Update button styles
+            document.getElementById('monthViewBtn').className = view === 'month' ? 'btn' : 'btn btn-secondary';
+            document.getElementById('monthViewBtn').style.background = view === 'month' ? '#667eea' : '';
+            document.getElementById('weekViewBtn').className = view === 'week' ? 'btn' : 'btn btn-secondary';
+            document.getElementById('weekViewBtn').style.background = view === 'week' ? '#667eea' : '';
+            document.getElementById('dayViewBtn').className = view === 'day' ? 'btn' : 'btn btn-secondary';
+            document.getElementById('dayViewBtn').style.background = view === 'day' ? '#667eea' : '';
+            
+            // Show/hide views
+            document.getElementById('monthView').style.display = view === 'month' ? 'block' : 'none';
+            document.getElementById('weekView').style.display = view === 'week' ? 'block' : 'none';
+            document.getElementById('dayView').style.display = view === 'day' ? 'block' : 'none';
+            
+            renderCalendar();
+        }
+        
+        function previousMonth() {
+            if (calendarView === 'month') {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+            } else if (calendarView === 'week') {
+                currentCalendarDate.setDate(currentCalendarDate.getDate() - 7);
+            } else {
+                currentCalendarDate.setDate(currentCalendarDate.getDate() - 1);
+            }
+            renderCalendar();
+        }
+        
+        function nextMonth() {
+            if (calendarView === 'month') {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+            } else if (calendarView === 'week') {
+                currentCalendarDate.setDate(currentCalendarDate.getDate() + 7);
+            } else {
+                currentCalendarDate.setDate(currentCalendarDate.getDate() + 1);
+            }
+            renderCalendar();
+        }
+        
+        function goToToday() {
+            currentCalendarDate = new Date();
+            renderCalendar();
+        }
+        
+        function renderCalendar() {
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            
+            if (calendarView === 'month') {
+                document.getElementById('calendarMonth').textContent = `${monthNames[currentCalendarDate.getMonth()]} ${currentCalendarDate.getFullYear()}`;
+                renderMonthView();
+            } else if (calendarView === 'week') {
+                const weekStart = new Date(currentCalendarDate);
+                weekStart.setDate(currentCalendarDate.getDate() - currentCalendarDate.getDay());
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+                document.getElementById('calendarMonth').textContent = `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+                renderWeekView();
+            } else {
+                document.getElementById('calendarMonth').textContent = currentCalendarDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                renderDayView();
+            }
+        }
+        
+        function renderMonthView() {
+            const grid = document.getElementById('calendarDaysGrid');
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startingDayOfWeek = firstDay.getDay();
+            const monthLength = lastDay.getDate();
+            
+            let html = '';
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Empty cells for days before month starts
+            for (let i = 0; i < startingDayOfWeek; i++) {
+                html += '<div style="background: #fafafa; min-height: 100px; border: 1px solid #e0e0e0; border-radius: 4px;"></div>';
+            }
+            
+            // Days of the month
+            for (let day = 1; day <= monthLength; day++) {
+                const date = new Date(year, month, day);
+                const dateStr = date.toISOString().split('T')[0];
+                const isToday = date.toDateString() === today.toDateString();
+                
+                // Get appointments for this day
+                const dayAppointments = allAppointments.filter(apt => {
+                    const aptDate = new Date(apt.appointment_date);
+                    return aptDate.toDateString() === date.toDateString();
+                });
+                
+                let aptHtml = '';
+                if (dayAppointments.length > 0) {
+                    // Show first 3 appointments
+                    const toShow = dayAppointments.slice(0, 3);
+                    toShow.forEach(apt => {
+                        const time = new Date(apt.appointment_date).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                        const statusColor = apt.patient_response === 'accepted' ? '#28a745' : 
+                                          apt.patient_response === 'declined' ? '#dc3545' : '#ffc107';
+                        aptHtml += `<div style="background: ${statusColor}; color: white; padding: 2px 6px; font-size: 11px; border-radius: 3px; margin-top: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="viewDayAppointments('${dateStr}')" title="${apt.patient_username} at ${time}">${time} ${apt.patient_username}</div>`;
+                    });
+                    if (dayAppointments.length > 3) {
+                        aptHtml += `<div style="color: #667eea; font-size: 11px; margin-top: 2px; cursor: pointer;" onclick="viewDayAppointments('${dateStr}')">+${dayAppointments.length - 3} more</div>`;
+                    }
+                }
+                
+                html += `
+                    <div onclick="viewDayAppointments('${dateStr}')" style="background: ${isToday ? '#e3f2fd' : 'white'}; min-height: 100px; border: ${isToday ? '2px solid #667eea' : '1px solid #e0e0e0'}; border-radius: 4px; padding: 8px; cursor: pointer; position: relative;">
+                        <div style="font-weight: ${isToday ? 'bold' : 'normal'}; color: ${isToday ? '#667eea' : '#333'}; margin-bottom: 5px;">${day}</div>
+                        ${dayAppointments.length > 0 ? `<div style="position: absolute; top: 5px; right: 5px; background: #667eea; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">${dayAppointments.length}</div>` : ''}
+                        ${aptHtml}
+                    </div>
+                `;
+            }
+            
+            grid.innerHTML = html;
+        }
+        
+        function renderWeekView() {
+            const content = document.getElementById('weekViewContent');
+            const weekStart = new Date(currentCalendarDate);
+            weekStart.setDate(currentCalendarDate.getDate() - currentCalendarDate.getDay());
+            
+            let html = '<div style="display: grid; grid-template-columns: 80px repeat(7, 1fr); gap: 5px;">';
+            
+            // Header row
+            html += '<div style="background: #f5f5f5; padding: 10px; font-weight: bold; text-align: center;">Time</div>';
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(weekStart);
+                day.setDate(weekStart.getDate() + i);
+                const isToday = day.toDateString() === new Date().toDateString();
+                html += `<div style="background: ${isToday ? '#667eea' : '#f5f5f5'}; color: ${isToday ? 'white' : '#333'}; padding: 10px; font-weight: bold; text-align: center;">${day.toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})}</div>`;
+            }
+            
+            // Time slots (8 AM to 6 PM)
+            for (let hour = 8; hour < 18; hour++) {
+                html += `<div style="background: #fafafa; padding: 10px; text-align: right; font-size: 12px; color: #666;">${hour}:00</div>`;
+                
+                for (let i = 0; i < 7; i++) {
+                    const day = new Date(weekStart);
+                    day.setDate(weekStart.getDate() + i);
+                    const dateStr = day.toISOString().split('T')[0];
+                    
+                    // Find appointments in this hour slot
+                    const hourApts = allAppointments.filter(apt => {
+                        const aptDate = new Date(apt.appointment_date);
+                        return aptDate.toDateString() === day.toDateString() && aptDate.getHours() === hour;
+                    });
+                    
+                    let cellHtml = '';
+                    hourApts.forEach(apt => {
+                        const time = new Date(apt.appointment_date).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                        const statusColor = apt.patient_response === 'accepted' ? '#28a745' : 
+                                          apt.patient_response === 'declined' ? '#dc3545' : '#ffc107';
+                        cellHtml += `<div style="background: ${statusColor}; color: white; padding: 5px; margin-bottom: 3px; font-size: 11px; border-radius: 4px; cursor: pointer;" onclick="viewAppointmentDetails(${apt.id})" title="${apt.patient_username} at ${time}">${time}<br>${apt.patient_username}</div>`;
+                    });
+                    
+                    html += `<div style="background: white; border: 1px solid #e0e0e0; min-height: 60px; padding: 5px;">${cellHtml}</div>`;
+                }
+            }
+            
+            html += '</div>';
+            content.innerHTML = html;
+        }
+        
+        function renderDayView() {
+            const content = document.getElementById('dayViewContent');
+            const dateStr = currentCalendarDate.toISOString().split('T')[0];
+            
+            const dayAppointments = allAppointments.filter(apt => {
+                const aptDate = new Date(apt.appointment_date);
+                return aptDate.toDateString() === currentCalendarDate.toDateString();
+            }).sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
+            
+            if (dayAppointments.length === 0) {
+                content.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No appointments scheduled for this day</p>';
+                return;
+            }
+            
+            let html = '';
+            const now = new Date();
+            
+            dayAppointments.forEach(apt => {
+                const aptDate = new Date(apt.appointment_date);
+                const time = aptDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                const isPast = aptDate < now;
+                const isUpcoming = !isPast && (aptDate - now) < 3600000; // Within 1 hour
+                
+                const statusColor = apt.patient_response === 'accepted' ? '#28a745' : 
+                                   apt.patient_response === 'declined' ? '#dc3545' : '#ffc107';
+                const statusIcon = apt.patient_response === 'accepted' ? '✓' : 
+                                  apt.patient_response === 'declined' ? '✗' : '⏳';
+                
+                html += `
+                    <div style="border: 2px solid ${isUpcoming ? '#ff9800' : isPast ? '#ccc' : statusColor}; border-radius: 8px; padding: 20px; background: ${isPast ? '#f5f5f5' : isUpcoming ? '#fff3e0' : 'white'};">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <div style="font-size: 24px; font-weight: bold; color: #667eea; margin-bottom: 5px;">${time}</div>
+                                <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px;">${apt.patient_username}</div>
+                                ${apt.notes ? `<div style="color: #666; margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 6px;">${apt.notes}</div>` : ''}
+                                <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                    <span style="background: ${statusColor}; color: white; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: bold;">
+                                        ${statusIcon} ${apt.patient_response === 'accepted' ? 'Accepted' : apt.patient_response === 'declined' ? 'Declined' : 'Pending'}
+                                    </span>
+                                    ${isUpcoming ? '<span style="background: #ff9800; color: white; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: bold;">⚡ Upcoming Soon</span>' : ''}
+                                    ${isPast ? '<span style="background: #999; color: white; padding: 6px 14px; border-radius: 20px; font-size: 14px;">📍 Completed</span>' : ''}
+                                    ${apt.patient_acknowledged ? '<span style="background: #28a745; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px;">✓ Read</span>' : '<span style="background: #999; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px;">○ Unread</span>'}
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <button onclick="viewPatientDetail('${apt.patient_username}')" style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; white-space: nowrap;">View Patient</button>
+                                <button onclick="cancelAppointment(${apt.id})" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; white-space: nowrap;">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            content.innerHTML = html;
+        }
+        
+        function viewDayAppointments(dateStr) {
+            currentCalendarDate = new Date(dateStr + 'T12:00:00');
+            setCalendarView('day');
+        }
+        
+        function viewAppointmentDetails(aptId) {
+            const apt = allAppointments.find(a => a.id === aptId);
+            if (apt) {
+                const aptDate = new Date(apt.appointment_date);
+                currentCalendarDate = aptDate;
+                setCalendarView('day');
             }
         }
         
