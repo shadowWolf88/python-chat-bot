@@ -2016,7 +2016,7 @@
                             <h4>📅 Upcoming Appointments</h4>
                             <button class="btn" onclick="loadAppointments()">🔄 Refresh</button>
                         </div>
-                        <div id="appointmentsList">
+                        <div id="clinicianAppointmentsList">
                             <p style="text-align: center; color: #999; padding: 20px;">Loading appointments...</p>
                         </div>
                         <button class="btn" onclick="showNewAppointmentForm()" style="margin-top: 15px;">➕ Schedule New Appointment</button>
@@ -2305,6 +2305,15 @@
             } catch (error) {
                 showAuthMessage('Connection error. Please try again.', 'error');
                 console.error('Login error:', error);
+            } finally {
+                // Restore form visibility if login failed
+                if (!currentUser) {
+                    if (userType === 'user') {
+                        document.getElementById('patientLoginForm').classList.remove('hidden');
+                    } else {
+                        document.getElementById('clinicianLoginForm').classList.remove('hidden');
+                    }
+                }
             }
         }
         
@@ -2825,7 +2834,29 @@
         
         function showAuthMessage(message, type) {
             const msgDiv = document.getElementById('authMessage');
-            msgDiv.textContent = message;
+            
+            // Clear previous content
+            msgDiv.innerHTML = '';
+            
+            // Create message text
+            const messageText = document.createElement('div');
+            messageText.textContent = message;
+            messageText.style.marginBottom = '15px';
+            msgDiv.appendChild(messageText);
+            
+            // Add back button for error messages
+            if (type === 'error') {
+                const backButton = document.createElement('button');
+                backButton.textContent = 'Try Again';
+                backButton.className = 'btn btn-secondary';
+                backButton.style.marginTop = '10px';
+                backButton.onclick = function() {
+                    msgDiv.classList.add('hidden');
+                    showLanding();
+                };
+                msgDiv.appendChild(backButton);
+            }
+            
             msgDiv.className = `alert alert-${type}`;
             msgDiv.classList.remove('hidden');
         }
@@ -5287,7 +5318,7 @@
                 return;
             }
             
-            const listDiv = document.getElementById('appointmentsList');
+            const listDiv = document.getElementById('clinicianAppointmentsList');
             listDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading" style="margin: 0 auto;"></div></div>';
             
             try {
