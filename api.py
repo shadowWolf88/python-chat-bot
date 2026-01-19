@@ -4461,11 +4461,12 @@ def get_analytics_dashboard():
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
         
-        # Get clinician's patients
-        patients = cur.execute(
-            "SELECT username FROM users WHERE clinician_id=? AND role='patient'",
-            (clinician,)
-        ).fetchall()
+        # Get clinician's APPROVED patients from patient_approvals table
+        patients = cur.execute("""
+            SELECT u.username FROM users u
+            JOIN patient_approvals pa ON u.username = pa.patient_username
+            WHERE pa.clinician_username=? AND pa.status='approved'
+        """, (clinician,)).fetchall()
         
         patient_usernames = [p[0] for p in patients]
         
@@ -4481,12 +4482,21 @@ def get_analytics_dashboard():
             }), 200
         
         # Total and active patients (logged in last 7 days)
+        # Check mood_logs and chat_history for recent activity
         placeholders = ','.join(['?'] * len(patient_usernames))
+        
+        # Get active patients from mood logs or chat activity
         active = cur.execute(f"""
-            SELECT COUNT(DISTINCT username) FROM sessions 
-            WHERE username IN ({placeholders}) 
-            AND datetime(timestamp) > datetime('now', '-7 days')
-        """, patient_usernames).fetchone()[0]
+            SELECT COUNT(DISTINCT username) FROM (
+                SELECT username FROM mood_logs 
+                WHERE username IN ({placeholders}) 
+                AND datetime(entrestamp) > datetime('now', '-7 days')
+                UNION
+                SELECT sender as username FROM chat_history 
+                WHERE sender IN ({placeholders}) 
+                AND datetime(timestamp) > datetime('now', '-7 days')
+            )
+        """, patient_usernames + patient_usernames).fetchone()[0]
         
         # High risk count (from alerts table)
         high_risk = cur.execute(f"""
@@ -4497,24 +4507,23 @@ def get_analytics_dashboard():
         
         # Mood trends over last 30 days
         mood_data = cur.execute(f"""
-            SELECT DATE(timestamp) as date, AVG(mood_score) as avg_mood, COUNT(*) as count
+            SELECT DATE(entrestamp) as date, AVG(mood_val) as avg_mood, COUNT(*) as count
             FROM mood_logs
             WHERE username IN ({placeholders})
-            AND datetime(timestamp) > datetime('now', '-30 days')
-            GROUP BY DATE(timestamp)
+            AND datetime(entrestamp) > datetime('now', '-30 days')
+            GROUP BY DATE(entrestamp)
             ORDER BY date
         """, patient_usernames).fetchall()
         
-        # Engagement metrics (sessions per patient in last 7 days)
+        # Engagement metrics (recent activity per patient in last 7 days)
         engagement = cur.execute(f"""
-            SELECT u.username, COUNT(s.id) as session_count,
-                   MAX(s.timestamp) as last_active
+            SELECT username, 
+                   (SELECT COUNT(*) FROM mood_logs ml WHERE ml.username = u.username 
+                    AND datetime(ml.entrestamp) > datetime('now', '-7 days')) as mood_count,
+                   (SELECT MAX(entrestamp) FROM mood_logs ml WHERE ml.username = u.username) as last_active
             FROM users u
-            LEFT JOIN sessions s ON u.username = s.username 
-                AND datetime(s.timestamp) > datetime('now', '-7 days')
             WHERE u.username IN ({placeholders})
-            GROUP BY u.username
-            ORDER BY session_count DESC
+            ORDER BY mood_count DESC
         """, patient_usernames).fetchall()
         
         # Assessment score summary (latest PHQ-9 and GAD-7)
@@ -4569,15 +4578,15 @@ def get_analytics_dashboard():
             'mood_trends': [
                 {
                     'date': row[0],
-                    'avg_mood': round(row[1], 1),
+                    'avg_mood': round(row[1], 1) if row[1] else 0,
                     'count': row[2]
                 } for row in mood_data
             ],
             'engagement_data': [
                 {
                     'username': row[0],
-                    'session_count': row[1],
-                    'last_active': row[2]
+                    'session_count': row[1],  # Actually mood log count
+                    'last_active': row[2] if row[2] else 'Never'
                 } for row in engagement
             ],
             'assessment_summary': assessment_summary
