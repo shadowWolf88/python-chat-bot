@@ -20,7 +20,7 @@ from email.mime.multipart import MIMEMultipart
 # Import existing modules (avoid importing main.py which has tkinter)
 from secrets_manager import SecretsManager
 from audit import log_event
-from fhir_export import export_patient_fhir
+import fhir_export
 from training_data_manager import TRAINING_DB_PATH
 
 # Import password hashing libraries with fallbacks (same logic as main.py)
@@ -2488,8 +2488,9 @@ def export_fhir():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        # Use existing FHIR export function
-        bundle = export_patient_fhir(username)
+        # Use existing FHIR export function. Only sign if ENCRYPTION_KEY is available.
+        sign = bool(getattr(fhir_export, 'ENCRYPTION_KEY', None))
+        bundle = fhir_export.export_patient_fhir(username, sign_bundle=sign)
         
         log_event(username, 'api', 'fhir_export', 'FHIR data exported via API')
         
