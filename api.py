@@ -5259,14 +5259,14 @@ def get_patient_analytics(username):
                 (SELECT COUNT(*) FROM mood_logs WHERE username=?) as mood_logs,
                 (SELECT COUNT(*) FROM gratitude_logs WHERE username=?) as gratitude_logs,
                 (SELECT COUNT(*) FROM cbt_records WHERE username=?) as cbt_records,
-                (SELECT MAX(timestamp) FROM sessions WHERE username=?) as last_active
+                (SELECT MAX(created_at) FROM sessions WHERE username=?) as last_active
         """, (username, username, username, username, username)).fetchone()
         
         # Risk indicators
         risk_data = cur.execute("""
-            SELECT COUNT(*) as alert_count, MAX(timestamp) as last_alert
+            SELECT COUNT(*) as alert_count, MAX(created_at) as last_alert
             FROM alerts
-            WHERE username=? AND resolved=0
+            WHERE username=? AND (status IS NULL OR status != 'resolved')
         """, (username,)).fetchone()
 
         # Upcoming appointments (next 30 days)
@@ -5526,7 +5526,7 @@ def search_patients():
         query = """
             SELECT DISTINCT u.username, u.full_name, u.email, u.created_at,
                    (SELECT COUNT(*) FROM alerts WHERE username=u.username AND resolved=0) as alert_count,
-                   (SELECT MAX(timestamp) FROM sessions WHERE username=u.username) as last_active,
+                   (SELECT MAX(created_at) FROM sessions WHERE username=u.username) as last_active,
                    (SELECT score FROM clinical_scales WHERE username=u.username AND scale_name='PHQ-9' ORDER BY entry_timestamp DESC LIMIT 1) as phq9_score
             FROM users u
             WHERE u.clinician_id=? AND u.role='patient'
@@ -5543,7 +5543,7 @@ def search_patients():
         if filter_type == 'high_risk':
             query += " AND (SELECT COUNT(*) FROM alerts WHERE username=u.username AND resolved=0) > 0"
         elif filter_type == 'inactive':
-            query += " AND (SELECT MAX(timestamp) FROM sessions WHERE username=u.username) < datetime('now', '-7 days') OR (SELECT MAX(timestamp) FROM sessions WHERE username=u.username) IS NULL"
+            query += " AND (SELECT MAX(created_at) FROM sessions WHERE username=u.username) < datetime('now', '-7 days') OR (SELECT MAX(created_at) FROM sessions WHERE username=u.username) IS NULL"
         
         query += " ORDER BY alert_count DESC, last_active DESC"
         

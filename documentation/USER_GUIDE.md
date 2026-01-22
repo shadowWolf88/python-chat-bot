@@ -821,3 +821,29 @@ Healing Space combines evidence-based mental health practices with engaging gami
 
 *Last Updated: January 17, 2026*
 *Version: 2.0*
+
+## Suggested Enhancements (Clinicians & Patients)
+
+Below are short, prioritized suggestions for features to improve clinician workflows and patient experience. Each item includes a brief rationale and where to start in the codebase.
+
+### For Clinicians (priority order)
+- **Telehealth / Video integration** — Add secure video calls (Jitsi/Zoom SDK). Rationale: many sessions are remote; would reduce context switching. Start: create a `telehealth` service and store meeting metadata in `appointments` (see `api.py` appointments endpoints).
+- **Appointment rescheduling & patient self-scheduling** — Allow patients to propose alternate slots and let clinicians confirm. Rationale: reduces admin burden. Start: extend `/api/appointments` with `reschedule` and add `patient_proposed_times` field in `appointments` table.
+- **Session templates & structured notes** — Provide note templates (session summary, risk assessment). Rationale: speeds documentation and improves consistency. Start: add templates in UI and store `clinician_notes` entries with a `template_id`.
+- **Outcomes dashboard & exportable reports** — Aggregated PHQ-9/GAD-7 trends and CSV export for audits. Rationale: supports outcomes measurement. Start: extend `/api/analytics/dashboard` to include CSV export endpoints using `export_training_data.py` pattern.
+- **Batch PDF/email delivery** — Generate and email progress reports to patients before appointments. Rationale: saves time. Start: reuse PDF generator and `secure_transfer.py`/SMTP helpers.
+
+### For Patients (priority order)
+- **In-app secure messaging (asynchronous)** — Two-way messaging with read receipts. Rationale: improves engagement and clarifications between sessions. Start: add `messages` table and endpoints; copy patterns from `notifications` and `chat_history`.
+- **Patient portal / self-scheduling** — Allow patients to see clinician availability and request slots. Rationale: reduces back-and-forth. Start: surface clinician availability in clinician profile and add `self-schedule` flow calling `/api/appointments`.
+- **Calendar sync (Google/iCal)** — Export and subscribe to appointments. Rationale: reduces missed appointments. Start: add iCal export endpoint and optional Google Calendar integration using OAuth.
+- **Medication & reminder module** — Track meds and set reminders. Rationale: supports adherence. Start: new `medications` table and cron job for reminders (see `send_mood_reminders.sh`).
+- **Goals & treatment plan tracker** — Patient-facing goals updated by clinician. Rationale: supports collaborative care. Start: add `treatment_plans` and link to `clinician_notes` and `appointments`.
+
+### Implementation notes & pointers
+- Notifications: use the existing `notifications` table (`api.py`) for user-facing messages; new features should reuse this system and `log_event()` audit calls.
+- Appointments: the `appointments` table and `/api/appointments` endpoints in `api.py` are the canonical place to extend scheduling features.
+- Privacy: follow existing encryption (`encrypt_text()`/`decrypt_text()`) when storing PII; update `training_data_manager.py` for any new training-data collection.
+- Background jobs: reuse cron scripts (see `send_mood_reminders.sh`) or add a small scheduler (e.g., `apscheduler`) for reminders and batch tasks.
+
+If you want, I can open PR-ready commits implementing one prioritized feature (pick which one) and add minimal UI hooks in `templates/index.html` and API tests.

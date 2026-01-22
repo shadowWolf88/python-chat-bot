@@ -6468,17 +6468,52 @@ ${reportText}
                 });
                 const data = await resp.json();
                 if (!resp.ok) {
-                    alert('Failed to update attendance: ' + (data.error || JSON.stringify(data)));
+                    showToast('Failed to update attendance: ' + (data.error || JSON.stringify(data)), 'error');
                     return;
                 }
-                // Update UI: refresh patient details modal
-                alert(data.message || 'Attendance updated');
-                // Remove existing modal and reload details
-                document.querySelectorAll('[style*=fixed]').forEach(n => n.remove());
-                await viewPatientDetails(patientUsername);
+
+                // Inline UI update: update status text and disable buttons for this appointment
+                const statusEl = document.getElementById(`apt-status-${appointmentId}`);
+                if (statusEl) statusEl.textContent = status;
+
+                // Disable buttons in this appointment card
+                const btns = Array.from(document.querySelectorAll(`[onclick*="confirmAttendance(${appointmentId},"]`));
+                btns.forEach(b => { b.disabled = true; b.style.opacity = 0.6; b.style.cursor = 'not-allowed'; });
+
+                showToast(data.message || 'Attendance updated', 'success');
             } catch (err) {
                 console.error('Attendance update error', err);
-                alert('Error updating attendance');
+                showToast('Error updating attendance', 'error');
+            }
+        }
+
+        // Toast helper
+        function showToast(message, type='info', timeout=4000) {
+            try {
+                const containerId = 'hs-toast-container';
+                let container = document.getElementById(containerId);
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = containerId;
+                    container.style.cssText = 'position:fixed; right:20px; top:20px; z-index:20000; display:flex; flex-direction:column; gap:10px; max-width:320px;';
+                    document.body.appendChild(container);
+                }
+
+                const toast = document.createElement('div');
+                toast.style.cssText = 'padding:10px 14px; border-radius:8px; color:white; box-shadow:0 6px 18px rgba(0,0,0,0.12); font-weight:600;';
+                if (type === 'success') toast.style.background = '#10b981';
+                else if (type === 'error') toast.style.background = '#ef4444';
+                else toast.style.background = '#374151';
+                toast.textContent = message;
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.style.transition = 'opacity 300ms';
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }, timeout);
+            } catch (e) {
+                console.log('Toast error', e);
             }
         }
         
