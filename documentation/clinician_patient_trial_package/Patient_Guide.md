@@ -27,7 +27,7 @@ Contents
 - Logging mood: use the "Mood" tab to enter mood, sleep, meds and short notes. Logs help clinicians and researchers understand changes over time.
 - Chat: optional AI-assisted chat for guided support; not a replacement for crisis care.
 
-Developer notes (admins only): local dev and install instructions are in `Quickstart_Local_Testing.md` and are not required for participants.
+(Developer notes removed) All local installation and developer-facing instructions are managed by the study admin. Participants only need the website URL and credentials provided by the study team.
 
 4. What To Expect in Sessions
 - Student clinicians will conduct sessions under supervision.
