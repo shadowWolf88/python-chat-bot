@@ -3,7 +3,7 @@ import json
 import os
 import hmac
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from cryptography.fernet import Fernet
 from secrets_manager import SecretsManager
 from typing import Tuple, List
@@ -46,7 +46,7 @@ def _sign_bundle(bundle_json: str) -> str:
     sig = hmac.new(ENCRYPTION_KEY, bundle_json.encode(), hashlib.sha256).hexdigest()
     signed = {
         "signedBundle": json.loads(bundle_json),
-        "signature": {"algorithm": "hmac-sha256", "value": sig, "generatedAt": datetime.utcnow().isoformat() + 'Z'}
+        "signature": {"algorithm": "hmac-sha256", "value": sig, "generatedAt": datetime.now(timezone.utc).isoformat()}
     }
     return json.dumps(signed, indent=2, default=str)
 
@@ -114,7 +114,7 @@ def export_patient_fhir(username: str, signer: str = None, add_provenance: bool 
     bundle = {
         "resourceType": "Bundle",
         "type": "collection",
-        "timestamp": datetime.utcnow().isoformat() + 'Z',
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "entry": []
     }
 
@@ -166,7 +166,7 @@ def export_patient_fhir(username: str, signer: str = None, add_provenance: bool 
         prov = {
             "resource": {
                 "resourceType": "Provenance",
-                "recorded": datetime.utcnow().isoformat() + 'Z',
+                "recorded": datetime.now(timezone.utc).isoformat(),
                 "agent": [{"type": {"text": "author"}, "who": {"reference": f"Practitioner/{signer or 'system'}"}}],
                 "entity": [{"role": "source", "what": {"reference": f"Patient/{username}"}}]
             }

@@ -1,7 +1,6 @@
 import sqlite3
-import sqlite3
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import sys
 import pathlib
@@ -24,7 +23,7 @@ def client(tmp_path, monkeypatch):
 
 def create_user(cur, username, role='user'):
     cur.execute("INSERT INTO users (username, password, role, last_login, full_name) VALUES (?,?,?,?,?)",
-                (username, 'passhash', role, datetime.now(), username))
+                (username, 'passhash', role, datetime.now(timezone.utc).isoformat(), username))
 
 
 def test_analytics_includes_appointments(client):
@@ -35,11 +34,11 @@ def test_analytics_includes_appointments(client):
     create_user(cur, 'dr_smith', 'clinician')
 
     # upcoming appointment
-    appt_date = (datetime.utcnow() + timedelta(days=2)).isoformat()
+    appt_date = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
     cur.execute("INSERT INTO appointments (clinician_username, patient_username, appointment_date, notes, patient_response) VALUES (?,?,?,?,?)",
                 ('dr_smith', 'patient1', appt_date, 'Follow-up', 'pending'))
     # past appointment
-    past_date = (datetime.utcnow() - timedelta(days=1)).isoformat()
+    past_date = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
     cur.execute("INSERT INTO appointments (clinician_username, patient_username, appointment_date, notes, patient_response) VALUES (?,?,?,?,?)",
                 ('dr_smith', 'patient1', past_date, 'Last session', 'accepted'))
     conn.commit()
@@ -60,7 +59,7 @@ def test_attendance_endpoint_updates_db_and_notifications(client):
     create_user(cur, 'patient2', 'user')
     create_user(cur, 'dr_jones', 'clinician')
 
-    appt_date = (datetime.utcnow() - timedelta(days=1)).isoformat()
+    appt_date = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
     cur.execute("INSERT INTO appointments (clinician_username, patient_username, appointment_date, notes) VALUES (?,?,?,?)",
                 ('dr_jones', 'patient2', appt_date, 'Check-in'))
     appt_id = cur.lastrowid

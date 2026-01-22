@@ -25,6 +25,13 @@ jobs:
 
       - name: Run tests
         run: pytest -q
+
+      - name: Optional browser smoke tests
+        if: env.RUN_BROWSER_TESTS == '1'
+        run: |
+          pip install playwright pytest-playwright
+          playwright install chromium
+          pytest -q tests/browser_smoke_test.py -q
 name: CI/CD Pipeline
 
 on:
