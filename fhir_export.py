@@ -41,9 +41,15 @@ def _decrypt(v):
 
 def _sign_bundle(bundle_json: str) -> str:
     # HMAC-SHA256 over bundle JSON using ENCRYPTION_KEY
-    if not ENCRYPTION_KEY:
+    key = ENCRYPTION_KEY
+    if not key:
+        # Try to fetch at runtime from secrets manager or environment (tests may set env later)
+        _enc = secrets.get_secret("ENCRYPTION_KEY") or os.environ.get("ENCRYPTION_KEY")
+        if _enc:
+            key = _enc.encode() if isinstance(_enc, str) else _enc
+    if not key:
         raise RuntimeError('ENCRYPTION_KEY is required to sign FHIR bundles in production')
-    sig = hmac.new(ENCRYPTION_KEY, bundle_json.encode(), hashlib.sha256).hexdigest()
+    sig = hmac.new(key, bundle_json.encode(), hashlib.sha256).hexdigest()
     signed = {
         "signedBundle": json.loads(bundle_json),
         "signature": {"algorithm": "hmac-sha256", "value": sig, "generatedAt": datetime.now(timezone.utc).isoformat()}
