@@ -1767,18 +1767,19 @@ def delete_user():
             return jsonify({'error': 'Cannot delete developer account'}), 403
 
         # Delete user and all associated data (GDPR right to erasure)
-        cur.execute("DELETE FROM chat_history WHERE username=?", (target_username,))
+        # Delete chat_history by session first (chat_history doesn't have username column)
+        cur.execute("DELETE FROM chat_history WHERE chat_session_id IN (SELECT id FROM chat_sessions WHERE username=?)", (target_username,))
         cur.execute("DELETE FROM chat_sessions WHERE username=?", (target_username,))
         cur.execute("DELETE FROM mood_logs WHERE username=?", (target_username,))
         cur.execute("DELETE FROM clinical_scales WHERE username=?", (target_username,))
         cur.execute("DELETE FROM gratitude_logs WHERE username=?", (target_username,))
         cur.execute("DELETE FROM cbt_records WHERE username=?", (target_username,))
         cur.execute("DELETE FROM safety_plans WHERE username=?", (target_username,))
-        cur.execute("DELETE FROM pet WHERE username=?", (target_username,))
-        cur.execute("DELETE FROM notifications WHERE username=?", (target_username,))
+        # Pet is in separate database, skip deletion
+        cur.execute("DELETE FROM notifications WHERE recipient_username=?", (target_username,))
         cur.execute("DELETE FROM ai_memory WHERE username=?", (target_username,))
         cur.execute("DELETE FROM clinician_notes WHERE patient_username=?", (target_username,))
-        cur.execute("DELETE FROM audit_logs WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM audit_logs WHERE username=? OR actor=?", (target_username, target_username))
         cur.execute("DELETE FROM alerts WHERE username=?", (target_username,))
         cur.execute("DELETE FROM appointments WHERE patient_username=? OR clinician_username=?", (target_username, target_username))
         cur.execute("DELETE FROM dev_messages WHERE from_username=? OR to_username=?", (target_username, target_username))
@@ -1786,6 +1787,8 @@ def delete_user():
         cur.execute("DELETE FROM community_posts WHERE username=?", (target_username,))
         cur.execute("DELETE FROM community_likes WHERE username=?", (target_username,))
         cur.execute("DELETE FROM community_replies WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM patient_approvals WHERE patient_username=? OR clinician_username=?", (target_username, target_username))
+        cur.execute("DELETE FROM verification_codes WHERE identifier=?", (target_username,))
         cur.execute("DELETE FROM users WHERE username=?", (target_username,))
 
         conn.commit()
