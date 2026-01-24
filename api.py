@@ -55,6 +55,15 @@ def get_db_path():
 
 DB_PATH = get_db_path()
 
+# Database connection helper with proper settings for concurrency
+def get_db_connection(timeout=30.0):
+    """Create a database connection with proper settings to avoid locking"""
+    conn = sqlite3.connect(DB_PATH, timeout=timeout, check_same_thread=False)
+    conn.execute('PRAGMA journal_mode=WAL')  # Write-Ahead Logging for better concurrency
+    conn.execute('PRAGMA busy_timeout=30000')  # 30 second busy timeout
+    conn.execute('PRAGMA synchronous=NORMAL')  # Faster writes
+    return conn
+
 # Load secrets
 secrets = SecretsManager(debug=DEBUG)
 GROQ_API_KEY = secrets.get_secret("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
@@ -158,7 +167,7 @@ def decrypt_text(encrypted: str) -> str:
 
 def init_db():
     """Initialize database with all required tables"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     cursor.execute('''CREATE TABLE IF NOT EXISTS users 
@@ -375,7 +384,7 @@ class SafetyMonitor:
         try:
             username = user_details if isinstance(user_details, str) else user_details.get('username')
             details = str(user_details)
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db_connection()
             conn.execute("INSERT INTO alerts (username, alert_type, details) VALUES (?,?,?)", (username, 'crisis', details))
             conn.commit()
             conn.close()
@@ -421,7 +430,7 @@ class TherapistAI:
         """Get AI response for therapy chat with full context (Groq API)"""
         try:
             # Get user context from AI memory
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db_connection()
             cur = conn.cursor()
             
             memory = cur.execute(
@@ -500,7 +509,7 @@ def admin_wipe_page():
 def debug_analytics(clinician):
     """Debug endpoint to see what analytics data would be returned"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         debug_info = {
@@ -598,7 +607,7 @@ def admin_wipe_database():
         if not admin_key or admin_key != required_key:
             return jsonify({'error': 'Unauthorized - invalid admin key'}), 403
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         print("🗑️  ADMIN: Wiping all user data from database...")
@@ -666,7 +675,7 @@ def send_verification():
         code = ''.join([str(secrets.randbelow(10)) for _ in range(6)])
         
         # Store code in database with 10 minute expiration
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Clear old codes for this identifier
@@ -708,7 +717,7 @@ def verify_code():
         if not identifier or not code:
             return jsonify({'error': 'Identifier and code required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Find valid code
@@ -763,7 +772,7 @@ def register():
             if not verified_identifier:
                 return jsonify({'error': 'Please verify your email or phone number first'}), 400
             
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db_connection()
             cur = conn.cursor()
             
             # Check if verification exists and is valid
@@ -811,7 +820,7 @@ def register():
         if not clinician_id:
             return jsonify({'error': 'Please select your clinician'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Verify clinician exists
@@ -893,7 +902,7 @@ def login():
             print("❌ Missing PIN")
             return jsonify({'error': 'PIN required for 2FA authentication'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         user = cur.execute("SELECT username, password, role, pin, clinician_id FROM users WHERE username=?", (username,)).fetchone()
         
@@ -975,7 +984,7 @@ def validate_session():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Check if user still exists and get their current role
@@ -1017,7 +1026,7 @@ def forgot_password():
             print("❌ Missing username or email")
             return jsonify({'error': 'Username and email required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Verify user exists and email matches
@@ -1265,7 +1274,7 @@ def clinician_register():
         hashed_password = hash_password(password)
         hashed_pin = hash_pin(pin)
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Check if username exists
@@ -1313,7 +1322,7 @@ def developer_register():
             return jsonify({'error': 'Invalid registration key'}), 403
 
         # Check if developer already exists
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         existing = cur.execute("SELECT username FROM users WHERE role='developer'").fetchone()
         if existing:
@@ -1350,7 +1359,7 @@ def accept_disclaimer():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("UPDATE users SET disclaimer_accepted=1 WHERE username=?", (username,))
         conn.commit()
@@ -1371,7 +1380,7 @@ def execute_terminal():
         command = data.get('command')
 
         # Verify developer role
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         role = cur.execute("SELECT role FROM users WHERE username=?", (username,)).fetchone()
 
@@ -1432,7 +1441,7 @@ def developer_ai_chat():
         session_id = data.get('session_id', 'default')
 
         # Verify developer role
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         role = cur.execute("SELECT role FROM users WHERE username=?", (username,)).fetchone()
 
@@ -1511,7 +1520,7 @@ def send_dev_message():
         message_type = data.get('message_type', 'info')
 
         # Verify developer role
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         role = cur.execute("SELECT role FROM users WHERE username=?", (from_username,)).fetchone()
 
@@ -1527,17 +1536,25 @@ def send_dev_message():
                     "INSERT INTO dev_messages (from_username, to_username, message, message_type) VALUES (?,?,?,?)",
                     (from_username, user[0], message, message_type)
                 )
-                send_notification(user[0], f"Message from developer: {message}", 'dev_message')
         else:
             # Send to specific user
             cur.execute(
                 "INSERT INTO dev_messages (from_username, to_username, message, message_type) VALUES (?,?,?,?)",
                 (from_username, to_username, message, message_type)
             )
-            send_notification(to_username, f"Message from developer: {message}", 'dev_message')
 
         conn.commit()
         conn.close()
+
+        # Send notifications after closing connection to avoid deadlock
+        try:
+            if to_username == 'ALL':
+                for user in users:
+                    send_notification(user[0], f"New message from admin", 'dev_message')
+            else:
+                send_notification(to_username, f"New message from admin", 'dev_message')
+        except:
+            pass  # Don't fail if notifications fail
 
         return jsonify({'success': True}), 200
 
@@ -1550,7 +1567,7 @@ def list_dev_messages():
     try:
         username = request.args.get('username')
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
 
         # Get role
@@ -1603,7 +1620,7 @@ def reply_dev_message():
         parent_message_id = data.get('parent_message_id')
         message = data.get('message')
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
 
         # Get original message to determine recipient
@@ -1627,8 +1644,11 @@ def reply_dev_message():
         conn.commit()
         conn.close()
 
-        # Send notification
-        send_notification(to_username, f"{from_username} replied: {message}", 'dev_message_reply')
+        # Send notification (don't fail if this fails)
+        try:
+            send_notification(to_username, f"New reply from {from_username}", 'dev_message_reply')
+        except:
+            pass
 
         return jsonify({'success': True}), 200
 
@@ -1642,7 +1662,7 @@ def developer_stats():
         username = request.args.get('username')
 
         # Verify developer role
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         role = cur.execute("SELECT role FROM users WHERE username=?", (username,)).fetchone()
 
@@ -1680,7 +1700,7 @@ def list_all_users():
         search = request.args.get('search', '')
 
         # Verify developer role
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         role = cur.execute("SELECT role FROM users WHERE username=?", (username,)).fetchone()
 
@@ -1688,8 +1708,8 @@ def list_all_users():
             conn.close()
             return jsonify({'error': 'Unauthorized'}), 403
 
-        # Build query
-        query = "SELECT username, role, email, last_login FROM users WHERE 1=1"
+        # Build query (NO personal info like email for GDPR compliance)
+        query = "SELECT username, role, last_login FROM users WHERE 1=1"
         params = []
 
         if role_filter != 'all':
@@ -1697,8 +1717,8 @@ def list_all_users():
             params.append(role_filter)
 
         if search:
-            query += " AND (username LIKE ? OR email LIKE ?)"
-            params.extend([f'%{search}%', f'%{search}%'])
+            query += " AND username LIKE ?"
+            params.append(f'%{search}%')
 
         query += " ORDER BY last_login DESC"
 
@@ -1710,12 +1730,69 @@ def list_all_users():
                 {
                     'username': u[0],
                     'role': u[1],
-                    'email': u[2],
-                    'last_login': u[3]
+                    'last_login': u[2]
                 }
                 for u in users
             ]
         }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/developer/users/delete', methods=['POST'])
+def delete_user():
+    """Delete a user account (GDPR-compliant deletion)"""
+    try:
+        data = request.json
+        dev_username = data.get('username')  # Developer username
+        target_username = data.get('target_username')  # User to delete
+
+        # Verify developer role
+        conn = get_db_connection()
+        cur = conn.cursor()
+        role = cur.execute("SELECT role FROM users WHERE username=?", (dev_username,)).fetchone()
+
+        if not role or role[0] != 'developer':
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Prevent deleting developer account
+        target_role = cur.execute("SELECT role FROM users WHERE username=?", (target_username,)).fetchone()
+        if not target_role:
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+
+        if target_role[0] == 'developer':
+            conn.close()
+            return jsonify({'error': 'Cannot delete developer account'}), 403
+
+        # Delete user and all associated data (GDPR right to erasure)
+        cur.execute("DELETE FROM chat_history WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM chat_sessions WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM mood_logs WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM clinical_scales WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM gratitude_logs WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM cbt_records WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM safety_plans WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM pet WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM notifications WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM ai_memory WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM clinician_notes WHERE patient_username=?", (target_username,))
+        cur.execute("DELETE FROM audit_logs WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM alerts WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM appointments WHERE patient_username=? OR clinician_username=?", (target_username, target_username))
+        cur.execute("DELETE FROM dev_messages WHERE from_username=? OR to_username=?", (target_username, target_username))
+        cur.execute("DELETE FROM dev_ai_chats WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM community_posts WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM community_likes WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM community_replies WHERE username=?", (target_username,))
+        cur.execute("DELETE FROM users WHERE username=?", (target_username,))
+
+        conn.commit()
+        conn.close()
+
+        log_event(dev_username, 'api', 'user_deleted', f'Deleted user: {target_username}')
+        return jsonify({'success': True, 'message': f'User {target_username} deleted successfully'}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1729,7 +1806,7 @@ def get_clinicians():
         country = request.args.get('country', '')
         area = request.args.get('area', '')
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         query = "SELECT username, full_name, country, area FROM users WHERE role='clinician'"
@@ -1771,7 +1848,7 @@ def get_notifications():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         notifications = cur.execute(
             "SELECT id, message, notification_type, read, created_at FROM notifications WHERE recipient_username=? ORDER BY created_at DESC LIMIT 20",
@@ -1797,7 +1874,7 @@ def get_notifications():
 def mark_notification_read(notification_id):
     """Mark notification as read"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("UPDATE notifications SET read=1 WHERE id=?", (notification_id,))
         conn.commit()
@@ -1816,7 +1893,7 @@ def get_pending_approvals():
         if not clinician:
             return jsonify({'error': 'Clinician username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         approvals = cur.execute(
             "SELECT id, patient_username, request_date FROM patient_approvals WHERE clinician_username=? AND status='pending' ORDER BY request_date DESC",
@@ -1840,7 +1917,7 @@ def get_pending_approvals():
 def approve_patient(approval_id):
     """Approve patient request"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get approval details
@@ -1896,7 +1973,7 @@ def approve_patient(approval_id):
 def reject_patient(approval_id):
     """Reject patient request"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get approval details
@@ -1939,7 +2016,7 @@ def reject_patient(approval_id):
 def update_ai_memory(username):
     """Update AI memory with recent user activity summary including clinician notes"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get recent activities
@@ -2023,7 +2100,7 @@ def update_ai_memory(username):
 def send_notification(username, message, notification_type='info'):
     """Helper function to send notification to user"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO notifications (recipient_username, message, notification_type) VALUES (?,?,?)",
@@ -2134,7 +2211,7 @@ def therapy_chat():
             print(f"AI memory update error (non-critical): {mem_error}")
         
         # Get or create active chat session
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         try:
@@ -2196,7 +2273,7 @@ def therapy_chat():
             return jsonify({'error': f'AI response failed: {str(resp_error)}'}), 500
         
         # Save to chat history with session tracking
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get or create active session
@@ -2234,7 +2311,7 @@ def therapy_chat():
         try:
             if training_manager.has_user_consented(username):
                 # Get user's mood context
-                conn = sqlite3.connect(DB_PATH)
+                conn = get_db_connection()
                 cur = conn.cursor()
                 recent_mood = cur.execute(
                     "SELECT mood_val FROM mood_logs WHERE username=? ORDER BY entrestamp DESC LIMIT 1",
@@ -2322,7 +2399,7 @@ def get_chat_history():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         if chat_session_id:
@@ -2381,7 +2458,7 @@ def export_chat_history():
         from_datetime = datetime.strptime(from_date, '%Y-%m-%d')
         to_datetime = datetime.strptime(to_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         if chat_session_id:
@@ -2464,7 +2541,7 @@ def get_chat_sessions():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Create default session if none exist
@@ -2513,7 +2590,7 @@ def create_chat_session():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         try:
@@ -2555,7 +2632,7 @@ def update_chat_session(session_id):
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Verify session belongs to user
@@ -2596,7 +2673,7 @@ def delete_chat_session(session_id):
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Verify session belongs to user
@@ -2663,7 +2740,7 @@ def get_therapy_greeting():
         ai = TherapistAI(username)
         
         # Get user context
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         memory = cur.execute(
@@ -2710,7 +2787,7 @@ def initialize_chat():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Check if chat already initialized (has any chat history)
@@ -2794,7 +2871,7 @@ def log_mood():
         if not username or mood_val is None:
             return jsonify({'error': 'Username and mood_val required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Check if user already logged mood today
@@ -2850,7 +2927,7 @@ def mood_history():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         logs = cur.execute(
             """SELECT id, mood_val, sleep_val, meds, notes, entrestamp, 
@@ -2892,7 +2969,7 @@ def log_gratitude():
         if not username or not entry:
             return jsonify({'error': 'Username and entry required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("INSERT INTO gratitude_logs (username, entry) VALUES (?,?)", (username, entry))
         conn.commit()
@@ -3027,7 +3104,7 @@ def trigger_background_training():
         username = data.get('username')
         
         # Verify admin/clinician (you can adjust this check)
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         user = cur.execute(
             "SELECT role FROM users WHERE username=?",
@@ -3456,7 +3533,7 @@ def cbt_thought_record():
         if not all([username, situation, thought]):
             return jsonify({'error': 'Username, situation, and thought required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO cbt_records (username, situation, thought, evidence) VALUES (?,?,?,?)",
@@ -3484,7 +3561,7 @@ def get_cbt_records():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         records = cur.execute(
             "SELECT id, situation, thought, evidence, entry_timestamp FROM cbt_records WHERE username=? ORDER BY entry_timestamp DESC LIMIT 20",
@@ -3514,7 +3591,7 @@ def submit_phq9():
             return jsonify({'error': 'Username and 9 scores required'}), 400
         
         # Check if user already submitted PHQ-9 in last 14 days
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         last_assessment = cur.execute(
             """SELECT entry_timestamp FROM clinical_scales 
@@ -3594,7 +3671,7 @@ def submit_gad7():
             return jsonify({'error': 'Username and 7 scores required'}), 400
         
         # Check if user already submitted GAD-7 in last 14 days
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         last_assessment = cur.execute(
             """SELECT entry_timestamp FROM clinical_scales 
@@ -3667,7 +3744,7 @@ def get_community_posts():
     try:
         username = request.args.get('username', '')  # Optional - to check if user liked posts
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         posts = cur.execute(
             "SELECT id, username, message, likes, entry_timestamp FROM community_posts ORDER BY entry_timestamp DESC LIMIT 20"
@@ -3710,7 +3787,7 @@ def create_community_post():
         if not username or not message:
             return jsonify({'error': 'Username and message required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO community_posts (username, message) VALUES (?,?)",
@@ -3736,7 +3813,7 @@ def like_community_post(post_id):
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Check if already liked
@@ -3771,7 +3848,7 @@ def delete_community_post(post_id):
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Verify post belongs to user
@@ -3811,7 +3888,7 @@ def create_reply(post_id):
         if not username or not message:
             return jsonify({'error': 'Username and message required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO community_replies (post_id, username, message) VALUES (?,?,?)",
@@ -3828,7 +3905,7 @@ def create_reply(post_id):
 def get_replies(post_id):
     """Get replies for a community post"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         replies = cur.execute(
             "SELECT username, message, timestamp FROM community_replies WHERE post_id=? ORDER BY timestamp ASC",
@@ -3855,7 +3932,7 @@ def get_safety_plan():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         plan = cur.execute(
             "SELECT triggers, coping_strategies, support_contacts, professional_contacts FROM safety_plans WHERE username=?",
@@ -3889,7 +3966,7 @@ def save_safety_plan():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         # Check if plan exists
         existing = cur.execute("SELECT username FROM safety_plans WHERE username=?", (username,)).fetchone()
@@ -3925,7 +4002,7 @@ def export_csv():
         import io
         import csv
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         output = io.StringIO()
@@ -3998,7 +4075,7 @@ def export_pdf():
         import io
         from datetime import datetime
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Create PDF in memory
@@ -4095,7 +4172,7 @@ def get_insights():
         from_date = request.args.get('from_date')
         to_date = request.args.get('to_date')
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Build query with optional date filtering
@@ -4191,7 +4268,7 @@ def get_patients():
         if not clinician_username:
             return jsonify({'error': 'Clinician username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get only APPROVED patients assigned to this clinician
@@ -4255,7 +4332,7 @@ def get_patients():
 def get_patient_detail(username):
     """Get detailed patient data including chat history, diary, habits (for professional dashboard)"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Profile
@@ -4363,7 +4440,7 @@ def generate_ai_summary():
             return jsonify({'error': 'Username required'}), 400
         
         # Fetch patient data
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get profile
@@ -4562,7 +4639,7 @@ def create_clinician_note():
         if not clinician_username or not patient_username or not note_text:
             return jsonify({'error': 'Clinician, patient, and note text required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO clinician_notes (clinician_username, patient_username, note_text, is_highlighted) VALUES (?,?,?,?)",
@@ -4590,7 +4667,7 @@ def get_clinician_notes(patient_username):
         if not clinician_username:
             return jsonify({'error': 'Clinician username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         notes = cur.execute(
             "SELECT id, note_text, is_highlighted, created_at FROM clinician_notes WHERE clinician_username=? AND patient_username=? ORDER BY created_at DESC",
@@ -4619,7 +4696,7 @@ def delete_clinician_note(note_id):
         if not clinician_username:
             return jsonify({'error': 'Clinician username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Verify note belongs to clinician
@@ -4657,7 +4734,7 @@ def export_patient_summary():
         if not clinician_username or not patient_username:
             return jsonify({'error': 'Clinician and patient usernames required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get patient profile
@@ -4833,7 +4910,7 @@ def reset_all_users():
         if confirm != 'DELETE_ALL_USERS':
             return jsonify({'error': 'Must provide confirm="DELETE_ALL_USERS" to proceed'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Delete all users and related data
@@ -4888,7 +4965,7 @@ def check_mood_reminder():
         if not force and current_hour != 20:
             return jsonify({'message': 'Not 8pm yet, reminders not sent'}), 200
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get all active patients
@@ -4937,7 +5014,7 @@ def check_mood_today():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         logged_today = cur.execute(
@@ -5093,7 +5170,7 @@ def manage_appointments():
             if not clinician_username and not patient_username:
                 return jsonify({'error': 'Clinician or patient username required'}), 400
             
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db_connection()
             cur = conn.cursor()
             
             if clinician_username:
@@ -5157,7 +5234,7 @@ def manage_appointments():
             if not all([clinician, patient, appt_date]):
                 return jsonify({'error': 'Missing required fields'}), 400
             
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db_connection()
             cur = conn.cursor()
             cur.execute("""
                 INSERT INTO appointments (clinician_username, patient_username, appointment_date, notes, patient_response)
@@ -5192,7 +5269,7 @@ def manage_appointments():
 def cancel_appointment(appointment_id):
     """Cancel an appointment"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get appointment details before deleting
@@ -5242,7 +5319,7 @@ def respond_to_appointment(appointment_id):
         if response not in ['accepted', 'declined']:
             return jsonify({'error': 'Response must be accepted or declined'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Verify appointment belongs to patient
@@ -5298,7 +5375,7 @@ def confirm_appointment_attendance(appointment_id):
         if status not in ['attended', 'no_show', 'missed']:
             return jsonify({'error': "status must be one of: 'attended', 'no_show', 'missed'"}), 400
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
 
         # Verify appointment and clinician ownership
@@ -5353,7 +5430,7 @@ def patient_profile():
         if not username:
             return jsonify({'error': 'Username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         if request.method == 'GET':
@@ -5444,7 +5521,7 @@ def get_analytics_dashboard():
         if not clinician:
             return jsonify({'error': 'Clinician username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get clinician's APPROVED patients from patient_approvals table
@@ -5593,7 +5670,7 @@ def get_active_patients():
         if not clinician:
             return jsonify({'error': 'Clinician username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get clinician's approved patients
@@ -5669,7 +5746,7 @@ def get_active_patients():
 def get_patient_analytics(username):
     """Get detailed analytics for specific patient"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Mood trend (last 90 days)
@@ -5791,7 +5868,7 @@ def generate_clinical_report():
         if not all([username, report_type, clinician]):
             return jsonify({'error': 'Missing required fields'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Get patient info
@@ -5957,7 +6034,7 @@ def search_patients():
         if not clinician:
             return jsonify({'error': 'Clinician username required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         
         # Base query

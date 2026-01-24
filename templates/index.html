@@ -1009,8 +1009,10 @@
         }
 
         .stat-label {
-            opacity: 0.9;
-            font-size: 14px;
+            opacity: 1;
+            font-size: 15px;
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
     </style>
 </head>
@@ -1050,6 +1052,10 @@
                             <input type="password" id="devLoginPassword" placeholder="Enter password">
                             <button type="button" class="password-toggle" onclick="togglePassword('devLoginPassword', this)" title="Show/Hide password">👁️</button>
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label>PIN (4 digits) - 2FA</label>
+                        <input type="password" id="devLoginPin" placeholder="Enter your 4-digit PIN" maxlength="4">
                     </div>
                     <button class="btn" onclick="login('developer')">Login</button>
                     <button class="btn btn-secondary" onclick="closeDevLogin()" style="margin-top: 10px;">Cancel</button>
@@ -1669,6 +1675,10 @@
                 <button class="tab-btn" onclick="switchTab('clinical', this)">📋 Assessments</button>
                 <button class="tab-btn" onclick="switchTab('community', this)">👥 Community</button>
                 <button class="tab-btn" onclick="switchTab('safety', this)">🆘 Safety Plan</button>
+                <button class="tab-btn" id="messagesTabBtn" onclick="switchTab('messages', this)">
+                    📬 Messages
+                    <span id="messagesBadge" style="background: #e74c3c; color: white; border-radius: 10px; padding: 2px 6px; font-size: 11px; margin-left: 5px; display: none;"></span>
+                </button>
                 <button class="tab-btn" onclick="switchTab('insights', this)">💡 Insights</button>
                 <button class="tab-btn" onclick="switchTab('appointments', this)">
                     📅 Appointments
@@ -2091,7 +2101,19 @@
                     <p><strong>International:</strong> <a href="https://findahelpline.com" target="_blank">findahelpline.com</a></p>
                 </div>
             </div>
-            
+
+            <!-- Messages Tab -->
+            <div id="messagesTab" class="tab-content">
+                <h3>📬 Messages</h3>
+                <p style="color: #666; margin-bottom: 20px;">Messages from the development team and administrators.</p>
+
+                <div class="card">
+                    <div id="userMessagesContainer" style="max-height: 600px; overflow-y: auto;">
+                        <p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Progress Insights Tab -->
             <div id="insightsTab" class="tab-content">
                 <h3>💡 Progress Insights & Export</h3>
@@ -2619,19 +2641,18 @@
                     <div class="card">
                         <h4>💻 Full Terminal Access</h4>
 
-                        <div id="terminalOutput" style="background: #1e1e1e; color: #00ff00; font-family: 'Courier New', monospace; padding: 20px; border-radius: 8px; height: 500px; overflow-y: auto; margin-bottom: 15px; white-space: pre-wrap;"><span style="color: #00ff00;">╔═══════════════════════════════════════════════════════════════╗
+                        <div id="terminalOutput" style="background: #1e1e1e; color: #00ff00; font-family: 'Courier New', monospace; padding: 20px; border-radius: 8px; height: 500px; overflow-y: auto; margin-bottom: 15px; white-space: pre-wrap; position: relative;"><span style="color: #00ff00;">╔═══════════════════════════════════════════════════════════════╗
 ║   Healing Space Developer Terminal v1.0 - FULL ACCESS MODE   ║
 ║   Type any command - no restrictions, no sandboxing          ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
 
-$ <span id="terminalCursor">_</span></div>
+$ <input type="text" id="terminalCommand" placeholder="type command here..."
+    style="background: transparent; border: none; outline: none; color: #00ff00; font-family: 'Courier New', monospace; font-size: 14px; width: calc(100% - 20px); caret-color: #00ff00;"
+    onkeypress="if(event.key==='Enter') executeTerminalCommand()"
+    autofocus></div>
 
                         <div style="display: flex; gap: 10px;">
-                            <input type="text" id="terminalCommand" placeholder="Enter command (full shell access)..."
-                                style="flex: 1; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-family: 'Courier New', monospace;"
-                                onkeypress="if(event.key==='Enter') executeTerminalCommand()">
-                            <button class="btn" onclick="executeTerminalCommand()">Execute</button>
-                            <button class="btn btn-secondary" onclick="clearTerminal()">Clear</button>
+                            <button class="btn btn-secondary" onclick="clearTerminal()">Clear Terminal</button>
                         </div>
                     </div>
                 </div>
@@ -2771,7 +2792,7 @@ $ <span id="terminalCursor">_</span></div>
     </div> <!-- End of app screen -->
     
     <script>
-        console.log('Script loading - v2026.01.19.5');
+        console.log('Script loading - v2026.01.23-full-features');
         let currentUser = null;
         let currentUserRole = 'user';
         let selectedMoodValue = null;
@@ -2914,6 +2935,12 @@ $ <span id="terminalCursor">_</span></div>
                 password = document.getElementById('loginPassword').value;
                 pin = document.getElementById('loginPin').value;
                 rememberMe = document.getElementById('rememberMe').checked;
+            } else if (userType === 'developer') {
+                username = document.getElementById('devLoginUsername').value.trim();
+                password = document.getElementById('devLoginPassword').value;
+                pin = document.getElementById('devLoginPin').value;
+                rememberMe = false; // No remember me for developer
+                document.getElementById('devLoginForm').classList.add('hidden');
             } else {
                 username = document.getElementById('clinicianLoginUsername').value.trim();
                 password = document.getElementById('clinicianLoginPassword').value;
@@ -2974,6 +3001,8 @@ $ <span id="terminalCursor">_</span></div>
                 if (!currentUser) {
                     if (userType === 'user') {
                         document.getElementById('patientLoginForm').classList.remove('hidden');
+                    } else if (userType === 'developer') {
+                        document.getElementById('devLoginForm').classList.remove('hidden');
                     } else {
                         document.getElementById('clinicianLoginForm').classList.remove('hidden');
                     }
@@ -3018,10 +3047,11 @@ $ <span id="terminalCursor">_</span></div>
             // Show professional tab only for clinicians
             if (currentUserRole === 'clinician') {
                 document.getElementById('professionalTabBtn').style.display = 'block';
-                
-                // Hide all patient-facing tab buttons for clinicians
+                document.getElementById('messagesTabBtn').style.display = 'inline-block';
+
+                // Hide all patient-facing tab buttons for clinicians (except messages)
                 document.querySelectorAll('.tab-btn').forEach(btn => {
-                    if (btn.id !== 'professionalTabBtn') {
+                    if (btn.id !== 'professionalTabBtn' && btn.id !== 'messagesTabBtn') {
                         btn.style.display = 'none';
                     }
                 });
@@ -3091,22 +3121,32 @@ $ <span id="terminalCursor">_</span></div>
             }
             
             loadNotifications();
-            
+
+            // Load messages for badge
+            if (currentUserRole !== 'developer') {
+                loadUserMessages();
+            }
+
             // Only add system message for patients
             if (currentUserRole !== 'clinician') {
                 // Load chat history first, then show greeting
                 initializePatientSession();
-                
+
                 // Switch to therapy tab as default
                 switchTab('therapy', document.querySelector('[onclick*="therapy"]'));
-                
+
                 loadPetStatus();
                 checkMoodStatus(); // Check if mood logged today
                 loadPatientAppointments(); // Load appointments for patient
             }
-            
-            // Refresh notifications every 30 seconds
-            setInterval(loadNotifications, 30000);
+
+            // Refresh notifications and messages every 60 seconds
+            setInterval(() => {
+                loadNotifications();
+                if (currentUserRole !== 'developer') {
+                    loadUserMessages();
+                }
+            }, 60000);
         }
         
         // Initialize patient session with chat history and greeting
@@ -3754,7 +3794,12 @@ $ <span id="terminalCursor">_</span></div>
             if (tabName === 'appointments' && currentUserRole !== 'clinician') {
                 loadPatientAppointments();
             }
-            
+
+            // Load messages when switching to messages tab
+            if (tabName === 'messages') {
+                checkAndLoadMessages();
+            }
+
             // Load professional tab and default to overview
             if (tabName === 'professional' && currentUserRole === 'clinician') {
                 // Default to overview subtab
@@ -7274,12 +7319,18 @@ ${reportText}
 
         // Terminal Functions
         async function executeTerminalCommand() {
-            const command = document.getElementById('terminalCommand').value.trim();
+            const inputField = document.getElementById('terminalCommand');
+            const command = inputField.value.trim();
             if (!command) return;
 
             const output = document.getElementById('terminalOutput');
             const timestamp = new Date().toLocaleTimeString();
-            output.innerHTML += `\n<span style="color: #00ff00;">[${timestamp}]</span> $ ${command}\n`;
+
+            // Remove the input field temporarily
+            inputField.remove();
+
+            // Add command to output
+            output.innerHTML += `<span style="color: #00ff00;">[${timestamp}]</span> $ ${command}\n`;
 
             try {
                 const response = await fetch('/api/developer/terminal/execute', {
@@ -7303,8 +7354,14 @@ ${reportText}
                 output.innerHTML += `<span style="color: #ff0000;">NETWORK ERROR: ${error.message}</span>\n`;
             }
 
-            document.getElementById('terminalCommand').value = '';
+            // Recreate input field at the end
+            output.innerHTML += `$ <input type="text" id="terminalCommand" placeholder="type command here..."
+                style="background: transparent; border: none; outline: none; color: #00ff00; font-family: 'Courier New', monospace; font-size: 14px; width: calc(100% - 20px); caret-color: #00ff00;"
+                onkeypress="if(event.key==='Enter') executeTerminalCommand()"
+                autofocus>`;
+
             output.scrollTop = output.scrollHeight;
+            document.getElementById('terminalCommand').focus();
         }
 
         function clearTerminal() {
@@ -7313,7 +7370,11 @@ ${reportText}
 ║   Type any command - no restrictions, no sandboxing          ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
 
-$ <span id="terminalCursor">_</span>`;
+$ <input type="text" id="terminalCommand" placeholder="type command here..."
+    style="background: transparent; border: none; outline: none; color: #00ff00; font-family: 'Courier New', monospace; font-size: 14px; width: calc(100% - 20px); caret-color: #00ff00;"
+    onkeypress="if(event.key==='Enter') executeTerminalCommand()"
+    autofocus>`;
+            document.getElementById('terminalCommand').focus();
         }
 
         // AI Assistant Functions
@@ -7558,8 +7619,8 @@ $ <span id="terminalCursor">_</span>`;
                             <tr style="background: #f8f9fa; border-bottom: 2px solid #e0e0e0;">
                                 <th style="padding: 12px; text-align: left;">Username</th>
                                 <th style="padding: 12px; text-align: left;">Role</th>
-                                <th style="padding: 12px; text-align: left;">Email</th>
                                 <th style="padding: 12px; text-align: left;">Last Login</th>
+                                <th style="padding: 12px; text-align: center;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -7571,8 +7632,15 @@ $ <span id="terminalCursor">_</span>`;
                                             ${user.role}
                                         </span>
                                     </td>
-                                    <td style="padding: 12px;">${user.email || 'N/A'}</td>
                                     <td style="padding: 12px; color: #666; font-size: 13px;">${user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>
+                                    <td style="padding: 12px; text-align: center;">
+                                        ${user.role !== 'developer' ?
+                                            `<button onclick="deleteUserAccount('${user.username}')"
+                                                style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                                🗑️ Delete
+                                            </button>`
+                                            : '<span style="color: #999; font-size: 12px;">Protected</span>'}
+                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -7585,7 +7653,125 @@ $ <span id="terminalCursor">_</span>`;
             }
         }
 
+        async function deleteUserAccount(username) {
+            if (!confirm(`Are you sure you want to delete user "${username}"?\n\nThis will permanently delete:\n• User account\n• All chats and mood logs\n• All assessments and exercises\n• All personal data\n\nThis action CANNOT be undone!`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/developer/users/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: currentUser,
+                        target_username: username
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ User "${username}" has been deleted successfully.`);
+                    searchUsers(); // Refresh the list
+                } else {
+                    alert(`❌ Error: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Failed to delete user:', error);
+                alert('❌ Failed to delete user. Please try again.');
+            }
+        }
+
         // ========== END DEVELOPER DASHBOARD FUNCTIONS ==========
+
+        // ========== USER MESSAGES (Inbox for patients/clinicians) ==========
+        async function loadUserMessages() {
+            try {
+                const response = await fetch(`/api/developer/messages/list?username=${currentUser}`);
+                const data = await response.json();
+
+                const container = document.getElementById('userMessagesContainer');
+
+                if (!data.messages || data.messages.length === 0) {
+                    container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No messages yet.</p>';
+                    document.getElementById('messagesBadge').style.display = 'none';
+                    return;
+                }
+
+                // Count unread messages
+                const unreadCount = data.messages.filter(m => !m.read && m.to_username === currentUser).length;
+                const badge = document.getElementById('messagesBadge');
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+
+                // Display messages
+                container.innerHTML = data.messages.map(msg => `
+                    <div style="border-bottom: 1px solid #e0e0e0; padding: 20px; background: ${!msg.read && msg.to_username === currentUser ? '#f0f7ff' : 'white'};">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            <div>
+                                <strong style="color: ${msg.from_username === 'dev_admin' ? '#667eea' : '#333'};">
+                                    ${msg.from_username === currentUser ? 'You' : (msg.from_username === 'dev_admin' ? '👨‍💻 Developer' : msg.from_username)}
+                                </strong>
+                                ${msg.to_username === 'ALL' ? '<span style="color: #999; font-size: 13px;"> → All Users</span>' : ''}
+                                ${msg.parent_message_id ? '<span style="color: #999; font-size: 13px;"> (Reply)</span>' : ''}
+                            </div>
+                            <span style="color: #999; font-size: 13px;">${new Date(msg.created_at).toLocaleString()}</span>
+                        </div>
+                        <div style="color: #333; margin-bottom: 15px; white-space: pre-wrap;">${msg.message}</div>
+                        ${msg.from_username !== currentUser && !msg.parent_message_id ?
+                            `<button onclick="replyToDevMessage(${msg.id}, '${msg.from_username}')"
+                                style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                                ↩️ Reply
+                            </button>`
+                            : ''}
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Failed to load messages:', error);
+                document.getElementById('userMessagesContainer').innerHTML = '<p style="color: #e74c3c; padding: 20px;">Error loading messages</p>';
+            }
+        }
+
+        async function replyToDevMessage(parentId, toUsername) {
+            const reply = prompt(`Reply to message from ${toUsername}:`);
+            if (!reply || !reply.trim()) return;
+
+            try {
+                const response = await fetch('/api/developer/messages/reply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from_username: currentUser,
+                        parent_message_id: parentId,
+                        message: reply.trim()
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Reply sent!');
+                    loadUserMessages(); // Refresh
+                } else {
+                    alert(`❌ Error: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Failed to send reply:', error);
+                alert('❌ Failed to send reply. Please try again.');
+            }
+        }
+
+        // Load messages when switching to messages tab
+        function checkAndLoadMessages() {
+            if (currentUserRole !== 'developer') {
+                loadUserMessages();
+            }
+        }
 
     </script>
 </body>
