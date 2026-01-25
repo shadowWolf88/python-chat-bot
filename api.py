@@ -1530,18 +1530,32 @@ def send_dev_message():
 
         if to_username == 'ALL':
             # Broadcast to all users
-            users = cur.execute("SELECT username FROM users WHERE role != 'developer'").fetchall()
+            users = cur.execute("SELECT username, role FROM users WHERE role != 'developer'").fetchall()
             for user in users:
+                # If sender is clinician, only send to patients
+                if role[0] == 'clinician' and user[1] != 'user':
+                    continue
                 cur.execute(
                     "INSERT INTO dev_messages (from_username, to_username, message, message_type) VALUES (?,?,?,?)",
                     (from_username, user[0], message, message_type)
                 )
         else:
-            # Send to specific user
-            cur.execute(
-                "INSERT INTO dev_messages (from_username, to_username, message, message_type) VALUES (?,?,?,?)",
-                (from_username, to_username, message, message_type)
-            )
+            # Restrict: If sender is clinician, recipient must be patient; if sender is patient, block
+            recipient_role = cur.execute("SELECT role FROM users WHERE username=?", (to_username,)).fetchone()
+            if role[0] == 'clinician' and recipient_role and recipient_role[0] == 'user':
+                cur.execute(
+                    "INSERT INTO dev_messages (from_username, to_username, message, message_type) VALUES (?,?,?,?)",
+                    (from_username, to_username, message, message_type)
+                )
+            elif role[0] == 'user':
+                conn.close()
+                return jsonify({'error': 'Patients cannot initiate new messages to clinicians. You may only reply.'}), 403
+            else:
+                # Developer or other roles: allow
+                cur.execute(
+                    "INSERT INTO dev_messages (from_username, to_username, message, message_type) VALUES (?,?,?,?)",
+                    (from_username, to_username, message, message_type)
+                )
 
         conn.commit()
         conn.close()
@@ -4446,22 +4460,38 @@ def generate_ai_summary():
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Get profile
+        # Get profile and join date
         profile = cur.execute(
-            "SELECT full_name, conditions FROM users WHERE username=?",
+            "SELECT full_name, conditions, created_at FROM users WHERE username=?",
             (username,)
         ).fetchone()
-        
-        # Get recent moods (last 30 days) with ALL habit data
+        join_date = None
+        if profile and len(profile) > 2 and profile[2]:
+            join_date = profile[2]
+        else:
+            # Fallback: use first mood log date
+            first_mood = cur.execute(
+                "SELECT entrestamp FROM mood_logs WHERE username=? ORDER BY entrestamp ASC LIMIT 1",
+                (username,)
+            ).fetchone()
+            if first_mood:
+                join_date = first_mood[0]
+        # Calculate days since join
+        days_since_join = 30
+        if join_date:
+            try:
+                join_dt = datetime.strptime(join_date, "%Y-%m-%d %H:%M:%S") if ":" in join_date else datetime.strptime(join_date, "%Y-%m-%d")
+                days_since_join = max(1, (datetime.now() - join_dt).days)
+            except Exception:
+                days_since_join = 30
+        # Get moods and alerts since join (or 30 days, whichever is less)
         moods = cur.execute(
-            "SELECT mood_val, sleep_val, exercise_mins, outside_mins, water_pints, meds, notes, entrestamp FROM mood_logs WHERE username=? ORDER BY entrestamp DESC LIMIT 30",
-            (username,)
+            "SELECT mood_val, sleep_val, exercise_mins, outside_mins, water_pints, meds, notes, entrestamp FROM mood_logs WHERE username=? AND entrestamp >= datetime('now', ? || ' days') ORDER BY entrestamp DESC",
+            (username, f"-{min(days_since_join,30)}"),
         ).fetchall()
-        
-        # Get recent alerts (last 30 days)
         alerts = cur.execute(
-            "SELECT alert_type, details, created_at FROM alerts WHERE username=? AND created_at > datetime('now', '-30 days') ORDER BY created_at DESC",
-            (username,)
+            "SELECT alert_type, details, created_at FROM alerts WHERE username=? AND created_at >= datetime('now', ? || ' days') ORDER BY created_at DESC",
+            (username, f"-{min(days_since_join,30)}"),
         ).fetchall()
         
         # Get latest assessments
@@ -4525,47 +4555,48 @@ def generate_ai_summary():
         cbt_count = len(cbt_records)
         
         # Build prompt with comprehensive data
+        window_desc = f"since joining ({days_since_join} days)" if days_since_join < 30 else "last 30 days"
         prompt = f"""You are a clinical psychologist reviewing patient data. Generate a concise professional clinical summary (3-4 paragraphs).
 
-Patient: {patient_name}
-Known Conditions: {conditions}
+    Patient: {patient_name}
+    Known Conditions: {conditions}
 
-Data Summary (Last 30 Days):
-- Average Mood: {avg_mood:.1f}/10 (Trend: {mood_trend})
-- Average Sleep: {avg_sleep:.1f} hours
-- Average Exercise: {avg_exercise:.1f} minutes
-- Average Outdoor Time: {avg_outside:.1f} minutes
-- Average Water Intake: {avg_water:.1f} pints
-- Safety Alerts: {alert_count}
-- Gratitude Entries: {gratitude_count}
-- CBT Exercises Completed: {cbt_count}
+    Data Summary ({window_desc}):
+    - Average Mood: {avg_mood:.1f}/10 (Trend: {mood_trend})
+    - Average Sleep: {avg_sleep:.1f} hours
+    - Average Exercise: {avg_exercise:.1f} minutes
+    - Average Outdoor Time: {avg_outside:.1f} minutes
+    - Average Water Intake: {avg_water:.1f} pints
+    - Safety Alerts: {alert_count}
+    - Gratitude Entries: {gratitude_count}
+    - CBT Exercises Completed: {cbt_count}
 
-Latest Assessments:
-{chr(10).join([f"- {s[0]}: {s[1]} ({s[2]})" for s in scales]) if scales else "No assessments completed"}
+    Latest Assessments:
+    {chr(10).join([f"- {s[0]}: {s[1]} ({s[2]})" for s in scales]) if scales else "No assessments completed"}
 
-Recent Therapy Chat Themes (user concerns):
-{chr(10).join([f"- {msg[0][:100]}" for msg in chat_messages[:5]]) if chat_messages else "No recent therapy sessions"}
+    Recent Therapy Chat Themes (user concerns):
+    {chr(10).join([f"- {msg[0][:100]}" for msg in chat_messages[:5]]) if chat_messages else "No recent therapy sessions"}
 
-Gratitude Practice:
-{chr(10).join([f"- {g[0][:80]}" for g in gratitude[:3]]) if gratitude else "No gratitude entries"}
+    Gratitude Practice:
+    {chr(10).join([f"- {g[0][:80]}" for g in gratitude[:3]]) if gratitude else "No gratitude entries"}
 
-CBT Work:
-{chr(10).join([f"- Situation: {c[0][:60]}..." for c in cbt_records[:3]]) if cbt_records else "No CBT exercises"}
+    CBT Work:
+    {chr(10).join([f"- Situation: {c[0][:60]}..." for c in cbt_records[:3]]) if cbt_records else "No CBT exercises"}
 
-Clinician Notes:
-{chr(10).join([f"- {'[KEY] ' if n[1] else ''}{n[0][:100]}" for n in clinician_notes]) if clinician_notes else "No clinician notes yet"}
+    Clinician Notes:
+    {chr(10).join([f"- {'[KEY] ' if n[1] else ''}{n[0][:100]}" for n in clinician_notes]) if clinician_notes else "No clinician notes yet"}
 
-Recent Alerts:
-{chr(10).join([f"- {a[0]}: {a[1]}" for a in alerts[:3]]) if alerts else "No recent alerts"}
+    Recent Alerts:
+    {chr(10).join([f"- {a[0]}: {a[1]}" for a in alerts[:3]]) if alerts else "No recent alerts"}
 
-Please provide:
-1. Overall clinical impression considering all data sources
-2. Key concerns or risk factors
-3. Notable trends in mood, habits, and engagement
-4. Recommended clinical actions or interventions
-5. Progress in self-help activities (gratitude, CBT)
+    Please provide:
+    1. Overall clinical impression considering all data sources
+    2. Key concerns or risk factors
+    3. Notable trends in mood, habits, and engagement
+    4. Recommended clinical actions or interventions
+    5. Progress in self-help activities (gratitude, CBT)
 
-Keep it professional and evidence-based."""
+    Keep it professional and evidence-based."""
 
         # Call AI API
         if GROQ_API_KEY and API_URL:
@@ -4604,20 +4635,20 @@ Keep it professional and evidence-based."""
         # Fallback: Basic summary
         summary = f"""CLINICAL SUMMARY - {patient_name}
 
-OVERVIEW:
-Patient has recorded {len(moods)} mood entries over the last 30 days with an average mood rating of {avg_mood:.1f}/10. Mood trend appears {mood_trend}. {"⚠️ ALERT: " + str(alert_count) + " safety alerts have been triggered." if alert_count > 0 else "No safety alerts recorded."}
+    OVERVIEW:
+    Patient has recorded {len(moods)} mood entries over the {window_desc} with an average mood rating of {avg_mood:.1f}/10. Mood trend appears {mood_trend}. {"⚠️ ALERT: " + str(alert_count) + " safety alerts have been triggered." if alert_count > 0 else "No safety alerts recorded."}
 
-CURRENT STATUS:
-{"Latest assessment: " + scales[0][0] + " - " + scales[0][2] + " severity (Score: " + str(scales[0][1]) + ")" if scales else "No formal assessments completed."}
-Sleep average: {avg_sleep:.1f} hours per night
-Exercise average: {avg_exercise:.0f} minutes per day
+    CURRENT STATUS:
+    {"Latest assessment: " + scales[0][0] + " - " + scales[0][2] + " severity (Score: " + str(scales[0][1]) + ")" if scales else "No formal assessments completed."}
+    Sleep average: {avg_sleep:.1f} hours per night
+    Exercise average: {avg_exercise:.0f} minutes per day
 
-CLINICAL NOTES:
-{"⚠️ REQUIRES IMMEDIATE ATTENTION - Multiple safety alerts indicate elevated risk." if alert_count > 3 else "Patient appears stable based on available data." if alert_count == 0 else "Monitor for concerning patterns."}
-{"Engagement with therapy is " + ("excellent" if therapy_sessions > 20 else "moderate" if therapy_sessions > 5 else "limited") + f" ({therapy_sessions} interactions recorded)." if therapy_sessions else "Patient has not engaged with therapy features yet."}
+    CLINICAL NOTES:
+    {"⚠️ REQUIRES IMMEDIATE ATTENTION - Multiple safety alerts indicate elevated risk." if alert_count > 3 else "Patient appears stable based on available data." if alert_count == 0 else "Monitor for concerning patterns."}
+    {"Engagement with therapy is " + ("excellent" if therapy_sessions > 20 else "moderate" if therapy_sessions > 5 else "limited") + f" ({therapy_sessions} interactions recorded)." if therapy_sessions else "Patient has not engaged with therapy features yet."}
 
-RECOMMENDATIONS:
-{"URGENT: Schedule immediate clinical assessment due to safety concerns." if alert_count > 3 else "Continue monitoring mood patterns and sleep quality." if avg_mood < 5 else "Maintain current treatment plan."} Consider formal assessment if not completed recently."""
+    RECOMMENDATIONS:
+    {"URGENT: Schedule immediate clinical assessment due to safety concerns." if alert_count > 3 else "Continue monitoring mood patterns and sleep quality." if avg_mood < 5 else "Maintain current treatment plan."} Consider formal assessment if not completed recently."""
 
         return jsonify({
             'success': True,
