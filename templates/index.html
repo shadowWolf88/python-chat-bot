@@ -420,12 +420,31 @@
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             font-size: 16px;
-            resize: none;
+            resize: vertical;
             min-height: 44px;
-            max-height: 150px;
-            overflow-y: auto;
+            max-height: 200px;
+            overflow-y: auto !important;
             font-family: inherit;
             line-height: 1.4;
+            scrollbar-width: thin;
+        }
+
+        .chat-input-area textarea::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-input-area textarea::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .chat-input-area textarea::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        .chat-input-area textarea::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
         }
 
         .chat-input-area textarea:focus {
@@ -1785,6 +1804,7 @@
                 <button class="tab-btn" onclick="switchTab('aboutme', this)">👤 About Me</button>
                 <button class="tab-btn" onclick="switchTab('sleep', this)">😴 Sleep</button>
                 <button class="tab-btn" onclick="switchTab('history', this)">📈 History</button>
+                <button class="tab-btn" onclick="switchTab('updates', this)">🆕 Updates</button>
                 <button class="tab-btn" id="professionalTabBtn" onclick="switchTab('professional', this)" style="display:none;">👨‍⚕️ Professional</button>
                 <button class="tab-btn" id="developerTabBtn" onclick="switchTab('developer', this)" style="display:none;">⚙️ Developer</button>
             </div>
@@ -1792,7 +1812,7 @@
             <div class="main-content">
             <!-- Therapy Chat Tab -->
             <div id="therapyTab" class="tab-content active">
-                <h3>Talk to Your AI Therapist</h3>
+                <h3 id="therapyChatTitle">Your Therapy Session</h3>
                 <p style="color: #666; margin-bottom: 20px;">Share your thoughts and feelings in a safe, confidential space.</p>
                 
                 <!-- Chat Sessions Manager -->
@@ -2218,6 +2238,16 @@
                     <div id="userMessagesContainer" style="max-height: 600px; overflow-y: auto;">
                         <p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- Updates Tab -->
+            <div id="updatesTab" class="tab-content">
+                <h3>🆕 What's New</h3>
+                <p style="color: #666; margin-bottom: 20px;">Recent updates and improvements to Healing Space.</p>
+
+                <div id="updatesContainer" style="max-height: 600px; overflow-y: auto;">
+                    <!-- Updates will be populated by JavaScript -->
                 </div>
             </div>
 
@@ -2902,14 +2932,116 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         console.log('Script loading - v2026.01.24-EMERGENCY-REDEPLOY');
         let currentUser = null;
         let currentUserRole = 'user';
+        let currentClinicianName = null; // Store assigned clinician's name
         let selectedMoodValue = null;
         let medications = [];
         let currentAssessment = null;
         let assessmentScores = [];
         let tempLoginData = null; // Store login data for disclaimer flow
-        
+
         const speciesEmojis = {Dog: '🐶', Cat: '🐱', Rabbit: '🐰', Fox: '🦊', Panda: '🐼', Penguin: '🐧'};
-        
+
+        // ========== CHANGELOG - Add new updates at the TOP ==========
+        const APP_UPDATES = [
+            {
+                date: '2026-01-26',
+                version: '2.1.0',
+                title: 'Enhanced Chat Experience',
+                changes: [
+                    'Added voice input - speak to your therapist using the microphone button',
+                    'Improved response timing for a more natural conversation feel',
+                    'Chat now auto-scrolls to show responses clearly',
+                    'Text input now expands for longer messages',
+                    'Therapist responses are now more conversational and personalised'
+                ]
+            },
+            {
+                date: '2026-01-25',
+                version: '2.0.0',
+                title: 'Mobile App Launch',
+                changes: [
+                    'Healing Space is now available as a mobile app for Android',
+                    'iOS app coming soon',
+                    'All features work seamlessly on mobile devices',
+                    'Added deployment documentation and guides'
+                ]
+            },
+            {
+                date: '2026-01-24',
+                version: '1.9.0',
+                title: 'Developer Dashboard & Messaging',
+                changes: [
+                    'Added developer dashboard for system management',
+                    'New messaging system for admin communications',
+                    'Improved database performance and reliability',
+                    'Fixed user deletion for GDPR compliance'
+                ]
+            },
+            {
+                date: '2026-01-22',
+                version: '1.8.0',
+                title: 'Appointments & Pet Game Updates',
+                changes: [
+                    'New appointment calendar with month/week/day views',
+                    'Expanded pet game with mini-games and daily challenges',
+                    'Pet mood now reflects your engagement',
+                    'Healthy habit rewards added'
+                ]
+            },
+            {
+                date: '2026-01-17',
+                version: '1.7.0',
+                title: 'Clinical Features',
+                changes: [
+                    'Added About Me page for profile management',
+                    'PDF export for wellness reports',
+                    'Improved clinician dashboard analytics',
+                    'Password visibility toggle on login forms'
+                ]
+            }
+        ];
+
+        function renderUpdatesLog() {
+            const container = document.getElementById('updatesContainer');
+            if (!container) return;
+
+            container.innerHTML = APP_UPDATES.map(update => `
+                <div class="card" style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #667eea;">${update.title}</h4>
+                        <span style="color: #999; font-size: 13px;">v${update.version} • ${formatUpdateDate(update.date)}</span>
+                    </div>
+                    <ul style="margin: 0; padding-left: 20px; color: #555;">
+                        ${update.changes.map(change => `<li style="margin-bottom: 5px;">${change}</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('');
+        }
+
+        function formatUpdateDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function updateTherapyChatTitle() {
+            const titleEl = document.getElementById('therapyChatTitle');
+            if (!titleEl) return;
+
+            if (currentClinicianName) {
+                // Format clinician name nicely
+                let formattedName = currentClinicianName;
+                // Capitalize first letter
+                formattedName = formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
+                // Add Dr. prefix if not already there
+                if (!formattedName.toLowerCase().startsWith('dr')) {
+                    formattedName = 'Dr. ' + formattedName;
+                }
+                titleEl.textContent = `${formattedName}'s Therapy Assistant`;
+            } else {
+                titleEl.textContent = 'Your Therapist';
+            }
+        }
+
         const PHQ9_QUESTIONS = [
             "Little interest or pleasure in doing things",
             "Feeling down, depressed, or hopeless",
@@ -3150,7 +3282,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             document.getElementById('usernameDisplay').textContent = `Welcome, ${currentUser}!`;
             document.getElementById('authScreen').style.display = 'none';
             document.getElementById('appScreen').style.display = 'block';
-            
+
+            // Store clinician name and update therapy chat title
+            currentClinicianName = data.clinician_name || null;
+            updateTherapyChatTitle();
+
             // Show professional tab only for clinicians
             if (currentUserRole === 'clinician') {
                 document.getElementById('professionalTabBtn').style.display = 'block';
@@ -3718,11 +3854,24 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     if (data.notifications.length === 0) {
                         list.innerHTML = '<div class="notification-item">No notifications</div>';
                     } else {
-                        list.innerHTML = data.notifications.map(n => {
+                        // Add "Clear All Read" button if there are read notifications
+                        const hasReadNotifications = data.notifications.some(n => n.read);
+                        let headerHtml = '';
+                        if (hasReadNotifications) {
+                            headerHtml = `
+                                <div style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">
+                                    <button onclick="clearReadNotifications()" style="background: #f0f0f0; border: 1px solid #ddd; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        🗑️ Clear Read
+                                    </button>
+                                </div>
+                            `;
+                        }
+
+                        list.innerHTML = headerHtml + data.notifications.map(n => {
                             // Add emoji and action based on notification type
                             let emoji = '📬';
                             let onClick = `markNotificationRead(${n.id})`;
-                            
+
                             if (n.notification_type === 'appointment_new') {
                                 emoji = '📅';
                                 onClick = `markNotificationRead(${n.id}); switchTab('appointments')`;
@@ -3733,12 +3882,17 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             } else if (n.notification_type === 'approval') {
                                 emoji = '✅';
                             }
-                            
+
                             return `
-                                <div class="notification-item ${n.read ? '' : 'unread'}" onclick="${onClick}">
-                                    <strong>${emoji} ${n.notification_type}</strong>
-                                    <p>${n.message}</p>
-                                    <small>${new Date(n.created_at).toLocaleString()}</small>
+                                <div class="notification-item ${n.read ? '' : 'unread'}" style="position: relative;">
+                                    <div onclick="${onClick}" style="cursor: pointer;">
+                                        <strong>${emoji} ${n.notification_type}</strong>
+                                        <p>${n.message}</p>
+                                        <small>${new Date(n.created_at).toLocaleString()}</small>
+                                    </div>
+                                    <button onclick="event.stopPropagation(); deleteNotification(${n.id})"
+                                        style="position: absolute; top: 10px; right: 10px; background: none; border: none; cursor: pointer; opacity: 0.5; font-size: 14px;"
+                                        title="Delete notification">✕</button>
                                 </div>
                             `;
                         }).join('');
@@ -3766,7 +3920,39 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 console.error('Error marking notification as read:', error);
             }
         }
-        
+
+        async function deleteNotification(id) {
+            try {
+                const response = await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    loadNotifications();
+                } else {
+                    console.error('Failed to delete notification');
+                }
+            } catch (error) {
+                console.error('Error deleting notification:', error);
+            }
+        }
+
+        async function clearReadNotifications() {
+            if (!currentUser) return;
+
+            try {
+                const response = await fetch('/api/notifications/clear-read', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUser })
+                });
+                if (response.ok) {
+                    loadNotifications();
+                } else {
+                    console.error('Failed to clear read notifications');
+                }
+            } catch (error) {
+                console.error('Error clearing read notifications:', error);
+            }
+        }
+
         // Patient Approval Functions
         async function loadPendingApprovals() {
             if (currentUserRole !== 'clinician') return;
@@ -3905,6 +4091,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             // Load messages when switching to messages tab
             if (tabName === 'messages') {
                 checkAndLoadMessages();
+            }
+
+            // Load updates when switching to updates tab
+            if (tabName === 'updates') {
+                renderUpdatesLog();
             }
 
             // Load professional tab and default to overview
@@ -4116,19 +4307,31 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         // Auto-resize textarea as user types
         function autoResizeTextarea(textarea) {
+            // Reset height to measure actual content
             textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+            // Set to content height, max 200px
+            const newHeight = Math.min(textarea.scrollHeight, 200);
+            textarea.style.height = newHeight + 'px';
+            // If content exceeds max, ensure scroll is enabled
+            textarea.style.overflowY = textarea.scrollHeight > 200 ? 'scroll' : 'auto';
         }
 
-        // Initialize textarea auto-resize
-        document.addEventListener('DOMContentLoaded', () => {
+        // Initialize textarea auto-resize (run after DOM loaded)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initChatInput);
+        } else {
+            // DOM already loaded
+            setTimeout(initChatInput, 100);
+        }
+
+        function initChatInput() {
             const chatInput = document.getElementById('chatInput');
             if (chatInput) {
                 chatInput.addEventListener('input', function() {
                     autoResizeTextarea(this);
                 });
             }
-        });
+        }
         
         function addMessage(text, sender, id, timestamp) {
             const messagesDiv = document.getElementById('chatMessages');

@@ -973,6 +973,7 @@ def login():
         
         # Check approval status for patients
         approval_status = 'approved'
+        clinician_name = None
         if role == 'user':
             approval = cur.execute(
                 "SELECT status FROM patient_approvals WHERE patient_username=? ORDER BY request_date DESC LIMIT 1",
@@ -980,7 +981,17 @@ def login():
             ).fetchone()
             if approval:
                 approval_status = approval[0]
-        
+
+            # Get clinician's name if assigned
+            if clinician_id:
+                clinician_info = cur.execute(
+                    "SELECT username FROM users WHERE username=? AND role='clinician'",
+                    (clinician_id,)
+                ).fetchone()
+                if clinician_info:
+                    # Format clinician name nicely (capitalize, add Dr. prefix)
+                    clinician_name = clinician_info[0]
+
         conn.close()
         
         log_event(username, 'api', 'user_login', 'Login via API with 2FA')
@@ -992,6 +1003,7 @@ def login():
             'role': role,
             'approval_status': approval_status,
             'clinician_id': clinician_id,
+            'clinician_name': clinician_name,
             'disclaimer_accepted': bool(disclaimer_accepted)
         }), 200
         
@@ -1932,8 +1944,43 @@ def mark_notification_read(notification_id):
         cur.execute("UPDATE notifications SET read=1 WHERE id=?", (notification_id,))
         conn.commit()
         conn.close()
-        
+
         return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/notifications/<int:notification_id>', methods=['DELETE'])
+def delete_notification(notification_id):
+    """Delete a single notification"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM notifications WHERE id=?", (notification_id,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/notifications/clear-read', methods=['POST'])
+def clear_read_notifications():
+    """Clear all read notifications for a user"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM notifications WHERE recipient_username=? AND read=1", (username,))
+        deleted_count = cur.rowcount
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'deleted': deleted_count}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
