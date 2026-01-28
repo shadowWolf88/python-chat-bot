@@ -824,10 +824,12 @@ class SafetyMonitor:
             return False
 
 class TherapistAI:
-        def get_insight(self, ai_input):
-            """Generate an insight using the same logic as get_response (for insights endpoint compatibility)."""
-            return self.get_response(ai_input)
     """AI therapy interface - supports Groq API or local trained model"""
+
+    def get_insight(self, ai_input):
+        """Generate an insight using the same logic as get_response (for insights endpoint compatibility)."""
+        return self.get_response(ai_input)
+
     def __init__(self, username=None):
         self.username = username
         self.headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}

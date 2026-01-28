@@ -1,3 +1,6 @@
+v1c28343 (2026-01-28): Add get_insight method to TherapistAI for insights endpoint compatibility
+vb7dc96b (2026-01-28): Refactor insights endpoint: custom date range, AI prompt, clinician/patient narrative
+vee56f29 (2026-01-28): Updated AUDIT.md with dynamic audit results
 v077cace (2026-01-28): Rollback: restore project to v1.0.46 (2026-01-26) - Fix chat input layout for mobile
 v82f1071 (2026-01-26): Fix chat input layout for mobile - stack textarea above buttons
 vb32a89a (2026-01-26): Add Updates tab, notification management, and chat improvements
