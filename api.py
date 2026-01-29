@@ -5393,22 +5393,22 @@ QUANTITATIVE DATA:
 - Total Therapy Sessions: {therapy_sessions}
 
 CLINICAL ASSESSMENTS:
-{chr(10).join([f"- {s[0]}: Score {s[1]} ({s[2]} severity)" for s in scales]) if scales else "No formal assessments completed yet"}
+{chr(10).join([f"- {s[0] or 'Unknown'}: Score {s[1] or 0} ({s[2] or 'unknown'} severity)" for s in scales]) if scales else "No formal assessments completed yet"}
 
 THERAPY SESSION THEMES (Patient's expressed concerns):
-{chr(10).join([f"- \"{msg[0][:150]}\"" for msg in chat_messages[:7]]) if chat_messages else "No therapy sessions recorded"}
+{chr(10).join([f"- {(msg[0] or '')[:150]}" for msg in chat_messages[:7]]) if chat_messages else "No therapy sessions recorded"}
 
 GRATITUDE PRACTICE ENTRIES:
-{chr(10).join([f"- \"{g[0][:100]}\"" for g in gratitude[:5]]) if gratitude else "Patient has not used gratitude journaling"}
+{chr(10).join([f"- {(g[0] or '')[:100]}" for g in gratitude[:5]]) if gratitude else "Patient has not used gratitude journaling"}
 
 CBT THOUGHT RECORDS:
-{chr(10).join([f"- Situation: {c[0][:80]} | Thought: {c[1][:80]}" for c in cbt_records[:5]]) if cbt_records else "No CBT exercises completed"}
+{chr(10).join([f"- Situation: {(c[0] or '')[:80]} | Thought: {(c[1] or '')[:80]}" for c in cbt_records[:5]]) if cbt_records else "No CBT exercises completed"}
 
 PREVIOUS CLINICIAN NOTES:
-{chr(10).join([f"- {'⚠️ FLAGGED: ' if n[1] else ''}{n[0][:150]}" for n in clinician_notes]) if clinician_notes else "No previous clinician notes"}
+{chr(10).join([f"- {'[FLAGGED] ' if n[1] else ''}{(n[0] or '')[:150]}" for n in clinician_notes]) if clinician_notes else "No previous clinician notes"}
 
 SAFETY ALERTS:
-{chr(10).join([f"- [{a[0]}] {a[1]}" for a in alerts[:5]]) if alerts else "No safety concerns flagged"}
+{chr(10).join([f"- [{a[0] or 'Alert'}] {a[1] or 'No details'}" for a in alerts[:5]]) if alerts else "No safety concerns flagged"}
 
 ---
 
