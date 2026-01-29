@@ -19,6 +19,25 @@ import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+# --- Pet Table Ensurer ---
+def ensure_pet_table():
+    """Ensure the pet table exists in pet_game.db"""
+    conn = sqlite3.connect("pet_game.db")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS pet (
+            id INTEGER PRIMARY KEY,
+            name TEXT, species TEXT, gender TEXT,
+            hunger INTEGER DEFAULT 70, happiness INTEGER DEFAULT 70,
+            energy INTEGER DEFAULT 70, hygiene INTEGER DEFAULT 80,
+            coins INTEGER DEFAULT 0, xp INTEGER DEFAULT 0,
+            stage TEXT DEFAULT 'Baby', adventure_end REAL DEFAULT 0,
+            last_updated REAL, hat TEXT DEFAULT 'None'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
 # Import existing modules (avoid importing main.py which has tkinter)
 from secrets_manager import SecretsManager
 from audit import log_event
@@ -956,6 +975,34 @@ try:
     init_db()
 except Exception as e:
     print(f"Database initialization: {e}")
+
+# Initialize pet game database on startup
+def init_pet_db():
+    """Initialize pet game database with required table"""
+    try:
+        conn = sqlite3.connect("pet_game.db")
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pet (
+                id INTEGER PRIMARY KEY,
+                name TEXT, species TEXT, gender TEXT,
+                hunger INTEGER DEFAULT 70, happiness INTEGER DEFAULT 70,
+                energy INTEGER DEFAULT 70, hygiene INTEGER DEFAULT 80,
+                coins INTEGER DEFAULT 0, xp INTEGER DEFAULT 0,
+                stage TEXT DEFAULT 'Baby', adventure_end REAL DEFAULT 0,
+                last_updated REAL, hat TEXT DEFAULT 'None'
+            )
+        """)
+        conn.commit()
+        conn.close()
+        print("Pet database initialized successfully")
+    except Exception as e:
+        print(f"Pet database initialization error: {e}")
+
+try:
+    init_pet_db()
+except Exception as e:
+    print(f"Pet database initialization: {e}")
 
 @app.route('/')
 def index():
@@ -2773,6 +2820,7 @@ def reward_pet(action, activity_type=None):
     Attributes deplete over time at 0.5 per hour (gentle decay).
     """
     try:
+        ensure_pet_table()
         conn = sqlite3.connect("pet_game.db")
         cur = conn.cursor()
         pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
@@ -3782,6 +3830,18 @@ def pet_status():
             return jsonify({'exists': False, 'error': error}), 200
         conn = sqlite3.connect("pet_game.db")
         cur = conn.cursor()
+        # Ensure table exists (in case DB was reset)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pet (
+                id INTEGER PRIMARY KEY,
+                name TEXT, species TEXT, gender TEXT,
+                hunger INTEGER DEFAULT 70, happiness INTEGER DEFAULT 70,
+                energy INTEGER DEFAULT 70, hygiene INTEGER DEFAULT 80,
+                coins INTEGER DEFAULT 0, xp INTEGER DEFAULT 0,
+                stage TEXT DEFAULT 'Baby', adventure_end REAL DEFAULT 0,
+                last_updated REAL, hat TEXT DEFAULT 'None'
+            )
+        """)
         pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
         conn.close()
         if not pet:
@@ -3857,27 +3917,15 @@ def pet_create():
         if not name:
             return jsonify({'error': 'Pet name required'}), 400
 
+        ensure_pet_table()
         conn = sqlite3.connect("pet_game.db")
         cur = conn.cursor()
-        
-        # Create table if not exists
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS pet (
-                id INTEGER PRIMARY KEY,
-                name TEXT, species TEXT, gender TEXT,
-                hunger INTEGER, happiness INTEGER, energy INTEGER, hygiene INTEGER,
-                coins INTEGER, xp INTEGER, stage TEXT, adventure_end REAL,
-                last_updated REAL, hat TEXT
-            )
-        """)
-        
-        # Insert pet
+        cur.execute("DELETE FROM pet")  # Only one pet per user in current schema
         cur.execute("""
             INSERT INTO pet (name, species, gender, hunger, happiness, energy, hygiene, 
                            coins, xp, stage, adventure_end, last_updated, hat)
             VALUES (?, ?, ?, 70, 70, 70, 80, 0, 0, 'Baby', 0, ?, 'None')
         """, (name, species, gender, datetime.now().timestamp()))
-        
         conn.commit()
         conn.close()
         
