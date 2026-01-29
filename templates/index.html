@@ -5039,7 +5039,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 const response = await fetch('/api/pet/reward', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action, activity_type })
+                    body: JSON.stringify({ action, activity_type, username: currentUser })
                 });
                 
                 if (response.ok) {
@@ -5793,13 +5793,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         async function loadInsights() {
             try {
                 let url = `/api/insights?username=${encodeURIComponent(currentUser)}`;
-                
+                // Always include a default prompt for insights
+                const defaultPrompt = encodeURIComponent('Generate a detailed, narrative, and empathetic summary of the user\'s recent mental health progress, including mood, sleep, therapy, and self-care activities. Highlight trends, strengths, and areas for growth.');
+                url += `&prompt=${defaultPrompt}`;
                 // Add date range if specified
                 const fromDate = document.getElementById('insightsFromDate')?.value;
                 const toDate = document.getElementById('insightsToDate')?.value;
                 if (fromDate) url += `&from_date=${fromDate}`;
                 if (toDate) url += `&to_date=${toDate}`;
-                
                 const response = await fetch(url);
                 const data = await response.json();
                 

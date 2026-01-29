@@ -3732,29 +3732,26 @@ def pet_status():
         
         return jsonify({
             'exists': True,
-            'pet': {
-                'name': pet[1], 'species': pet[2], 'gender': pet[3],
-                'hunger': pet[4], 'happiness': pet[5], 'energy': pet[6],
-                'hygiene': pet[7], 'coins': pet[8], 'xp': pet[9],
-                'stage': pet[10], 'hat': pet[13] if len(pet) > 13 else 'None'
-            }
-        }), 200
-    except Exception as e:
-        return handle_exception(e, request.endpoint or 'unknown')
-
-@app.route('/api/ai/training-status', methods=['GET'])
-def get_ai_training_status():
-    """Get status of background AI training"""
-    try:
-        # Import here to avoid breaking app if transformers not installed
-        try:
-            from ai_trainer import BackgroundAITrainer
-            trainer = BackgroundAITrainer()
-            status = trainer.get_training_status()
-            return jsonify(status), 200
-        except ImportError:
-            return jsonify({
-                'trained': False,
+            try:
+                username = request.args.get('username')
+                if not username:
+                    return jsonify({'exists': False, 'error': 'Username required'}), 200
+                conn = sqlite3.connect("pet_game.db")
+                cur = conn.cursor()
+                pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
+                conn.close()
+                if not pet:
+                    return jsonify({'exists': False, 'error': 'No pet found for user'}), 200
+                return jsonify({
+                    'exists': True,
+                    'pet': {
+                        'name': pet[1], 'species': pet[2], 'gender': pet[3],
+                        'hunger': pet[4], 'happiness': pet[5], 'energy': pet[6],
+                        # ...existing code...
+                    }
+                }), 200
+            except Exception as e:
+                return jsonify({'exists': False, 'error': str(e)}), 200
                 'message': 'Training system not available (transformers library not installed)'
             }), 200
         except Exception as e:
@@ -3904,27 +3901,26 @@ def pet_reward():
         
         if action == 'mood':
             hap += 10
-            en += 5
-        elif action == 'gratitude':
-            hap += 10
-            en += 5
-        elif action == 'therapy':
-            hun += 10
-            hap += 10
-            en += 10
-            hyg += 5
-            xp_gain = 30
-        
-        if activity_type == 'cbt':
-            coin_gain += 10
-            xp_gain += 5
-        elif activity_type == 'clinical':
-            coin_gain += 15
-            xp_gain += 15
-        
-        # Calculate new stats
-        new_hunger = max(0, min(100, pet[4] + hun))
-        new_happiness = max(0, min(100, pet[5] + hap))
+            try:
+                data = request.json
+                username = data.get('username')
+                if not username:
+                    return jsonify({'success': False, 'message': 'Username required'}), 200
+                action = data.get('action')  # 'therapy', 'mood', 'gratitude', 'breathing', 'cbt', 'clinical'
+                activity_type = data.get('activity_type')  # 'cbt', 'clinical', etc.
+                conn = sqlite3.connect("pet_game.db")
+                cur = conn.cursor()
+                pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
+                if not pet:
+                    conn.close()
+                    return jsonify({'success': False, 'message': 'No pet'}), 200
+                # Standardized rewards matching pet_game.py
+                base_boost = 3
+                coin_gain = 5
+                xp_gain = 15
+                # ...existing code...
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 200
         new_energy = max(0, min(100, pet[6] + en))
         new_hygiene = max(0, min(100, pet[7] + hyg))
         new_coins = pet[8] + coin_gain
