@@ -1,3 +1,11 @@
+vb5f86ef (2026-01-29): Fix: Clinician dashboard patient data and AI insights
+v39de2f8 (2026-01-29): Update VERSION_HISTORY.txt with recent commits
+v19c7ace (2026-01-29): Fix: loadInsights sends role=clinician for clinician users (enables clinician data/AI insights)
+v8c5e6fb (2026-01-29): Fix: /api/insights always returns avg_mood, avg_sleep, and trend (prevents frontend errors on empty data)
+vfe6e50d (2026-01-29): Fix: remove syntax error in /api/pet/status endpoint (no nested try)
+v2dacca2 (2026-01-29): Chore: trigger Railway deploy (trivial comment change)
+v87d1c5e (2026-01-29): Fix: Insights always sends prompt, pet endpoints handle missing user/pet, frontend sends username for pet reward
+v3cada82 (2026-01-29): UI: Add show/hide toggle for PIN fields on all login forms
 v8be5cf8 (2026-01-29): Frontend: always use credentials: include in fetch for CSRF/session reliability
 v8203d93 (2026-01-29): Fix CSRF token endpoint: resolve secrets shadowing, use stdlib secrets for token generation, ensure session cookie set
 ve74f4df (2026-01-29): Add Phase 4 UX enhancements: onboarding, accessibility, mobile
