@@ -10,20 +10,24 @@
 
 ## === EXECUTIVE SUMMARY ===
 
-All identified critical and medium issues have been resolved in this audit cycle. Phase 4 UX enhancements complete.
+⚠️ **Phase 6 fresh audit found 16 new issues including 4 CRITICAL security vulnerabilities.**
 
-| Category | Before | After | Change |
-|----------|--------|-------|--------|
-| Critical Issues | 1 | 0 | ✅ -1 |
-| Medium Issues | 6 | 0 | ✅ -6 |
-| Minor Issues | 3 | 0 | ✅ -3 |
-| Code Bugs | 4 | 0 | ✅ -4 |
-| Security Score | B+ | A | ↑ |
-| UX Score | C | A | ↑↑ |
+| Category | Phase 1-5 | Phase 6 | Current Status |
+|----------|-----------|---------|----------------|
+| Critical Issues (P0) | 0 open | +4 new | 🔴 4 OPEN |
+| High Issues (P1) | 0 open | +4 new | 🔴 4 OPEN |
+| Medium Issues (P2) | 0 open | +8 new | 🟡 8 OPEN |
+| Resolved Issues | 24 | — | ✅ 24 DONE |
+| Security Score | A | B- | ↓ Downgraded |
+| UX Score | A | A | — |
 
-**Total Issues Fixed (Previous Sessions): 7**
-**Issues Fixed (Web/Android Audit): 7**
-**Phase 4 UX Features Added: 9**
+**Total Issues: 43 | Resolved: 24 (56%) | Open: 19**
+
+**Immediate Action Required:**
+- Fix traceback leak (api.py:1042)
+- Fix developer terminal shell=True (api.py:1921)
+- Add auth to /api/insights and /api/professional/patients
+- Sanitize innerHTML usage in frontend
 
 ---
 
@@ -435,42 +439,141 @@ window.HealingSpaceUX = {
 
 ---
 
+## === PHASE 6: FRESH SECURITY & CODE QUALITY AUDIT ===
+
+**Status:** 🔴 NEW ISSUES FOUND
+**Date:** January 29, 2026
+
+### Executive Summary
+
+A comprehensive fresh audit revealed **4 critical**, **4 high**, and **8 medium** severity issues that were not caught in previous phases.
+
+### Critical Issues (P0) - Must Fix Before Production
+
+| # | Issue | File:Line | Description |
+|---|-------|-----------|-------------|
+| 28 | **Traceback leaked to clients** | api.py:1042 | `admin_wipe_database()` returns full traceback in error response |
+| 29 | **Developer terminal shell=True** | api.py:1921 | Full shell access - any dev account compromise = server compromise |
+| 30 | **Missing auth on /api/insights** | api.py:4890 | Anyone can request insights for any username without verification |
+| 31 | **Missing auth verification on /api/professional/patients** | api.py:5054 | Clinician parameter comes from untrusted source, not verified |
+
+### High Issues (P1) - Fix Soon
+
+| # | Issue | File:Line | Description |
+|---|-------|-----------|-------------|
+| 32 | **XSS via innerHTML** | index.html:4396,5435,5818 | User/AI content inserted as innerHTML without sanitization |
+| 33 | **21 console.log in production** | index.html (various) | Debug statements expose internal logic |
+| 34 | **76+ fetch calls without error handling** | index.html | Missing `response.ok` checks before parsing JSON |
+| 35 | **Pet endpoints unauthenticated** | api.py:3785-4085 | All pet game endpoints lack user verification |
+
+### Medium Issues (P2)
+
+| # | Issue | File:Line | Description |
+|---|-------|-----------|-------------|
+| 36 | Dynamic SQL WHERE clauses | api.py:5652,5667,5688 | F-string concatenation in SQL queries |
+| 37 | Missing input length validation | api.py:4423,3632,4167 | Community posts, gratitude, CBT records have no max length |
+| 38 | 30+ inline styles | index.html | Should be extracted to CSS |
+| 39 | 15+ accessibility violations | index.html | Missing aria-labels on interactive elements |
+| 40 | Hardcoded admin key default | api.py:1072 | Default wipe key with "change-in-production" message |
+| 41 | Exception details in password reset | api.py:1561 | Leaks str(e) when DEBUG=True |
+| 42 | Inconsistent error handling | api.py (various) | Mix of handle_exception() and custom returns |
+| 43 | Potentially unused functions | index.html | renderUpdatesLog(), resetSleepChecklist() may be dead code |
+
+### Updated Summary Table
+
+| # | Issue | Priority | Status |
+|---|-------|----------|--------|
+| 1-24 | Previous issues | P0-P3 | ✅ RESOLVED |
+| 25 | Connection pooling | P3 | ⏳ DEFERRED |
+| 26 | 2FA (TOTP) implementation | P3 | ⏳ DEFERRED |
+| 27 | Code cleanup / unused imports | P4 | ⏳ DEFERRED |
+| **28** | **Traceback leaked to clients** | **P0** | 🔴 NEW |
+| **29** | **Developer terminal shell=True** | **P0** | 🔴 NEW |
+| **30** | **Missing auth on /api/insights** | **P0** | 🔴 NEW |
+| **31** | **Missing auth on /api/professional/patients** | **P0** | 🔴 NEW |
+| **32** | **XSS via innerHTML** | **P1** | 🔴 NEW |
+| **33** | **Console.log in production** | **P1** | 🔴 NEW |
+| **34** | **Fetch calls missing error handling** | **P1** | 🔴 NEW |
+| **35** | **Pet endpoints unauthenticated** | **P1** | 🔴 NEW |
+| **36-43** | **Medium issues (see above)** | **P2** | 🔴 NEW |
+
+**Overall Progress: 24/43 items resolved (56%)**
+
+### Recommended Fix Priority
+
+**Immediate (before any production traffic):**
+1. Fix #28: Remove traceback from api.py:1042
+2. Fix #29: Change shell=True to shell=False with command whitelist
+3. Fix #30-31: Add session/token verification to insights and patients endpoints
+4. Fix #32: Replace innerHTML with textContent or DOMPurify
+
+**Before next release:**
+5. Fix #33: Remove all console.log statements
+6. Fix #34: Add response.ok checks to all fetch calls
+7. Fix #35: Add user authentication to pet endpoints
+
+### Feature Enhancement Ideas
+
+**Patient Features:**
+- Mood trend visualization (weekly/monthly graphs)
+- Guided breathing exercises with timer
+- Journal export to PDF
+- Push notifications for mood reminders
+- Dark mode toggle
+
+**Clinician Features:**
+- Bulk patient messaging
+- Customizable dashboard widgets
+- Email/SMS appointment reminders
+- Patient progress comparison charts
+- Flagged content moderation queue
+
+**Technical Improvements:**
+- Per-user API rate limiting
+- Enhanced request audit logging
+- Automated database backups
+- WebSocket for real-time notifications
+- Comprehensive test suite (pytest)
+
+---
+
 ## === CONCLUSION ===
 
-This comprehensive audit (Phases 1-5) has resolved all critical, medium, and most minor issues. The Healing Space application now has:
+This comprehensive audit (Phases 1-6) has resolved 24 issues but identified 16 new issues requiring attention. The Healing Space application:
 
-- **Strong security posture** (A rating)
+- **Good security foundation** (needs critical fixes)
 - **Performance optimizations** (indexes, query optimization)
 - **Content safety features** (moderation, reporting)
-- **Production-ready error handling** (no information leakage)
 - **Enhanced user experience** (Phase 4 complete)
 - **Verified web/Android compatibility** (Phase 5 complete)
-- **Bug-free pet game functionality** (all endpoints fixed)
 
-### Application Status: **PRODUCTION READY** ✅
+### Application Status: **REQUIRES FIXES BEFORE PRODUCTION** ⚠️
 
 | Platform | Status |
 |----------|--------|
-| Web Application | ✅ Production Ready |
-| Android App (Capacitor) | ✅ Production Ready |
-| API Backend | ✅ Production Ready |
+| Web Application | ⚠️ Fix Critical Issues First |
+| Android App (Capacitor) | ⚠️ Fix Critical Issues First |
+| API Backend | ⚠️ Fix Critical Issues First |
 
-The application is suitable for production deployment with the current security measures in place. The remaining P3/P4 items (connection pooling, TOTP 2FA, code cleanup) are optional enhancements.
+**Action Required:** 4 critical security issues (P0) must be resolved before production deployment. See Phase 6 findings above.
 
 ### Audit Statistics
 
 | Metric | Value |
 |--------|-------|
-| Total Issues Identified | 27 |
+| Total Issues Identified | 43 |
 | Issues Resolved | 24 |
-| Resolution Rate | 89% |
-| Security Rating | A |
+| Resolution Rate | 56% |
+| Critical Issues Open | 4 |
+| High Issues Open | 4 |
+| Medium Issues Open | 8 |
+| Security Rating | B- (was A, downgraded due to new findings) |
 | API Endpoints Verified | 80+ |
-| Frontend API Calls Verified | 37 |
+| Frontend API Calls Verified | 81 |
 
 ---
 
 *Report generated: January 29, 2026*
-*Last updated: January 29, 2026 (Web/Android Audit)*
+*Last updated: January 29, 2026 (Phase 6 Fresh Audit)*
 *Audit methodology: Static code analysis, architecture review, security assessment, UX review, integration testing*
-*All fixes verified: No regressions detected*
+*Phase 6: Comprehensive code scan with automated pattern detection*
