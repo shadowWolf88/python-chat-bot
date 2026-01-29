@@ -2,6 +2,7 @@
 Flask API wrapper for Healing Space Therapy App
 Provides REST API endpoints while keeping desktop app intact
 """
+# Trivial change to trigger Railway deployment
 from flask import Flask, request, jsonify, render_template, send_from_directory, make_response, Response, g
 from flask_cors import CORS
 from functools import wraps
