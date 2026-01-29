@@ -938,7 +938,8 @@ You're here to help them explore their thoughts and feelings, not to solve every
             
             return response.json()["choices"][0]["message"]["content"]
         except Exception as e:
-            return f"I apologize, but I'm having trouble connecting right now. Error: {str(e)}"
+            print(f"[AI ERROR] {str(e)}")  # Log for debugging
+            return "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
 
 # Crisis resources text
 CRISIS_RESOURCES = """
@@ -3239,7 +3240,7 @@ def create_chat_session():
             
     except Exception as e:
         print(f"Create chat session error: {e}")
-        return jsonify({'error': f'Failed to create chat session: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to create chat session. Please try again.'}), 500
 
 @app.route('/api/therapy/sessions/<int:session_id>', methods=['PUT'])
 def update_chat_session(session_id):
@@ -3733,11 +3734,14 @@ def pet_status():
             'pet': {
                 'name': pet[1], 'species': pet[2], 'gender': pet[3],
                 'hunger': pet[4], 'happiness': pet[5], 'energy': pet[6],
-                # ...existing code...
+                'hygiene': pet[7], 'coins': pet[8], 'xp': pet[9],
+                'stage': pet[10], 'adventure_end': pet[11],
+                'last_updated': pet[12], 'hat': pet[13]
             }
         }), 200
     except Exception as e:
-        return jsonify({'exists': False, 'error': str(e)}), 200
+        print(f"Pet status error: {e}")
+        return jsonify({'exists': False, 'error': 'Unable to fetch pet status'}), 200
 
 @app.route('/api/ai/trigger-training', methods=['POST'])
 def trigger_background_training():
@@ -3878,26 +3882,23 @@ def pet_reward():
         
         if action == 'mood':
             hap += 10
-            try:
-                data = request.json
-                username = data.get('username')
-                if not username:
-                    return jsonify({'success': False, 'message': 'Username required'}), 200
-                action = data.get('action')  # 'therapy', 'mood', 'gratitude', 'breathing', 'cbt', 'clinical'
-                activity_type = data.get('activity_type')  # 'cbt', 'clinical', etc.
-                conn = sqlite3.connect("pet_game.db")
-                cur = conn.cursor()
-                pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
-                if not pet:
-                    conn.close()
-                    return jsonify({'success': False, 'message': 'No pet'}), 200
-                # Standardized rewards matching pet_game.py
-                base_boost = 3
-                coin_gain = 5
-                xp_gain = 15
-                # ...existing code...
-            except Exception as e:
-                return jsonify({'success': False, 'error': str(e)}), 200
+        elif action == 'therapy':
+            hap += 15
+            hun += 5
+        elif action == 'gratitude':
+            hap += 8
+        elif action == 'breathing':
+            en += 10
+            hap += 5
+        elif action == 'cbt':
+            hap += 12
+            coin_gain += 5
+        elif action == 'clinical':
+            xp_gain += 10
+
+        # Calculate new stats
+        new_hunger = max(0, min(100, pet[4] + hun))
+        new_happiness = max(0, min(100, pet[5] + hap))
         new_energy = max(0, min(100, pet[6] + en))
         new_hygiene = max(0, min(100, pet[7] + hyg))
         new_coins = pet[8] + coin_gain
@@ -4887,9 +4888,6 @@ def export_pdf():
 
 # === PROGRESS INSIGHTS ===
 @app.route('/api/insights', methods=['GET'])
-# ...existing code...
-
-@app.route('/api/insights', methods=['GET'])
 def get_insights():
     """
     Generate AI-powered insights for a patient or clinician over a custom date range.
@@ -5050,7 +5048,7 @@ def get_insights():
 
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
-# ...existing code...
+
 # === PROFESSIONAL DASHBOARD ===
 @app.route('/api/professional/patients', methods=['GET'])
 def get_patients():

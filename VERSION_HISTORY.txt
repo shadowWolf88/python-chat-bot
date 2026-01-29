@@ -1,3 +1,4 @@
+v[PENDING] (2026-01-29): Phase 5 Web/Android Audit: Fix pet endpoints, duplicate routes, exception leaks
 vb5f86ef (2026-01-29): Fix: Clinician dashboard patient data and AI insights
 v39de2f8 (2026-01-29): Update VERSION_HISTORY.txt with recent commits
 v19c7ace (2026-01-29): Fix: loadInsights sends role=clinician for clinician users (enables clinician data/AI insights)
