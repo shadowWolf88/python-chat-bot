@@ -5809,10 +5809,13 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 const data = await response.json();
                 
                 if (response.ok) {
-                    document.getElementById('avgMood').textContent = data.avg_mood.toFixed(1);
-                    document.getElementById('avgSleep').textContent = data.avg_sleep.toFixed(1) + 'h';
-                    document.getElementById('moodTrend').textContent = data.trend;
-                    document.getElementById('aiInsight').innerHTML = `<p>${data.insight}</p>`;
+                    // Null-safe display of insights data
+                    const avgMood = typeof data.avg_mood === 'number' ? data.avg_mood : 0;
+                    const avgSleep = typeof data.avg_sleep === 'number' ? data.avg_sleep : 0;
+                    document.getElementById('avgMood').textContent = avgMood.toFixed(1);
+                    document.getElementById('avgSleep').textContent = avgSleep.toFixed(1) + 'h';
+                    document.getElementById('moodTrend').textContent = data.trend || 'No data';
+                    document.getElementById('aiInsight').innerHTML = `<p>${data.insight || 'No insights available yet. Log some moods to get started!'}</p>`;
                     
                     // Draw mood chart
                     if (data.mood_data && data.mood_data.length > 0) {
@@ -6371,13 +6374,13 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         
         async function generateAISummary(username, data) {
             const summaryDiv = document.getElementById('aiSummary');
-            
+
             try {
-                // Call API to get AI summary
+                // Call API to get AI summary (must include clinician_username for authorization)
                 const response = await fetch('/api/professional/ai-summary', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
+                    body: JSON.stringify({ username, clinician_username: currentUser })
                 });
                 
                 const result = await response.json();
@@ -6389,10 +6392,13 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         </div>
                     `;
                 } else {
-                    // Fallback to basic summary
-                    const avgMood = data.recent_moods.reduce((acc, m) => acc + m.mood, 0) / (data.recent_moods.length || 1);
-                    const latestAssessment = data.clinical_scales[0];
-                    const alertCount = data.recent_alerts.length;
+                    // Fallback to basic summary with null safety
+                    const recentMoods = data.recent_moods || [];
+                    const avgMood = recentMoods.length > 0
+                        ? recentMoods.reduce((acc, m) => acc + (m.mood || 0), 0) / recentMoods.length
+                        : 0;
+                    const latestAssessment = (data.clinical_scales || [])[0];
+                    const alertCount = (data.recent_alerts || []).length;
                     
                     summaryDiv.innerHTML = `
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
@@ -6401,7 +6407,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                 <li>Average mood over last 30 days: <strong>${avgMood.toFixed(1)}/10</strong></li>
                                 <li>Latest assessment: <strong>${latestAssessment ? `${latestAssessment.name} - ${latestAssessment.severity} (Score: ${latestAssessment.score})` : 'No assessments recorded'}</strong></li>
                                 <li>Recent alerts: <strong style="color: ${alertCount > 0 ? '#e74c3c' : '#28a745'}">${alertCount} ${alertCount === 1 ? 'alert' : 'alerts'}</strong></li>
-                                <li>Therapy sessions: <strong>${data.recent_moods.length} mood entries recorded</strong></li>
+                                <li>Therapy sessions: <strong>${recentMoods.length} mood entries recorded</strong></li>
                             </ul>
                             ${alertCount > 0 ? '<p style="color: #e74c3c; margin-top: 15px; font-weight: bold;">⚠️ Requires immediate attention</p>' : '<p style="color: #28a745; margin-top: 15px;">✓ Patient appears stable</p>'}
                         </div>

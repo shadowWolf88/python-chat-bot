@@ -5027,13 +5027,14 @@ def get_insights():
         ai_response = TherapistAI(username).get_insight(ai_input)
 
         # Calculate avg_mood, avg_sleep, and trend safely
+        # Always return numbers to prevent frontend .toFixed() errors
         if moods:
-            avg_mood = sum(m[0] for m in moods) / len(moods)
-            avg_sleep = sum(m[1] for m in moods) / len(moods)
+            avg_mood = sum(m[0] for m in moods if m[0] is not None) / max(1, len([m for m in moods if m[0] is not None]))
+            avg_sleep = sum(m[1] or 0 for m in moods) / len(moods)
             trend = 'Improving' if len(moods) > 1 and moods[0][0] > moods[-1][0] else 'Stable'
         else:
-            avg_mood = None
-            avg_sleep = None
+            avg_mood = 0.0  # Return 0 instead of None for frontend compatibility
+            avg_sleep = 0.0
             trend = 'No data'
         return jsonify({
             'insight': ai_response,
