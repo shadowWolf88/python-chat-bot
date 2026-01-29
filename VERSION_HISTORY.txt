@@ -1,3 +1,8 @@
+v8be5cf8 (2026-01-29): Frontend: always use credentials: include in fetch for CSRF/session reliability
+v8203d93 (2026-01-29): Fix CSRF token endpoint: resolve secrets shadowing, use stdlib secrets for token generation, ensure session cookie set
+ve74f4df (2026-01-29): Add Phase 4 UX enhancements: onboarding, accessibility, mobile
+v553277a (2026-01-29): Set up venv, install all dependencies, playwright, and fixed test environment. Ready for further dev and testing.
+ve8f8ddc (2026-01-28): Fix TherapistAI indentation error (production boot fix)
 v1c28343 (2026-01-28): Add get_insight method to TherapistAI for insights endpoint compatibility
 vb7dc96b (2026-01-28): Refactor insights endpoint: custom date range, AI prompt, clinician/patient narrative
 vee56f29 (2026-01-28): Updated AUDIT.md with dynamic audit results
