@@ -6142,7 +6142,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             switchPatientTab('summary', document.getElementById('summaryPatientSubtabBtn'));
             
             try {
-                const response = await fetch(`/api/professional/patient/${encodeURIComponent(username)}`);
+                const response = await fetch(`/api/professional/patient/${encodeURIComponent(username)}?clinician=${encodeURIComponent(currentUser)}`);
                 const data = await response.json();
                 
                 if (response.ok) {
