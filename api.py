@@ -5282,23 +5282,21 @@ def generate_ai_summary():
             print(f"[AI SUMMARY] Error: Unauthorized access attempt by {clinician_username} for {username}")
             return jsonify({'error': 'Unauthorized: You do not have access to this patient'}), 403
 
-        # Get profile and join date
+        # Get profile info
         profile = cur.execute(
-            "SELECT full_name, conditions, created_at FROM users WHERE username=?",
+            "SELECT full_name, conditions FROM users WHERE username=?",
             (username,)
         ).fetchone()
         print(f"[AI SUMMARY] Profile: {profile}")
+
+        # Get join date from first mood log (users table doesn't have created_at)
         join_date = None
-        if profile and len(profile) > 2 and profile[2]:
-            join_date = profile[2]
-        else:
-            # Fallback: use first mood log date
-            first_mood = cur.execute(
-                "SELECT entrestamp FROM mood_logs WHERE username=? ORDER BY entrestamp ASC LIMIT 1",
-                (username,)
-            ).fetchone()
-            if first_mood and len(first_mood) > 0 and first_mood[0]:
-                join_date = first_mood[0]
+        first_mood = cur.execute(
+            "SELECT entrestamp FROM mood_logs WHERE username=? ORDER BY entrestamp ASC LIMIT 1",
+            (username,)
+        ).fetchone()
+        if first_mood and first_mood[0]:
+            join_date = first_mood[0]
         # Calculate days since join
         days_since_join = 30
         if join_date:
