@@ -105,7 +105,458 @@
         [data-theme="dark"] body {
             background: var(--bg-primary);
         }
-        
+
+        /* ========== DARK MODE COMPREHENSIVE FIXES ========== */
+
+        /* Chat Interface - Sessions Dropdown */
+        [data-theme="dark"] .sessions-dropdown {
+            background: var(--bg-card);
+            border-color: var(--border-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        [data-theme="dark"] .session-item {
+            border-bottom-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .session-item:hover {
+            background: var(--bg-hover);
+        }
+
+        [data-theme="dark"] .session-item.active {
+            background: rgba(129, 140, 248, 0.15);
+            border-left-color: var(--accent-color);
+        }
+
+        [data-theme="dark"] .session-name {
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .session-meta {
+            color: var(--text-secondary);
+        }
+
+        [data-theme="dark"] .session-actions button {
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        [data-theme="dark"] .session-actions button:hover {
+            background: var(--bg-hover);
+        }
+
+        /* Chat Container */
+        [data-theme="dark"] .chat-container {
+            border-color: var(--border-color);
+        }
+
+        /* Chat Messages Area */
+        [data-theme="dark"] .chat-messages {
+            background: var(--bg-secondary);
+        }
+
+        /* AI Message Bubble */
+        [data-theme="dark"] .message.ai {
+            background: var(--bg-card);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        /* Chat Input Area */
+        [data-theme="dark"] .chat-input-area {
+            border-top-color: var(--border-color);
+            background: var(--bg-card);
+        }
+
+        [data-theme="dark"] .chat-input-area textarea {
+            background: var(--bg-input);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .chat-input-area textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        [data-theme="dark"] .chat-input-area textarea::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        [data-theme="dark"] .chat-input-area textarea::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+        }
+
+        /* Voice Button */
+        [data-theme="dark"] .chat-input-area .voice-btn {
+            background: var(--bg-input);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .chat-input-area .voice-btn:hover {
+            background: var(--bg-hover);
+        }
+
+        /* AI Thinking Animation */
+        [data-theme="dark"] .ai-thinking {
+            color: var(--text-secondary);
+        }
+
+        /* Search Bar Input */
+        [data-theme="dark"] .search-bar input {
+            background: var(--bg-input);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .search-bar input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Stat Cards */
+        [data-theme="dark"] .stat-card {
+            background: var(--bg-card);
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        [data-theme="dark"] .stat-label {
+            color: var(--text-secondary);
+        }
+
+        /* Crisis Resources Box */
+        [data-theme="dark"] .crisis-resources-box,
+        [data-theme="dark"] .card[style*="background: #ffebee"],
+        [data-theme="dark"] #safetyTab .card:last-child {
+            background: rgba(239, 68, 68, 0.15) !important;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        [data-theme="dark"] #safetyTab .card:last-child h4 {
+            color: #f87171 !important;
+        }
+
+        [data-theme="dark"] #safetyTab .card:last-child p,
+        [data-theme="dark"] #safetyTab .card:last-child a {
+            color: var(--text-primary);
+        }
+
+        /* Insights Tab */
+        [data-theme="dark"] #insightsTab .card[style*="background: #f8f9fa"],
+        [data-theme="dark"] .insights-date-range {
+            background: var(--bg-secondary) !important;
+        }
+
+        [data-theme="dark"] #insightsTab input[type="date"] {
+            background: var(--bg-input);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] #aiInsight,
+        [data-theme="dark"] div[style*="background: #f5f5f5"] {
+            background: var(--bg-secondary) !important;
+            color: var(--text-primary);
+        }
+
+        /* Clinician Info Box */
+        [data-theme="dark"] #clinicianInfo {
+            background: var(--bg-secondary) !important;
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] #clinicianInfo p {
+            color: var(--text-primary);
+        }
+
+        /* Notification Panel */
+        [data-theme="dark"] #notificationPanel {
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 40px var(--shadow-color) !important;
+        }
+
+        [data-theme="dark"] #notificationPanel h3 {
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] #notificationPanel button {
+            color: var(--text-muted);
+        }
+
+        /* Modal Content */
+        [data-theme="dark"] .modal-content {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        /* Tables in dark mode */
+        [data-theme="dark"] table tr[style*="border-bottom"] {
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] table thead tr[style*="background: #f8f9fa"] {
+            background: var(--bg-secondary) !important;
+        }
+
+        [data-theme="dark"] table td,
+        [data-theme="dark"] table th {
+            color: var(--text-primary);
+        }
+
+        /* Generic light backgrounds to dark */
+        [data-theme="dark"] div[style*="background: #f8f9fa"],
+        [data-theme="dark"] div[style*="background: #f9f9f9"],
+        [data-theme="dark"] div[style*="background: #fafafa"] {
+            background: var(--bg-secondary) !important;
+        }
+
+        /* Warning boxes */
+        [data-theme="dark"] div[style*="background: #fff3cd"] {
+            background: rgba(251, 191, 36, 0.15) !important;
+            border-left-color: #fbbf24 !important;
+        }
+
+        [data-theme="dark"] div[style*="background: #fff3cd"] p {
+            color: #fcd34d !important;
+        }
+
+        /* Textareas with hardcoded borders */
+        [data-theme="dark"] textarea[style*="border: 2px solid #e0e0e0"],
+        [data-theme="dark"] input[style*="border: 2px solid #e0e0e0"] {
+            background: var(--bg-input) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-primary) !important;
+        }
+
+        /* Patient cards in professional dashboard */
+        [data-theme="dark"] .patient-card,
+        [data-theme="dark"] div[style*="border: 2px solid #e0e0e0"] {
+            background: var(--bg-card);
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] .patient-card strong,
+        [data-theme="dark"] .patient-card p {
+            color: var(--text-primary);
+        }
+
+        /* Calendar day cells */
+        [data-theme="dark"] div[style*="background: white"][style*="border: 1px solid #e0e0e0"],
+        [data-theme="dark"] div[style*="background: white"][style*="border: 2px solid"] {
+            background: var(--bg-card) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] div[style*="background: #fafafa"] {
+            background: var(--bg-secondary) !important;
+        }
+
+        /* Reaction buttons */
+        [data-theme="dark"] .reaction-btn {
+            background: var(--bg-input);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .reaction-btn:hover {
+            background: var(--bg-hover);
+        }
+
+        /* History cards */
+        [data-theme="dark"] .history-card {
+            border-color: var(--border-color);
+            background: var(--bg-card);
+        }
+
+        [data-theme="dark"] .history-card .date {
+            color: var(--text-muted);
+        }
+
+        /* Med list */
+        [data-theme="dark"] .med-list {
+            border-color: var(--border-color);
+            background: var(--bg-secondary);
+        }
+
+        [data-theme="dark"] .med-item {
+            background: rgba(129, 140, 248, 0.1);
+            border-color: var(--accent-color);
+            color: var(--text-primary);
+        }
+
+        /* Mood options */
+        [data-theme="dark"] .mood-option {
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .mood-option:hover,
+        [data-theme="dark"] .mood-option.selected {
+            background: rgba(129, 140, 248, 0.15);
+            border-color: var(--accent-color);
+        }
+
+        /* Generic paragraph colors in specific tabs */
+        [data-theme="dark"] #therapyTab > p,
+        [data-theme="dark"] #safetyTab > p,
+        [data-theme="dark"] #insightsTab > p,
+        [data-theme="dark"] #appointmentsTab > p,
+        [data-theme="dark"] #aboutmeTab > p,
+        [data-theme="dark"] #messagesTab > p,
+        [data-theme="dark"] #updatesTab > p,
+        [data-theme="dark"] #moodTab > p {
+            color: var(--text-secondary) !important;
+        }
+
+        /* Alert messages in dark mode */
+        [data-theme="dark"] .alert-success {
+            background: rgba(52, 211, 153, 0.15);
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.3);
+        }
+
+        [data-theme="dark"] .alert-error {
+            background: rgba(248, 113, 113, 0.15);
+            color: #f87171;
+            border-color: rgba(248, 113, 113, 0.3);
+        }
+
+        [data-theme="dark"] .alert-warning {
+            background: rgba(251, 191, 36, 0.15);
+            color: #fbbf24;
+            border-color: rgba(251, 191, 36, 0.3);
+        }
+
+        /* Voice status bar */
+        [data-theme="dark"] .voice-status {
+            background: rgba(251, 191, 36, 0.15);
+            border-top-color: rgba(251, 191, 36, 0.3);
+            color: #fcd34d;
+        }
+
+        /* Community post styles override */
+        [data-theme="dark"] .community-post .post-header {
+            color: var(--text-secondary);
+        }
+
+        [data-theme="dark"] .community-post .post-message {
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .community-post .post-likes {
+            color: var(--text-muted);
+        }
+
+        /* Loading spinner */
+        [data-theme="dark"] .loading {
+            border-color: var(--bg-hover);
+            border-top-color: var(--accent-color);
+        }
+
+        /* Crisis Resources Box - Light Mode */
+        .crisis-resources-box {
+            background: #ffebee;
+        }
+
+        .crisis-resources-box .crisis-title {
+            color: #c62828;
+        }
+
+        /* Crisis Resources Box - Dark Mode */
+        [data-theme="dark"] .crisis-resources-box {
+            background: rgba(239, 68, 68, 0.15) !important;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        [data-theme="dark"] .crisis-resources-box .crisis-title {
+            color: #f87171 !important;
+        }
+
+        [data-theme="dark"] .crisis-resources-box p {
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .crisis-resources-box a {
+            color: var(--accent-color);
+        }
+
+        /* Tab descriptions */
+        .tab-description {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        /* Themed input */
+        .themed-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+        }
+
+        /* Insights date card */
+        .insights-date-card {
+            background: var(--bg-secondary);
+        }
+
+        /* AI Insight box */
+        .ai-insight-box {
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        /* Muted text helper */
+        .muted-text {
+            color: var(--text-muted);
+        }
+
+        /* Themed textarea */
+        .themed-textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid var(--border-color);
+            background: var(--bg-input);
+            color: var(--text-primary);
+        }
+
+        .themed-textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Clinician info box */
+        .clinician-info-box {
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            color: var(--text-primary);
+        }
+
+        /* Appointment card styles */
+        .appointment-details-box {
+            background: var(--bg-secondary);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .appointment-warning-box {
+            background: rgba(251, 191, 36, 0.15);
+            border-left: 4px solid #fbbf24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        [data-theme="dark"] .appointment-warning-box p {
+            color: #fcd34d;
+        }
+
+        /* ========== END DARK MODE FIXES ========== */
+
         /* Auth Screen */
         .auth-container {
             display: flex;
@@ -2447,10 +2898,10 @@
         </div>
         
         <!-- Notification Panel -->
-        <div id="notificationPanel" style="display: none; position: fixed; top: 80px; right: 20px; background: white; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 400px; max-height: 500px; overflow-y: auto; z-index: 10000; padding: 20px;">
+        <div id="notificationPanel" style="display: none; position: fixed; top: 80px; right: 20px; background: var(--bg-card); border-radius: 15px; box-shadow: 0 10px 40px var(--shadow-color); width: 400px; max-height: 500px; overflow-y: auto; z-index: 10000; padding: 20px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0;">Notifications</h3>
-                <button onclick="closeNotifications()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
+                <h3 style="margin: 0; color: var(--text-primary);">Notifications</h3>
+                <button onclick="closeNotifications()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);">×</button>
             </div>
             <div id="notificationList"></div>
         </div>
@@ -2907,35 +3358,35 @@
             <!-- Safety Plan Tab -->
             <div id="safetyTab" class="tab-content">
                 <h3>🆘 My Safety Plan</h3>
-                <p style="color: #666; margin-bottom: 20px;">Create a plan for when you're feeling in crisis.</p>
-                
+                <p class="tab-description">Create a plan for when you're feeling in crisis.</p>
+
                 <div class="card">
                     <div class="form-group">
                         <label><strong>Warning Signs/Triggers:</strong></label>
-                        <textarea id="safetyTriggers" rows="3" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #e0e0e0;" placeholder="What triggers distress for me..."></textarea>
+                        <textarea id="safetyTriggers" rows="3" class="themed-textarea" placeholder="What triggers distress for me..."></textarea>
                     </div>
-                    
+
                     <div class="form-group">
                         <label><strong>Coping Strategies:</strong></label>
-                        <textarea id="safetyCoping" rows="3" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #e0e0e0;" placeholder="What helps me calm down..."></textarea>
+                        <textarea id="safetyCoping" rows="3" class="themed-textarea" placeholder="What helps me calm down..."></textarea>
                     </div>
-                    
+
                     <div class="form-group">
                         <label><strong>Support Contacts:</strong></label>
-                        <textarea id="safetySupport" rows="3" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #e0e0e0;" placeholder="Friends/family I can call..."></textarea>
+                        <textarea id="safetySupport" rows="3" class="themed-textarea" placeholder="Friends/family I can call..."></textarea>
                     </div>
-                    
+
                     <div class="form-group">
                         <label><strong>Professional Contacts:</strong></label>
-                        <textarea id="safetyProfessional" rows="3" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #e0e0e0;" placeholder="Therapist, crisis hotline numbers..."></textarea>
+                        <textarea id="safetyProfessional" rows="3" class="themed-textarea" placeholder="Therapist, crisis hotline numbers..."></textarea>
                     </div>
-                    
+
                     <button class="btn" onclick="saveSafetyPlan()">Save Safety Plan</button>
                     <button class="btn btn-secondary" onclick="loadSafetyPlan()">Load Saved Plan</button>
                 </div>
                 
-                <div class="card" style="margin-top: 20px; background: #ffebee;">
-                    <h4 style="color: #c62828;">🚨 Crisis Resources (UK)</h4>
+                <div class="card crisis-resources-box" style="margin-top: 20px;">
+                    <h4 class="crisis-title">🚨 Crisis Resources (UK)</h4>
                     <p><strong>Samaritans:</strong> Call 116 123 (24/7 free hotline)</p>
                     <p><strong>Crisis Text Line UK:</strong> Text SHOUT to 85258</p>
                     <p><strong>NHS Mental Health Crisis:</strong> Call 111 (select option 2)</p>
@@ -2970,18 +3421,18 @@
             <!-- Progress Insights Tab -->
             <div id="insightsTab" class="tab-content">
                 <h3>💡 Progress Insights & Export</h3>
-                <p style="color: #666; margin-bottom: 20px;">View AI-generated insights and export your data.</p>
-                
-                <div class="card" style="margin-bottom: 20px; background: #f8f9fa;">
+                <p class="tab-description">View AI-generated insights and export your data.</p>
+
+                <div class="card insights-date-card" style="margin-bottom: 20px;">
                     <h4>📅 Date Range</h4>
                     <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                         <div style="flex: 1; min-width: 200px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 600;">From Date</label>
-                            <input type="date" id="insightsFromDate" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                            <input type="date" id="insightsFromDate" class="themed-input">
                         </div>
                         <div style="flex: 1; min-width: 200px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 600;">To Date</label>
-                            <input type="date" id="insightsToDate" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                            <input type="date" id="insightsToDate" class="themed-input">
                         </div>
                         <div style="display: flex; gap: 10px;">
                             <button class="btn" onclick="setInsightsRange(7)" style="padding: 10px 15px;">7 Days</button>
@@ -2990,13 +3441,13 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
                     <button class="btn" onclick="loadInsights()">Generate Insights</button>
                     <button class="btn" onclick="exportCSV()" style="background: #34495e;">📥 Export CSV</button>
                     <button class="btn" onclick="exportPDF()" style="background: #e74c3c;">📄 Export PDF</button>
                 </div>
-                
+
                 <div id="insightsContent">
                     <div class="card">
                         <h4>Your Stats</h4>
@@ -3015,11 +3466,11 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="card" style="margin-top: 20px;">
                         <h4>AI Insights</h4>
-                        <div id="aiInsight" style="padding: 20px; background: #f5f5f5; border-radius: 12px; line-height: 1.6;">
-                            <p style="color: #999;">Click "Generate Insights" to get personalized analysis of your progress.</p>
+                        <div id="aiInsight" class="ai-insight-box">
+                            <p class="muted-text">Click "Generate Insights" to get personalized analysis of your progress.</p>
                         </div>
                     </div>
                     
@@ -3038,21 +3489,21 @@
             <!-- Appointments Tab -->
             <div id="appointmentsTab" class="tab-content">
                 <h3>📅 My Appointments</h3>
-                <p style="color: #666; margin-bottom: 20px;">View and manage appointments scheduled by your clinician.</p>
-                
+                <p class="tab-description">View and manage appointments scheduled by your clinician.</p>
+
                 <div id="appointmentsList">
                     <div style="text-align: center; padding: 40px;">
                         <div class="loading" style="margin: 0 auto;"></div>
-                        <p style="color: #666; margin-top: 10px;">Loading appointments...</p>
+                        <p class="tab-description" style="margin-top: 10px;">Loading appointments...</p>
                     </div>
                 </div>
             </div>
-            
+
             <!-- About Me Tab -->
             <div id="aboutmeTab" class="tab-content">
                 <h3>👤 About Me</h3>
-                <p style="color: #666; margin-bottom: 20px;">Manage your personal information and view your activity statistics.</p>
-                
+                <p class="tab-description">Manage your personal information and view your activity statistics.</p>
+
                 <div class="card">
                     <h4>Personal Information</h4>
                     <div class="form-group">
@@ -3078,11 +3529,11 @@
                     <button class="btn" onclick="saveProfile()">💾 Save Profile</button>
                     <button class="btn btn-secondary" onclick="loadProfile()">🔄 Reload Profile</button>
                 </div>
-                
+
                 <div class="card" style="margin-top: 20px;">
                     <h4>My Clinician</h4>
-                    <div id="clinicianInfo" style="padding: 20px; background: #f5f5f5; border-radius: 12px;">
-                        <p style="color: #999;">Loading clinician information...</p>
+                    <div id="clinicianInfo" class="clinician-info-box">
+                        <p class="muted-text">Loading clinician information...</p>
                     </div>
                 </div>
                 
@@ -6724,59 +7175,59 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     
                     listDiv.innerHTML = data.appointments.map(apt => {
                         const date = new Date(apt.appointment_date);
-                        const dateStr = date.toLocaleDateString('en-GB', { 
-                            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+                        const dateStr = date.toLocaleDateString('en-GB', {
+                            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                         });
-                        const timeStr = date.toLocaleTimeString('en-GB', { 
-                            hour: '2-digit', minute: '2-digit' 
+                        const timeStr = date.toLocaleTimeString('en-GB', {
+                            hour: '2-digit', minute: '2-digit'
                         });
-                        
+
                         const isPast = date < new Date();
-                        const statusColor = apt.patient_response === 'accepted' ? '#28a745' : 
-                                           apt.patient_response === 'declined' ? '#dc3545' : '#ffc107';
+                        const statusColor = apt.patient_response === 'accepted' ? 'var(--success-color)' :
+                                           apt.patient_response === 'declined' ? 'var(--danger-color)' : 'var(--warning-color)';
                         const statusText = apt.patient_response === 'accepted' ? '✓ Accepted' :
-                                          apt.patient_response === 'declined' ? '✗ Declined' : 
+                                          apt.patient_response === 'declined' ? '✗ Declined' :
                                           '⏳ Awaiting Response';
-                        
+
                         return `
                             <div class="card" style="margin-bottom: 20px; border-left: 4px solid ${statusColor};">
                                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
                                     <div>
-                                        <h4 style="margin: 0 0 5px 0; color: #667eea;">📅 ${apt.appointment_type || 'Consultation'}</h4>
-                                        <p style="margin: 0; color: #666; font-size: 14px;">With ${apt.clinician_username}</p>
+                                        <h4 style="margin: 0 0 5px 0; color: var(--accent-color);">📅 ${apt.appointment_type || 'Consultation'}</h4>
+                                        <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">With ${apt.clinician_username}</p>
                                     </div>
                                     <span style="background: ${statusColor}; color: white; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">
                                         ${statusText}
                                     </span>
                                 </div>
-                                
-                                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+
+                                <div class="appointment-details-box">
                                     <p style="margin: 0 0 5px 0;"><strong>📆 Date:</strong> ${dateStr}</p>
                                     <p style="margin: 0 0 5px 0;"><strong>🕐 Time:</strong> ${timeStr}</p>
-                                    ${apt.notes ? `<p style="margin: 10px 0 0 0; padding-top: 10px; border-top: 1px solid #e0e0e0;"><strong>Notes:</strong> ${apt.notes}</p>` : ''}
+                                    ${apt.notes ? `<p style="margin: 10px 0 0 0; padding-top: 10px; border-top: 1px solid var(--border-color);"><strong>Notes:</strong> ${apt.notes}</p>` : ''}
                                 </div>
-                                
+
                                 ${!apt.patient_acknowledged && !isPast ? `
-                                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                                        <p style="margin: 0 0 10px 0; color: #856404;">
+                                    <div class="appointment-warning-box">
+                                        <p style="margin: 0 0 10px 0;">
                                             <strong>⚠️ Please acknowledge this appointment</strong>
                                         </p>
-                                        <label style="display: flex; align-items: center; cursor: pointer; color: #333;">
+                                        <label style="display: flex; align-items: center; cursor: pointer; color: var(--text-primary);">
                                             <input type="checkbox" id="ack-${apt.id}" style="width: 20px; height: 20px; margin-right: 10px;">
                                             <span>I have read and understood this appointment</span>
                                         </label>
                                     </div>
-                                    
+
                                     <div style="display: flex; gap: 10px;">
-                                        <button class="btn" onclick="respondToAppointment(${apt.id}, 'accepted')" style="flex: 1; background: #28a745;">
+                                        <button class="btn" onclick="respondToAppointment(${apt.id}, 'accepted')" style="flex: 1; background: var(--success-color);">
                                             ✓ Accept Appointment
                                         </button>
-                                        <button class="btn" onclick="respondToAppointment(${apt.id}, 'declined')" style="flex: 1; background: #dc3545;">
+                                        <button class="btn" onclick="respondToAppointment(${apt.id}, 'declined')" style="flex: 1; background: var(--danger-color);">
                                             ✗ Decline Appointment
                                         </button>
                                     </div>
                                 ` : apt.patient_response_date ? `
-                                    <p style="margin: 0; color: #666; font-size: 13px; text-align: center;">
+                                    <p style="margin: 0; color: var(--text-secondary); font-size: 13px; text-align: center;">
                                         Response sent: ${new Date(apt.patient_response_date).toLocaleString('en-GB')}
                                     </p>
                                 ` : ''}
@@ -6794,8 +7245,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         <div class="card" style="text-align: center; padding: 40px;">
                             <p style="font-size: 48px; margin: 0 0 15px 0;">📅</p>
                             <h4 style="margin: 0 0 10px 0;">No Appointments</h4>
-                            <p style="color: #666; margin: 0;">You don't have any upcoming appointments scheduled.</p>
-                            <p style="color: #999; margin-top: 10px; font-size: 14px;">Your clinician will schedule appointments as needed.</p>
+                            <p style="color: var(--text-secondary); margin: 0;">You don't have any upcoming appointments scheduled.</p>
+                            <p style="color: var(--text-muted); margin-top: 10px; font-size: 14px;">Your clinician will schedule appointments as needed.</p>
                         </div>
                     `;
                 }
@@ -7077,12 +7528,12 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         clinicianDiv.innerHTML = `
                             <p><strong>Assigned Clinician:</strong> ${data.profile.assigned_clinician}</p>
                             <p><strong>Email:</strong> ${data.profile.clinician_email || 'Not provided'}</p>
-                            <p style="margin-top: 10px; color: #666; font-size: 14px;">
+                            <p style="margin-top: 10px; color: var(--text-secondary); font-size: 14px;">
                                 Your clinician can view your progress and provide professional support.
                             </p>
                         `;
                     } else {
-                        clinicianDiv.innerHTML = '<p style="color: #999;">No clinician assigned yet.</p>';
+                        clinicianDiv.innerHTML = '<p class="muted-text">No clinician assigned yet.</p>';
                     }
                     
                     // Display activity stats
