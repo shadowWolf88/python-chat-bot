@@ -1,3 +1,65 @@
+from flask import Flask, request, jsonify, render_template, send_from_directory, make_response, Response, g
+from flask_cors import CORS
+from functools import wraps
+import sqlite3
+import os
+import json
+import hashlib
+import requests
+from datetime import datetime, timedelta
+import sys
+import secrets
+import smtplib
+import time
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+# --- Pet Table Ensurer ---
+def ensure_pet_table():
+    """Ensure the pet table exists in pet_game.db"""
+    conn = sqlite3.connect(PET_DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS pet (
+            id INTEGER PRIMARY KEY,
+            name TEXT, species TEXT, gender TEXT,
+            hunger INTEGER DEFAULT 70, happiness INTEGER DEFAULT 70,
+            energy INTEGER DEFAULT 70, hygiene INTEGER DEFAULT 80,
+            coins INTEGER DEFAULT 0, xp INTEGER DEFAULT 0,
+            stage TEXT DEFAULT 'Baby', adventure_end REAL DEFAULT 0,
+            last_updated REAL, hat TEXT DEFAULT 'None'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# Import existing modules (avoid importing main.py which has tkinter)
+from secrets_manager import SecretsManager
+from audit import log_event
+import fhir_export
+from training_data_manager import TRAINING_DB_PATH
+
+# Import password hashing libraries with fallbacks (same logic as main.py)
+try:
+    from argon2 import PasswordHasher
+    _ph = PasswordHasher()
+    HAS_ARGON2 = True
+except Exception:
+    _ph = None
+    HAS_ARGON2 = False
+
+try:
+    import bcrypt
+    HAS_BCRYPT = True
+except Exception:
+    bcrypt = None
+    HAS_BCRYPT = False
+
+app = Flask(__name__, static_folder='static', template_folder='templates')
+
+# Initialize with same settings as main app
+DEBUG = os.environ.get('DEBUG', '').lower() in ('1', 'true', 'yes')
+
 # ================== CBT: GOAL SETTING/TRACKING ENDPOINTS ==================
 
 @app.route('/api/cbt/goals', methods=['POST'])
