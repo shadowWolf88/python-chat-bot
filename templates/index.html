@@ -265,6 +265,9 @@
             background: var(--bg-secondary);
             transition: background 0.3s ease;
         }
+        [data-theme="dark"] .main-content {
+            background: var(--bg-primary);
+        }
 
         .tab-btn {
             display: block;
@@ -310,9 +313,13 @@
             transition: background 0.3s ease;
             border-radius: 20px;
             padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 40px var(--shadow-color);
         }
-        
+        [data-theme="dark"] .tab-content {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            box-shadow: 0 10px 40px var(--shadow-color);
+        }
         .tab-content.active {
             display: block;
         }
@@ -1770,6 +1777,19 @@
             font-size: 15px;
             font-weight: 500;
             text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            box-shadow: 0 2px 8px var(--shadow-color);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        [data-theme="dark"] .card {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            box-shadow: 0 2px 8px var(--shadow-color);
         }
     </style>
 </head>
