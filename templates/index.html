@@ -4612,10 +4612,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         const DAILY_TASK_TYPES = [
             { type: 'log_mood', label: '📊 Log your mood', icon: '📊' },
             { type: 'practice_gratitude', label: '🙏 Write gratitude entry', icon: '🙏' },
-            { type: 'check_pet', label: '🐶 Check on your pet', icon: '🐶' },
-            { type: 'breathing_exercise', label: '🌬️ Do a breathing exercise', icon: '🌬️' },
+            { type: 'check_pet', label: '🐾 Care for your pet (feed & walk)', icon: '🐾' },
+            { type: 'breathing_exercise', label: '🫁 Start a breathing exercise', icon: '🫁' },
             { type: 'therapy_session', label: '🤖 Chat with AI therapy', icon: '🤖' },
-            { type: 'read_resource', label: '📚 Read a wellness resource', icon: '📚' }
+            { type: 'affirmation', label: '💡 Get a positive affirmation', icon: '💡' }
         ];
 
         const MOTIVATIONAL_QUOTES = [
@@ -4757,26 +4757,135 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         }
 
         function navigateToTask(taskType) {
-            // Navigate to the appropriate tab based on task type
-            const taskTabMap = {
-                'log_mood': 'mood',
-                'practice_gratitude': 'gratitude',
-                'check_pet': 'pet',
-                'breathing_exercise': 'cbt',
-                'therapy_session': 'therapy',
-                'read_resource': 'updates'
-            };
-
-            const tabName = taskTabMap[taskType];
-            if (tabName) {
-                const tabBtn = document.querySelector(`[onclick*="${tabName}"]`);
-                switchTab(tabName, tabBtn);
-
-                // Mark read_resource as complete when clicking on it
-                if (taskType === 'read_resource') {
-                    markDailyTaskComplete('read_resource');
+            if (taskType === 'check_pet') {
+                switchTab('pet', document.querySelector('[onclick*="pet"]'));
+                showPetTaskInstructions();
+            } else if (taskType === 'breathing_exercise') {
+                switchTab('cbt', document.querySelector('[onclick*="cbt"]'));
+                showBreathingTaskInstructions();
+            } else if (taskType === 'affirmation') {
+                showAffirmationModal();
+            } else {
+                // Default: switch to mapped tab
+                const taskTabMap = {
+                    'log_mood': 'mood',
+                    'practice_gratitude': 'gratitude',
+                    'therapy_session': 'therapy'
+                };
+                const tabName = taskTabMap[taskType];
+                if (tabName) {
+                    const tabBtn = document.querySelector(`[onclick*="${tabName}"]`);
+                    switchTab(tabName, tabBtn);
                 }
             }
+        }
+
+        // --- PET TASK LOGIC ---
+        let petTaskState = { fed: false, walked: false };
+        function showPetTaskInstructions() {
+            let msg = '';
+            if (!petTaskState.fed && !petTaskState.walked) {
+                msg = 'To complete this task, you must feed and walk your pet.';
+            } else if (!petTaskState.fed) {
+                msg = 'Feed your pet to complete this part of the task.';
+            } else if (!petTaskState.walked) {
+                msg = 'Walk your pet to complete this part of the task.';
+            } else {
+                msg = 'Pet task complete!';
+            }
+            let el = document.getElementById('petTaskInstructions');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'petTaskInstructions';
+                el.style.margin = '12px 0';
+                el.style.color = '#888';
+                const petTab = document.getElementById('petTab');
+                if (petTab) petTab.insertBefore(el, petTab.firstChild);
+            }
+            el.innerText = msg;
+            // Add feed/walk buttons if not complete
+            let btns = document.getElementById('petTaskBtns');
+            if (!btns) {
+                btns = document.createElement('div');
+                btns.id = 'petTaskBtns';
+                btns.style.margin = '8px 0';
+                const petTab = document.getElementById('petTab');
+                if (petTab) petTab.insertBefore(btns, el.nextSibling);
+            }
+            btns.innerHTML = '';
+            if (!petTaskState.fed) {
+                const feedBtn = document.createElement('button');
+                feedBtn.innerText = 'Feed Pet';
+                feedBtn.className = 'btn btn-secondary';
+                feedBtn.onclick = function() { petTaskState.fed = true; showPetTaskInstructions(); checkPetTaskComplete(); };
+                btns.appendChild(feedBtn);
+            }
+            if (!petTaskState.walked) {
+                const walkBtn = document.createElement('button');
+                walkBtn.innerText = 'Walk Pet';
+                walkBtn.className = 'btn btn-secondary';
+                walkBtn.style.marginLeft = '8px';
+                walkBtn.onclick = function() { petTaskState.walked = true; showPetTaskInstructions(); checkPetTaskComplete(); };
+                btns.appendChild(walkBtn);
+            }
+            if (petTaskState.fed && petTaskState.walked) {
+                btns.innerHTML = '<span style="color: #27ae60;">✅ Pet cared for today!</span>';
+            }
+        }
+        function checkPetTaskComplete() {
+            if (petTaskState.fed && petTaskState.walked) {
+                markDailyTaskComplete('check_pet');
+            }
+        }
+
+        // --- BREATHING TASK LOGIC ---
+        let breathingTaskStarted = false;
+        function showBreathingTaskInstructions() {
+            let el = document.getElementById('breathingTaskInstructions');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'breathingTaskInstructions';
+                el.style.margin = '12px 0';
+                el.style.color = '#888';
+                const cbtTab = document.getElementById('cbtTab');
+                if (cbtTab) cbtTab.insertBefore(el, cbtTab.firstChild);
+            }
+            if (!breathingTaskStarted) {
+                el.innerText = 'Click below to start a breathing exercise.';
+                let btn = document.getElementById('breathingTaskStartBtn');
+                if (!btn) {
+                    btn = document.createElement('button');
+                    btn.id = 'breathingTaskStartBtn';
+                    btn.className = 'btn btn-secondary';
+                    btn.innerText = 'Start Breathing Exercise';
+                    btn.onclick = function() { breathingTaskStarted = true; showBreathingTaskInstructions(); markDailyTaskComplete('breathing_exercise'); };
+                    el.parentNode.insertBefore(btn, el.nextSibling);
+                }
+                btn.style.display = '';
+            } else {
+                el.innerText = 'Breathing exercise started!';
+                let btn = document.getElementById('breathingTaskStartBtn');
+                if (btn) btn.style.display = 'none';
+            }
+        }
+
+        // --- AFFIRMATION TASK LOGIC ---
+        const POSITIVE_AFFIRMATIONS = [
+            'You are capable of amazing things.',
+            'Every day is a fresh start.',
+            'You have the strength to overcome challenges.',
+            'You are worthy of love and respect.',
+            'Your feelings are valid.',
+            'You are making progress, even if it’s slow.',
+            'You bring value to those around you.',
+            'You can handle whatever comes your way.',
+            'You are enough just as you are.',
+            'You have the power to create change.'
+        ];
+        function showAffirmationModal() {
+            const affirmation = POSITIVE_AFFIRMATIONS[Math.floor(Math.random() * POSITIVE_AFFIRMATIONS.length)];
+            alert('Positive Affirmation:\n\n' + affirmation);
+            markDailyTaskComplete('affirmation');
         }
 
         async function markDailyTaskComplete(taskType) {
