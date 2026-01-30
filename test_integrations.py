@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Integration Testing Script for Healing Space Platform
+Integration Testing Script for Healing Space UK Platform
 Creates trial accounts and tests key features
 """
 
@@ -397,7 +397,7 @@ def main():
     """Run all tests"""
     print(f"\n{Colors.BLUE}")
     print("╔════════════════════════════════════════════════════════════╗")
-    print("║    Healing Space Integration Testing Suite                ║")
+    print("║    Healing Space UK Integration Testing Suite                ║")
     print("║    Automated testing of all major features                ║")
     print("╚════════════════════════════════════════════════════════════╝")
     print(f"{Colors.RESET}\n")

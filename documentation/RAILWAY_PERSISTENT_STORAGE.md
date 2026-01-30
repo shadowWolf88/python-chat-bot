@@ -1,6 +1,6 @@
 # Setting Up Persistent Storage on Railway
 
-This guide explains how to set up persistent storage for Healing Space on Railway, using either a Railway Volume (for SQLite) or PostgreSQL (recommended for production and scaling).
+This guide explains how to set up persistent storage for Healing Space UK on Railway, using either a Railway Volume (for SQLite) or PostgreSQL (recommended for production and scaling).
 
 ---
 

@@ -374,7 +374,7 @@ def train_background_model(epochs=3):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("🤖 Healing Space - Background AI Training System")
+    print("🤖 Healing Space UK - Background AI Training System")
     print("=" * 60)
     
     if not HAS_TRANSFORMERS:

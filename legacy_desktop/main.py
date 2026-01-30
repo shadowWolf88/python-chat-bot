@@ -257,7 +257,7 @@ If you are feeling overwhelmed and considering self-harm or ending your life, pl
 
 # --- HELP & GUIDE TEXT ---
 HELP_GUIDE_TEXT = """
-HEALING SPACE - USER GUIDE
+HEALING SPACE UK - USER GUIDE
 
 1. YOUR SELF-CARE PET 🐾
    - Purpose: Your companion reflects your wellbeing.
@@ -875,7 +875,7 @@ class ClinicalScales:
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Healing Space - AI Integrated Therapist")
+        self.title("Healing Space UK - AI Integrated Therapist")
         self.geometry("600x950")
         
         try:
@@ -1013,7 +1013,7 @@ class App(ctk.CTk):
         self.clear_screen()
         frame = ctk.CTkFrame(self, corner_radius=20)
         frame.pack(pady=60, padx=60, fill="both", expand=True)
-        ctk.CTkLabel(frame, text="Healing Space", font=ctk.CTkFont(size=32, weight="bold"), text_color="#3498db", wraplength=400).pack(pady=(40, 20))
+        ctk.CTkLabel(frame, text="Healing Space UK", font=ctk.CTkFont(size=32, weight="bold"), text_color="#3498db", wraplength=400).pack(pady=(40, 20))
         
         user_btn = ctk.CTkButton(frame, text=username, font=ctk.CTkFont(size=22, weight="bold"), height=80, width=250, 
                                  command=lambda: self.quick_pin_login(username))
@@ -1059,7 +1059,7 @@ class App(ctk.CTk):
                 threading.Event().wait(7200) # 2 Hours
                 if self.current_user:
                     try:
-                        notification.notify(title="Healing Space", message="It's time for your 2-hour mood check-in!", timeout=10)
+                        notification.notify(title="Healing Space UK", message="It's time for your 2-hour mood check-in!", timeout=10)
                     except: pass
         threading.Thread(target=notify_loop, daemon=True).start()
 
@@ -1075,7 +1075,7 @@ class App(ctk.CTk):
         threading.Thread(target=lambda: asyncio.run(amain())).start()
 
     def show_disclaimer(self):
-        disclaimer_text = ("WELCOME TO HEALING SPACE\n\n"
+        disclaimer_text = ("WELCOME TO HEALING SPACE UK\n\n"
                            "This app does not give or replace medical advice.\n\n"
                            "If in danger, call 999 (UK), 988 (USA/CA).\n\n"
                            "📊 Optional: You can contribute anonymized data to AI research.\n"
@@ -1094,7 +1094,7 @@ class App(ctk.CTk):
 
         frame = ctk.CTkFrame(self, corner_radius=20)
         frame.pack(pady=20, padx=60, fill="both", expand=True)
-        ctk.CTkLabel(frame, text="Healing Space", font=ctk.CTkFont(size=32, weight="bold"), text_color="#3498db", wraplength=400).pack(pady=(40, 10))
+        ctk.CTkLabel(frame, text="Healing Space UK", font=ctk.CTkFont(size=32, weight="bold"), text_color="#3498db", wraplength=400).pack(pady=(40, 10))
         self.u_entry = ctk.CTkEntry(frame, placeholder_text="Username", width=250, height=45)
         self.u_entry.pack(pady=10)
         self.u_entry.focus_set()
@@ -1140,7 +1140,7 @@ class App(ctk.CTk):
         scroll = ctk.CTkScrollableFrame(self, corner_radius=20)
         scroll.pack(pady=40, padx=40, fill="both", expand=True)
         
-        ctk.CTkLabel(scroll, text="Join Healing Space", font=ctk.CTkFont(size=24, weight="bold"), text_color="#2ecc71").pack(pady=20)
+        ctk.CTkLabel(scroll, text="Join Healing Space UK", font=ctk.CTkFont(size=24, weight="bold"), text_color="#2ecc71").pack(pady=20)
         
         self.su_name = ctk.CTkEntry(scroll, placeholder_text="Full Name", width=300, height=40); self.su_name.pack(pady=10)
         self.su_name.focus_set()

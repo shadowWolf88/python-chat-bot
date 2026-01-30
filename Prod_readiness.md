@@ -1,4 +1,4 @@
-# Healing Space – Production Readiness Assessment
+# Healing Space UK – Production Readiness Assessment
 
 **Date:** $(\text{2026-01-29})  
 **Assessor:** GitHub Copilot (GPT-4.1)  
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-The Healing Space platform is **production ready** for a supervised university pilot. All core features are implemented, tested, and documented. The codebase meets security, privacy, and compliance standards suitable for academic and clinical research pilots. The system is actively maintained, with a clear roadmap and robust deployment pipeline.
+The Healing Space UK platform is **production ready** for a supervised university pilot. All core features are implemented, tested, and documented. The codebase meets security, privacy, and compliance standards suitable for academic and clinical research pilots. The system is actively maintained, with a clear roadmap and robust deployment pipeline.
 
 ---
 
@@ -99,7 +99,7 @@ The Healing Space platform is **production ready** for a supervised university p
 
 ## 8. Conclusion
 
-**Healing Space is ready for a university pilot.**  
+**Healing Space UK is ready for a university pilot.**
 You can confidently approach your local university to propose a trial.  
 All technical, security, and compliance requirements for a supervised academic study are met.
 

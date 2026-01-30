@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def main():
     print(f"\n{'='*70}")
-    print(f"🤖 Healing Space AI Training Scheduler")
+    print(f"🤖 Healing Space UK AI Training Scheduler")
     print(f"⏰ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*70}\n")
     

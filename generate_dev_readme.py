@@ -1,5 +1,5 @@
 """
-Generate Developer README PDF for Healing Space Therapy App
+Generate Developer README PDF for Healing Space UK Therapy App
 Complete documentation of features, security, and improvement ideas
 """
 from fpdf import FPDF
@@ -8,7 +8,7 @@ from datetime import datetime
 class DevReadmePDF(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 16)
-        self.cell(0, 10, 'Healing Space Therapy App - Developer Documentation', 0, 1, 'C')
+        self.cell(0, 10, 'Healing Space UK Therapy App - Developer Documentation', 0, 1, 'C')
         self.set_font('Arial', 'I', 10)
         self.cell(0, 5, f'Generated: {datetime.now().strftime("%B %d, %Y")}', 0, 1, 'C')
         self.ln(5)
@@ -47,7 +47,7 @@ pdf.add_page()
 # ===== APPLICATION OVERVIEW =====
 pdf.section_title('1. APPLICATION OVERVIEW')
 pdf.body_text(
-    'Healing Space is a comprehensive mental health therapy application offering both desktop (Tkinter) '
+    'Healing Space UK is a comprehensive mental health therapy application offering both desktop (Tkinter) '
     'and web (Flask REST API) interfaces. The application provides AI-powered therapy sessions, mood tracking, '
     'CBT tools, clinical assessments, and professional clinician oversight.'
 )
@@ -647,7 +647,7 @@ pdf.ln(3)
 pdf.section_title('11. SUMMARY')
 pdf.set_font('Arial', '', 10)
 pdf.body_text(
-    'Healing Space is a feature-rich mental health application combining AI therapy, clinical tools, '
+    'Healing Space UK is a feature-rich mental health application combining AI therapy, clinical tools, '
     'gamification, and professional oversight. The application prioritizes user safety with crisis '
     'detection, secure authentication, and legal disclaimers.'
 )
