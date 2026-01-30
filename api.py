@@ -1,3 +1,1282 @@
+# ================== CBT: GOAL SETTING/TRACKING ENDPOINTS ==================
+
+@app.route('/api/cbt/goals', methods=['POST'])
+def create_goal():
+    """Create a new goal entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        required = ['goal_title']
+        for field in required:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        goal_title = data['goal_title']
+        goal_description = data.get('goal_description')
+        goal_type = data.get('goal_type')
+        target_date = data.get('target_date')
+        related_value_id = data.get('related_value_id')
+        status = data.get('status', 'active')
+        progress_percentage = data.get('progress_percentage', 0)
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO goals (username, goal_title, goal_description, goal_type, target_date, related_value_id, status, progress_percentage) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (username, goal_title, goal_description, goal_type, target_date, related_value_id, status, progress_percentage))
+        conn.commit()
+        log_event(username, 'cbt', 'goal_created', f"Goal: {goal_title}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Goal entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_goal')
+
+@app.route('/api/cbt/goals', methods=['GET'])
+def list_goals():
+    """List all goal entries for the authenticated user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM goals WHERE username=? ORDER BY entry_timestamp DESC', (username,)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_goals')
+
+@app.route('/api/cbt/goals/<int:entry_id>', methods=['GET'])
+def get_goal(entry_id):
+    """Get a single goal entry by ID"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM goals WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Entry not found'}), 404
+        result = dict(zip([c[0] for c in cur.description], row))
+        return jsonify(result), 200
+    except Exception as e:
+        return handle_exception(e, 'get_goal')
+
+@app.route('/api/cbt/goals/<int:entry_id>', methods=['PUT'])
+def update_goal(entry_id):
+    """Update a goal entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM goals WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        fields = ['goal_title', 'goal_description', 'goal_type', 'target_date', 'related_value_id', 'status', 'progress_percentage']
+        updates = {k: data[k] for k in fields if k in data}
+        set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+        values = list(updates.values()) + [entry_id, username]
+        cur.execute(f'UPDATE goals SET {set_clause} WHERE id=? AND username=?', values)
+        conn.commit()
+        log_event(username, 'cbt', 'goal_updated', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_goal')
+
+@app.route('/api/cbt/goals/<int:entry_id>', methods=['DELETE'])
+def delete_goal(entry_id):
+    """Delete a goal entry"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM goals WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        cur.execute('DELETE FROM goals WHERE id=? AND username=?', (entry_id, username))
+        conn.commit()
+        log_event(username, 'cbt', 'goal_deleted', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry deleted'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_goal')
+
+# Milestones CRUD
+@app.route('/api/cbt/goals/<int:goal_id>/milestone', methods=['POST'])
+def create_goal_milestone(goal_id):
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        milestone_title = data.get('milestone_title')
+        milestone_description = data.get('milestone_description')
+        target_date = data.get('target_date')
+        is_completed = int(data.get('is_completed', 0))
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO goal_milestones (goal_id, username, milestone_title, milestone_description, target_date, is_completed) VALUES (?, ?, ?, ?, ?, ?)''',
+            (goal_id, username, milestone_title, milestone_description, target_date, is_completed))
+        conn.commit()
+        log_event(username, 'cbt', 'goal_milestone_created', f"Goal ID: {goal_id}, Title: {milestone_title}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Milestone entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_goal_milestone')
+
+@app.route('/api/cbt/goals/<int:goal_id>/milestone', methods=['GET'])
+def list_goal_milestones(goal_id):
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM goal_milestones WHERE goal_id=? AND username=? ORDER BY entry_timestamp DESC', (goal_id, username)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_goal_milestones')
+
+# Check-ins CRUD
+@app.route('/api/cbt/goals/<int:goal_id>/checkin', methods=['POST'])
+def create_goal_checkin(goal_id):
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        progress_notes = data.get('progress_notes')
+        obstacles = data.get('obstacles')
+        next_steps = data.get('next_steps')
+        motivation_level = data.get('motivation_level')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO goal_checkins (goal_id, username, progress_notes, obstacles, next_steps, motivation_level) VALUES (?, ?, ?, ?, ?, ?)''',
+            (goal_id, username, progress_notes, obstacles, next_steps, motivation_level))
+        conn.commit()
+        log_event(username, 'cbt', 'goal_checkin_created', f"Goal ID: {goal_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Check-in entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_goal_checkin')
+
+@app.route('/api/cbt/goals/<int:goal_id>/checkin', methods=['GET'])
+def list_goal_checkins(goal_id):
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM goal_checkins WHERE goal_id=? AND username=? ORDER BY checkin_timestamp DESC', (goal_id, username)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_goal_checkins')
+
+# ========== AI MEMORY INTEGRATION: Goals ==========
+def summarize_goals(username, limit=3):
+    """Summarize recent goal activity for AI memory/context"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT goal_title, status, progress_percentage, entry_timestamp FROM goals WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?', (username, limit)).fetchall()
+        conn.close()
+        if not rows:
+            return None
+        summary = []
+        for r in rows:
+            summary.append(f"{r[0]} ({r[1]}, {r[2]}%) on {r[3][:10]}")
+        return "Recent goals: " + "; ".join(summary)
+    except Exception:
+        return None
+# ================== CBT: VALUES CLARIFICATION ENDPOINTS ==================
+
+@app.route('/api/cbt/values', methods=['POST'])
+def create_value():
+    """Create a new values clarification entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        required = ['value_name']
+        for field in required:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        value_name = data['value_name']
+        value_description = data.get('value_description')
+        importance_rating = data.get('importance_rating')
+        current_alignment = data.get('current_alignment')
+        life_area = data.get('life_area')
+        related_goals = data.get('related_goals')
+        is_active = int(data.get('is_active', 1))
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO values_clarification (username, value_name, value_description, importance_rating, current_alignment, life_area, related_goals, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (username, value_name, value_description, importance_rating, current_alignment, life_area, related_goals, is_active))
+        conn.commit()
+        log_event(username, 'cbt', 'value_created', f"Value: {value_name}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Value entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_value')
+
+@app.route('/api/cbt/values', methods=['GET'])
+def list_values():
+    """List all values clarification entries for the authenticated user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM values_clarification WHERE username=? ORDER BY entry_timestamp DESC', (username,)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_values')
+
+@app.route('/api/cbt/values/<int:entry_id>', methods=['GET'])
+def get_value(entry_id):
+    """Get a single values clarification entry by ID"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM values_clarification WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Entry not found'}), 404
+        result = dict(zip([c[0] for c in cur.description], row))
+        return jsonify(result), 200
+    except Exception as e:
+        return handle_exception(e, 'get_value')
+
+@app.route('/api/cbt/values/<int:entry_id>', methods=['PUT'])
+def update_value(entry_id):
+    """Update a values clarification entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM values_clarification WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        fields = ['value_name', 'value_description', 'importance_rating', 'current_alignment', 'life_area', 'related_goals', 'is_active']
+        updates = {k: data[k] for k in fields if k in data}
+        set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+        values = list(updates.values()) + [entry_id, username]
+        cur.execute(f'UPDATE values_clarification SET {set_clause} WHERE id=? AND username=?', values)
+        conn.commit()
+        log_event(username, 'cbt', 'value_updated', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_value')
+
+@app.route('/api/cbt/values/<int:entry_id>', methods=['DELETE'])
+def delete_value(entry_id):
+    """Delete a values clarification entry"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM values_clarification WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        cur.execute('DELETE FROM values_clarification WHERE id=? AND username=?', (entry_id, username))
+        conn.commit()
+        log_event(username, 'cbt', 'value_deleted', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry deleted'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_value')
+
+# ========== AI MEMORY INTEGRATION: Values Clarification ==========
+def summarize_values_clarification(username, limit=3):
+    """Summarize recent values clarification activity for AI memory/context"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT value_name, importance_rating, current_alignment, entry_timestamp FROM values_clarification WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?', (username, limit)).fetchall()
+        conn.close()
+        if not rows:
+            return None
+        summary = []
+        for r in rows:
+            summary.append(f"{r[0]} (importance {r[1]}, align {r[2]}) on {r[3][:10]}")
+        return "Recent values: " + "; ".join(summary)
+    except Exception:
+        return None
+# ================== CBT: SELF-COMPASSION JOURNAL ENDPOINTS ==================
+
+@app.route('/api/cbt/self-compassion', methods=['POST'])
+def create_self_compassion():
+    """Create a new self-compassion journal entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        difficult_situation = data.get('difficult_situation')
+        self_critical_thoughts = data.get('self_critical_thoughts')
+        common_humanity = data.get('common_humanity')
+        kind_response = data.get('kind_response')
+        self_care_action = data.get('self_care_action')
+        mood_before = data.get('mood_before')
+        mood_after = data.get('mood_after')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO self_compassion_journal (username, difficult_situation, self_critical_thoughts, common_humanity, kind_response, self_care_action, mood_before, mood_after) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (username, difficult_situation, self_critical_thoughts, common_humanity, kind_response, self_care_action, mood_before, mood_after))
+        conn.commit()
+        log_event(username, 'cbt', 'self_compassion_created', f"Situation: {difficult_situation}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Self-compassion journal entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_self_compassion')
+
+@app.route('/api/cbt/self-compassion', methods=['GET'])
+def list_self_compassion():
+    """List all self-compassion journal entries for the authenticated user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM self_compassion_journal WHERE username=? ORDER BY entry_timestamp DESC', (username,)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_self_compassion')
+
+@app.route('/api/cbt/self-compassion/<int:entry_id>', methods=['GET'])
+def get_self_compassion(entry_id):
+    """Get a single self-compassion journal entry by ID"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM self_compassion_journal WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Entry not found'}), 404
+        result = dict(zip([c[0] for c in cur.description], row))
+        return jsonify(result), 200
+    except Exception as e:
+        return handle_exception(e, 'get_self_compassion')
+
+@app.route('/api/cbt/self-compassion/<int:entry_id>', methods=['PUT'])
+def update_self_compassion(entry_id):
+    """Update a self-compassion journal entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM self_compassion_journal WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        fields = ['difficult_situation', 'self_critical_thoughts', 'common_humanity', 'kind_response', 'self_care_action', 'mood_before', 'mood_after']
+        updates = {k: data[k] for k in fields if k in data}
+        set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+        values = list(updates.values()) + [entry_id, username]
+        cur.execute(f'UPDATE self_compassion_journal SET {set_clause} WHERE id=? AND username=?', values)
+        conn.commit()
+        log_event(username, 'cbt', 'self_compassion_updated', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_self_compassion')
+
+@app.route('/api/cbt/self-compassion/<int:entry_id>', methods=['DELETE'])
+def delete_self_compassion(entry_id):
+    """Delete a self-compassion journal entry"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM self_compassion_journal WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        cur.execute('DELETE FROM self_compassion_journal WHERE id=? AND username=?', (entry_id, username))
+        conn.commit()
+        log_event(username, 'cbt', 'self_compassion_deleted', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry deleted'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_self_compassion')
+
+# ========== AI MEMORY INTEGRATION: Self-Compassion Journal ==========
+def summarize_self_compassion(username, limit=3):
+    """Summarize recent self-compassion journal activity for AI memory/context"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT difficult_situation, kind_response, mood_before, mood_after, entry_timestamp FROM self_compassion_journal WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?', (username, limit)).fetchall()
+        conn.close()
+        if not rows:
+            return None
+        summary = []
+        for r in rows:
+            summary.append(f"{r[0]}: {r[1]} ({r[2]}→{r[3]}) on {r[4][:10]}")
+        return "Recent self-compassion: " + "; ".join(summary)
+    except Exception:
+        return None
+# ================== CBT: COPING CARDS ENDPOINTS ==================
+
+@app.route('/api/cbt/coping-card', methods=['POST'])
+def create_coping_card():
+    """Create a new coping card entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        required = ['card_title']
+        for field in required:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        card_title = data['card_title']
+        situation_trigger = data.get('situation_trigger')
+        unhelpful_thought = data.get('unhelpful_thought')
+        helpful_response = data.get('helpful_response')
+        coping_strategies = data.get('coping_strategies')
+        is_favorite = int(data.get('is_favorite', 0))
+        times_used = int(data.get('times_used', 0))
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO coping_cards (username, card_title, situation_trigger, unhelpful_thought, helpful_response, coping_strategies, is_favorite, times_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (username, card_title, situation_trigger, unhelpful_thought, helpful_response, coping_strategies, is_favorite, times_used))
+        conn.commit()
+        log_event(username, 'cbt', 'coping_card_created', f"Title: {card_title}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Coping card entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_coping_card')
+
+@app.route('/api/cbt/coping-card', methods=['GET'])
+def list_coping_cards():
+    """List all coping card entries for the authenticated user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM coping_cards WHERE username=? ORDER BY entry_timestamp DESC', (username,)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_coping_cards')
+
+@app.route('/api/cbt/coping-card/<int:entry_id>', methods=['GET'])
+def get_coping_card(entry_id):
+    """Get a single coping card entry by ID"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM coping_cards WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Entry not found'}), 404
+        result = dict(zip([c[0] for c in cur.description], row))
+        return jsonify(result), 200
+    except Exception as e:
+        return handle_exception(e, 'get_coping_card')
+
+@app.route('/api/cbt/coping-card/<int:entry_id>', methods=['PUT'])
+def update_coping_card(entry_id):
+    """Update a coping card entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM coping_cards WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        fields = ['card_title', 'situation_trigger', 'unhelpful_thought', 'helpful_response', 'coping_strategies', 'is_favorite', 'times_used']
+        updates = {k: data[k] for k in fields if k in data}
+        set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+        values = list(updates.values()) + [entry_id, username]
+        cur.execute(f'UPDATE coping_cards SET {set_clause} WHERE id=? AND username=?', values)
+        conn.commit()
+        log_event(username, 'cbt', 'coping_card_updated', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_coping_card')
+
+@app.route('/api/cbt/coping-card/<int:entry_id>', methods=['DELETE'])
+def delete_coping_card(entry_id):
+    """Delete a coping card entry"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM coping_cards WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        cur.execute('DELETE FROM coping_cards WHERE id=? AND username=?', (entry_id, username))
+        conn.commit()
+        log_event(username, 'cbt', 'coping_card_deleted', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry deleted'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_coping_card')
+
+# ========== AI MEMORY INTEGRATION: Coping Cards ==========
+def summarize_coping_cards(username, limit=3):
+    """Summarize recent coping card activity for AI memory/context"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT card_title, helpful_response, times_used, entry_timestamp FROM coping_cards WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?', (username, limit)).fetchall()
+        conn.close()
+        if not rows:
+            return None
+        summary = []
+        for r in rows:
+            summary.append(f"{r[0]}: {r[1]} (used {r[2]}x) on {r[3][:10]}")
+        return "Recent coping cards: " + "; ".join(summary)
+    except Exception:
+        return None
+# ================== CBT: PROBLEM-SOLVING WORKSHEET ENDPOINTS ==================
+
+@app.route('/api/cbt/problem-solving', methods=['POST'])
+def create_problem_solving():
+    """Create a new problem-solving worksheet entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        required = ['problem_description']
+        for field in required:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        problem_description = data['problem_description']
+        problem_importance = data.get('problem_importance')
+        brainstormed_solutions = data.get('brainstormed_solutions')
+        chosen_solution = data.get('chosen_solution')
+        action_steps = data.get('action_steps')
+        outcome = data.get('outcome')
+        status = data.get('status', 'in_progress')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO problem_solving (username, problem_description, problem_importance, brainstormed_solutions, chosen_solution, action_steps, outcome, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (username, problem_description, problem_importance, brainstormed_solutions, chosen_solution, action_steps, outcome, status))
+        conn.commit()
+        log_event(username, 'cbt', 'problem_solving_created', f"Problem: {problem_description}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Problem-solving entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_problem_solving')
+
+@app.route('/api/cbt/problem-solving', methods=['GET'])
+def list_problem_solving():
+    """List all problem-solving worksheet entries for the authenticated user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM problem_solving WHERE username=? ORDER BY entry_timestamp DESC', (username,)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_problem_solving')
+
+@app.route('/api/cbt/problem-solving/<int:entry_id>', methods=['GET'])
+def get_problem_solving(entry_id):
+    """Get a single problem-solving worksheet entry by ID"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM problem_solving WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Entry not found'}), 404
+        result = dict(zip([c[0] for c in cur.description], row))
+        return jsonify(result), 200
+    except Exception as e:
+        return handle_exception(e, 'get_problem_solving')
+
+@app.route('/api/cbt/problem-solving/<int:entry_id>', methods=['PUT'])
+def update_problem_solving(entry_id):
+    """Update a problem-solving worksheet entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM problem_solving WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        fields = ['problem_description', 'problem_importance', 'brainstormed_solutions', 'chosen_solution', 'action_steps', 'outcome', 'status']
+        updates = {k: data[k] for k in fields if k in data}
+        set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+        values = list(updates.values()) + [entry_id, username]
+        cur.execute(f'UPDATE problem_solving SET {set_clause} WHERE id=? AND username=?', values)
+        conn.commit()
+        log_event(username, 'cbt', 'problem_solving_updated', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_problem_solving')
+
+@app.route('/api/cbt/problem-solving/<int:entry_id>', methods=['DELETE'])
+def delete_problem_solving(entry_id):
+    """Delete a problem-solving worksheet entry"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM problem_solving WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        cur.execute('DELETE FROM problem_solving WHERE id=? AND username=?', (entry_id, username))
+        conn.commit()
+        log_event(username, 'cbt', 'problem_solving_deleted', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry deleted'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_problem_solving')
+
+# ========== AI MEMORY INTEGRATION: Problem Solving ==========
+def summarize_problem_solving(username, limit=3):
+    """Summarize recent problem-solving worksheet activity for AI memory/context"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT problem_description, chosen_solution, outcome, status, entry_timestamp FROM problem_solving WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?', (username, limit)).fetchall()
+        conn.close()
+        if not rows:
+            return None
+        summary = []
+        for r in rows:
+            summary.append(f"{r[0]}: {r[1]} → {r[2]} ({r[3]}) on {r[4][:10]}")
+        return "Recent problem-solving: " + "; ".join(summary)
+    except Exception:
+        return None
+# ================== CBT: EXPOSURE HIERARCHY ENDPOINTS ==================
+
+@app.route('/api/cbt/exposure', methods=['POST'])
+def create_exposure_hierarchy():
+    """Create a new exposure hierarchy entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        required = ['fear_situation']
+        for field in required:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        fear_situation = data['fear_situation']
+        initial_suds = data.get('initial_suds')
+        target_suds = data.get('target_suds')
+        hierarchy_rank = data.get('hierarchy_rank')
+        status = data.get('status', 'not_started')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO exposure_hierarchy (username, fear_situation, initial_suds, target_suds, hierarchy_rank, status) VALUES (?, ?, ?, ?, ?, ?)''',
+            (username, fear_situation, initial_suds, target_suds, hierarchy_rank, status))
+        conn.commit()
+        log_event(username, 'cbt', 'exposure_hierarchy_created', f"Situation: {fear_situation}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Exposure hierarchy entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_exposure_hierarchy')
+
+@app.route('/api/cbt/exposure', methods=['GET'])
+def list_exposure_hierarchy():
+    """List all exposure hierarchy entries for the authenticated user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM exposure_hierarchy WHERE username=? ORDER BY hierarchy_rank ASC, entry_timestamp DESC', (username,)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_exposure_hierarchy')
+
+@app.route('/api/cbt/exposure/<int:entry_id>', methods=['GET'])
+def get_exposure_hierarchy(entry_id):
+    """Get a single exposure hierarchy entry by ID"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM exposure_hierarchy WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Entry not found'}), 404
+        result = dict(zip([c[0] for c in cur.description], row))
+        return jsonify(result), 200
+    except Exception as e:
+        return handle_exception(e, 'get_exposure_hierarchy')
+
+@app.route('/api/cbt/exposure/<int:entry_id>', methods=['PUT'])
+def update_exposure_hierarchy(entry_id):
+    """Update an exposure hierarchy entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM exposure_hierarchy WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        fields = ['fear_situation', 'initial_suds', 'target_suds', 'hierarchy_rank', 'status']
+        updates = {k: data[k] for k in fields if k in data}
+        set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+        values = list(updates.values()) + [entry_id, username]
+        cur.execute(f'UPDATE exposure_hierarchy SET {set_clause} WHERE id=? AND username=?', values)
+        conn.commit()
+        log_event(username, 'cbt', 'exposure_hierarchy_updated', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_exposure_hierarchy')
+
+@app.route('/api/cbt/exposure/<int:entry_id>', methods=['DELETE'])
+def delete_exposure_hierarchy(entry_id):
+    """Delete an exposure hierarchy entry"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM exposure_hierarchy WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        cur.execute('DELETE FROM exposure_hierarchy WHERE id=? AND username=?', (entry_id, username))
+        conn.commit()
+        log_event(username, 'cbt', 'exposure_hierarchy_deleted', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry deleted'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_exposure_hierarchy')
+
+# Exposure Attempts CRUD
+@app.route('/api/cbt/exposure/<int:exposure_id>/attempt', methods=['POST'])
+def create_exposure_attempt(exposure_id):
+    """Create a new exposure attempt for a hierarchy item"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        pre_suds = data.get('pre_suds')
+        peak_suds = data.get('peak_suds')
+        post_suds = data.get('post_suds')
+        duration_minutes = data.get('duration_minutes')
+        coping_strategies_used = data.get('coping_strategies_used')
+        notes = data.get('notes')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO exposure_attempts (exposure_id, username, pre_suds, peak_suds, post_suds, duration_minutes, coping_strategies_used, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (exposure_id, username, pre_suds, peak_suds, post_suds, duration_minutes, coping_strategies_used, notes))
+        conn.commit()
+        log_event(username, 'cbt', 'exposure_attempt_created', f"Exposure ID: {exposure_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Exposure attempt entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_exposure_attempt')
+
+@app.route('/api/cbt/exposure/<int:exposure_id>/attempt', methods=['GET'])
+def list_exposure_attempts(exposure_id):
+    """List all exposure attempts for a hierarchy item"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM exposure_attempts WHERE exposure_id=? AND username=? ORDER BY attempt_timestamp DESC', (exposure_id, username)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_exposure_attempts')
+
+# ========== AI MEMORY INTEGRATION: Exposure Hierarchy ==========
+def summarize_exposure_hierarchy(username, limit=3):
+    """Summarize recent exposure hierarchy activity for AI memory/context"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT fear_situation, status, initial_suds, target_suds, entry_timestamp FROM exposure_hierarchy WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?', (username, limit)).fetchall()
+        conn.close()
+        if not rows:
+            return None
+        summary = []
+        for r in rows:
+            summary.append(f"{r[0]} ({r[1]}): {r[2]}→{r[3]} SUDS on {r[4][:10]}")
+        return "Recent exposures: " + "; ".join(summary)
+    except Exception:
+        return None
+# ================== CBT: CORE BELIEF WORKSHEET ENDPOINTS ==================
+
+@app.route('/api/cbt/core-belief', methods=['POST'])
+def create_core_belief():
+    """Create a new core belief worksheet entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        required = ['old_belief']
+        for field in required:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        old_belief = data['old_belief']
+        belief_origin = data.get('belief_origin')
+        evidence_for = data.get('evidence_for')
+        evidence_against = data.get('evidence_against')
+        new_balanced_belief = data.get('new_balanced_belief')
+        belief_strength_before = data.get('belief_strength_before')
+        belief_strength_after = data.get('belief_strength_after')
+        is_active = int(data.get('is_active', 1))
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO core_beliefs (username, old_belief, belief_origin, evidence_for, evidence_against, new_balanced_belief, belief_strength_before, belief_strength_after, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            (username, old_belief, belief_origin, evidence_for, evidence_against, new_balanced_belief, belief_strength_before, belief_strength_after, is_active))
+        conn.commit()
+        log_event(username, 'cbt', 'core_belief_created', f"Old: {old_belief}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Core belief entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_core_belief')
+
+@app.route('/api/cbt/core-belief', methods=['GET'])
+def list_core_beliefs():
+    """List all core belief worksheet entries for the authenticated user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM core_beliefs WHERE username=? ORDER BY entry_timestamp DESC', (username,)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_core_beliefs')
+
+@app.route('/api/cbt/core-belief/<int:entry_id>', methods=['GET'])
+def get_core_belief(entry_id):
+    """Get a single core belief worksheet entry by ID"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM core_beliefs WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Entry not found'}), 404
+        result = dict(zip([c[0] for c in cur.description], row))
+        return jsonify(result), 200
+    except Exception as e:
+        return handle_exception(e, 'get_core_belief')
+
+@app.route('/api/cbt/core-belief/<int:entry_id>', methods=['PUT'])
+def update_core_belief(entry_id):
+    """Update a core belief worksheet entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM core_beliefs WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        # Only update provided fields
+        fields = ['old_belief', 'belief_origin', 'evidence_for', 'evidence_against', 'new_balanced_belief', 'belief_strength_before', 'belief_strength_after', 'is_active']
+        updates = {k: data[k] for k in fields if k in data}
+        set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+        values = list(updates.values()) + [entry_id, username]
+        cur.execute(f'UPDATE core_beliefs SET {set_clause} WHERE id=? AND username=?', values)
+        conn.commit()
+        log_event(username, 'cbt', 'core_belief_updated', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_core_belief')
+
+@app.route('/api/cbt/core-belief/<int:entry_id>', methods=['DELETE'])
+def delete_core_belief(entry_id):
+    """Delete a core belief worksheet entry"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM core_beliefs WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        cur.execute('DELETE FROM core_beliefs WHERE id=? AND username=?', (entry_id, username))
+        conn.commit()
+        log_event(username, 'cbt', 'core_belief_deleted', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry deleted'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_core_belief')
+
+# ========== AI MEMORY INTEGRATION: Core Beliefs ==========
+def summarize_core_beliefs(username, limit=3):
+    """Summarize recent core belief worksheet activity for AI memory/context"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT old_belief, new_balanced_belief, belief_strength_before, belief_strength_after, entry_timestamp FROM core_beliefs WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?', (username, limit)).fetchall()
+        conn.close()
+        if not rows:
+            return None
+        summary = []
+        for r in rows:
+            summary.append(f"Old: {r[0]}, New: {r[1]}, {r[2]}→{r[3]} on {r[4][:10]}")
+        return "Recent core beliefs: " + "; ".join(summary)
+    except Exception:
+        return None
+# ================== CBT: SLEEP DIARY ENDPOINTS ==================
+
+@app.route('/api/cbt/sleep', methods=['POST'])
+def create_sleep_diary():
+    """Create a new sleep diary entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        required = ['sleep_date']
+        for field in required:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        sleep_date = data['sleep_date']
+        bedtime = data.get('bedtime')
+        wake_time = data.get('wake_time')
+        time_to_fall_asleep = data.get('time_to_fall_asleep')
+        times_woken = data.get('times_woken')
+        total_sleep_hours = data.get('total_sleep_hours')
+        sleep_quality = data.get('sleep_quality')
+        dreams_nightmares = data.get('dreams_nightmares')
+        factors_affecting = data.get('factors_affecting')
+        morning_mood = data.get('morning_mood')
+        notes = data.get('notes')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO sleep_diary (username, sleep_date, bedtime, wake_time, time_to_fall_asleep, times_woken, total_sleep_hours, sleep_quality, dreams_nightmares, factors_affecting, morning_mood, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            (username, sleep_date, bedtime, wake_time, time_to_fall_asleep, times_woken, total_sleep_hours, sleep_quality, dreams_nightmares, factors_affecting, morning_mood, notes))
+        conn.commit()
+        log_event(username, 'cbt', 'sleep_diary_created', f"Date: {sleep_date}, Quality: {sleep_quality}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Sleep diary entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_sleep_diary')
+
+@app.route('/api/cbt/sleep', methods=['GET'])
+def list_sleep_diary():
+    """List all sleep diary entries for the authenticated user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM sleep_diary WHERE username=? ORDER BY entry_timestamp DESC', (username,)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_sleep_diary')
+
+@app.route('/api/cbt/sleep/<int:entry_id>', methods=['GET'])
+def get_sleep_diary(entry_id):
+    """Get a single sleep diary entry by ID"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM sleep_diary WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Entry not found'}), 404
+        result = dict(zip([c[0] for c in cur.description], row))
+        return jsonify(result), 200
+    except Exception as e:
+        return handle_exception(e, 'get_sleep_diary')
+
+@app.route('/api/cbt/sleep/<int:entry_id>', methods=['PUT'])
+def update_sleep_diary(entry_id):
+    """Update a sleep diary entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM sleep_diary WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        # Only update provided fields
+        fields = ['sleep_date', 'bedtime', 'wake_time', 'time_to_fall_asleep', 'times_woken', 'total_sleep_hours', 'sleep_quality', 'dreams_nightmares', 'factors_affecting', 'morning_mood', 'notes']
+        updates = {k: data[k] for k in fields if k in data}
+        set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+        values = list(updates.values()) + [entry_id, username]
+        cur.execute(f'UPDATE sleep_diary SET {set_clause} WHERE id=? AND username=?', values)
+        conn.commit()
+        log_event(username, 'cbt', 'sleep_diary_updated', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_sleep_diary')
+
+@app.route('/api/cbt/sleep/<int:entry_id>', methods=['DELETE'])
+def delete_sleep_diary(entry_id):
+    """Delete a sleep diary entry"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM sleep_diary WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        cur.execute('DELETE FROM sleep_diary WHERE id=? AND username=?', (entry_id, username))
+        conn.commit()
+        log_event(username, 'cbt', 'sleep_diary_deleted', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry deleted'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_sleep_diary')
+
+# ========== AI MEMORY INTEGRATION: Sleep Diary ==========
+def summarize_sleep_diary(username, limit=3):
+    """Summarize recent sleep diary activity for AI memory/context"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT sleep_date, total_sleep_hours, sleep_quality, morning_mood, entry_timestamp FROM sleep_diary WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?', (username, limit)).fetchall()
+        conn.close()
+        if not rows:
+            return None
+        summary = []
+        for r in rows:
+            summary.append(f"{r[0]}: {r[1]}h, quality {r[2]}, mood {r[3]}")
+        return "Recent sleep diary: " + "; ".join(summary)
+    except Exception:
+        return None
+# ================== CBT: RELAXATION TECHNIQUES ENDPOINTS ==================
+
+@app.route('/api/cbt/relaxation', methods=['POST'])
+def create_relaxation_technique():
+    """Create a new relaxation technique entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        required = ['technique_type']
+        for field in required:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        technique_type = data['technique_type']
+        duration_minutes = data.get('duration_minutes')
+        effectiveness_rating = data.get('effectiveness_rating')
+        body_scan_areas = data.get('body_scan_areas')
+        notes = data.get('notes')
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO relaxation_techniques (username, technique_type, duration_minutes, effectiveness_rating, body_scan_areas, notes) VALUES (?, ?, ?, ?, ?, ?)''',
+            (username, technique_type, duration_minutes, effectiveness_rating, body_scan_areas, notes))
+        conn.commit()
+        log_event(username, 'cbt', 'relaxation_technique_created', f"Type: {technique_type}, Duration: {duration_minutes}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Relaxation technique entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_relaxation_technique')
+
+@app.route('/api/cbt/relaxation', methods=['GET'])
+def list_relaxation_techniques():
+    """List all relaxation technique entries for the authenticated user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM relaxation_techniques WHERE username=? ORDER BY entry_timestamp DESC', (username,)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_relaxation_techniques')
+
+@app.route('/api/cbt/relaxation/<int:entry_id>', methods=['GET'])
+def get_relaxation_technique(entry_id):
+    """Get a single relaxation technique entry by ID"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM relaxation_techniques WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Entry not found'}), 404
+        result = dict(zip([c[0] for c in cur.description], row))
+        return jsonify(result), 200
+    except Exception as e:
+        return handle_exception(e, 'get_relaxation_technique')
+
+@app.route('/api/cbt/relaxation/<int:entry_id>', methods=['PUT'])
+def update_relaxation_technique(entry_id):
+    """Update a relaxation technique entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM relaxation_techniques WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        # Only update provided fields
+        fields = ['technique_type', 'duration_minutes', 'effectiveness_rating', 'body_scan_areas', 'notes']
+        updates = {k: data[k] for k in fields if k in data}
+        set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+        values = list(updates.values()) + [entry_id, username]
+        cur.execute(f'UPDATE relaxation_techniques SET {set_clause} WHERE id=? AND username=?', values)
+        conn.commit()
+        log_event(username, 'cbt', 'relaxation_technique_updated', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_relaxation_technique')
+
+@app.route('/api/cbt/relaxation/<int:entry_id>', methods=['DELETE'])
+def delete_relaxation_technique(entry_id):
+    """Delete a relaxation technique entry"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM relaxation_techniques WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        cur.execute('DELETE FROM relaxation_techniques WHERE id=? AND username=?', (entry_id, username))
+        conn.commit()
+        log_event(username, 'cbt', 'relaxation_technique_deleted', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry deleted'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_relaxation_technique')
+
+# ========== AI MEMORY INTEGRATION: Relaxation Techniques ==========
+def summarize_relaxation_techniques(username, limit=3):
+    """Summarize recent relaxation technique activity for AI memory/context"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT technique_type, duration_minutes, effectiveness_rating, entry_timestamp FROM relaxation_techniques WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?', (username, limit)).fetchall()
+        conn.close()
+        if not rows:
+            return None
+        summary = []
+        for r in rows:
+            summary.append(f"{r[0]} ({r[1]}min, rating {r[2]}) on {r[3][:10]}")
+        return "Recent relaxation techniques: " + "; ".join(summary)
+    except Exception:
+        return None
 """
 Flask API wrapper for Healing Space Therapy App
 Provides REST API endpoints while keeping desktop app intact
@@ -722,6 +2001,183 @@ def init_db():
                        notification_sent INTEGER DEFAULT 0,
                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
 
+    # ========== CBT TOOLS TABLES ==========
+
+    # 1. Breathing Exercises - Track breathing exercise sessions
+    cursor.execute('''CREATE TABLE IF NOT EXISTS breathing_exercises
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT NOT NULL,
+                       exercise_type TEXT NOT NULL,
+                       duration_seconds INTEGER,
+                       pre_anxiety_level INTEGER,
+                       post_anxiety_level INTEGER,
+                       notes TEXT,
+                       completed INTEGER DEFAULT 1,
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+
+    # 2. Relaxation Techniques - Track relaxation technique usage
+    cursor.execute('''CREATE TABLE IF NOT EXISTS relaxation_techniques
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT NOT NULL,
+                       technique_type TEXT NOT NULL,
+                       duration_minutes INTEGER,
+                       effectiveness_rating INTEGER,
+                       body_scan_areas TEXT,
+                       notes TEXT,
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+
+    # 3. Sleep Diary - Detailed sleep tracking
+    cursor.execute('''CREATE TABLE IF NOT EXISTS sleep_diary
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT NOT NULL,
+                       sleep_date DATE NOT NULL,
+                       bedtime TEXT,
+                       wake_time TEXT,
+                       time_to_fall_asleep INTEGER,
+                       times_woken INTEGER DEFAULT 0,
+                       total_sleep_hours REAL,
+                       sleep_quality INTEGER,
+                       dreams_nightmares TEXT,
+                       factors_affecting TEXT,
+                       morning_mood INTEGER,
+                       notes TEXT,
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+
+    # 4. Core Belief Worksheet - Challenge and reframe core beliefs
+    cursor.execute('''CREATE TABLE IF NOT EXISTS core_beliefs
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT NOT NULL,
+                       old_belief TEXT NOT NULL,
+                       belief_origin TEXT,
+                       evidence_for TEXT,
+                       evidence_against TEXT,
+                       new_balanced_belief TEXT,
+                       belief_strength_before INTEGER,
+                       belief_strength_after INTEGER,
+                       is_active INTEGER DEFAULT 1,
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       last_reviewed DATETIME)''')
+
+    # 5. Exposure Hierarchy - Track exposure therapy progress
+    cursor.execute('''CREATE TABLE IF NOT EXISTS exposure_hierarchy
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT NOT NULL,
+                       fear_situation TEXT NOT NULL,
+                       initial_suds INTEGER,
+                       target_suds INTEGER,
+                       hierarchy_rank INTEGER,
+                       status TEXT DEFAULT 'not_started',
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+
+    # Exposure attempts - Track individual exposure sessions
+    cursor.execute('''CREATE TABLE IF NOT EXISTS exposure_attempts
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       exposure_id INTEGER NOT NULL,
+                       username TEXT NOT NULL,
+                       pre_suds INTEGER,
+                       peak_suds INTEGER,
+                       post_suds INTEGER,
+                       duration_minutes INTEGER,
+                       coping_strategies_used TEXT,
+                       notes TEXT,
+                       attempt_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       FOREIGN KEY (exposure_id) REFERENCES exposure_hierarchy(id))''')
+
+    # 6. Problem-Solving Worksheet
+    cursor.execute('''CREATE TABLE IF NOT EXISTS problem_solving
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT NOT NULL,
+                       problem_description TEXT NOT NULL,
+                       problem_importance INTEGER,
+                       brainstormed_solutions TEXT,
+                       chosen_solution TEXT,
+                       action_steps TEXT,
+                       outcome TEXT,
+                       status TEXT DEFAULT 'in_progress',
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       completed_timestamp DATETIME)''')
+
+    # 7. Coping Cards - Quick reference coping strategies
+    cursor.execute('''CREATE TABLE IF NOT EXISTS coping_cards
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT NOT NULL,
+                       card_title TEXT NOT NULL,
+                       situation_trigger TEXT,
+                       unhelpful_thought TEXT,
+                       helpful_response TEXT,
+                       coping_strategies TEXT,
+                       is_favorite INTEGER DEFAULT 0,
+                       times_used INTEGER DEFAULT 0,
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       last_used DATETIME)''')
+
+    # 8. Self-Compassion Journal
+    cursor.execute('''CREATE TABLE IF NOT EXISTS self_compassion_journal
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT NOT NULL,
+                       difficult_situation TEXT,
+                       self_critical_thoughts TEXT,
+                       common_humanity TEXT,
+                       kind_response TEXT,
+                       self_care_action TEXT,
+                       mood_before INTEGER,
+                       mood_after INTEGER,
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+
+    # 9. Values Clarification
+    cursor.execute('''CREATE TABLE IF NOT EXISTS values_clarification
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT NOT NULL,
+                       value_name TEXT NOT NULL,
+                       value_description TEXT,
+                       importance_rating INTEGER,
+                       current_alignment INTEGER,
+                       life_area TEXT,
+                       related_goals TEXT,
+                       is_active INTEGER DEFAULT 1,
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       last_reviewed DATETIME)''')
+
+    # 10. Goal Setting and Tracking
+    cursor.execute('''CREATE TABLE IF NOT EXISTS goals
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT NOT NULL,
+                       goal_title TEXT NOT NULL,
+                       goal_description TEXT,
+                       goal_type TEXT,
+                       target_date DATE,
+                       related_value_id INTEGER,
+                       status TEXT DEFAULT 'active',
+                       progress_percentage INTEGER DEFAULT 0,
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       completed_timestamp DATETIME,
+                       FOREIGN KEY (related_value_id) REFERENCES values_clarification(id))''')
+
+    # Goal milestones - Track progress steps
+    cursor.execute('''CREATE TABLE IF NOT EXISTS goal_milestones
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       goal_id INTEGER NOT NULL,
+                       username TEXT NOT NULL,
+                       milestone_title TEXT NOT NULL,
+                       milestone_description TEXT,
+                       target_date DATE,
+                       is_completed INTEGER DEFAULT 0,
+                       completed_timestamp DATETIME,
+                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       FOREIGN KEY (goal_id) REFERENCES goals(id))''')
+
+    # Goal check-ins - Regular progress updates
+    cursor.execute('''CREATE TABLE IF NOT EXISTS goal_checkins
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                       goal_id INTEGER NOT NULL,
+                       username TEXT NOT NULL,
+                       progress_notes TEXT,
+                       obstacles TEXT,
+                       next_steps TEXT,
+                       motivation_level INTEGER,
+                       checkin_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                       FOREIGN KEY (goal_id) REFERENCES goals(id))''')
+
     # Developer Dashboard Tables
     cursor.execute('''CREATE TABLE IF NOT EXISTS dev_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1058,6 +2514,7 @@ You're here to help them explore their thoughts and feelings, not to solve every
             print(f"[AI ERROR] {str(e)}")  # Log for debugging
             return "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
 
+
 # Crisis resources text
 CRISIS_RESOURCES = """
 *** IMPORTANT SAFETY NOTICE ***
@@ -1067,6 +2524,141 @@ If you are feeling overwhelmed and considering self-harm or ending your life, pl
 - USA/Canada: Call or text 988.
 - International: Visit findahelpline.com
 """
+
+# ================== CBT: BREATHING EXERCISES ENDPOINTS ==================
+from flask import g
+
+def get_authenticated_username():
+    # Placeholder: Replace with real authentication/session logic
+    return request.headers.get('X-Username') or request.args.get('username')
+
+@app.route('/api/cbt/breathing', methods=['POST'])
+def create_breathing_exercise():
+    """Create a new breathing exercise entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        required = ['exercise_type']
+        for field in required:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        exercise_type = data['exercise_type']
+        duration_seconds = data.get('duration_seconds')
+        pre_anxiety_level = data.get('pre_anxiety_level')
+        post_anxiety_level = data.get('post_anxiety_level')
+        notes = data.get('notes')
+        completed = int(data.get('completed', 1))
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO breathing_exercises (username, exercise_type, duration_seconds, pre_anxiety_level, post_anxiety_level, notes, completed) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+            (username, exercise_type, duration_seconds, pre_anxiety_level, post_anxiety_level, notes, completed))
+        conn.commit()
+        log_event(username, 'cbt', 'breathing_exercise_created', f"Type: {exercise_type}, Duration: {duration_seconds}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Breathing exercise entry created'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_breathing_exercise')
+
+@app.route('/api/cbt/breathing', methods=['GET'])
+def list_breathing_exercises():
+    """List all breathing exercise entries for the authenticated user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT * FROM breathing_exercises WHERE username=? ORDER BY entry_timestamp DESC', (username,)).fetchall()
+        conn.close()
+        result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return jsonify({'entries': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_breathing_exercises')
+
+@app.route('/api/cbt/breathing/<int:entry_id>', methods=['GET'])
+def get_breathing_exercise(entry_id):
+    """Get a single breathing exercise entry by ID"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM breathing_exercises WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Entry not found'}), 404
+        result = dict(zip([c[0] for c in cur.description], row))
+        return jsonify(result), 200
+    except Exception as e:
+        return handle_exception(e, 'get_breathing_exercise')
+
+@app.route('/api/cbt/breathing/<int:entry_id>', methods=['PUT'])
+def update_breathing_exercise(entry_id):
+    """Update a breathing exercise entry"""
+    try:
+        data = request.json
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM breathing_exercises WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        # Only update provided fields
+        fields = ['exercise_type', 'duration_seconds', 'pre_anxiety_level', 'post_anxiety_level', 'notes', 'completed']
+        updates = {k: data[k] for k in fields if k in data}
+        set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+        values = list(updates.values()) + [entry_id, username]
+        cur.execute(f'UPDATE breathing_exercises SET {set_clause} WHERE id=? AND username=?', values)
+        conn.commit()
+        log_event(username, 'cbt', 'breathing_exercise_updated', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_breathing_exercise')
+
+@app.route('/api/cbt/breathing/<int:entry_id>', methods=['DELETE'])
+def delete_breathing_exercise(entry_id):
+    """Delete a breathing exercise entry"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        row = cur.execute('SELECT * FROM breathing_exercises WHERE id=? AND username=?', (entry_id, username)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+        cur.execute('DELETE FROM breathing_exercises WHERE id=? AND username=?', (entry_id, username))
+        conn.commit()
+        log_event(username, 'cbt', 'breathing_exercise_deleted', f"ID: {entry_id}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Entry deleted'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_breathing_exercise')
+
+# ========== AI MEMORY INTEGRATION: Breathing Exercises ==========
+def summarize_breathing_exercises(username, limit=3):
+    """Summarize recent breathing exercise activity for AI memory/context"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        rows = cur.execute('SELECT exercise_type, duration_seconds, pre_anxiety_level, post_anxiety_level, entry_timestamp FROM breathing_exercises WHERE username=? ORDER BY entry_timestamp DESC LIMIT ?', (username, limit)).fetchall()
+        conn.close()
+        if not rows:
+            return None
+        summary = []
+        for r in rows:
+            summary.append(f"{r[0]} ({r[1]}s): {r[2]}→{r[3]} anxiety on {r[4][:10]}")
+        return "Recent breathing exercises: " + "; ".join(summary)
+    except Exception:
+        return None
 
 # Initialize database on startup
 try:
@@ -3849,6 +5441,1326 @@ def log_gratitude():
             'log_id': log_id
         }), 201
         
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# ========== CBT TOOLS API ENDPOINTS ==========
+
+# === 1. BREATHING EXERCISES ===
+@app.route('/api/cbt/breathing', methods=['GET'])
+def get_breathing_exercises():
+    """Get user's breathing exercise history"""
+    try:
+        username = request.args.get('username')
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        exercises = cur.execute(
+            """SELECT id, exercise_type, duration_seconds, pre_anxiety_level,
+                      post_anxiety_level, notes, completed, entry_timestamp
+               FROM breathing_exercises WHERE username=?
+               ORDER BY entry_timestamp DESC LIMIT 50""",
+            (username,)
+        ).fetchall()
+        conn.close()
+
+        return jsonify({
+            'exercises': [{
+                'id': e[0], 'exercise_type': e[1], 'duration_seconds': e[2],
+                'pre_anxiety_level': e[3], 'post_anxiety_level': e[4],
+                'notes': e[5], 'completed': bool(e[6]), 'timestamp': e[7]
+            } for e in exercises]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/breathing', methods=['POST'])
+def log_breathing_exercise():
+    """Log a breathing exercise session"""
+    try:
+        data = request.json
+        username = data.get('username')
+        exercise_type = data.get('exercise_type')  # e.g., '4-7-8', 'box', 'diaphragmatic'
+        duration_seconds = data.get('duration_seconds', 0)
+        pre_anxiety = data.get('pre_anxiety_level')
+        post_anxiety = data.get('post_anxiety_level')
+        notes = data.get('notes', '')
+
+        if not username or not exercise_type:
+            return jsonify({'error': 'Username and exercise_type required'}), 400
+
+        # Validate anxiety levels (1-10)
+        if pre_anxiety and (pre_anxiety < 1 or pre_anxiety > 10):
+            return jsonify({'error': 'Anxiety level must be between 1-10'}), 400
+        if post_anxiety and (post_anxiety < 1 or post_anxiety > 10):
+            return jsonify({'error': 'Anxiety level must be between 1-10'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO breathing_exercises
+               (username, exercise_type, duration_seconds, pre_anxiety_level, post_anxiety_level, notes)
+               VALUES (?,?,?,?,?,?)""",
+            (username, exercise_type, duration_seconds, pre_anxiety, post_anxiety, notes[:500] if notes else None)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('breathing', 'cbt')
+        log_event(username, 'api', 'breathing_exercise', f'Completed {exercise_type} breathing exercise')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# === 2. RELAXATION TECHNIQUES ===
+@app.route('/api/cbt/relaxation', methods=['GET'])
+def get_relaxation_sessions():
+    """Get user's relaxation technique history"""
+    try:
+        username = request.args.get('username')
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        sessions = cur.execute(
+            """SELECT id, technique_type, duration_minutes, effectiveness_rating,
+                      body_scan_areas, notes, entry_timestamp
+               FROM relaxation_techniques WHERE username=?
+               ORDER BY entry_timestamp DESC LIMIT 50""",
+            (username,)
+        ).fetchall()
+        conn.close()
+
+        return jsonify({
+            'sessions': [{
+                'id': s[0], 'technique_type': s[1], 'duration_minutes': s[2],
+                'effectiveness_rating': s[3], 'body_scan_areas': s[4],
+                'notes': s[5], 'timestamp': s[6]
+            } for s in sessions]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/relaxation', methods=['POST'])
+def log_relaxation_session():
+    """Log a relaxation technique session"""
+    try:
+        data = request.json
+        username = data.get('username')
+        technique_type = data.get('technique_type')  # e.g., 'pmr', 'body_scan', 'visualization', 'grounding'
+        duration_minutes = data.get('duration_minutes', 0)
+        effectiveness = data.get('effectiveness_rating')
+        body_areas = data.get('body_scan_areas', '')
+        notes = data.get('notes', '')
+
+        if not username or not technique_type:
+            return jsonify({'error': 'Username and technique_type required'}), 400
+
+        if effectiveness and (effectiveness < 1 or effectiveness > 10):
+            return jsonify({'error': 'Effectiveness rating must be between 1-10'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO relaxation_techniques
+               (username, technique_type, duration_minutes, effectiveness_rating, body_scan_areas, notes)
+               VALUES (?,?,?,?,?,?)""",
+            (username, technique_type, duration_minutes, effectiveness, body_areas[:200] if body_areas else None, notes[:500] if notes else None)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('relaxation', 'cbt')
+        log_event(username, 'api', 'relaxation_session', f'Completed {technique_type} relaxation')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# === 3. SLEEP DIARY ===
+@app.route('/api/cbt/sleep-diary', methods=['GET'])
+def get_sleep_diary():
+    """Get user's sleep diary entries"""
+    try:
+        username = request.args.get('username')
+        days = request.args.get('days', 30, type=int)
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        entries = cur.execute(
+            """SELECT id, sleep_date, bedtime, wake_time, time_to_fall_asleep,
+                      times_woken, total_sleep_hours, sleep_quality, dreams_nightmares,
+                      factors_affecting, morning_mood, notes, entry_timestamp
+               FROM sleep_diary WHERE username=?
+               ORDER BY sleep_date DESC LIMIT ?""",
+            (username, days)
+        ).fetchall()
+        conn.close()
+
+        return jsonify({
+            'entries': [{
+                'id': e[0], 'sleep_date': e[1], 'bedtime': e[2], 'wake_time': e[3],
+                'time_to_fall_asleep': e[4], 'times_woken': e[5], 'total_sleep_hours': e[6],
+                'sleep_quality': e[7], 'dreams_nightmares': e[8], 'factors_affecting': e[9],
+                'morning_mood': e[10], 'notes': e[11], 'timestamp': e[12]
+            } for e in entries]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/sleep-diary', methods=['POST'])
+def log_sleep_diary():
+    """Log a sleep diary entry"""
+    try:
+        data = request.json
+        username = data.get('username')
+        sleep_date = data.get('sleep_date')
+        bedtime = data.get('bedtime')
+        wake_time = data.get('wake_time')
+        time_to_fall_asleep = data.get('time_to_fall_asleep')
+        times_woken = data.get('times_woken', 0)
+        total_sleep_hours = data.get('total_sleep_hours')
+        sleep_quality = data.get('sleep_quality')
+        dreams = data.get('dreams_nightmares', '')
+        factors = data.get('factors_affecting', '')
+        morning_mood = data.get('morning_mood')
+        notes = data.get('notes', '')
+
+        if not username or not sleep_date:
+            return jsonify({'error': 'Username and sleep_date required'}), 400
+
+        if sleep_quality and (sleep_quality < 1 or sleep_quality > 10):
+            return jsonify({'error': 'Sleep quality must be between 1-10'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO sleep_diary
+               (username, sleep_date, bedtime, wake_time, time_to_fall_asleep, times_woken,
+                total_sleep_hours, sleep_quality, dreams_nightmares, factors_affecting, morning_mood, notes)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (username, sleep_date, bedtime, wake_time, time_to_fall_asleep, times_woken,
+             total_sleep_hours, sleep_quality, dreams[:500] if dreams else None,
+             factors[:500] if factors else None, morning_mood, notes[:500] if notes else None)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('sleep_diary', 'cbt')
+        log_event(username, 'api', 'sleep_diary', f'Logged sleep for {sleep_date}')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# === 4. CORE BELIEF WORKSHEET ===
+@app.route('/api/cbt/core-beliefs', methods=['GET'])
+def get_core_beliefs():
+    """Get user's core beliefs"""
+    try:
+        username = request.args.get('username')
+        active_only = request.args.get('active_only', 'true').lower() == 'true'
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query = """SELECT id, old_belief, belief_origin, evidence_for, evidence_against,
+                          new_balanced_belief, belief_strength_before, belief_strength_after,
+                          is_active, entry_timestamp, last_reviewed
+                   FROM core_beliefs WHERE username=?"""
+        if active_only:
+            query += " AND is_active=1"
+        query += " ORDER BY entry_timestamp DESC"
+
+        beliefs = cur.execute(query, (username,)).fetchall()
+        conn.close()
+
+        return jsonify({
+            'beliefs': [{
+                'id': b[0], 'old_belief': b[1], 'belief_origin': b[2],
+                'evidence_for': b[3], 'evidence_against': b[4], 'new_balanced_belief': b[5],
+                'belief_strength_before': b[6], 'belief_strength_after': b[7],
+                'is_active': bool(b[8]), 'timestamp': b[9], 'last_reviewed': b[10]
+            } for b in beliefs]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/core-beliefs', methods=['POST'])
+def create_core_belief():
+    """Create a new core belief worksheet entry"""
+    try:
+        data = request.json
+        username = data.get('username')
+        old_belief = data.get('old_belief')
+        belief_origin = data.get('belief_origin', '')
+        evidence_for = data.get('evidence_for', '')
+        evidence_against = data.get('evidence_against', '')
+        new_belief = data.get('new_balanced_belief', '')
+        strength_before = data.get('belief_strength_before')
+        strength_after = data.get('belief_strength_after')
+
+        if not username or not old_belief:
+            return jsonify({'error': 'Username and old_belief required'}), 400
+
+        # Validate strength (0-100%)
+        if strength_before and (strength_before < 0 or strength_before > 100):
+            return jsonify({'error': 'Belief strength must be between 0-100'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO core_beliefs
+               (username, old_belief, belief_origin, evidence_for, evidence_against,
+                new_balanced_belief, belief_strength_before, belief_strength_after)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            (username, old_belief[:500], belief_origin[:500] if belief_origin else None,
+             evidence_for[:1000] if evidence_for else None, evidence_against[:1000] if evidence_against else None,
+             new_belief[:500] if new_belief else None, strength_before, strength_after)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('core_belief', 'cbt')
+        log_event(username, 'api', 'core_belief', 'Created core belief worksheet')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/core-beliefs/<int:belief_id>', methods=['PUT'])
+def update_core_belief(belief_id):
+    """Update a core belief entry"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Verify ownership
+        existing = cur.execute(
+            "SELECT id FROM core_beliefs WHERE id=? AND username=?", (belief_id, username)
+        ).fetchone()
+        if not existing:
+            conn.close()
+            return jsonify({'error': 'Belief not found'}), 404
+
+        # Build update query dynamically
+        updates = []
+        values = []
+        for field in ['old_belief', 'belief_origin', 'evidence_for', 'evidence_against',
+                      'new_balanced_belief', 'belief_strength_before', 'belief_strength_after', 'is_active']:
+            if field in data:
+                updates.append(f"{field}=?")
+                values.append(data[field])
+
+        if updates:
+            updates.append("last_reviewed=CURRENT_TIMESTAMP")
+            values.append(belief_id)
+            cur.execute(f"UPDATE core_beliefs SET {', '.join(updates)} WHERE id=?", values)
+            conn.commit()
+
+        conn.close()
+        update_ai_memory(username)
+        log_event(username, 'api', 'core_belief_update', f'Updated belief {belief_id}')
+
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# === 5. EXPOSURE HIERARCHY ===
+@app.route('/api/cbt/exposure', methods=['GET'])
+def get_exposure_hierarchy():
+    """Get user's exposure hierarchy"""
+    try:
+        username = request.args.get('username')
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        exposures = cur.execute(
+            """SELECT id, fear_situation, initial_suds, target_suds, hierarchy_rank, status, entry_timestamp
+               FROM exposure_hierarchy WHERE username=?
+               ORDER BY hierarchy_rank ASC""",
+            (username,)
+        ).fetchall()
+
+        # Get attempts for each exposure
+        result = []
+        for exp in exposures:
+            attempts = cur.execute(
+                """SELECT id, pre_suds, peak_suds, post_suds, duration_minutes,
+                          coping_strategies_used, notes, attempt_timestamp
+                   FROM exposure_attempts WHERE exposure_id=? AND username=?
+                   ORDER BY attempt_timestamp DESC""",
+                (exp[0], username)
+            ).fetchall()
+
+            result.append({
+                'id': exp[0], 'fear_situation': exp[1], 'initial_suds': exp[2],
+                'target_suds': exp[3], 'hierarchy_rank': exp[4], 'status': exp[5],
+                'timestamp': exp[6],
+                'attempts': [{
+                    'id': a[0], 'pre_suds': a[1], 'peak_suds': a[2], 'post_suds': a[3],
+                    'duration_minutes': a[4], 'coping_strategies': a[5], 'notes': a[6],
+                    'timestamp': a[7]
+                } for a in attempts]
+            })
+
+        conn.close()
+        return jsonify({'exposures': result}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/exposure', methods=['POST'])
+def create_exposure_item():
+    """Add an item to exposure hierarchy"""
+    try:
+        data = request.json
+        username = data.get('username')
+        fear_situation = data.get('fear_situation')
+        initial_suds = data.get('initial_suds')  # Subjective Units of Distress Scale (0-100)
+        target_suds = data.get('target_suds', 20)
+        hierarchy_rank = data.get('hierarchy_rank')
+
+        if not username or not fear_situation:
+            return jsonify({'error': 'Username and fear_situation required'}), 400
+
+        if initial_suds and (initial_suds < 0 or initial_suds > 100):
+            return jsonify({'error': 'SUDS must be between 0-100'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO exposure_hierarchy
+               (username, fear_situation, initial_suds, target_suds, hierarchy_rank)
+               VALUES (?,?,?,?,?)""",
+            (username, fear_situation[:500], initial_suds, target_suds, hierarchy_rank)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        log_event(username, 'api', 'exposure_hierarchy', 'Added exposure item')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/exposure/<int:exposure_id>/attempt', methods=['POST'])
+def log_exposure_attempt(exposure_id):
+    """Log an exposure attempt"""
+    try:
+        data = request.json
+        username = data.get('username')
+        pre_suds = data.get('pre_suds')
+        peak_suds = data.get('peak_suds')
+        post_suds = data.get('post_suds')
+        duration = data.get('duration_minutes')
+        coping_strategies = data.get('coping_strategies_used', '')
+        notes = data.get('notes', '')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Verify exposure exists and belongs to user
+        exposure = cur.execute(
+            "SELECT id FROM exposure_hierarchy WHERE id=? AND username=?", (exposure_id, username)
+        ).fetchone()
+        if not exposure:
+            conn.close()
+            return jsonify({'error': 'Exposure item not found'}), 404
+
+        cur.execute(
+            """INSERT INTO exposure_attempts
+               (exposure_id, username, pre_suds, peak_suds, post_suds, duration_minutes, coping_strategies_used, notes)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            (exposure_id, username, pre_suds, peak_suds, post_suds, duration,
+             coping_strategies[:500] if coping_strategies else None, notes[:500] if notes else None)
+        )
+
+        # Update exposure status if post_suds meets target
+        if post_suds is not None:
+            target = cur.execute("SELECT target_suds FROM exposure_hierarchy WHERE id=?", (exposure_id,)).fetchone()
+            if target and post_suds <= target[0]:
+                cur.execute("UPDATE exposure_hierarchy SET status='completed' WHERE id=?", (exposure_id,))
+            else:
+                cur.execute("UPDATE exposure_hierarchy SET status='in_progress' WHERE id=?", (exposure_id,))
+
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('exposure', 'cbt')
+        log_event(username, 'api', 'exposure_attempt', f'Completed exposure attempt for item {exposure_id}')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# === 6. PROBLEM-SOLVING WORKSHEET ===
+@app.route('/api/cbt/problem-solving', methods=['GET'])
+def get_problem_solving():
+    """Get user's problem-solving worksheets"""
+    try:
+        username = request.args.get('username')
+        status = request.args.get('status')  # 'in_progress', 'completed', or None for all
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query = """SELECT id, problem_description, problem_importance, brainstormed_solutions,
+                          chosen_solution, action_steps, outcome, status, entry_timestamp, completed_timestamp
+                   FROM problem_solving WHERE username=?"""
+        params = [username]
+        if status:
+            query += " AND status=?"
+            params.append(status)
+        query += " ORDER BY entry_timestamp DESC"
+
+        problems = cur.execute(query, params).fetchall()
+        conn.close()
+
+        return jsonify({
+            'problems': [{
+                'id': p[0], 'problem_description': p[1], 'problem_importance': p[2],
+                'brainstormed_solutions': p[3], 'chosen_solution': p[4], 'action_steps': p[5],
+                'outcome': p[6], 'status': p[7], 'timestamp': p[8], 'completed_timestamp': p[9]
+            } for p in problems]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/problem-solving', methods=['POST'])
+def create_problem_solving():
+    """Create a new problem-solving worksheet"""
+    try:
+        data = request.json
+        username = data.get('username')
+        problem = data.get('problem_description')
+        importance = data.get('problem_importance')
+        solutions = data.get('brainstormed_solutions', '')
+        chosen = data.get('chosen_solution', '')
+        steps = data.get('action_steps', '')
+
+        if not username or not problem:
+            return jsonify({'error': 'Username and problem_description required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO problem_solving
+               (username, problem_description, problem_importance, brainstormed_solutions, chosen_solution, action_steps)
+               VALUES (?,?,?,?,?,?)""",
+            (username, problem[:1000], importance, solutions[:2000] if solutions else None,
+             chosen[:500] if chosen else None, steps[:1000] if steps else None)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('problem_solving', 'cbt')
+        log_event(username, 'api', 'problem_solving', 'Created problem-solving worksheet')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/problem-solving/<int:problem_id>', methods=['PUT'])
+def update_problem_solving(problem_id):
+    """Update a problem-solving worksheet"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Verify ownership
+        existing = cur.execute(
+            "SELECT id FROM problem_solving WHERE id=? AND username=?", (problem_id, username)
+        ).fetchone()
+        if not existing:
+            conn.close()
+            return jsonify({'error': 'Problem not found'}), 404
+
+        updates = []
+        values = []
+        for field in ['problem_description', 'problem_importance', 'brainstormed_solutions',
+                      'chosen_solution', 'action_steps', 'outcome', 'status']:
+            if field in data:
+                updates.append(f"{field}=?")
+                values.append(data[field])
+
+        # Set completed_timestamp if status changes to completed
+        if data.get('status') == 'completed':
+            updates.append("completed_timestamp=CURRENT_TIMESTAMP")
+
+        if updates:
+            values.append(problem_id)
+            cur.execute(f"UPDATE problem_solving SET {', '.join(updates)} WHERE id=?", values)
+            conn.commit()
+
+        conn.close()
+        update_ai_memory(username)
+        log_event(username, 'api', 'problem_solving_update', f'Updated problem {problem_id}')
+
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# === 7. COPING CARDS ===
+@app.route('/api/cbt/coping-cards', methods=['GET'])
+def get_coping_cards():
+    """Get user's coping cards"""
+    try:
+        username = request.args.get('username')
+        favorites_only = request.args.get('favorites', 'false').lower() == 'true'
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query = """SELECT id, card_title, situation_trigger, unhelpful_thought,
+                          helpful_response, coping_strategies, is_favorite, times_used,
+                          entry_timestamp, last_used
+                   FROM coping_cards WHERE username=?"""
+        if favorites_only:
+            query += " AND is_favorite=1"
+        query += " ORDER BY times_used DESC, entry_timestamp DESC"
+
+        cards = cur.execute(query, (username,)).fetchall()
+        conn.close()
+
+        return jsonify({
+            'cards': [{
+                'id': c[0], 'card_title': c[1], 'situation_trigger': c[2],
+                'unhelpful_thought': c[3], 'helpful_response': c[4],
+                'coping_strategies': c[5], 'is_favorite': bool(c[6]),
+                'times_used': c[7], 'timestamp': c[8], 'last_used': c[9]
+            } for c in cards]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/coping-cards', methods=['POST'])
+def create_coping_card():
+    """Create a new coping card"""
+    try:
+        data = request.json
+        username = data.get('username')
+        title = data.get('card_title')
+        trigger = data.get('situation_trigger', '')
+        unhelpful = data.get('unhelpful_thought', '')
+        helpful = data.get('helpful_response', '')
+        strategies = data.get('coping_strategies', '')
+
+        if not username or not title:
+            return jsonify({'error': 'Username and card_title required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO coping_cards
+               (username, card_title, situation_trigger, unhelpful_thought, helpful_response, coping_strategies)
+               VALUES (?,?,?,?,?,?)""",
+            (username, title[:100], trigger[:500] if trigger else None,
+             unhelpful[:500] if unhelpful else None, helpful[:500] if helpful else None,
+             strategies[:1000] if strategies else None)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('coping_card', 'cbt')
+        log_event(username, 'api', 'coping_card', 'Created coping card')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/coping-cards/<int:card_id>/use', methods=['POST'])
+def use_coping_card(card_id):
+    """Mark a coping card as used (increment counter)"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Verify ownership and update
+        result = cur.execute(
+            """UPDATE coping_cards SET times_used = times_used + 1, last_used = CURRENT_TIMESTAMP
+               WHERE id=? AND username=?""",
+            (card_id, username)
+        )
+
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({'error': 'Card not found'}), 404
+
+        conn.commit()
+        conn.close()
+
+        log_event(username, 'api', 'coping_card_used', f'Used coping card {card_id}')
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/coping-cards/<int:card_id>', methods=['PUT'])
+def update_coping_card(card_id):
+    """Update a coping card"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        updates = []
+        values = []
+        for field in ['card_title', 'situation_trigger', 'unhelpful_thought',
+                      'helpful_response', 'coping_strategies', 'is_favorite']:
+            if field in data:
+                updates.append(f"{field}=?")
+                values.append(data[field])
+
+        if updates:
+            values.append(card_id)
+            values.append(username)
+            cur.execute(f"UPDATE coping_cards SET {', '.join(updates)} WHERE id=? AND username=?", values)
+            conn.commit()
+
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/coping-cards/<int:card_id>', methods=['DELETE'])
+def delete_coping_card(card_id):
+    """Delete a coping card"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM coping_cards WHERE id=? AND username=?", (card_id, username))
+
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({'error': 'Card not found'}), 404
+
+        conn.commit()
+        conn.close()
+
+        log_event(username, 'api', 'coping_card_deleted', f'Deleted coping card {card_id}')
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# === 8. SELF-COMPASSION JOURNAL ===
+@app.route('/api/cbt/self-compassion', methods=['GET'])
+def get_self_compassion_entries():
+    """Get user's self-compassion journal entries"""
+    try:
+        username = request.args.get('username')
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        entries = cur.execute(
+            """SELECT id, difficult_situation, self_critical_thoughts, common_humanity,
+                      kind_response, self_care_action, mood_before, mood_after, entry_timestamp
+               FROM self_compassion_journal WHERE username=?
+               ORDER BY entry_timestamp DESC LIMIT 50""",
+            (username,)
+        ).fetchall()
+        conn.close()
+
+        return jsonify({
+            'entries': [{
+                'id': e[0], 'difficult_situation': e[1], 'self_critical_thoughts': e[2],
+                'common_humanity': e[3], 'kind_response': e[4], 'self_care_action': e[5],
+                'mood_before': e[6], 'mood_after': e[7], 'timestamp': e[8]
+            } for e in entries]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/self-compassion', methods=['POST'])
+def log_self_compassion():
+    """Log a self-compassion journal entry"""
+    try:
+        data = request.json
+        username = data.get('username')
+        situation = data.get('difficult_situation')
+        critical_thoughts = data.get('self_critical_thoughts', '')
+        common_humanity = data.get('common_humanity', '')
+        kind_response = data.get('kind_response', '')
+        self_care = data.get('self_care_action', '')
+        mood_before = data.get('mood_before')
+        mood_after = data.get('mood_after')
+
+        if not username or not situation:
+            return jsonify({'error': 'Username and difficult_situation required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO self_compassion_journal
+               (username, difficult_situation, self_critical_thoughts, common_humanity,
+                kind_response, self_care_action, mood_before, mood_after)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            (username, situation[:1000], critical_thoughts[:1000] if critical_thoughts else None,
+             common_humanity[:1000] if common_humanity else None, kind_response[:1000] if kind_response else None,
+             self_care[:500] if self_care else None, mood_before, mood_after)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('self_compassion', 'cbt')
+        log_event(username, 'api', 'self_compassion', 'Logged self-compassion journal entry')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# === 9. VALUES CLARIFICATION ===
+@app.route('/api/cbt/values', methods=['GET'])
+def get_values():
+    """Get user's values"""
+    try:
+        username = request.args.get('username')
+        active_only = request.args.get('active_only', 'true').lower() == 'true'
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query = """SELECT id, value_name, value_description, importance_rating,
+                          current_alignment, life_area, related_goals, is_active,
+                          entry_timestamp, last_reviewed
+                   FROM values_clarification WHERE username=?"""
+        if active_only:
+            query += " AND is_active=1"
+        query += " ORDER BY importance_rating DESC"
+
+        values = cur.execute(query, (username,)).fetchall()
+        conn.close()
+
+        return jsonify({
+            'values': [{
+                'id': v[0], 'value_name': v[1], 'value_description': v[2],
+                'importance_rating': v[3], 'current_alignment': v[4],
+                'life_area': v[5], 'related_goals': v[6], 'is_active': bool(v[7]),
+                'timestamp': v[8], 'last_reviewed': v[9]
+            } for v in values]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/values', methods=['POST'])
+def create_value():
+    """Create a new value entry"""
+    try:
+        data = request.json
+        username = data.get('username')
+        value_name = data.get('value_name')
+        description = data.get('value_description', '')
+        importance = data.get('importance_rating')
+        alignment = data.get('current_alignment')
+        life_area = data.get('life_area', '')
+        goals = data.get('related_goals', '')
+
+        if not username or not value_name:
+            return jsonify({'error': 'Username and value_name required'}), 400
+
+        if importance and (importance < 1 or importance > 10):
+            return jsonify({'error': 'Importance rating must be between 1-10'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO values_clarification
+               (username, value_name, value_description, importance_rating, current_alignment, life_area, related_goals)
+               VALUES (?,?,?,?,?,?,?)""",
+            (username, value_name[:100], description[:500] if description else None,
+             importance, alignment, life_area[:100] if life_area else None,
+             goals[:500] if goals else None)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('values', 'cbt')
+        log_event(username, 'api', 'values', 'Created value entry')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/values/<int:value_id>', methods=['PUT'])
+def update_value(value_id):
+    """Update a value entry"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        updates = []
+        values = []
+        for field in ['value_name', 'value_description', 'importance_rating',
+                      'current_alignment', 'life_area', 'related_goals', 'is_active']:
+            if field in data:
+                updates.append(f"{field}=?")
+                values.append(data[field])
+
+        if updates:
+            updates.append("last_reviewed=CURRENT_TIMESTAMP")
+            values.append(value_id)
+            values.append(username)
+            cur.execute(f"UPDATE values_clarification SET {', '.join(updates)} WHERE id=? AND username=?", values)
+            conn.commit()
+
+        conn.close()
+        update_ai_memory(username)
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# === 10. GOAL SETTING AND TRACKING ===
+@app.route('/api/cbt/goals', methods=['GET'])
+def get_goals():
+    """Get user's goals with milestones and check-ins"""
+    try:
+        username = request.args.get('username')
+        status = request.args.get('status')  # 'active', 'completed', 'abandoned'
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query = """SELECT id, goal_title, goal_description, goal_type, target_date,
+                          related_value_id, status, progress_percentage, entry_timestamp, completed_timestamp
+                   FROM goals WHERE username=?"""
+        params = [username]
+        if status:
+            query += " AND status=?"
+            params.append(status)
+        query += " ORDER BY entry_timestamp DESC"
+
+        goals = cur.execute(query, params).fetchall()
+
+        result = []
+        for goal in goals:
+            # Get milestones
+            milestones = cur.execute(
+                """SELECT id, milestone_title, milestone_description, target_date,
+                          is_completed, completed_timestamp, entry_timestamp
+                   FROM goal_milestones WHERE goal_id=? AND username=?
+                   ORDER BY target_date""",
+                (goal[0], username)
+            ).fetchall()
+
+            # Get recent check-ins
+            checkins = cur.execute(
+                """SELECT id, progress_notes, obstacles, next_steps, motivation_level, checkin_timestamp
+                   FROM goal_checkins WHERE goal_id=? AND username=?
+                   ORDER BY checkin_timestamp DESC LIMIT 5""",
+                (goal[0], username)
+            ).fetchall()
+
+            # Get related value name if exists
+            value_name = None
+            if goal[5]:
+                value = cur.execute(
+                    "SELECT value_name FROM values_clarification WHERE id=?", (goal[5],)
+                ).fetchone()
+                value_name = value[0] if value else None
+
+            result.append({
+                'id': goal[0], 'goal_title': goal[1], 'goal_description': goal[2],
+                'goal_type': goal[3], 'target_date': goal[4], 'related_value_id': goal[5],
+                'related_value_name': value_name, 'status': goal[6],
+                'progress_percentage': goal[7], 'timestamp': goal[8], 'completed_timestamp': goal[9],
+                'milestones': [{
+                    'id': m[0], 'title': m[1], 'description': m[2], 'target_date': m[3],
+                    'is_completed': bool(m[4]), 'completed_timestamp': m[5], 'timestamp': m[6]
+                } for m in milestones],
+                'checkins': [{
+                    'id': c[0], 'progress_notes': c[1], 'obstacles': c[2],
+                    'next_steps': c[3], 'motivation_level': c[4], 'timestamp': c[5]
+                } for c in checkins]
+            })
+
+        conn.close()
+        return jsonify({'goals': result}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/goals', methods=['POST'])
+def create_goal():
+    """Create a new goal"""
+    try:
+        data = request.json
+        username = data.get('username')
+        title = data.get('goal_title')
+        description = data.get('goal_description', '')
+        goal_type = data.get('goal_type', 'personal')  # personal, health, career, relationship, etc.
+        target_date = data.get('target_date')
+        related_value_id = data.get('related_value_id')
+
+        if not username or not title:
+            return jsonify({'error': 'Username and goal_title required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO goals
+               (username, goal_title, goal_description, goal_type, target_date, related_value_id)
+               VALUES (?,?,?,?,?,?)""",
+            (username, title[:200], description[:1000] if description else None,
+             goal_type, target_date, related_value_id)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('goal', 'cbt')
+        log_event(username, 'api', 'goal_created', f'Created goal: {title[:50]}')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/goals/<int:goal_id>', methods=['PUT'])
+def update_goal(goal_id):
+    """Update a goal"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        updates = []
+        values = []
+        for field in ['goal_title', 'goal_description', 'goal_type', 'target_date',
+                      'related_value_id', 'status', 'progress_percentage']:
+            if field in data:
+                updates.append(f"{field}=?")
+                values.append(data[field])
+
+        # Set completed_timestamp if status changes to completed
+        if data.get('status') == 'completed':
+            updates.append("completed_timestamp=CURRENT_TIMESTAMP")
+
+        if updates:
+            values.append(goal_id)
+            values.append(username)
+            cur.execute(f"UPDATE goals SET {', '.join(updates)} WHERE id=? AND username=?", values)
+            conn.commit()
+
+        conn.close()
+        update_ai_memory(username)
+        log_event(username, 'api', 'goal_updated', f'Updated goal {goal_id}')
+
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/goals/<int:goal_id>/milestone', methods=['POST'])
+def add_goal_milestone(goal_id):
+    """Add a milestone to a goal"""
+    try:
+        data = request.json
+        username = data.get('username')
+        title = data.get('milestone_title')
+        description = data.get('milestone_description', '')
+        target_date = data.get('target_date')
+
+        if not username or not title:
+            return jsonify({'error': 'Username and milestone_title required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Verify goal ownership
+        goal = cur.execute(
+            "SELECT id FROM goals WHERE id=? AND username=?", (goal_id, username)
+        ).fetchone()
+        if not goal:
+            conn.close()
+            return jsonify({'error': 'Goal not found'}), 404
+
+        cur.execute(
+            """INSERT INTO goal_milestones
+               (goal_id, username, milestone_title, milestone_description, target_date)
+               VALUES (?,?,?,?,?)""",
+            (goal_id, username, title[:200], description[:500] if description else None, target_date)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        log_event(username, 'api', 'milestone_added', f'Added milestone to goal {goal_id}')
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/goals/<int:goal_id>/milestone/<int:milestone_id>', methods=['PUT'])
+def update_milestone(goal_id, milestone_id):
+    """Update a milestone (including marking as complete)"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        updates = []
+        values = []
+        for field in ['milestone_title', 'milestone_description', 'target_date', 'is_completed']:
+            if field in data:
+                updates.append(f"{field}=?")
+                values.append(data[field])
+
+        # Set completed_timestamp if marking as complete
+        if data.get('is_completed'):
+            updates.append("completed_timestamp=CURRENT_TIMESTAMP")
+
+        if updates:
+            values.append(milestone_id)
+            values.append(goal_id)
+            values.append(username)
+            cur.execute(
+                f"UPDATE goal_milestones SET {', '.join(updates)} WHERE id=? AND goal_id=? AND username=?",
+                values
+            )
+            conn.commit()
+
+            # Update goal progress based on completed milestones
+            total = cur.execute(
+                "SELECT COUNT(*) FROM goal_milestones WHERE goal_id=?", (goal_id,)
+            ).fetchone()[0]
+            completed = cur.execute(
+                "SELECT COUNT(*) FROM goal_milestones WHERE goal_id=? AND is_completed=1", (goal_id,)
+            ).fetchone()[0]
+
+            if total > 0:
+                progress = int((completed / total) * 100)
+                cur.execute("UPDATE goals SET progress_percentage=? WHERE id=?", (progress, goal_id))
+                conn.commit()
+
+        conn.close()
+        update_ai_memory(username)
+
+        if data.get('is_completed'):
+            reward_pet('milestone', 'cbt')
+            log_event(username, 'api', 'milestone_completed', f'Completed milestone {milestone_id}')
+
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/cbt/goals/<int:goal_id>/checkin', methods=['POST'])
+def add_goal_checkin(goal_id):
+    """Add a check-in to a goal"""
+    try:
+        data = request.json
+        username = data.get('username')
+        progress_notes = data.get('progress_notes', '')
+        obstacles = data.get('obstacles', '')
+        next_steps = data.get('next_steps', '')
+        motivation_level = data.get('motivation_level')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Verify goal ownership
+        goal = cur.execute(
+            "SELECT id FROM goals WHERE id=? AND username=?", (goal_id, username)
+        ).fetchone()
+        if not goal:
+            conn.close()
+            return jsonify({'error': 'Goal not found'}), 404
+
+        cur.execute(
+            """INSERT INTO goal_checkins
+               (goal_id, username, progress_notes, obstacles, next_steps, motivation_level)
+               VALUES (?,?,?,?,?,?)""",
+            (goal_id, username, progress_notes[:1000] if progress_notes else None,
+             obstacles[:500] if obstacles else None, next_steps[:500] if next_steps else None,
+             motivation_level)
+        )
+        conn.commit()
+        log_id = cur.lastrowid
+        conn.close()
+
+        update_ai_memory(username)
+        reward_pet('checkin', 'cbt')
+        log_event(username, 'api', 'goal_checkin', f'Added check-in to goal {goal_id}')
+
+        return jsonify({'success': True, 'id': log_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# === CBT TOOLS SUMMARY ENDPOINT ===
+@app.route('/api/cbt/summary', methods=['GET'])
+def get_cbt_summary():
+    """Get a summary of all CBT tool usage for a user"""
+    try:
+        username = request.args.get('username')
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        summary = {}
+
+        # Breathing exercises
+        breathing = cur.execute(
+            "SELECT COUNT(*), AVG(post_anxiety_level - pre_anxiety_level) FROM breathing_exercises WHERE username=?",
+            (username,)
+        ).fetchone()
+        summary['breathing_exercises'] = {'total': breathing[0], 'avg_anxiety_reduction': round(breathing[1] or 0, 1)}
+
+        # Relaxation techniques
+        relaxation = cur.execute(
+            "SELECT COUNT(*), AVG(effectiveness_rating) FROM relaxation_techniques WHERE username=?",
+            (username,)
+        ).fetchone()
+        summary['relaxation_techniques'] = {'total': relaxation[0], 'avg_effectiveness': round(relaxation[1] or 0, 1)}
+
+        # Sleep diary
+        sleep = cur.execute(
+            "SELECT COUNT(*), AVG(sleep_quality), AVG(total_sleep_hours) FROM sleep_diary WHERE username=?",
+            (username,)
+        ).fetchone()
+        summary['sleep_diary'] = {'total': sleep[0], 'avg_quality': round(sleep[1] or 0, 1), 'avg_hours': round(sleep[2] or 0, 1)}
+
+        # Core beliefs
+        beliefs = cur.execute(
+            "SELECT COUNT(*) FROM core_beliefs WHERE username=? AND is_active=1",
+            (username,)
+        ).fetchone()
+        summary['core_beliefs'] = {'active': beliefs[0]}
+
+        # Exposure hierarchy
+        exposures = cur.execute(
+            """SELECT COUNT(*), SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END)
+               FROM exposure_hierarchy WHERE username=?""",
+            (username,)
+        ).fetchone()
+        summary['exposure_hierarchy'] = {'total': exposures[0], 'completed': exposures[1] or 0}
+
+        # Problem-solving
+        problems = cur.execute(
+            """SELECT COUNT(*), SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END)
+               FROM problem_solving WHERE username=?""",
+            (username,)
+        ).fetchone()
+        summary['problem_solving'] = {'total': problems[0], 'completed': problems[1] or 0}
+
+        # Coping cards
+        cards = cur.execute(
+            "SELECT COUNT(*), SUM(times_used) FROM coping_cards WHERE username=?",
+            (username,)
+        ).fetchone()
+        summary['coping_cards'] = {'total': cards[0], 'total_uses': cards[1] or 0}
+
+        # Self-compassion
+        compassion = cur.execute(
+            "SELECT COUNT(*), AVG(mood_after - mood_before) FROM self_compassion_journal WHERE username=?",
+            (username,)
+        ).fetchone()
+        summary['self_compassion'] = {'total': compassion[0], 'avg_mood_improvement': round(compassion[1] or 0, 1)}
+
+        # Values
+        values = cur.execute(
+            "SELECT COUNT(*), AVG(current_alignment) FROM values_clarification WHERE username=? AND is_active=1",
+            (username,)
+        ).fetchone()
+        summary['values'] = {'total': values[0], 'avg_alignment': round(values[1] or 0, 1)}
+
+        # Goals
+        goals = cur.execute(
+            """SELECT COUNT(*), SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END), AVG(progress_percentage)
+               FROM goals WHERE username=?""",
+            (username,)
+        ).fetchone()
+        summary['goals'] = {'total': goals[0], 'completed': goals[1] or 0, 'avg_progress': round(goals[2] or 0, 1)}
+
+        conn.close()
+        return jsonify({'summary': summary}), 200
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
 
