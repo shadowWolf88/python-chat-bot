@@ -4734,16 +4734,21 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             if (progressBar) progressBar.style.width = `${percentage}%`;
             if (progressText) progressText.textContent = `${completedCount}/${DAILY_TASK_TYPES.length} completed`;
 
-            // Render task list
+            // Render task list (always visible, interactive)
             container.innerHTML = DAILY_TASK_TYPES.map(task => {
                 const isCompleted = completedTypes.includes(task.type);
                 return `
-                    <div class="daily-task-item ${isCompleted ? 'completed' : ''}" onclick="navigateToTask('${task.type}')">
+                    <div class="daily-task-item ${isCompleted ? 'completed' : ''}" onclick="navigateToTask('${task.type}')" tabindex="0" role="button" aria-pressed="${isCompleted}">
                         <span class="task-checkbox">${isCompleted ? '✅' : '⬜'}</span>
                         <span class="task-label">${task.label}</span>
+                        <span class="task-status">${isCompleted ? 'Done' : 'To do'}</span>
                     </div>
                 `;
             }).join('');
+
+            // Always show streak and progress
+            const streakDisplay = document.getElementById('streakDisplay');
+            if (streakDisplay) streakDisplay.style.display = 'block';
 
             // Check for daily completion celebration
             if (completedCount === DAILY_TASK_TYPES.length) {
@@ -5323,8 +5328,16 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 // Load chat history first, then show greeting
                 initializePatientSession();
 
-                // Switch to therapy tab as default
-                switchTab('therapy', document.querySelector('[onclick*="therapy"]'));
+                // Remove all active classes
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+
+                // Switch to HOME tab as default for patients and set active
+                const homeBtn = document.querySelector('[onclick*="home"]');
+                const homeTab = document.getElementById('homeTab');
+                if (homeBtn) homeBtn.classList.add('active');
+                if (homeTab) homeTab.classList.add('active');
+                loadHomeTabData();
 
                 loadPetStatus();
                 checkMoodStatus(); // Check if mood logged today
@@ -6019,8 +6032,13 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             
             document.getElementById(tabName + 'Tab').classList.add('active');
-            buttonEl.classList.add('active');
-            
+            if (buttonEl) buttonEl.classList.add('active');
+
+            // Always reload Home tab data for patients
+            if (tabName === 'home' && currentUserRole !== 'clinician' && currentUserRole !== 'developer') {
+                loadHomeTabData();
+            }
+
             // Load pet when switching to pet tab
             if (tabName === 'pet') {
                 loadPetStatus();
@@ -9294,6 +9312,12 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         
                         // Restore the app state
                         completeLogin(data);
+                        // If patient, switch to Home tab after login/session restore
+                        if ((data.role || 'user') === 'user') {
+                            setTimeout(() => {
+                                switchTab('home', document.querySelector('[onclick*="home"]'));
+                            }, 100);
+                        }
                     } else {
                         // Session invalid, clear it
                         console.log('Session validation failed, clearing session data');
