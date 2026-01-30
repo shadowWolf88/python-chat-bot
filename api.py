@@ -651,7 +651,12 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS community_posts
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, message TEXT, likes INTEGER DEFAULT 0, entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS community_likes
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, username TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(post_id, username))''')
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, username TEXT, reaction_type TEXT DEFAULT 'like', timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(post_id, username, reaction_type))''')
+    # Add reaction_type column if it doesn't exist (migration for existing DBs)
+    try:
+        cursor.execute("ALTER TABLE community_likes ADD COLUMN reaction_type TEXT DEFAULT 'like'")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     cursor.execute('''CREATE TABLE IF NOT EXISTS community_replies
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, username TEXT, message TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS clinician_notes
@@ -4628,37 +4633,47 @@ def submit_gad7():
 # === COMMUNITY SUPPORT BOARD ===
 @app.route('/api/community/posts', methods=['GET'])
 def get_community_posts():
-    """Get recent community posts"""
+    """Get recent community posts with reaction counts"""
     try:
-        username = request.args.get('username', '')  # Optional - to check if user liked posts
-        
+        username = request.args.get('username', '')  # Optional - to check user's reactions
+
         conn = get_db_connection()
         cur = conn.cursor()
         posts = cur.execute(
             "SELECT id, username, message, likes, entry_timestamp FROM community_posts ORDER BY entry_timestamp DESC LIMIT 20"
         ).fetchall()
-        
+
         post_list = []
         for p in posts:
             post_id = p[0]
-            # Check if current user liked this post
-            liked_by_user = False
+
+            # Get reaction counts by type
+            reactions = cur.execute(
+                "SELECT reaction_type, COUNT(*) FROM community_likes WHERE post_id=? GROUP BY reaction_type",
+                (post_id,)
+            ).fetchall()
+            reaction_counts = {r[0]: r[1] for r in reactions}
+
+            # Check which reactions current user has made
+            user_reactions = []
             if username:
-                liked = cur.execute(
-                    "SELECT 1 FROM community_likes WHERE post_id=? AND username=?",
+                user_reacts = cur.execute(
+                    "SELECT reaction_type FROM community_likes WHERE post_id=? AND username=?",
                     (post_id, username)
-                ).fetchone()
-                liked_by_user = liked is not None
-            
+                ).fetchall()
+                user_reactions = [r[0] for r in user_reacts]
+
             post_list.append({
                 'id': post_id,
                 'username': p[1],
                 'message': p[2],
-                'likes': p[3] or 0,
+                'likes': p[3] or 0,  # Total reactions (backwards compatible)
+                'reactions': reaction_counts,  # Breakdown by type
+                'user_reactions': user_reactions,  # What current user reacted with
                 'timestamp': p[4],
-                'liked_by_user': liked_by_user
+                'liked_by_user': 'like' in user_reactions  # Backwards compatible
             })
-        
+
         conn.close()
         return jsonify({'posts': post_list}), 200
     except Exception as e:
@@ -4699,37 +4714,106 @@ def create_community_post():
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
 
-@app.route('/api/community/post/<int:post_id>/like', methods=['POST'])
-def like_community_post(post_id):
-    """Like or unlike a community post"""
+@app.route('/api/community/post/<int:post_id>/react', methods=['POST'])
+def react_to_post(post_id):
+    """Add or remove a reaction to a community post"""
     try:
         data = request.json
         username = data.get('username')
-        
+        reaction_type = data.get('reaction', 'like')  # Default to 'like' for backwards compatibility
+
+        # Valid reaction types
+        VALID_REACTIONS = ['like', 'heart', 'hug', 'celebrate', 'support']
+
         if not username:
             return jsonify({'error': 'Username required'}), 400
-        
+
+        if reaction_type not in VALID_REACTIONS:
+            return jsonify({'error': 'Invalid reaction type'}), 400
+
         conn = get_db_connection()
         cur = conn.cursor()
-        
-        # Check if already liked
-        existing_like = cur.execute(
-            "SELECT 1 FROM community_likes WHERE post_id=? AND username=?",
-            (post_id, username)
+
+        # Check if user already has this reaction on this post
+        existing_reaction = cur.execute(
+            "SELECT 1 FROM community_likes WHERE post_id=? AND username=? AND reaction_type=?",
+            (post_id, username, reaction_type)
         ).fetchone()
-        
-        if existing_like:
-            # Unlike - remove like and decrement count
-            cur.execute("DELETE FROM community_likes WHERE post_id=? AND username=?", (post_id, username))
-            cur.execute("UPDATE community_posts SET likes = likes - 1 WHERE id=?", (post_id,))
+
+        if existing_reaction:
+            # Remove reaction (toggle off)
+            cur.execute(
+                "DELETE FROM community_likes WHERE post_id=? AND username=? AND reaction_type=?",
+                (post_id, username, reaction_type)
+            )
+            action = 'removed'
         else:
-            # Like - add like and increment count
-            cur.execute("INSERT INTO community_likes (post_id, username) VALUES (?,?)", (post_id, username))
-            cur.execute("UPDATE community_posts SET likes = likes + 1 WHERE id=?", (post_id,))
-        
+            # Add reaction
+            cur.execute(
+                "INSERT INTO community_likes (post_id, username, reaction_type) VALUES (?,?,?)",
+                (post_id, username, reaction_type)
+            )
+            action = 'added'
+
+        # Get updated reaction counts for this post
+        reactions = cur.execute(
+            "SELECT reaction_type, COUNT(*) FROM community_likes WHERE post_id=? GROUP BY reaction_type",
+            (post_id,)
+        ).fetchall()
+
+        reaction_counts = {r[0]: r[1] for r in reactions}
+
+        # Update total likes count (sum of all reactions) for backwards compatibility
+        total_reactions = sum(reaction_counts.values())
+        cur.execute("UPDATE community_posts SET likes=? WHERE id=?", (total_reactions, post_id))
+
         conn.commit()
         conn.close()
-        
+
+        return jsonify({
+            'success': True,
+            'action': action,
+            'reaction': reaction_type,
+            'reactions': reaction_counts,
+            'total': total_reactions
+        }), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+# Backwards compatible like endpoint
+@app.route('/api/community/post/<int:post_id>/like', methods=['POST'])
+def like_community_post(post_id):
+    """Like or unlike a community post (backwards compatible - uses 'like' reaction)"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Check if already liked
+        existing_like = cur.execute(
+            "SELECT 1 FROM community_likes WHERE post_id=? AND username=? AND reaction_type='like'",
+            (post_id, username)
+        ).fetchone()
+
+        if existing_like:
+            # Unlike - remove like
+            cur.execute("DELETE FROM community_likes WHERE post_id=? AND username=? AND reaction_type='like'", (post_id, username))
+        else:
+            # Like - add like
+            cur.execute("INSERT INTO community_likes (post_id, username, reaction_type) VALUES (?,?,'like')", (post_id, username))
+
+        # Update total count
+        total = cur.execute("SELECT COUNT(*) FROM community_likes WHERE post_id=?", (post_id,)).fetchone()[0]
+        cur.execute("UPDATE community_posts SET likes=? WHERE id=?", (total, post_id))
+
+        conn.commit()
+        conn.close()
+
         return jsonify({'success': True}), 200
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
@@ -4820,6 +4904,44 @@ def create_reply(post_id):
         return handle_exception(e, request.endpoint or 'unknown')
 
 
+@app.route('/api/community/reply/<int:reply_id>', methods=['DELETE'])
+def delete_reply(reply_id):
+    """Delete a community reply (only by author)"""
+    try:
+        data = request.json
+        username = data.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Verify reply belongs to user
+        reply = cur.execute(
+            "SELECT username FROM community_replies WHERE id=?",
+            (reply_id,)
+        ).fetchone()
+
+        if not reply:
+            conn.close()
+            return jsonify({'error': 'Reply not found'}), 404
+
+        if reply[0] != username:
+            conn.close()
+            return jsonify({'error': 'You can only delete your own replies'}), 403
+
+        # Delete the reply
+        cur.execute("DELETE FROM community_replies WHERE id=?", (reply_id,))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+
 @app.route('/api/community/post/<int:post_id>/report', methods=['POST'])
 def report_community_post(post_id):
     """Report a community post for moderation review"""
@@ -4888,16 +5010,17 @@ def get_replies(post_id):
         conn = get_db_connection()
         cur = conn.cursor()
         replies = cur.execute(
-            "SELECT username, message, timestamp FROM community_replies WHERE post_id=? ORDER BY timestamp ASC",
+            "SELECT id, username, message, timestamp FROM community_replies WHERE post_id=? ORDER BY timestamp ASC",
             (post_id,)
         ).fetchall()
         conn.close()
-        
+
         return jsonify({'replies': [
             {
-                'username': r[0],
-                'message': r[1],
-                'timestamp': r[2]
+                'id': r[0],
+                'username': r[1],
+                'message': r[2],
+                'timestamp': r[3]
             } for r in replies
         ]}), 200
     except Exception as e:
