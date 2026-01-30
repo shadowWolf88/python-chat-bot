@@ -5473,7 +5473,11 @@ def log_mood():
         }), 201
         
     except Exception as e:
-        return handle_exception(e, request.endpoint or 'unknown')
+        import traceback, logging
+        tb = traceback.format_exc()
+        logging.error(f"[log_mood] Exception: {e}\nTraceback:\n{tb}")
+        print(f"[log_mood] Exception: {e}\nTraceback:\n{tb}")
+        return jsonify({'error': f'Internal server error: {str(e)}', 'trace': tb}), 500
 
 @app.route('/api/mood/history', methods=['GET'])
 def mood_history():
@@ -5557,7 +5561,11 @@ def log_gratitude():
         }), 201
         
     except Exception as e:
-        return handle_exception(e, request.endpoint or 'unknown')
+        import traceback, logging
+        tb = traceback.format_exc()
+        logging.error(f"[log_gratitude] Exception: {e}\nTraceback:\n{tb}")
+        print(f"[log_gratitude] Exception: {e}\nTraceback:\n{tb}")
+        return jsonify({'error': f'Internal server error: {str(e)}', 'trace': tb}), 500
 
 # ========== CBT TOOLS API ENDPOINTS ==========
 

@@ -6783,7 +6783,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     // Already logged today - show friendly message
                     showMessage('moodMessage', '✓ You\'ve already logged your mood today! See you tomorrow! 😊', 'success');
                 } else {
-                    showMessage('moodMessage', data.error || 'Failed to log mood', 'error');
+                    let errorMsg = data && data.error ? data.error : 'Failed to log mood';
+                    if (data && data.trace) {
+                        errorMsg += '\n[Server Trace]\n' + data.trace;
+                    }
+                    showMessage('moodMessage', errorMsg, 'error');
                 }
             } catch (error) {
                 showMessage('moodMessage', 'Connection error. Please try again.', 'error');
@@ -6814,7 +6818,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     await rewardPet('gratitude');
                     document.getElementById('gratitudeEntry').value = '';
                 } else {
-                    showMessage('gratitudeMessage', data.error || 'Failed to save entry', 'error');
+                    let errorMsg = data && data.error ? data.error : 'Failed to save entry';
+                    if (data && data.trace) {
+                        errorMsg += '\n[Server Trace]\n' + data.trace;
+                    }
+                    showMessage('gratitudeMessage', errorMsg, 'error');
                 }
             } catch (error) {
                 showMessage('gratitudeMessage', 'Connection error. Please try again.', 'error');
