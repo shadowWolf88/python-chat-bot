@@ -288,7 +288,7 @@ APPLE_TEAM_ID=your_team_id
 ### Step 2.1: Initialize Capacitor Project
 
 ```bash
-cd "/home/computer001/Documents/python chat bot"
+cd "/home/computer001/Documents/Healing Space UK"
 
 # Initialize npm if not done
 npm init -y
@@ -608,7 +608,7 @@ cd android
 ### Step 6.1: Create Electron Project
 
 ```bash
-cd "/home/computer001/Documents/python chat bot"
+cd "/home/computer001/Documents/Healing Space UK"
 
 # Create desktop directory
 mkdir desktop-app
@@ -1409,7 +1409,7 @@ pytest tests/ -v
 
 ```bash
 # 1. Install dependencies
-cd "/home/computer001/Documents/python chat bot"
+cd "/home/computer001/Documents/Healing Space UK"
 npm init -y
 npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/android
 

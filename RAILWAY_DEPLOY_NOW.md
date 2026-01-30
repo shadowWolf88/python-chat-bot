@@ -29,7 +29,7 @@ npm i -g @railway/cli
 railway login
 
 # 3. Initialize project
-cd "/home/computer001/Documents/python chat bot"
+cd "/home/computer001/Documents/Healing Space UK"
 railway init
 
 # 4. Link to Railway project (if exists) or create new

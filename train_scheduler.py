@@ -13,7 +13,7 @@ Example Windows Task Scheduler:
 - Action: Start program
   - Program: python
   - Arguments: train_scheduler.py
-  - Start in: C:\path\to\python chat bot
+    - Start in: C:\path\to\Healing Space UK
 """
 
 import os

@@ -667,6 +667,6 @@ pdf.body_text(
 )
 
 # Generate PDF
-output_path = '/home/computer001/Documents/python chat bot/DEVELOPER_README.pdf'
+output_path = '/home/computer001/Documents/Healing Space UK/DEVELOPER_README.pdf'
 pdf.output(output_path)
 print(f"Developer README generated: {output_path}")

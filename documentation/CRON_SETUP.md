@@ -46,7 +46,7 @@ crontab -l | grep mood
 
 You should see:
 ```
-0 20 * * * /home/computer001/Documents/python chat bot/send_mood_reminders.sh
+0 20 * * * /home/computer001/Documents/Healing Space UK/send_mood_reminders.sh
 ```
 
 ---

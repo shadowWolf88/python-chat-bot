@@ -68,7 +68,7 @@ source ~/.bashrc
 
 ### Initialize npm project (if not already done)
 ```bash
-cd "/home/computer001/Documents/python chat bot"
+cd "/home/computer001/Documents/Healing Space UK"
 
 # Create package.json
 npm init -y

@@ -35,7 +35,7 @@ Eventually, the local model can replace Groq for unlimited, independent operatio
 ### 1. Install Training Dependencies
 
 ```bash
-cd "/home/computer001/Documents/python chat bot"
+cd "/home/computer001/Documents/Healing Space UK"
 pip install -r requirements-training.txt
 ```
 
@@ -95,7 +95,7 @@ crontab -e
 4. **Action**: Start a program
    - Program: `python`
    - Arguments: `train_scheduler.py`
-   - Start in: `C:\path\to\python chat bot`
+  - Start in: `C:\path\to\Healing Space UK`
 
 ---
 
@@ -259,7 +259,7 @@ Body: {"username": "clinician_username"}
 ## File Structure
 
 ```
-python chat bot/
+Healing Space UK/
 ├── ai_trainer.py              # Main training system
 ├── train_scheduler.py         # Automated training script
 ├── requirements-training.txt  # ML dependencies
