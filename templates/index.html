@@ -5055,8 +5055,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             try {
                 const response = await fetch('/api/pet/create', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, species, gender })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ username: currentUser, name, species, gender })
                 });
                 
                 if (response.ok) {
@@ -5125,7 +5128,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             try {
                 await fetch('/api/pet/apply-decay', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ username: currentUser })
                 });
             } catch (error) {
                 console.error('Pet decay error:', error);
@@ -5138,7 +5145,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             try {
                 const response = await fetch('/api/pet/check-return', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ username: currentUser })
                 });
                 
                 if (response.ok) {
@@ -5192,8 +5203,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             try {
                 const response = await fetch('/api/pet/buy', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ item_id: itemId })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ username: currentUser, item_id: itemId })
                 });
                 
                 const data = await response.json();
@@ -5237,8 +5251,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             try {
                 const response = await fetch('/api/pet/declutter', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ worries })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ username: currentUser, worries })
                 });
                 
                 const data = await response.json();
@@ -5280,11 +5297,15 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             try {
                 const response = await fetch('/api/pet/adventure', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ username: currentUser })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok && data.success) {
                     alert(data.message + ' They will return with rewards in 30 minutes! 🎁');
                     startWalkCountdown(data.return_time);
