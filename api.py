@@ -5874,54 +5874,11 @@ def create_core_belief_alt():
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
 
-@app.route('/api/cbt/core-beliefs/<int:belief_id>', methods=['PUT'])
-def update_core_belief(belief_id):
-    """Update a core belief entry"""
-    try:
-        data = request.json
-        username = data.get('username')
-
-        if not username:
-            return jsonify({'error': 'Username required'}), 400
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Verify ownership
-        existing = cur.execute(
-            "SELECT id FROM core_beliefs WHERE id=? AND username=?", (belief_id, username)
-        ).fetchone()
-        if not existing:
-            conn.close()
-            return jsonify({'error': 'Belief not found'}), 404
-
-        # Build update query dynamically
-        updates = []
-        values = []
-        for field in ['old_belief', 'belief_origin', 'evidence_for', 'evidence_against',
-                      'new_balanced_belief', 'belief_strength_before', 'belief_strength_after', 'is_active']:
-            if field in data:
-                updates.append(f"{field}=?")
-                values.append(data[field])
-
-        if updates:
-            updates.append("last_reviewed=CURRENT_TIMESTAMP")
-            values.append(belief_id)
-            cur.execute(f"UPDATE core_beliefs SET {', '.join(updates)} WHERE id=?", values)
-            conn.commit()
-
-        conn.close()
-        update_ai_memory(username)
-        log_event(username, 'api', 'core_belief_update', f'Updated belief {belief_id}')
-
-        return jsonify({'success': True}), 200
-    except Exception as e:
-        return handle_exception(e, request.endpoint or 'unknown')
-
 # === 5. EXPOSURE HIERARCHY ===
+# Note: update_core_belief duplicate removed (defined earlier at line ~1017)
 @app.route('/api/cbt/exposure', methods=['GET'])
-def get_exposure_hierarchy():
-    """Get user's exposure hierarchy"""
+def get_exposure_hierarchy_list():
+    """Get user's exposure hierarchy (list all)"""
     try:
         username = request.args.get('username')
         if not username:
@@ -6057,8 +6014,8 @@ def log_exposure_attempt(exposure_id):
 
 # === 6. PROBLEM-SOLVING WORKSHEET ===
 @app.route('/api/cbt/problem-solving', methods=['GET'])
-def get_problem_solving():
-    """Get user's problem-solving worksheets"""
+def get_problem_solving_list():
+    """Get user's problem-solving worksheets (list all)"""
     try:
         username = request.args.get('username')
         status = request.args.get('status')  # 'in_progress', 'completed', or None for all
@@ -6090,51 +6047,7 @@ def get_problem_solving():
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
 
-@app.route('/api/cbt/problem-solving/<int:problem_id>', methods=['PUT'])
-def update_problem_solving(problem_id):
-    """Update a problem-solving worksheet"""
-    try:
-        data = request.json
-        username = data.get('username')
-
-        if not username:
-            return jsonify({'error': 'Username required'}), 400
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Verify ownership
-        existing = cur.execute(
-            "SELECT id FROM problem_solving WHERE id=? AND username=?", (problem_id, username)
-        ).fetchone()
-        if not existing:
-            conn.close()
-            return jsonify({'error': 'Problem not found'}), 404
-
-        updates = []
-        values = []
-        for field in ['problem_description', 'problem_importance', 'brainstormed_solutions',
-                      'chosen_solution', 'action_steps', 'outcome', 'status']:
-            if field in data:
-                updates.append(f"{field}=?")
-                values.append(data[field])
-
-        # Set completed_timestamp if status changes to completed
-        if data.get('status') == 'completed':
-            updates.append("completed_timestamp=CURRENT_TIMESTAMP")
-
-        if updates:
-            values.append(problem_id)
-            cur.execute(f"UPDATE problem_solving SET {', '.join(updates)} WHERE id=?", values)
-            conn.commit()
-
-        conn.close()
-        update_ai_memory(username)
-        log_event(username, 'api', 'problem_solving_update', f'Updated problem {problem_id}')
-
-        return jsonify({'success': True}), 200
-    except Exception as e:
-        return handle_exception(e, request.endpoint or 'unknown')
+# Note: update_problem_solving duplicate removed (defined earlier at line ~718)
 
 # === 7. COPING CARDS ===
 @app.route('/api/cbt/coping-cards', methods=['GET'])
@@ -6241,8 +6154,8 @@ def use_coping_card(card_id):
         return handle_exception(e, request.endpoint or 'unknown')
 
 @app.route('/api/cbt/coping-cards/<int:card_id>', methods=['PUT'])
-def update_coping_card(card_id):
-    """Update a coping card"""
+def update_coping_card_alt(card_id):
+    """Update a coping card (alternate endpoint)"""
     try:
         data = request.json
         username = data.get('username')
@@ -6273,8 +6186,8 @@ def update_coping_card(card_id):
         return handle_exception(e, request.endpoint or 'unknown')
 
 @app.route('/api/cbt/coping-cards/<int:card_id>', methods=['DELETE'])
-def delete_coping_card(card_id):
-    """Delete a coping card"""
+def delete_coping_card_alt(card_id):
+    """Delete a coping card (alternate endpoint)"""
     try:
         data = request.json
         username = data.get('username')
@@ -6403,39 +6316,7 @@ def get_values():
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
 
-@app.route('/api/cbt/values/<int:value_id>', methods=['PUT'])
-def update_value(value_id):
-    """Update a value entry"""
-    try:
-        data = request.json
-        username = data.get('username')
-
-        if not username:
-            return jsonify({'error': 'Username required'}), 400
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        updates = []
-        values = []
-        for field in ['value_name', 'value_description', 'importance_rating',
-                      'current_alignment', 'life_area', 'related_goals', 'is_active']:
-            if field in data:
-                updates.append(f"{field}=?")
-                values.append(data[field])
-
-        if updates:
-            updates.append("last_reviewed=CURRENT_TIMESTAMP")
-            values.append(value_id)
-            values.append(username)
-            cur.execute(f"UPDATE values_clarification SET {', '.join(updates)} WHERE id=? AND username=?", values)
-            conn.commit()
-
-        conn.close()
-        update_ai_memory(username)
-        return jsonify({'success': True}), 200
-    except Exception as e:
-        return handle_exception(e, request.endpoint or 'unknown')
+# Note: update_value duplicate removed (defined earlier at line ~335)
 
 # === 10. GOAL SETTING AND TRACKING ===
 @app.route('/api/cbt/goals', methods=['GET'])
@@ -6508,44 +6389,7 @@ def get_goals():
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
 
-@app.route('/api/cbt/goals/<int:goal_id>', methods=['PUT'])
-def update_goal(goal_id):
-    """Update a goal"""
-    try:
-        data = request.json
-        username = data.get('username')
-
-        if not username:
-            return jsonify({'error': 'Username required'}), 400
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        updates = []
-        values = []
-        for field in ['goal_title', 'goal_description', 'goal_type', 'target_date',
-                      'related_value_id', 'status', 'progress_percentage']:
-            if field in data:
-                updates.append(f"{field}=?")
-                values.append(data[field])
-
-        # Set completed_timestamp if status changes to completed
-        if data.get('status') == 'completed':
-            updates.append("completed_timestamp=CURRENT_TIMESTAMP")
-
-        if updates:
-            values.append(goal_id)
-            values.append(username)
-            cur.execute(f"UPDATE goals SET {', '.join(updates)} WHERE id=? AND username=?", values)
-            conn.commit()
-
-        conn.close()
-        update_ai_memory(username)
-        log_event(username, 'api', 'goal_updated', f'Updated goal {goal_id}')
-
-        return jsonify({'success': True}), 200
-    except Exception as e:
-        return handle_exception(e, request.endpoint or 'unknown')
+# Note: update_goal duplicate removed (defined earlier at line ~130)
 
 @app.route('/api/cbt/goals/<int:goal_id>/milestone', methods=['POST'])
 def add_goal_milestone(goal_id):
