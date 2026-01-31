@@ -1,13 +1,71 @@
-<h4>Exposure Hierarchy Builder</h4>
-<p>Create a list of feared situations, rate them, and pick one to work on.</p>
-<form id="exposureHierarchyForm">
-  <label>Feared situations (one per line):</label><br>
-  <textarea name="situations" rows="4"></textarea><br>
-  <label>Pick one to work on:</label><br>
-  <input type="text" name="chosen_situation"><br>
-  <label>Distress rating (0-10):</label><br>
-  <input type="number" min="0" max="10" name="distress_rating"><br>
-  <button type="button" class="btn" onclick="saveExposureHierarchy()">Save</button>
-  <button type="button" class="btn btn-secondary" onclick="resetExposureHierarchy()">Reset</button>
-</form>
-<div id="exposureHierarchyStatus"></div>
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">🪜 Exposure Hierarchy Builder</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Create a list of feared situations and pick one to work on gradually</p>
+
+    <form id="exposureHierarchyForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="exposureHierarchyMoodBefore"></div>
+        </div>
+
+        <!-- Feared Situations -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">List feared situations (one per line) 😰</label>
+            <textarea name="situations" rows="5" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="Enter situations that cause anxiety:&#10;&#10;1. Speaking to a stranger&#10;2. Making a phone call&#10;3. Attending a social gathering..."></textarea>
+        </div>
+
+        <!-- Chosen Situation -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Pick one to work on first 🎯</label>
+            <input type="text" name="chosen_situation" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;" placeholder="Which situation will you start with?">
+        </div>
+
+        <!-- Distress Rating -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Distress rating for this situation (0-10) 📊</label>
+            <input type="number" min="0" max="10" name="distress_rating" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;" placeholder="0 = No distress, 10 = Maximum distress">
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after creating this plan? 💪</label>
+            <div id="exposureHierarchyMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetExposureHierarchy()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveExposureHierarchy()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Hierarchy</button>
+        </div>
+    </form>
+    <div id="exposureHierarchyStatus"></div>
+</div>
+
+<script>
+function saveExposureHierarchy() {
+    saveCBTToolData('ExposureHierarchyBuilder');
+}
+
+function resetExposureHierarchy() {
+    document.getElementById('exposureHierarchyForm').reset();
+    const beforeBtns = document.querySelectorAll('#exposureHierarchyMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#exposureHierarchyMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('exposureHierarchyMoodBefore') && !document.querySelector('#exposureHierarchyMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('exposureHierarchyMoodBefore');
+        const beforeInput = document.getElementById('exposureHierarchyMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('exposureHierarchyMoodAfter') && !document.querySelector('#exposureHierarchyMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('exposureHierarchyMoodAfter');
+        const afterInput = document.getElementById('exposureHierarchyMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

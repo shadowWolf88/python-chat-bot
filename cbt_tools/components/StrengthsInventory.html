@@ -1,11 +1,80 @@
-<h4>Strengths Inventory</h4>
-<p>List your strengths and how you’ve used them recently.</p>
-<form id="strengthsInventoryForm">
-  <label>Strengths (comma separated):</label><br>
-  <input type="text" name="strengths"><br>
-  <label>How have you used these strengths?</label><br>
-  <textarea name="usage"></textarea><br>
-  <button type="button" class="btn" onclick="saveStrengthsInventory()">Save</button>
-  <button type="button" class="btn btn-secondary" onclick="resetStrengthsInventory()">Reset</button>
-</form>
-<div id="strengthsInventoryStatus"></div>
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">💪 Strengths Inventory</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Identify your strengths and how you've used them recently</p>
+
+    <form id="strengthsInventoryForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="strengthsInventoryMoodBefore"></div>
+        </div>
+
+        <!-- Strengths Input -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">What are your strengths? ⭐</label>
+            <input type="text" name="strengths" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;" placeholder="e.g., resilience, creativity, kindness (comma separated)">
+        </div>
+
+        <!-- Strength Examples Prompt -->
+        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); padding: 20px; border-radius: 15px; margin-bottom: 25px;">
+            <h5 style="margin-bottom: 15px;">💡 Common strengths to consider:</h5>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; font-size: 0.95em; color: var(--text-secondary);">
+                <span>✨ Creativity</span>
+                <span>💪 Resilience</span>
+                <span>💝 Compassion</span>
+                <span>🧠 Wisdom</span>
+                <span>😊 Humor</span>
+                <span>🤝 Loyalty</span>
+                <span>🎯 Focus</span>
+                <span>🌟 Optimism</span>
+            </div>
+        </div>
+
+        <!-- Usage Examples -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">How have you used these strengths recently? 🌟</label>
+            <textarea name="usage" rows="5" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="Describe specific situations where you used your strengths...&#10;&#10;Example: I used my resilience to keep going even when things got tough at work."></textarea>
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after recognizing your strengths? 🌈</label>
+            <div id="strengthsInventoryMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetStrengthsInventory()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveStrengthsInventory()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Inventory</button>
+        </div>
+    </form>
+    <div id="strengthsInventoryStatus"></div>
+</div>
+
+<script>
+function saveStrengthsInventory() {
+    saveCBTToolData('StrengthsInventory');
+}
+
+function resetStrengthsInventory() {
+    document.getElementById('strengthsInventoryForm').reset();
+    const beforeBtns = document.querySelectorAll('#strengthsInventoryMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#strengthsInventoryMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('strengthsInventoryMoodBefore') && !document.querySelector('#strengthsInventoryMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('strengthsInventoryMoodBefore');
+        const beforeInput = document.getElementById('strengthsInventoryMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('strengthsInventoryMoodAfter') && !document.querySelector('#strengthsInventoryMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('strengthsInventoryMoodAfter');
+        const afterInput = document.getElementById('strengthsInventoryMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

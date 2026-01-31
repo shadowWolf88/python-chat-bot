@@ -1,8 +1,77 @@
-<h4>Self-Compassion Letter</h4>
-<p>Write a supportive letter to yourself as if to a friend.</p>
-<form id="selfCompassionForm">
-  <textarea name="letter" rows="8" style="width:100%" required></textarea><br>
-  <button type="button" class="btn" onclick="saveSelfCompassion()">Save</button>
-  <button type="button" class="btn btn-secondary" onclick="resetSelfCompassion()">Reset</button>
-</form>
-<div id="selfCompassionStatus"></div>
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">💌 Self-Compassion Letter</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Write yourself a kind, understanding letter - the way you would comfort a dear friend</p>
+
+    <form id="selfCompassionForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="compassionMoodBefore"></div>
+        </div>
+
+        <!-- Difficult Situation -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">What has been difficult for you? 💭</label>
+            <textarea name="difficult_situation" rows="3" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="Describe what has been challenging..."></textarea>
+        </div>
+
+        <!-- Self-Compassion Prompts -->
+        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); padding: 20px; border-radius: 15px; margin-bottom: 25px;">
+            <h5 style="margin-bottom: 15px;">💝 Consider:</h5>
+            <ul style="list-style: none; padding: 0; color: var(--text-secondary);">
+                <li style="margin-bottom: 10px;">✨ What would you say to a friend in this situation?</li>
+                <li style="margin-bottom: 10px;">🌟 Can you acknowledge that suffering is part of being human?</li>
+                <li style="margin-bottom: 10px;">💖 What kindness do you deserve right now?</li>
+            </ul>
+        </div>
+
+        <!-- Compassionate Letter -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Write your compassionate letter to yourself 💝</label>
+            <textarea name="letter" rows="6" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="Dear friend,&#10;&#10;I understand that you are going through...&#10;&#10;It is okay to feel...&#10;&#10;You deserve kindness because..."></textarea>
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after writing this? 💖</label>
+            <div id="compassionMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetSelfCompassion()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveSelfCompassion()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Letter</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function saveSelfCompassion() {
+    // Trigger the enhanced save with all Phase 1 & 2 features!
+    saveCBTToolData('SelfCompassionLetter');
+}
+
+function resetSelfCompassion() {
+    document.getElementById('selfCompassionForm').reset();
+    const beforeBtns = document.querySelectorAll('#compassionMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#compassionMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('compassionMoodBefore') && !document.querySelector('#compassionMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('compassionMoodBefore');
+        // Rename the hidden input to track "before"
+        const beforeInput = document.getElementById('compassionMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('compassionMoodAfter') && !document.querySelector('#compassionMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('compassionMoodAfter');
+        // This will be the "after" mood
+        const afterInput = document.getElementById('compassionMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

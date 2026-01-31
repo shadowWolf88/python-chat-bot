@@ -1,11 +1,70 @@
-<h4>If-Then Coping Plan</h4>
-<p>Create an if-then plan for a common trigger.</p>
-<form id="ifThenCopingForm">
-  <label>If (trigger):</label><br>
-  <input type="text" name="trigger"><br>
-  <label>Then (coping action):</label><br>
-  <input type="text" name="action"><br>
-  <button type="button" class="btn" onclick="saveIfThenCopingPlan()">Save</button>
-  <button type="button" class="btn btn-secondary" onclick="resetIfThenCopingPlan()">Reset</button>
-</form>
-<div id="ifThenCopingStatus"></div>
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">🔄 If-Then Coping Plan</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Create an if-then plan to prepare for common triggers</p>
+
+    <form id="ifThenCopingForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="ifThenCopingMoodBefore"></div>
+        </div>
+
+        <!-- Explanation -->
+        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); padding: 20px; border-radius: 15px; margin-bottom: 25px;">
+            <p style="margin: 0; text-align: center;">Planning ahead helps you respond skillfully when triggers arise 🎯</p>
+        </div>
+
+        <!-- If (Trigger) -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">If (trigger situation) 🚨</label>
+            <input type="text" name="trigger" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;" placeholder="e.g., If I start feeling overwhelmed at work...">
+        </div>
+
+        <!-- Then (Action) -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Then (coping action I will take) 💪</label>
+            <input type="text" name="action" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;" placeholder="e.g., Then I will take 5 deep breaths and step outside for a minute...">
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after creating this plan? 😊</label>
+            <div id="ifThenCopingMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetIfThenCopingPlan()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveIfThenCopingPlan()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Plan</button>
+        </div>
+    </form>
+    <div id="ifThenCopingStatus"></div>
+</div>
+
+<script>
+function saveIfThenCopingPlan() {
+    saveCBTToolData('IfThenCopingPlan');
+}
+
+function resetIfThenCopingPlan() {
+    document.getElementById('ifThenCopingForm').reset();
+    const beforeBtns = document.querySelectorAll('#ifThenCopingMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#ifThenCopingMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('ifThenCopingMoodBefore') && !document.querySelector('#ifThenCopingMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('ifThenCopingMoodBefore');
+        const beforeInput = document.getElementById('ifThenCopingMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('ifThenCopingMoodAfter') && !document.querySelector('#ifThenCopingMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('ifThenCopingMoodAfter');
+        const afterInput = document.getElementById('ifThenCopingMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

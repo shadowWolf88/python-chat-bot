@@ -1,17 +1,93 @@
-<h4>Safety Plan Builder</h4>
-<p>Create a step-by-step plan for difficult moments.</p>
-<form id="safetyPlanForm">
-  <label>Warning signs:</label><br>
-  <textarea name="warning_signs"></textarea><br>
-  <label>Internal coping strategies:</label><br>
-  <textarea name="internal_coping"></textarea><br>
-  <label>People/places for distraction:</label><br>
-  <textarea name="distractions"></textarea><br>
-  <label>People to contact for help:</label><br>
-  <textarea name="contacts"></textarea><br>
-  <label>Professional resources:</label><br>
-  <textarea name="resources"></textarea><br>
-  <button type="button" class="btn" onclick="saveSafetyPlan()">Save</button>
-  <button type="button" class="btn btn-secondary" onclick="resetSafetyPlan()">Reset</button>
-</form>
-<div id="safetyPlanStatus"></div>
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">🛡️ Safety Plan Builder</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Create a step-by-step plan for navigating difficult moments</p>
+
+    <form id="safetyPlanForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="safetyPlanMoodBefore"></div>
+        </div>
+
+        <!-- Warning Signs -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">⚠️ Warning signs I should watch for</label>
+            <textarea name="warning_signs" rows="3" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="e.g., Withdrawing from friends, feeling hopeless, sleeping too much..."></textarea>
+        </div>
+
+        <!-- Internal Coping -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">🧘 Internal coping strategies I can use</label>
+            <textarea name="internal_coping" rows="3" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="e.g., Deep breathing, mindfulness, positive self-talk, journaling..."></textarea>
+        </div>
+
+        <!-- Distractions -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">🌟 People or places for healthy distraction</label>
+            <textarea name="distractions" rows="3" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="e.g., Coffee shop, park, supportive friend, hobby group..."></textarea>
+        </div>
+
+        <!-- Contacts -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">📞 People I can contact for support</label>
+            <textarea name="contacts" rows="3" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="e.g., Name and phone number of trusted friends, family members..."></textarea>
+        </div>
+
+        <!-- Professional Resources -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">🏥 Professional resources and crisis contacts</label>
+            <textarea name="resources" rows="3" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="e.g., Therapist name/number, crisis hotline (988), emergency services (911)..."></textarea>
+        </div>
+
+        <!-- Crisis Resources Reminder -->
+        <div style="background: linear-gradient(135deg, rgba(231, 76, 60, 0.1), rgba(192, 57, 43, 0.1)); padding: 20px; border-radius: 15px; margin-bottom: 25px; border: 2px solid rgba(231, 76, 60, 0.3);">
+            <p style="margin: 0; font-weight: 600; text-align: center;">🆘 Crisis Resources</p>
+            <p style="margin: 10px 0 0 0; text-align: center; font-size: 0.95em;">
+                National Suicide Prevention Lifeline: <strong>988</strong><br>
+                Crisis Text Line: Text <strong>HELLO</strong> to <strong>741741</strong><br>
+                Emergency Services: <strong>911</strong>
+            </p>
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after creating this plan? 💪</label>
+            <div id="safetyPlanMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetSafetyPlan()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveSafetyPlan()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Safety Plan</button>
+        </div>
+    </form>
+    <div id="safetyPlanStatus"></div>
+</div>
+
+<script>
+function saveSafetyPlan() {
+    saveCBTToolData('SafetyPlanBuilder');
+}
+
+function resetSafetyPlan() {
+    document.getElementById('safetyPlanForm').reset();
+    const beforeBtns = document.querySelectorAll('#safetyPlanMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#safetyPlanMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('safetyPlanMoodBefore') && !document.querySelector('#safetyPlanMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('safetyPlanMoodBefore');
+        const beforeInput = document.getElementById('safetyPlanMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('safetyPlanMoodAfter') && !document.querySelector('#safetyPlanMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('safetyPlanMoodAfter');
+        const afterInput = document.getElementById('safetyPlanMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

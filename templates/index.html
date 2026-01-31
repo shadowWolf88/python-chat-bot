@@ -2677,6 +2677,245 @@
             flex-direction: column;
             align-items: center;
         }
+
+        /* ========== PHASE 2 GAMIFICATION STYLES ========== */
+
+        /* Achievement Badge */
+        .achievement-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+            animation: badgeUnlock 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes badgeUnlock {
+            0% {
+                transform: scale(0) rotate(-180deg);
+                opacity: 0;
+            }
+            60% {
+                transform: scale(1.2) rotate(10deg);
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        /* Badge Popup */
+        .badge-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px 70px;
+            border-radius: 25px;
+            text-align: center;
+            z-index: 10001;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.4);
+            animation: badgePopup 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .badge-popup .badge-icon {
+            font-size: 5em;
+            margin-bottom: 20px;
+            animation: badgeSpin 1s ease-out;
+        }
+
+        @keyframes badgePopup {
+            0% {
+                transform: translate(-50%, -50%) scale(0) rotate(-180deg);
+                opacity: 0;
+            }
+            70% {
+                transform: translate(-50%, -50%) scale(1.1) rotate(10deg);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        @keyframes badgeSpin {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(720deg); }
+        }
+
+        /* Before/After Mood Comparison */
+        .mood-comparison {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 25px;
+            background: var(--bg-card);
+            border-radius: 15px;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        .mood-before, .mood-after {
+            text-align: center;
+            flex: 1;
+        }
+
+        .mood-comparison-arrow {
+            font-size: 2.5em;
+            color: var(--accent-color);
+            animation: arrowPulse 1.5s infinite;
+        }
+
+        @keyframes arrowPulse {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 1; }
+        }
+
+        .mood-value {
+            font-size: 4em;
+            margin: 10px 0;
+        }
+
+        .mood-label {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .mood-improvement {
+            background: linear-gradient(135deg, var(--success-color), #2ecc71);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            margin-top: 15px;
+            animation: celebrateImprovement 0.6s ease-out;
+        }
+
+        @keyframes celebrateImprovement {
+            0%, 100% { transform: scale(1); }
+            25%, 75% { transform: scale(1.1) rotate(-5deg); }
+            50% { transform: scale(1.15) rotate(5deg); }
+        }
+
+        /* Streak Counter */
+        .streak-counter {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            border-radius: 50px;
+            font-weight: bold;
+            box-shadow: 0 6px 18px rgba(231, 76, 60, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .streak-counter::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: streakShine 2s infinite;
+        }
+
+        @keyframes streakShine {
+            to { left: 100%; }
+        }
+
+        .streak-flame {
+            font-size: 1.5em;
+            animation: flameFlicker 0.5s infinite alternate;
+        }
+
+        @keyframes flameFlicker {
+            0% { transform: scale(1) rotate(-2deg); }
+            100% { transform: scale(1.1) rotate(2deg); }
+        }
+
+        .streak-number {
+            font-size: 1.8em;
+        }
+
+        /* Achievement Showcase */
+        .achievement-showcase {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .achievement-card {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .achievement-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px var(--shadow-color);
+        }
+
+        .achievement-card.locked {
+            opacity: 0.4;
+            filter: grayscale(1);
+        }
+
+        .achievement-card .icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .achievement-card .title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .achievement-card .description {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+        }
+
+        /* Progress Ring for Streaks */
+        .progress-ring {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .progress-ring-circle {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dashoffset 0.5s ease-out;
+        }
+
+        .progress-ring-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5em;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -3940,6 +4179,159 @@
                                         }
                                     } catch (e) {
                                         console.error('Save error:', e);
+                                    }
+                                };
+
+                                // ========== PHASE 2 GAMIFICATION FUNCTIONS ==========
+
+                                // Achievement System
+                                const ACHIEVEMENTS = {
+                                    'first_tool': { icon: '🎯', title: 'First Step', description: 'Completed your first tool', tier: 'bronze' },
+                                    'thought_detective': { icon: '🔍', title: 'Thought Detective', description: 'Completed 5 Cognitive Distortion quizzes', tier: 'silver' },
+                                    'defusion_master': { icon: '🌬️', title: 'Defusion Master', description: 'Completed 10 Thought Defusion exercises', tier: 'gold' },
+                                    'week_streak': { icon: '🔥', title: 'Week Warrior', description: '7-day streak on any tool', tier: 'silver' },
+                                    'mood_improver': { icon: '📈', title: 'Mood Improver', description: 'Improved mood 10 times', tier: 'gold' },
+                                    'all_tools': { icon: '🏆', title: 'Tool Explorer', description: 'Tried all 15 CBT tools', tier: 'platinum' },
+                                    'consistent_practice': { icon: '⭐', title: 'Consistent Practice', description: '30-day streak', tier: 'platinum' }
+                                };
+
+                                let unlockedAchievements = JSON.parse(localStorage.getItem('cbt_achievements') || '[]');
+                                let toolStreaks = JSON.parse(localStorage.getItem('cbt_tool_streaks') || '{}');
+                                let toolUsageCount = JSON.parse(localStorage.getItem('cbt_tool_usage') || '{}');
+                                let moodImprovements = parseInt(localStorage.getItem('mood_improvements') || '0');
+
+                                function showBadgeUnlock(achievementId) {
+                                    const achievement = ACHIEVEMENTS[achievementId];
+                                    if (!achievement || unlockedAchievements.includes(achievementId)) return;
+
+                                    unlockedAchievements.push(achievementId);
+                                    localStorage.setItem('cbt_achievements', JSON.stringify(unlockedAchievements));
+
+                                    const popup = document.createElement('div');
+                                    popup.className = 'badge-popup';
+                                    popup.innerHTML = `
+                                        <div class="badge-icon">${achievement.icon}</div>
+                                        <h2 style="margin-bottom: 10px; font-size: 2em;">Achievement Unlocked!</h2>
+                                        <div style="font-size: 1.3em; margin-bottom: 5px; font-weight: 600;">${achievement.title}</div>
+                                        <div style="opacity: 0.9;">${achievement.description}</div>
+                                    `;
+                                    document.body.appendChild(popup);
+                                    setTimeout(() => popup.remove(), 3500);
+                                }
+
+                                function checkAchievements(toolId) {
+                                    // Track tool usage
+                                    toolUsageCount[toolId] = (toolUsageCount[toolId] || 0) + 1;
+                                    localStorage.setItem('cbt_tool_usage', JSON.stringify(toolUsageCount));
+
+                                    const totalTools = Object.keys(toolUsageCount).length;
+                                    const totalUses = Object.values(toolUsageCount).reduce((a, b) => a + b, 0);
+
+                                    // Check achievements
+                                    if (totalUses === 1) showBadgeUnlock('first_tool');
+                                    if (toolUsageCount['CognitiveDistortionsQuiz'] >= 5) showBadgeUnlock('thought_detective');
+                                    if (toolUsageCount['ThoughtDefusionExercise'] >= 10) showBadgeUnlock('defusion_master');
+                                    if (totalTools >= 15) showBadgeUnlock('all_tools');
+                                    if (moodImprovements >= 10) showBadgeUnlock('mood_improver');
+
+                                    // Check streaks
+                                    const currentStreak = toolStreaks[toolId] || { count: 0, lastDate: null };
+                                    const today = new Date().toDateString();
+                                    if (currentStreak.lastDate !== today) {
+                                        currentStreak.count += 1;
+                                        currentStreak.lastDate = today;
+                                        toolStreaks[toolId] = currentStreak;
+                                        localStorage.setItem('cbt_tool_streaks', JSON.stringify(toolStreaks));
+
+                                        if (currentStreak.count >= 7) showBadgeUnlock('week_streak');
+                                        if (currentStreak.count >= 30) showBadgeUnlock('consistent_practice');
+                                    }
+                                }
+
+                                // Before/After Mood Visualization
+                                function showMoodComparison(beforeMood, afterMood) {
+                                    if (!beforeMood || !afterMood) return;
+
+                                    const improvement = afterMood - beforeMood;
+                                    if (improvement > 0) {
+                                        moodImprovements += 1;
+                                        localStorage.setItem('mood_improvements', moodImprovements.toString());
+                                    }
+
+                                    const emojis = {
+                                        1: '😰', 3: '😟', 5: '😐', 7: '🙂', 10: '😊'
+                                    };
+
+                                    const container = document.createElement('div');
+                                    container.className = 'mood-comparison';
+                                    container.innerHTML = `
+                                        <div class="mood-before">
+                                            <div class="mood-label">Before</div>
+                                            <div class="mood-value">${emojis[beforeMood] || '😐'}</div>
+                                            <div>${beforeMood}/10</div>
+                                        </div>
+                                        <div class="mood-comparison-arrow">→</div>
+                                        <div class="mood-after">
+                                            <div class="mood-label">After</div>
+                                            <div class="mood-value">${emojis[afterMood] || '😐'}</div>
+                                            <div>${afterMood}/10</div>
+                                        </div>
+                                    `;
+
+                                    if (improvement > 0) {
+                                        container.innerHTML += `
+                                            <div class="mood-improvement">
+                                                +${improvement} improvement! 🎉
+                                            </div>
+                                        `;
+                                    }
+
+                                    // Find a good place to show it (after tool loader)
+                                    const loader = document.getElementById('cbtToolLoader');
+                                    if (loader) {
+                                        const existing = loader.querySelector('.mood-comparison');
+                                        if (existing) existing.remove();
+                                        loader.appendChild(container);
+                                    }
+                                }
+
+                                // Streak Display
+                                function showStreakCounter(toolId) {
+                                    const streak = toolStreaks[toolId];
+                                    if (!streak || streak.count === 0) return;
+
+                                    const counter = document.createElement('div');
+                                    counter.className = 'streak-counter';
+                                    counter.innerHTML = `
+                                        <span class="streak-flame">🔥</span>
+                                        <span class="streak-number">${streak.count}</span>
+                                        <span>Day Streak!</span>
+                                    `;
+                                    counter.style.position = 'fixed';
+                                    counter.style.top = '20px';
+                                    counter.style.right = '20px';
+                                    counter.style.zIndex = '9999';
+                                    document.body.appendChild(counter);
+                                    setTimeout(() => counter.remove(), 4000);
+                                }
+
+                                // Enhanced Save with Phase 2 Features
+                                const originalEnhancedSave = saveCBTToolData;
+                                saveCBTToolData = async function(toolId) {
+                                    // Get before mood if available
+                                    const beforeMoodInput = document.querySelector('[name="mood_before_value"], [id$="_before_value"]');
+                                    const afterMoodInput = document.querySelector('[name="mood_rating"], [name*="mood"], [id$="_value"]');
+                                    const beforeMood = beforeMoodInput ? parseInt(beforeMoodInput.value) : null;
+                                    const afterMood = afterMoodInput ? parseInt(afterMoodInput.value) : null;
+
+                                    // Call original save
+                                    await originalEnhancedSave(toolId);
+
+                                    // Phase 2 features
+                                    checkAchievements(toolId);
+                                    showStreakCounter(toolId);
+                                    if (beforeMood && afterMood) {
+                                        showMoodComparison(beforeMood, afterMood);
                                     }
                                 };
 

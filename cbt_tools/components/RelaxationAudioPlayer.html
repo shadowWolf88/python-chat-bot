@@ -1,7 +1,83 @@
-<h4>Relaxation Audio Player</h4>
-<p>Play a short guided relaxation or mindfulness audio.</p>
-<audio id="relaxationAudio" controls>
-  <source src="/static/audio/relaxation_sample.mp3" type="audio/mpeg">
-  Your browser does not support the audio element.
-</audio>
-<button class="btn" onclick="document.getElementById('relaxationAudio').play()">Play</button>
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">🎵 Relaxation Audio Player</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Play a guided relaxation or mindfulness audio to calm your mind</p>
+
+    <form id="relaxationAudioForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="relaxationAudioMoodBefore"></div>
+        </div>
+
+        <!-- Audio Player -->
+        <div style="background: var(--bg-input); padding: 30px; border-radius: 15px; margin-bottom: 25px; text-align: center;">
+            <audio id="relaxationAudio" controls style="width: 100%; max-width: 500px; margin-bottom: 15px;">
+                <source src="/static/audio/relaxation_sample.mp3" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+            <div style="margin-top: 15px;">
+                <button type="button" class="btn" onclick="document.getElementById('relaxationAudio').play()" style="padding: 15px 30px; font-size: 1.1em;">▶️ Play Audio</button>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); padding: 20px; border-radius: 15px; margin-bottom: 25px;">
+            <h5 style="margin-bottom: 10px;">💡 Tips for relaxation:</h5>
+            <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
+                <li>Find a quiet, comfortable place</li>
+                <li>Close your eyes or soften your gaze</li>
+                <li>Breathe naturally and follow along</li>
+                <li>Let go of any expectations</li>
+            </ul>
+        </div>
+
+        <!-- Notes -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Notes about your experience (optional) 📝</label>
+            <textarea name="notes" rows="3" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="How did this relaxation exercise feel for you?"></textarea>
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after listening? 😌</label>
+            <div id="relaxationAudioMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetRelaxationAudio()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveRelaxationAudio()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Session</button>
+        </div>
+    </form>
+    <div id="relaxationAudioStatus"></div>
+</div>
+
+<script>
+function saveRelaxationAudio() {
+    saveCBTToolData('RelaxationAudioPlayer');
+}
+
+function resetRelaxationAudio() {
+    document.getElementById('relaxationAudioForm').reset();
+    document.getElementById('relaxationAudio').pause();
+    document.getElementById('relaxationAudio').currentTime = 0;
+    const beforeBtns = document.querySelectorAll('#relaxationAudioMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#relaxationAudioMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('relaxationAudioMoodBefore') && !document.querySelector('#relaxationAudioMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('relaxationAudioMoodBefore');
+        const beforeInput = document.getElementById('relaxationAudioMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('relaxationAudioMoodAfter') && !document.querySelector('#relaxationAudioMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('relaxationAudioMoodAfter');
+        const afterInput = document.getElementById('relaxationAudioMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

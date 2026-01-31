@@ -1,13 +1,115 @@
-<h4>Sleep Hygiene Checklist</h4>
-<p>Review and check off healthy sleep habits.</p>
-<form id="sleepHygieneForm">
-  <label><input type="checkbox" name="habit" value="consistent_bedtime"> Go to bed at a consistent time</label><br>
-  <label><input type="checkbox" name="habit" value="no_screens"> Avoid screens before bed</label><br>
-  <label><input type="checkbox" name="habit" value="cool_dark_room"> Sleep in a cool, dark room</label><br>
-  <label><input type="checkbox" name="habit" value="no_caffeine_evening"> No caffeine in the evening</label><br>
-  <label><input type="checkbox" name="habit" value="relaxing_routine"> Have a relaxing bedtime routine</label><br>
-  <label><input type="checkbox" name="habit" value="limit_naps"> Limit daytime naps</label><br>
-  <button type="button" class="btn" onclick="saveSleepHygiene()">Save</button>
-  <button type="button" class="btn btn-secondary" onclick="resetSleepHygiene()">Reset</button>
-</form>
-<div id="sleepHygieneStatus"></div>
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">😴 Sleep Hygiene Checklist</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Review and check off healthy sleep habits you're practicing</p>
+
+    <form id="sleepHygieneForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="sleepHygieneMoodBefore"></div>
+        </div>
+
+        <!-- Sleep Habits Checklist -->
+        <div style="margin-bottom: 25px;">
+            <h5 style="margin-bottom: 15px; text-align: center;">Which habits are you practicing? ✅</h5>
+            <div style="display: grid; gap: 12px;">
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                    <input type="checkbox" name="habit" value="consistent_bedtime" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>🕐 Consistent bedtime</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Go to bed at the same time each night</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                    <input type="checkbox" name="habit" value="no_screens" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>📵 No screens before bed</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Avoid devices 1 hour before sleep</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                    <input type="checkbox" name="habit" value="cool_dark_room" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>🌙 Cool, dark room</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Sleep environment is comfortable</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                    <input type="checkbox" name="habit" value="no_caffeine_evening" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>☕ No caffeine in evening</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Avoid caffeine after 2 PM</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                    <input type="checkbox" name="habit" value="relaxing_routine" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>🛁 Relaxing bedtime routine</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Wind down with calming activities</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                    <input type="checkbox" name="habit" value="limit_naps" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>😴 Limit daytime naps</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Keep naps under 30 minutes</div>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after reviewing these? 😊</label>
+            <div id="sleepHygieneMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetSleepHygiene()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveSleepHygiene()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Checklist</button>
+        </div>
+    </form>
+    <div id="sleepHygieneStatus"></div>
+</div>
+
+<script>
+function saveSleepHygiene() {
+    saveCBTToolData('SleepHygieneChecklist');
+}
+
+function resetSleepHygiene() {
+    document.getElementById('sleepHygieneForm').reset();
+    const beforeBtns = document.querySelectorAll('#sleepHygieneMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#sleepHygieneMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('sleepHygieneMoodBefore') && !document.querySelector('#sleepHygieneMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('sleepHygieneMoodBefore');
+        const beforeInput = document.getElementById('sleepHygieneMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('sleepHygieneMoodAfter') && !document.querySelector('#sleepHygieneMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('sleepHygieneMoodAfter');
+        const afterInput = document.getElementById('sleepHygieneMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+
+    // Add hover effect to labels
+    const labels = document.querySelectorAll('#sleepHygieneForm label');
+    labels.forEach(label => {
+        label.addEventListener('mouseenter', () => {
+            label.style.background = 'var(--bg-hover)';
+            label.style.transform = 'translateX(5px)';
+        });
+        label.addEventListener('mouseleave', () => {
+            label.style.background = 'var(--bg-input)';
+            label.style.transform = 'translateX(0)';
+        });
+    });
+}, 100);
+</script>

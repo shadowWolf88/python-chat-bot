@@ -1,8 +1,123 @@
-<h4>Values Card Sort</h4>
-<p>Pick your top 5 values from the list below.</p>
-<form id="valuesCardSortForm">
-  <div id="valuesList"></div>
-  <button type="button" class="btn" onclick="saveValuesCardSort()">Save</button>
-  <button type="button" class="btn btn-secondary" onclick="resetValuesCardSort()">Reset</button>
-</form>
-<div id="valuesCardSortStatus"></div>
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">💎 Values Card Sort</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Pick your top 5 values that matter most to you</p>
+
+    <form id="valuesCardSortForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="valuesCardSortMoodBefore"></div>
+        </div>
+
+        <!-- Instructions -->
+        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); padding: 20px; border-radius: 15px; margin-bottom: 25px;">
+            <p style="margin: 0; text-align: center; font-weight: 600;">Select up to 5 values that are most important to you ✨</p>
+        </div>
+
+        <!-- Values List -->
+        <div id="valuesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 25px;">
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="family" style="width: 20px; height: 20px;">
+                <span>👨‍👩‍👧‍👦 Family</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="health" style="width: 20px; height: 20px;">
+                <span>💪 Health</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="creativity" style="width: 20px; height: 20px;">
+                <span>🎨 Creativity</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="learning" style="width: 20px; height: 20px;">
+                <span>📚 Learning</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="adventure" style="width: 20px; height: 20px;">
+                <span>🌍 Adventure</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="compassion" style="width: 20px; height: 20px;">
+                <span>💝 Compassion</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="achievement" style="width: 20px; height: 20px;">
+                <span>🏆 Achievement</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="authenticity" style="width: 20px; height: 20px;">
+                <span>✨ Authenticity</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="connection" style="width: 20px; height: 20px;">
+                <span>🤝 Connection</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="freedom" style="width: 20px; height: 20px;">
+                <span>🕊️ Freedom</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="contribution" style="width: 20px; height: 20px;">
+                <span>🌱 Contribution</span>
+            </label>
+            <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                <input type="checkbox" name="value" value="spirituality" style="width: 20px; height: 20px;">
+                <span>🙏 Spirituality</span>
+            </label>
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after clarifying your values? 🌟</label>
+            <div id="valuesCardSortMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetValuesCardSort()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveValuesCardSort()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Values</button>
+        </div>
+    </form>
+    <div id="valuesCardSortStatus"></div>
+</div>
+
+<script>
+function saveValuesCardSort() {
+    saveCBTToolData('ValuesCardSort');
+}
+
+function resetValuesCardSort() {
+    document.getElementById('valuesCardSortForm').reset();
+    const beforeBtns = document.querySelectorAll('#valuesCardSortMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#valuesCardSortMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('valuesCardSortMoodBefore') && !document.querySelector('#valuesCardSortMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('valuesCardSortMoodBefore');
+        const beforeInput = document.getElementById('valuesCardSortMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('valuesCardSortMoodAfter') && !document.querySelector('#valuesCardSortMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('valuesCardSortMoodAfter');
+        const afterInput = document.getElementById('valuesCardSortMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+
+    // Add hover effect to value labels
+    const labels = document.querySelectorAll('#valuesList label');
+    labels.forEach(label => {
+        label.addEventListener('mouseenter', () => {
+            label.style.background = 'var(--bg-hover)';
+            label.style.transform = 'translateY(-2px)';
+        });
+        label.addEventListener('mouseleave', () => {
+            label.style.background = 'var(--bg-input)';
+            label.style.transform = 'translateY(0)';
+        });
+    });
+}, 100);
+</script>
