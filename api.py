@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, render_template, send_from_directory,
 from flask_cors import CORS
 from functools import wraps
 import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 import json
 import hashlib
@@ -21,7 +23,7 @@ def ensure_pet_table():
     cur = conn.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS pet (
-            id INTEGER PRIMARY KEY,
+            id TEXT PRIMARY KEY,
             name TEXT, species TEXT, gender TEXT,
             hunger INTEGER DEFAULT 70, happiness INTEGER DEFAULT 70,
             energy INTEGER DEFAULT 70, hygiene INTEGER DEFAULT 80,
@@ -1694,12 +1696,18 @@ PET_DB_PATH = get_pet_db_path()
 
 # Database connection helper with proper settings for concurrency
 def get_db_connection(timeout=30.0):
-    """Create a database connection with proper settings to avoid locking"""
-    conn = sqlite3.connect(DB_PATH, timeout=timeout, check_same_thread=False)
-    conn.execute('PRAGMA journal_mode=WAL')  # Write-Ahead Logging for better concurrency
-    conn.execute('PRAGMA busy_timeout=30000')  # 30 second busy timeout
-    conn.execute('PRAGMA synchronous=NORMAL')  # Faster writes
-    return conn
+    """Create a database connection: use Postgres if DATABASE_URL is set, else fallback to SQLite (dev/legacy)"""
+    db_url = os.environ.get('DATABASE_URL')
+    if db_url:
+        # Connect to Postgres
+        return psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+    else:
+        # Fallback to SQLite for dev/legacy
+        conn = sqlite3.connect(DB_PATH, timeout=timeout, check_same_thread=False)
+        conn.execute('PRAGMA journal_mode=WAL')  # Write-Ahead Logging for better concurrency
+        conn.execute('PRAGMA busy_timeout=30000')  # 30 second busy timeout
+        conn.execute('PRAGMA synchronous=NORMAL')  # Faster writes
+        return conn
 
 # Load secrets
 secrets_manager = SecretsManager(debug=DEBUG)
@@ -6791,12 +6799,13 @@ def pet_create():
         ensure_pet_table()
         conn = sqlite3.connect(PET_DB_PATH)
         cur = conn.cursor()
-        cur.execute("DELETE FROM pet")  # Only one pet per user in current schema
+        # Remove any existing pet for this user
+        cur.execute("DELETE FROM pet WHERE id=?", (username,))
         cur.execute("""
-            INSERT INTO pet (name, species, gender, hunger, happiness, energy, hygiene, 
+            INSERT INTO pet (id, name, species, gender, hunger, happiness, energy, hygiene, 
                            coins, xp, stage, adventure_end, last_updated, hat)
-            VALUES (?, ?, ?, 70, 70, 70, 80, 0, 0, 'Baby', 0, ?, 'None')
-        """, (name, species, gender, datetime.now().timestamp()))
+            VALUES (?, ?, ?, ?, 70, 70, 70, 80, 0, 0, 'Baby', 0, ?, 'None')
+        """, (username, name, species, gender, datetime.now().timestamp()))
         conn.commit()
         conn.close()
         
