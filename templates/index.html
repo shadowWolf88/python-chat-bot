@@ -3556,6 +3556,9 @@
     <!-- Main App -->
     <div id="appScreen" class="app-container">
         <div class="app-header">
+            <button id="sidebarToggle" aria-label="Open navigation menu" aria-controls="sidebarNav" aria-expanded="false" style="display:none; background:transparent; border:none; font-size:2rem; margin-right:15px; cursor:pointer;">
+                ☰
+            </button>
             <h2>🌿 Healing Space UK</h2>
             <div class="user-info">
                 <button onclick="showNotifications()" style="position: relative; background: transparent; border: 2px solid var(--accent-color); color: var(--accent-color); padding: 8px 15px; border-radius: 8px; cursor: pointer; margin-right: 10px; font-size: 18px;">
@@ -3581,7 +3584,7 @@
         </div>
         
         <div class="app-content">
-            <div class="sidebar">
+            <nav id="sidebarNav" class="sidebar" aria-label="Main navigation" tabindex="-1">
                 <button class="tab-btn active" onclick="switchTab('home', this)">🏠 Home</button>
                 <button class="tab-btn" onclick="switchTab('therapy', this)">🤖 AI Therapy</button>
                 <button class="tab-btn" onclick="switchTab('mood', this)">📊 Mood & Habits</button>
@@ -3604,7 +3607,54 @@
                 <button class="tab-btn" onclick="switchTab('updates', this)">🆕 Updates</button>
                 <button class="tab-btn" id="professionalTabBtn" onclick="switchTab('professional', this)" style="display:none;">👨‍⚕️ Professional</button>
                 <button class="tab-btn" id="developerTabBtn" onclick="switchTab('developer', this)" style="display:none;">⚙️ Developer</button>
-            </div>
+            </nav>
+                <script>
+                // Hamburger menu toggle for mobile sidebar
+                const sidebar = document.getElementById('sidebarNav');
+                const sidebarToggle = document.getElementById('sidebarToggle');
+                function closeSidebar() {
+                    sidebar.classList.remove('open');
+                    sidebarToggle.setAttribute('aria-expanded', 'false');
+                    document.body.classList.remove('sidebar-open');
+                }
+                function openSidebar() {
+                    sidebar.classList.add('open');
+                    sidebarToggle.setAttribute('aria-expanded', 'true');
+                    document.body.classList.add('sidebar-open');
+                    sidebar.focus();
+                }
+                sidebarToggle.addEventListener('click', function() {
+                    if (sidebar.classList.contains('open')) {
+                        closeSidebar();
+                    } else {
+                        openSidebar();
+                    }
+                });
+                // Close sidebar on ESC
+                sidebar.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') closeSidebar();
+                });
+                // Hide sidebar on click outside (mobile)
+                document.addEventListener('click', function(e) {
+                    if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
+                        if (!sidebar.contains(e.target) && e.target !== sidebarToggle) closeSidebar();
+                    }
+                });
+                // Responsive: show/hide hamburger
+                function updateSidebarToggle() {
+                    if (window.innerWidth <= 768) {
+                        sidebarToggle.style.display = '';
+                        sidebar.classList.remove('open');
+                        document.body.classList.remove('sidebar-open');
+                    } else {
+                        sidebarToggle.style.display = 'none';
+                        sidebar.classList.remove('open');
+                        document.body.classList.remove('sidebar-open');
+                    }
+                }
+                window.addEventListener('resize', updateSidebarToggle);
+                window.addEventListener('DOMContentLoaded', updateSidebarToggle);
+                </script>
             
             <div class="main-content">
             <!-- Home Tab -->
@@ -3644,7 +3694,7 @@
                 <!-- Quick Navigation Section -->
                 <div class="card home-quick-nav" style="margin-top: 20px;">
                     <h3>Quick Access</h3>
-                    <div class="quick-nav-grid">
+                    <div class="quick-nav-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
                         <button class="quick-nav-btn" onclick="switchTab('therapy', document.querySelector('[onclick*=&quot;therapy&quot;]'))">
                             🤖 AI Therapy
                         </button>
@@ -3839,7 +3889,7 @@
                 <h3>Mood, Sleep, Habits & Medications</h3>
                 <p style="color: #666; margin-bottom: 20px;">Complete daily check-in to track your wellness journey.</p>
                 
-                <div class="mood-scale">
+                <div class="mood-scale" style="display: flex; gap: 12px; justify-content: space-between;">
                     <div class="mood-option" data-mood="1" onclick="selectMood(1, this)">
                         <div class="emoji">😢</div>
                         <div>Very Low (1)</div>
@@ -3882,7 +3932,7 @@
                 </div>
                 
                 <h4 style="margin-top: 20px;">Medications Taken Today</h4>
-                <div class="inline-form">
+                <div class="inline-form" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
                     <div class="form-group">
                         <label>Medication Name</label>
                         <input type="text" id="medName" placeholder="e.g., Sertraline">

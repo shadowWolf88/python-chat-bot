@@ -1,3 +1,76 @@
+/* Responsive main content, tab panels, cards, forms, and modals */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 5px 2px;
+    }
+    .tab-content {
+        padding: 8px 2px;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+    .card, .home-welcome-card, .home-tasks-card, .home-quick-nav, .home-help-card, .home-pet-card, .home-feedback-card, .home-safety-card {
+        padding: 12px 6px !important;
+        border-radius: 10px !important;
+        margin-top: 12px !important;
+        font-size: 1rem;
+    }
+    .quick-nav-grid {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+    .cbt-tools-dashboard {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .form-group input, .form-group textarea, .themed-input, .themed-textarea {
+        font-size: 1rem !important;
+        padding: 10px 8px !important;
+        min-height: 44px;
+    }
+    .btn, .btn-secondary, .quick-nav-btn, .help-link, .cbt-tool-btn {
+        font-size: 1rem !important;
+        min-height: 44px;
+        padding: 12px 8px !important;
+        border-radius: 8px !important;
+    }
+    .modal-content {
+        max-width: 98vw !important;
+        min-width: 0 !important;
+        padding: 10px 4px !important;
+        border-radius: 10px !important;
+        font-size: 1rem;
+    }
+    .modal {
+        align-items: flex-start !important;
+        padding-top: 10vw !important;
+    }
+    .mood-scale {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    .mood-option {
+        min-width: 0 !important;
+        flex: 1 1 100% !important;
+        font-size: 1rem !important;
+        padding: 10px 6px !important;
+    }
+    .inline-form {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+}
+
+/* Accessibility: focus ring for all interactive elements */
+button:focus-visible, .tab-btn:focus-visible, .quick-nav-btn:focus-visible, .help-link:focus-visible, .cbt-tool-btn:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+}
+
+/* ARIA live region for feedback/status */
+#feedbackStatus[aria-live] {
+    outline: none;
+}
 /**
  * Healing Space - Phase 4 UX Enhancements
  * Version: 1.0.0
@@ -919,13 +992,66 @@ select:focus-visible {
     .hs-onboarding-overlay,
     .hs-privacy-panel,
     .hs-loading-overlay,
-    .sidebar,
-    .app-header {
-        display: none !important;
+    /* Sidebar base styles */
+    .sidebar {
+        width: 220px;
+        background: var(--accent-gradient);
+        padding: 20px 0;
+        overflow-y: auto;
+        box-shadow: 2px 0 10px var(--shadow-color);
+        transition: background 0.3s ease, left 0.3s;
+        position: relative;
+        z-index: 1100;
     }
-
-    .main-content {
-        width: 100%;
-        padding: 0;
+    /* Mobile sidebar overlay */
+    @media (max-width: 768px) {
+        .sidebar {
+            position: fixed;
+            left: -250px;
+            top: 0;
+            height: 100vh;
+            width: 220px;
+            background: var(--bg-card);
+            box-shadow: 2px 0 20px var(--shadow-color);
+            transition: left 0.3s, background 0.3s;
+            border-top-right-radius: 20px;
+            border-bottom-right-radius: 20px;
+            z-index: 20000;
+        }
+        .sidebar.open {
+            left: 0;
+        }
+        body.sidebar-open::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 19999;
+            pointer-events: auto;
+        }
+        .app-content {
+            flex-direction: column;
+        }
+        .main-content {
+            padding: 10px 5px;
+        }
+        .tab-content {
+            padding: 10px 5px;
+            border-radius: 10px;
+        }
+        .app-header {
+            flex-wrap: nowrap;
+            gap: 5px;
+            padding: 10px;
+        }
+        .btn, .btn-secondary {
+            font-size: 1rem;
+            padding: 12px;
+        }
+        .tab-btn {
+            font-size: 1rem;
+            padding: 12px 10px;
+        }
+    }
     }
 }
