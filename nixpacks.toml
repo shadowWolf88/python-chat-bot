@@ -11,4 +11,4 @@ cmds = ["echo 'Skipping npm install - Python only'"]
 cmds = ["pip install --break-system-packages -r requirements.txt"]
 
 [start]
-cmd = "gunicorn api:app --workers 4 --threads 2 --timeout 120 --bind 0.0.0.0:$PORT"
+cmd = "python -m gunicorn api:app --workers 4 --threads 2 --timeout 120 --bind 0.0.0.0:$PORT"
