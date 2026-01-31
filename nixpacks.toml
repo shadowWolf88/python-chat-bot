@@ -5,7 +5,7 @@
 nixPkgs = ["python312", "python312Packages.pip"]
 
 [phases.install]
-# Skip npm install - we don't need it for deployment
+cmds = ["echo 'Skipping npm install - Python only'"]
 
 [phases.build]
 cmds = ["pip install --break-system-packages -r requirements.txt"]

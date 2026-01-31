@@ -1,60 +1,32 @@
-# Desktop-only files (not needed for web deployment)
-legacy_desktop/
+# Ignore Node.js files - this is a Python project
+package.json
+package-lock.json
+node_modules/
+
+# Ignore Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-*.db
-*.db-journal
-*.db.bak
-backups/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Ignore local development files
 .env
-.venv/
-venv/
-ENV/
+*.db
+*.sqlite
+*.sqlite3
 
-# Large installer files
-*.deb
-*.rpm
-*.exe
-*.msi
-
-# Audio/media files
-*.mp3
-*.wav
-*.mp4
-
-# Temp debug files
-tmp_*.db
-
-# Test files
-tests/
-pytest_cache/
-.pytest_cache/
-
-# Documentation (large files)
-documentation/
-*.md
-!README.md
-
-# Git files
-.git/
-.gitignore
-
-# IDE files
+# Ignore IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-*.log
+# Ignore git
+.git/
+.gitignore
