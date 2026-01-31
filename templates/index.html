@@ -3590,7 +3590,6 @@
                 <button class="tab-btn" onclick="switchTab('pet', this)">🐶 My Pet</button>
                 <button class="tab-btn" onclick="switchTab('clinical', this)">📋 Assessments</button>
                 <button class="tab-btn" onclick="switchTab('community', this)">👥 Community</button>
-                <button class="tab-btn" onclick="switchTab('safety', this)">🆘 Safety Plan</button>
                 <button class="tab-btn" id="messagesTabBtn" onclick="switchTab('messages', this)">
                     📬 Messages
                     <span id="messagesBadge" style="background: #e74c3c; color: white; border-radius: 10px; padding: 2px 6px; font-size: 11px; margin-left: 5px; display: none;"></span>
@@ -3601,7 +3600,6 @@
                     <span id="appointmentBadge" style="background: #e74c3c; color: white; border-radius: 10px; padding: 2px 6px; font-size: 11px; margin-left: 5px; display: none;">!</span>
                 </button>
                 <button class="tab-btn" onclick="switchTab('aboutme', this)">👤 About Me</button>
-                <button class="tab-btn" onclick="switchTab('sleep', this)">😴 Sleep</button>
                 <button class="tab-btn" onclick="switchTab('history', this)">📈 History</button>
                 <button class="tab-btn" onclick="switchTab('updates', this)">🆕 Updates</button>
                 <button class="tab-btn" id="professionalTabBtn" onclick="switchTab('professional', this)" style="display:none;">👨‍⚕️ Professional</button>
@@ -3678,8 +3676,8 @@
                         <button class="help-link" onclick="switchTab('updates', document.querySelector('[onclick*=&quot;updates&quot;]'))">
                             🆕 What's New
                         </button>
-                        <button class="help-link" onclick="switchTab('safety', document.querySelector('[onclick*=&quot;safety&quot;]'))">
-                            🆘 Safety Plan
+                        <button class="help-link" onclick="switchTab('cbt', document.querySelector('[onclick*=&quot;cbt&quot;]')); setTimeout(() => loadCBTTool('SafetyPlanBuilder'), 200);">
+                            🆘 Safety Plan Builder
                         </button>
                     </div>
                     <div id="quickTipsPanel" class="quick-tips-content" style="display: none; margin-top: 15px;">
@@ -3739,8 +3737,8 @@
                     <p><strong>Samaritans:</strong> Call 116 123 (24/7 free)</p>
                     <p><strong>Crisis Text Line:</strong> Text SHOUT to 85258</p>
                     <p><strong>NHS Crisis:</strong> Call 111 (option 2)</p>
-                    <button class="btn btn-secondary" style="margin-top: 15px;" onclick="switchTab('safety', document.querySelector('[onclick*=&quot;safety&quot;]'))">
-                        View Full Safety Plan
+                    <button class="btn btn-secondary" style="margin-top: 15px;" onclick="switchTab('cbt', document.querySelector('[onclick*=&quot;cbt&quot;]')); setTimeout(() => loadCBTTool('SafetyPlanBuilder'), 200);">
+                        View Safety Plan Builder
                     </button>
                 </div>
             </div>
@@ -4552,46 +4550,6 @@
                 </div>
             </div>
             
-            <!-- Safety Plan Tab -->
-            <div id="safetyTab" class="tab-content">
-                <h3>🆘 My Safety Plan</h3>
-                <p class="tab-description">Create a plan for when you're feeling in crisis.</p>
-
-                <div class="card">
-                    <div class="form-group">
-                        <label><strong>Warning Signs/Triggers:</strong></label>
-                        <textarea id="safetyTriggers" rows="3" class="themed-textarea" placeholder="What triggers distress for me..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label><strong>Coping Strategies:</strong></label>
-                        <textarea id="safetyCoping" rows="3" class="themed-textarea" placeholder="What helps me calm down..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label><strong>Support Contacts:</strong></label>
-                        <textarea id="safetySupport" rows="3" class="themed-textarea" placeholder="Friends/family I can call..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label><strong>Professional Contacts:</strong></label>
-                        <textarea id="safetyProfessional" rows="3" class="themed-textarea" placeholder="Therapist, crisis hotline numbers..."></textarea>
-                    </div>
-
-                    <button class="btn" onclick="saveSafetyPlan()">Save Safety Plan</button>
-                    <button class="btn btn-secondary" onclick="loadSafetyPlan()">Load Saved Plan</button>
-                </div>
-                
-                <div class="card crisis-resources-box" style="margin-top: 20px;">
-                    <h4 class="crisis-title">🚨 Crisis Resources (UK)</h4>
-                    <p><strong>Samaritans:</strong> Call 116 123 (24/7 free hotline)</p>
-                    <p><strong>Crisis Text Line UK:</strong> Text SHOUT to 85258</p>
-                    <p><strong>NHS Mental Health Crisis:</strong> Call 111 (select option 2)</p>
-                    <p><strong>Papyrus (Under 35):</strong> Call 0800 068 4141 or text 07860 039967</p>
-                    <p><strong>Emergency:</strong> Call 999 or go to A&E</p>
-                    <p><strong>International:</strong> <a href="https://findahelpline.com" target="_blank">findahelpline.com</a></p>
-                </div>
-            </div>
 
             <!-- Messages Tab -->
             <div id="messagesTab" class="tab-content">
@@ -4763,60 +4721,6 @@
             </div>
             
             <!-- Sleep Hygiene Tab -->
-            <div id="sleepTab" class="tab-content">
-                <h3>😴 Sleep Hygiene Checklist</h3>
-                <p style="color: #666; margin-bottom: 20px;">Complete your bedtime routine for better sleep.</p>
-                
-                <div class="card">
-                    <h4>Bedtime Routine</h4>
-                    <p style="margin-bottom: 15px;">Check off each task as you complete it:</p>
-                    
-                    <div class="sleep-checklist">
-                        <label class="sleep-item">
-                            <input type="checkbox" class="sleep-check">
-                            <span>💡 Lights Dimmed (at least 1 hour before bed)</span>
-                        </label>
-                        <label class="sleep-item">
-                            <input type="checkbox" class="sleep-check">
-                            <span>📱 Phone on Do Not Disturb</span>
-                        </label>
-                        <label class="sleep-item">
-                            <input type="checkbox" class="sleep-check">
-                            <span>📺 No Screens for 30 mins</span>
-                        </label>
-                        <label class="sleep-item">
-                            <input type="checkbox" class="sleep-check">
-                            <span>🙏 Gratitude Recorded</span>
-                        </label>
-                        <label class="sleep-item">
-                            <input type="checkbox" class="sleep-check">
-                            <span>🧘 Deep Breathing Done</span>
-                        </label>
-                        <label class="sleep-item">
-                            <input type="checkbox" class="sleep-check">
-                            <span>🛏️ Bedroom Cool & Dark</span>
-                        </label>
-                        <label class="sleep-item">
-                            <input type="checkbox" class="sleep-check">
-                            <span>📖 Reading Something Calming</span>
-                        </label>
-                    </div>
-                    
-                    <button class="btn" onclick="resetSleepChecklist()" style="margin-top: 20px;">Reset Checklist</button>
-                </div>
-                
-                <div class="card" style="margin-top: 20px;">
-                    <h4>Sleep Tips</h4>
-                    <ul style="line-height: 1.8; color: #555;">
-                        <li>Maintain a consistent sleep schedule (same bedtime & wake time)</li>
-                        <li>Avoid caffeine after 2 PM</li>
-                        <li>Keep bedroom temperature between 60-67°F (15-19°C)</li>
-                        <li>Use your bed only for sleep (not work or TV)</li>
-                        <li>If you can't sleep after 20 minutes, get up and do a calm activity</li>
-                    </ul>
-                </div>
-            </div>
-            
             <!-- Professional Dashboard Tab -->
             <div id="professionalTab" class="tab-content">
                 <h3>👨‍⚕️ Clinical Dashboard</h3>
@@ -7781,9 +7685,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 });
                 
                 // Hide all patient-facing tab content for clinicians
-                const patientTabs = ['therapyTab', 'moodTab', 'gratitudeTab', 'cbtTab', 'petTab', 
-                                     'clinicalTab', 'communityTab', 'safetyTab', 'insightsTab', 
-                                     'sleepTab', 'historyTab'];
+                const patientTabs = ['therapyTab', 'moodTab', 'gratitudeTab', 'cbtTab', 'petTab',
+                                     'clinicalTab', 'communityTab', 'insightsTab',
+                                     'historyTab'];
                 patientTabs.forEach(tabId => {
                     const tab = document.getElementById(tabId);
                     if (tab) {
@@ -10299,56 +10203,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
         
-        // Safety Plan Functions
-        async function loadSafetyPlan() {
-            try {
-                const response = await fetch(`/api/safety-plan?username=${encodeURIComponent(currentUser)}`);
-                const data = await response.json();
-                
-                if (response.ok) {
-                    document.getElementById('safetyTriggers').value = data.triggers || '';
-                    document.getElementById('safetyCoping').value = data.coping_strategies || '';
-                    document.getElementById('safetySupport').value = data.support_contacts || '';
-                    document.getElementById('safetyProfessional').value = data.professional_contacts || '';
-                    alert('Safety plan loaded successfully');
-                } else {
-                    alert('Error loading safety plan');
-                }
-            } catch (error) {
-                alert('Connection error');
-                console.error('Safety plan load error:', error);
-            }
-        }
-        
-        async function saveSafetyPlan() {
-            const triggers = document.getElementById('safetyTriggers').value;
-            const coping = document.getElementById('safetyCoping').value;
-            const support = document.getElementById('safetySupport').value;
-            const professional = document.getElementById('safetyProfessional').value;
-            
-            try {
-                const response = await fetch('/api/safety-plan', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username: currentUser,
-                        triggers,
-                        coping_strategies: coping,
-                        support_contacts: support,
-                        professional_contacts: professional
-                    })
-                });
-                
-                if (response.ok) {
-                    alert('Safety plan saved successfully!');
-                } else {
-                    alert('Error saving safety plan');
-                }
-            } catch (error) {
-                alert('Connection error');
-                console.error('Safety plan save error:', error);
-            }
-        }
+        // Safety Plan Builder is now in CBT Tools - no separate functions needed
         
         // Appointments Functions
         async function loadPatientAppointments() {
