@@ -3994,13 +3994,17 @@
                                         }
                                     });
                                     try {
-                                        const resp = await fetch('/cbt_tools/save', {
+                                        const resp = await fetch('/api/cbt-tools/save', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({ tool_type: toolId, data })
                                         });
                                         if (!resp.ok) throw new Error('Save failed');
                                         showCBTToolStatus('Saved!', true);
+
+                                        // Trigger confetti and pet reward
+                                        triggerConfetti();
+                                        showPetReward(toolId);
                                     } catch (e) {
                                         showCBTToolStatus('Save error', false);
                                     }
@@ -4010,7 +4014,7 @@
                                 async function loadCBTToolData(toolId) {
                                     const loader = document.getElementById('cbtToolLoader');
                                     try {
-                                        const resp = await fetch(`/cbt_tools/load?tool_type=${encodeURIComponent(toolId)}`);
+                                        const resp = await fetch(`/api/cbt-tools/load?tool_type=${encodeURIComponent(toolId)}`);
                                         if (!resp.ok) throw new Error('No saved data');
                                         const result = await resp.json();
                                         if (result && result.data) {
