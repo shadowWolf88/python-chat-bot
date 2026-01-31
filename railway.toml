@@ -3,7 +3,7 @@ builder = "nixpacks"
 # Force rebuild: v2026.01.24-EMERGENCY
 
 [deploy]
-startCommand = "gunicorn api:app"
+startCommand = "python -m gunicorn api:app --workers 4 --threads 2 --timeout 120 --bind 0.0.0.0:$PORT"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
