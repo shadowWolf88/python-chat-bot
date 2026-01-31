@@ -138,32 +138,11 @@ def init_monitoring(app):
                            version=SERVICE_VERSION,
                            environment=ENVIRONMENT)
 
-    # Add health check endpoint with metrics
+    # Add Prometheus metrics endpoint
     @app.route('/metrics')
     def metrics_endpoint():
         """Prometheus metrics endpoint"""
         return prometheus_metrics.export()
-
-    @app.route('/health')
-    def health_check():
-        """Health check endpoint with database connectivity check"""
-        from database import health_check as db_health
-
-        db_status = db_health()
-
-        health_status = {
-            "status": "healthy" if db_status["status"] == "healthy" else "unhealthy",
-            "service": SERVICE_NAME,
-            "version": SERVICE_VERSION,
-            "environment": ENVIRONMENT,
-            "timestamp": datetime.utcnow().isoformat(),
-            "checks": {
-                "database": db_status
-            }
-        }
-
-        status_code = 200 if health_status["status"] == "healthy" else 503
-        return health_status, status_code
 
     logger.info(f"Monitoring initialized for {SERVICE_NAME} v{SERVICE_VERSION} ({ENVIRONMENT})")
 

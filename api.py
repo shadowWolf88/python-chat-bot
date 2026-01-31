@@ -2939,12 +2939,23 @@ def diagnostic():
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check endpoint for Railway"""
+    """Health check endpoint for Railway with database connectivity check"""
+    try:
+        from database import health_check as db_health
+        db_status = db_health()
+    except Exception as e:
+        db_status = {"status": "unknown", "error": str(e)}
+
+    overall_status = "healthy" if db_status.get("status") == "healthy" else "degraded"
+
     return jsonify({
-        'status': 'healthy',
+        'status': overall_status,
         'service': 'python-chat-bot Therapy API',
         'version': '1.0.0',
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().isoformat(),
+        'checks': {
+            'database': db_status
+        }
     })
 
 @app.route('/api/admin/wipe-database', methods=['POST'])
