@@ -1,5 +1,109 @@
 const APP_UPDATES = [
     {
+        date: '2026-01-31',
+        version: '22.1',
+        title: 'fix: Critical save/load API endpoints and AI memory integration',
+        changes: [
+            'fix: Critical save/load API endpoints and AI memory integration',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '22.0',
+        title: 'fix: Resolve duplicate tools and save/load issues',
+        changes: [
+            'fix: Resolve duplicate tools and save/load issues',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '21.9',
+        title: 'feat: Phase 2 gamification - badges, mood tracking, and streaks',
+        changes: [
+            'feat: Phase 2 gamification - badges, mood tracking, and streaks',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '21.8',
+        title: 'feat: Phase 1 - CBT Tools Gamification (Emoji Moods, Confetti, Pet Rewards)',
+        changes: [
+            'feat: Phase 1 - CBT Tools Gamification (Emoji Moods, Confetti, Pet Rewards)',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '21.7',
+        title: 'version number update',
+        changes: [
+            'version number update',
+        ]
+    },
+    {
+        date: '2026-01-30',
+        version: '21.6',
+        title: 'fix: Remove all remaining duplicate Flask route functions',
+        changes: [
+            'fix: Remove all remaining duplicate Flask route functions',
+        ]
+    },
+    {
+        date: '2026-01-30',
+        version: '21.5',
+        title: 'fix: Remove duplicate function definitions causing Flask route conflicts',
+        changes: [
+            'fix: Remove duplicate function definitions causing Flask route conflicts',
+        ]
+    },
+    {
+        date: '2026-01-30',
+        version: '21.4',
+        title: 'fix: CBT tools dashboard backend and AI memory integration',
+        changes: [
+            'fix: CBT tools dashboard backend and AI memory integration',
+        ]
+    },
+    {
+        date: '2026-01-30',
+        version: '21.3',
+        title: 'Fix: syntax error in POSITIVE_AFFIRMATIONS array, CBT tools dashboard and per...',
+        changes: [
+            'Fix: syntax error in POSITIVE_AFFIRMATIONS array, CBT tools dashboard and persistence, ensure AI listens to all tools',
+        ]
+    },
+    {
+        date: '2026-01-30',
+        version: '21.2',
+        title: 'New CBT tools added',
+        changes: [
+            'New CBT tools added',
+        ]
+    },
+    {
+        date: '2026-01-30',
+        version: '21.1',
+        title: 'fix: Daily Tasks Errors',
+        changes: [
+            'fix: Daily Tasks Errors',
+        ]
+    },
+    {
+        date: '2026-01-30',
+        version: '21.0',
+        title: 'Version History Update v1',
+        changes: [
+            'Version History Update v1.1',
+        ]
+    },
+    {
+        date: '2026-01-30',
+        version: '20.9',
+        title: 'Version History Update',
+        changes: [
+            'Version History Update',
+        ]
+    },
+    {
         date: '2026-01-30',
         version: '20.8',
         title: 'Home Page Bug Fix 1',

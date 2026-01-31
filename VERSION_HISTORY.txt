@@ -1,3 +1,16 @@
+vd5818e7 (2026-01-31): fix: Critical save/load API endpoints and AI memory integration
+vd3cbbd5 (2026-01-31): fix: Resolve duplicate tools and save/load issues
+v056f8ff (2026-01-31): feat: Phase 2 gamification - badges, mood tracking, and streaks
+v076d5d3 (2026-01-31): feat: Phase 1 - CBT Tools Gamification (Emoji Moods, Confetti, Pet Rewards)
+vc652304 (2026-01-31): version number update
+v6c5f307 (2026-01-30): fix: Remove all remaining duplicate Flask route functions
+v3be3194 (2026-01-30): fix: Remove duplicate function definitions causing Flask route conflicts
+vd313042 (2026-01-30): fix: CBT tools dashboard backend and AI memory integration
+vdc14473 (2026-01-30): Fix: syntax error in POSITIVE_AFFIRMATIONS array, CBT tools dashboard and persistence, ensure AI listens to all tools
+v0c1a4db (2026-01-30): New CBT tools added
+v881b7b6 (2026-01-30): fix: Daily Tasks Errors
+vd7e291f (2026-01-30): Version History Update v1.1
+v20f1674 (2026-01-30): Version History Update
 v78660be (2026-01-30): Home Page Bug Fix 1.0
 va4056a3 (2026-01-30): fix: add detailed error logging and improved error display for mood and gratitude logging
 v70d133a (2026-01-30): feat: Home tab, daily tasks, feedback, and polish for Healing Space UK
