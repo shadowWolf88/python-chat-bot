@@ -6596,7 +6596,7 @@ def submit_gad7():
 def get_community_posts():
     """Get recent community posts with reaction counts and replies inline"""
     try:
-        username = request.args.get('username', '')  # Optional - to check user's reactions
+        username = get_authenticated_username() or ''  # Use session/token if available
         category = request.args.get('category', '')  # Optional - filter by category (required for channel view)
 
         # Valid categories for reference
@@ -6685,7 +6685,7 @@ def get_community_posts():
 def get_community_channels():
     """Get all channels with post counts and unread indicators"""
     try:
-        username = request.args.get('username', '')
+        username = get_authenticated_username() or ''
 
         VALID_CATEGORIES = [
             'anxiety', 'depression', 'relationships', 'intrusive-thoughts',
