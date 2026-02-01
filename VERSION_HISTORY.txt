@@ -1,3 +1,29 @@
+v0e7b84d (2026-02-01): Security & Test Suite: Finalize authentication bypass audit, patch tests for stricter access control, update readiness documentation. All core tests pass except Playwright browser test. Ready for viral release prep.
+v3020e48 (2026-02-01): Security: Complete authentication bypass audit and patching. All endpoints now enforce session/token-based authentication and strict role-based access control. Final readiness documentation update. Ready for test suite rerun.
+v930698d (2026-02-01): Security: Patch disclaimer acceptance endpoint to require session/token-based authentication. All previously audited endpoints confirmed secure against authentication bypass. Readiness documentation updated. Continuing sequential audit and patching for any remaining vulnerabilities.
+v9c98073 (2026-02-01): Security: Enforce session/token-based admin authentication for database wipe endpoint. CBT endpoints and all previously audited features now use secure authentication. Continuing sequential audit and patching for any remaining vulnerabilities.
+v66b7566 (2026-02-01): Security: Patch authentication bypass for community posts/channels endpoints (session/token-based auth enforced, readiness doc updated)
+v9a8766a (2026-02-01): Security: Patch authentication bypass for safety check, background training, and pet creation endpoints (session/token-based auth enforced, readiness doc updated)
+va084c88 (2026-02-01): Security: Patch authentication bypass for mood log endpoint (session/token-based auth enforced, readiness doc updated)
+v0a77560 (2026-02-01): Security: Patch authentication bypass (session/token-based auth enforced for key endpoints, readiness doc updated)
+v5071160 (2026-02-01): comment
+v4b516de (2026-01-31): docs: Update VIRAL_SCALE with PostgreSQL fix completion
+v939058e (2026-01-31): feat: PostgreSQL-compatible database schema (viral-scale ready)
+vc30cd9c (2026-01-31): docs: Update VIRAL_SCALE_READINESS with CBT fixes completion
+vc6dd325 (2026-01-31): Fix CRITICAL: Remove 962 lines of duplicate CBT routes
+v3aa46dc (2026-01-31): Fix CRITICAL issues: Groq API error handling and pet table schema
+va37740a (2026-01-31): Fix: Update railway.toml startCommand to use python -m gunicorn
+vad3fa3f (2026-01-31): Force Railway rebuild
+vc318ed8 (2026-01-31): bug fix deployment
+v2e9c3a8 (2026-01-31): Fix: Use 'python -m gunicorn' to ensure gunicorn is found
+vfd5355d (2026-01-31): Fix: Add .dockerignore and update nixpacks.toml to prevent npm install
+v26a590a (2026-01-31): Fix: Update nixpacks.toml to skip npm install on Railway
+vf030155 (2026-01-31): PostgreSQ migration 2.0
+vc37abd5 (2026-01-31): Fix: Resolve duplicate health_check endpoint conflict
+v26c7121 (2026-01-31): Add production infrastructure: PostgreSQL pooling, rate limiting, monitoring, and Celery
+v0bc6962 (2026-01-31): Migrate backend to PostgreSQL: add schema, migration script, helpers, and docs. Update api.py for Postgres support.
+v928aaa5 (2026-01-31): Mobile-first UI: responsive sidebar, cards, forms, modals, ARIA/accessibility improvements
+vfb087f3 (2026-01-31): Revert "feat: Consolidate navigation with dropdown menu (Option 1 + 3)"
 v868c829 (2026-01-31): feat: Consolidate navigation with dropdown menu (Option 1 + 3)
 v6f1611d (2026-01-31): fix: Update tool name and improve error handling
 v96305db (2026-01-31): version log update site visual

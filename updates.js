@@ -1,5 +1,245 @@
 const APP_UPDATES = [
     {
+        date: '2026-02-01',
+        version: '25.1',
+        title: 'Security & Test Suite: Finalize authentication bypass audit, patch tests for ...',
+        changes: [
+            'Security & Test Suite: Finalize authentication bypass audit, patch tests for stricter access control, update readiness documentation. All core tests pass except Playwright browser test. Ready for viral release prep.',
+        ]
+    },
+    {
+        date: '2026-02-01',
+        version: '25.0',
+        title: 'Security: Complete authentication bypass audit and patching',
+        changes: [
+            'Security: Complete authentication bypass audit and patching. All endpoints now enforce session/token-based authentication and strict role-based access control. Final readiness documentation update. Ready for test suite rerun.',
+        ]
+    },
+    {
+        date: '2026-02-01',
+        version: '24.9',
+        title: 'Security: Patch disclaimer acceptance endpoint to require session/token-based...',
+        changes: [
+            'Security: Patch disclaimer acceptance endpoint to require session/token-based authentication. All previously audited endpoints confirmed secure against authentication bypass. Readiness documentation updated. Continuing sequential audit and patching for any remaining vulnerabilities.',
+        ]
+    },
+    {
+        date: '2026-02-01',
+        version: '24.8',
+        title: 'Security: Enforce session/token-based admin authentication for database wipe ...',
+        changes: [
+            'Security: Enforce session/token-based admin authentication for database wipe endpoint. CBT endpoints and all previously audited features now use secure authentication. Continuing sequential audit and patching for any remaining vulnerabilities.',
+        ]
+    },
+    {
+        date: '2026-02-01',
+        version: '24.7',
+        title: 'Security: Patch authentication bypass for community posts/channels endpoints ...',
+        changes: [
+            'Security: Patch authentication bypass for community posts/channels endpoints (session/token-based auth enforced, readiness doc updated)',
+        ]
+    },
+    {
+        date: '2026-02-01',
+        version: '24.6',
+        title: 'Security: Patch authentication bypass for safety check, background training, ...',
+        changes: [
+            'Security: Patch authentication bypass for safety check, background training, and pet creation endpoints (session/token-based auth enforced, readiness doc updated)',
+        ]
+    },
+    {
+        date: '2026-02-01',
+        version: '24.5',
+        title: 'Security: Patch authentication bypass for mood log endpoint (session/token-ba...',
+        changes: [
+            'Security: Patch authentication bypass for mood log endpoint (session/token-based auth enforced, readiness doc updated)',
+        ]
+    },
+    {
+        date: '2026-02-01',
+        version: '24.4',
+        title: 'Security: Patch authentication bypass (session/token-based auth enforced for ...',
+        changes: [
+            'Security: Patch authentication bypass (session/token-based auth enforced for key endpoints, readiness doc updated)',
+        ]
+    },
+    {
+        date: '2026-02-01',
+        version: '24.3',
+        title: 'comment',
+        changes: [
+            'comment',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '24.2',
+        title: 'docs: Update VIRAL_SCALE with PostgreSQL fix completion',
+        changes: [
+            'docs: Update VIRAL_SCALE with PostgreSQL fix completion',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '24.1',
+        title: 'feat: PostgreSQL-compatible database schema (viral-scale ready)',
+        changes: [
+            'feat: PostgreSQL-compatible database schema (viral-scale ready)',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '24.0',
+        title: 'docs: Update VIRAL_SCALE_READINESS with CBT fixes completion',
+        changes: [
+            'docs: Update VIRAL_SCALE_READINESS with CBT fixes completion',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '23.9',
+        title: 'Fix CRITICAL: Remove 962 lines of duplicate CBT routes',
+        changes: [
+            'Fix CRITICAL: Remove 962 lines of duplicate CBT routes',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '23.8',
+        title: 'Fix CRITICAL issues: Groq API error handling and pet table schema',
+        changes: [
+            'Fix CRITICAL issues: Groq API error handling and pet table schema',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '23.7',
+        title: 'Fix: Update railway',
+        changes: [
+            'Fix: Update railway.toml startCommand to use python -m gunicorn',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '23.6',
+        title: 'Force Railway rebuild',
+        changes: [
+            'Force Railway rebuild',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '23.5',
+        title: 'bug fix deployment',
+        changes: [
+            'bug fix deployment',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '23.4',
+        title: 'Fix: Use \'python -m gunicorn\' to ensure gunicorn is found',
+        changes: [
+            'Fix: Use \'python -m gunicorn\' to ensure gunicorn is found',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '23.3',
+        title: 'Fix: Add',
+        changes: [
+            'Fix: Add .dockerignore and update nixpacks.toml to prevent npm install',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '23.2',
+        title: 'Fix: Update nixpacks',
+        changes: [
+            'Fix: Update nixpacks.toml to skip npm install on Railway',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '23.1',
+        title: 'PostgreSQ migration 2',
+        changes: [
+            'PostgreSQ migration 2.0',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '23.0',
+        title: 'Fix: Resolve duplicate health_check endpoint conflict',
+        changes: [
+            'Fix: Resolve duplicate health_check endpoint conflict',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '22.9',
+        title: 'Add production infrastructure: PostgreSQL pooling, rate limiting, monitoring,...',
+        changes: [
+            'Add production infrastructure: PostgreSQL pooling, rate limiting, monitoring, and Celery',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '22.8',
+        title: 'Migrate backend to PostgreSQL: add schema, migration script, helpers, and docs',
+        changes: [
+            'Migrate backend to PostgreSQL: add schema, migration script, helpers, and docs. Update api.py for Postgres support.',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '22.7',
+        title: 'Mobile-first UI: responsive sidebar, cards, forms, modals, ARIA/accessibility...',
+        changes: [
+            'Mobile-first UI: responsive sidebar, cards, forms, modals, ARIA/accessibility improvements',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '22.6',
+        title: 'Revert "feat: Consolidate navigation with dropdown menu (Option 1 + 3)"',
+        changes: [
+            'Revert "feat: Consolidate navigation with dropdown menu (Option 1 + 3)"',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '22.5',
+        title: 'feat: Consolidate navigation with dropdown menu (Option 1 + 3)',
+        changes: [
+            'feat: Consolidate navigation with dropdown menu (Option 1 + 3)',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '22.4',
+        title: 'fix: Update tool name and improve error handling',
+        changes: [
+            'fix: Update tool name and improve error handling',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '22.3',
+        title: 'version log update site visual',
+        changes: [
+            'version log update site visual',
+        ]
+    },
+    {
+        date: '2026-01-31',
+        version: '22.2',
+        title: 'version log update',
+        changes: [
+            'version log update',
+        ]
+    },
+    {
         date: '2026-01-31',
         version: '22.1',
         title: 'fix: Critical save/load API endpoints and AI memory integration',
