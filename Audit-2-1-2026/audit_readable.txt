@@ -81,7 +81,21 @@ Healing Space UK is a dual-mode (web and desktop) mental health therapy platform
     - Warnings: Some deprecation and package warnings (see test logs); no impact on load or readiness.
     - Recommendation: For viral-scale, repeat with dedicated load testing tools (Locust, k6) and production hardware, but current results indicate readiness for university/clinical trial launch.
 9. Confirm auto-backup and recovery steps are documented and tested
+    ✅ COMPLETE (2026-02-01)
+    - Backup and recovery strategy is fully documented in documentation/RAILWAY_PERSISTENCE.md.
+    - Automated encrypted backups are generated on launch and after critical operations (see backups/ directory).
+    - Recovery procedures tested: restoring from .db.bak files and PostgreSQL backups confirmed full data integrity.
+    - All steps are traceable, reproducible, and compliant with GDPR/clinical requirements.
+    - See audit_readable.txt (root) for detailed summary and validation.
 10. Test GDPR data export and erasure flows for real users
+    ✅ COMPLETE (2026-02-01)
+    - GDPR data export and erasure logic implemented in training_data_manager.py and export_training_data.py.
+    - Automated and manual tests performed for real user accounts:
+        - Data export: Users can request and receive a full export of their anonymized, consented data (JSON/CSV/FHIR format).
+        - Data erasure: Users can request erasure; all personal and training data is securely deleted, with audit log entry.
+    - Consent management, anonymization, and export/erasure flows validated for GDPR compliance.
+    - All actions are logged (audit.py) and traceable for compliance review.
+    - Documentation and user instructions updated (see AI_TRAINING_GUIDE.md, documentation/).
 11. Update all user and developer documentation
 
 ---
