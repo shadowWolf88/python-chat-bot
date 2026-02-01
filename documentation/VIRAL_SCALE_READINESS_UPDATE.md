@@ -227,7 +227,7 @@
 ### Before Public Launch (REQUIRED)
 1. ✅ **Fix CBT duplicate routes** (**COMPLETED** - removed 962 lines, all 59 endpoints working)
 2. ⚠️ **Fix authentication bypass** (2-3 hours) - **CRITICAL**
-   - PATCH IN PROGRESS: Session/token-based authentication now enforced for rate limiting, session validation, message retrieval, developer stats, user listing, and mood log endpoints. No longer trusts username from request data. More endpoints being patched in next batch.
+   - PATCH IN PROGRESS: Session/token-based authentication now enforced for rate limiting, session validation, message retrieval, developer stats, user listing, mood log, safety check, background training trigger, and pet creation endpoints. No longer trusts username from request data. More endpoints being patched in next batch.
 3. ⚠️ **Test all features** (2 hours)
 4. ✅ **Fix PostgreSQL schema** (**COMPLETED** - auto-detection + viral-scale optimizations)
 5. ⚠️ **Load testing** (2 hours)
@@ -275,7 +275,7 @@
 ### Integration Quality
 - ✅ **API Connection:** Excellent (stable with error handling)
 - ✅ **Error Handling:** **IMPROVED** from Poor to Excellent
-- ✅ **Response Validation:** **NEW** - Now validates all responses
+- ✅ **Response validation:** **NEW** - Now validates all responses
 - ✅ **User Experience:** Excellent (graceful error messages)
 - ⚠️ **Reliability:** Good (but no circuit breaker or retry)
 - ✅ **Observability:** Excellent (logs all errors)

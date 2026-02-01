@@ -5824,7 +5824,7 @@ def safety_check():
     try:
         data = request.json
         text = data.get('text')
-        username = data.get('username')
+        username = get_authenticated_username()
         
         if not text:
             return jsonify({'error': 'Text required'}), 400
@@ -5906,7 +5906,9 @@ def trigger_background_training():
     """Manually trigger background training (admin only)"""
     try:
         data = request.json
-        username = data.get('username')
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
         
         # Verify admin/clinician (you can adjust this check)
         conn = get_db_connection()
@@ -5945,7 +5947,9 @@ def pet_create():
     """Create new pet"""
     try:
         data = request.json
-        username = data.get('username')
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
         name = data.get('name')
         species = data.get('species', 'Dog')
         gender = data.get('gender', 'Neutral')
