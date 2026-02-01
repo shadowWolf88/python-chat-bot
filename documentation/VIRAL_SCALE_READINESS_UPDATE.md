@@ -397,8 +397,53 @@
 - All previously audited endpoints (CBT, admin, community, registration, login, session validation, password reset, clinician/developer registration) confirmed secure against authentication bypass.
 - Sequential audit and patching of endpoints continues; any discovered vulnerabilities are immediately patched and documented here.
 
-Next steps:
-- Continue auditing and patching remaining endpoints for session/token-based authentication.
-- Strictly enforce role-based access control on all endpoints.
-- Rerun and verify automated test suite.
-- Document all security changes and audit results.
+
+---
+
+# February 1, 2026 – Viral-Scale Readiness: Priority To-Do List
+
+## Critical (Must Complete Before Viral Release)
+1. **Enforce strict authentication and role-based access control on ALL endpoints**
+   - Ensure no endpoint trusts username or role from request body; always use session/token.
+   - Patch any remaining endpoints (especially admin, community, export, and clinical features).
+2. **Rerun and verify the full automated test suite**
+   - Install Playwright and resolve browser test environment for full coverage.
+   - Ensure all tests pass, especially for access control and rate limiting.
+3. **Manual end-to-end walkthrough of all user flows**
+   - Test registration, login, 2FA, chat, mood, CBT, pet, community, crisis, export, admin, and clinician flows on both desktop and web.
+4. **Double-check all production secrets and environment variables**
+   - Fernet key, Vault, API keys, Redis URL, DB URL, etc. must be set and not use debug/test values.
+5. **Confirm Redis is running and accessible in production**
+   - Rate limiting and Celery background jobs depend on Redis.
+6. **Test SFTP upload and FHIR export/signing in production**
+   - Ensure secure transfer and clinical data export work as expected.
+7. **Review accessibility (WCAG) and add ARIA labels where needed**
+   - Ensure web UI is usable for all users.
+8. **Run API and UI load tests for viral-scale readiness**
+   - Simulate 1m+ users, monitor performance, and address bottlenecks.
+9. **Confirm auto-backup and recovery steps are documented and tested**
+   - Ensure backups are working and can be restored quickly.
+10. **Test GDPR data export and erasure flows for real users**
+    - Validate compliance and user experience.
+11. **Update all user and developer documentation**
+    - Ensure docs reflect latest features, deployment, and troubleshooting steps.
+
+## High Priority (Recommended Before University Trial)
+1. Schedule a final security and compliance review (external if possible).
+2. Prepare a rapid rollback plan for critical failures.
+3. Monitor logs and alerts closely for the first 48 hours post-launch.
+4. Document all known issues and limitations for trial users.
+5. Test all onboarding flows, including patient/clinician approval and area/country matching.
+6. Confirm all endpoints strictly enforce role and approval checks (no impersonation or privilege escalation).
+
+## Medium/Low (Ongoing or Post-Launch)
+1. Add circuit breaker and retry logic for Groq AI and other critical integrations.
+2. Optimize database queries and add caching (Redis) for high-traffic endpoints.
+3. Add horizontal scaling (multiple Railway instances) and CDN for static assets.
+4. Implement user-level rate limiting and circuit breaker patterns.
+5. Add monitoring dashboards and configure alerting for all critical metrics.
+6. Continue performance optimization and code cleanup.
+
+---
+
+**This list reflects the latest audit and is prioritized for viral-scale readiness and university trial. All critical items must be completed before public or high-visibility release.**
