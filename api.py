@@ -3960,8 +3960,10 @@ def execute_terminal():
 def developer_ai_chat():
     """Developer AI assistant"""
     try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
         data = request.json
-        username = data.get('username')
         message = data.get('message')
         session_id = data.get('session_id', 'default')
 
@@ -4038,8 +4040,11 @@ You have full knowledge of the codebase and can provide specific advice. Be conc
 def send_dev_message():
     """Send message from developer to user(s)"""
     try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
         data = request.json
-        from_username = data.get('from_username')
+        from_username = username  # Only allow authenticated user as sender
         to_username = data.get('to_username')
         message = data.get('message')
         message_type = data.get('message_type', 'info')
@@ -4299,8 +4304,11 @@ def list_all_users():
 def delete_user():
     """Delete a user account (GDPR-compliant deletion)"""
     try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
         data = request.json
-        dev_username = data.get('username')  # Developer username
+        dev_username = username  # Only allow authenticated developer
         target_username = data.get('target_username')  # User to delete
 
         # Verify developer role
@@ -4403,10 +4411,9 @@ def get_clinicians():
 def get_notifications():
     """Get notifications for user"""
     try:
-        username = request.args.get('username')
+        username = get_authenticated_username()
         if not username:
-            return jsonify({'error': 'Username required'}), 400
-        
+            return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
         cur = conn.cursor()
         notifications = cur.execute(
@@ -4414,7 +4421,6 @@ def get_notifications():
             (username,)
         ).fetchall()
         conn.close()
-        
         return jsonify({
             'notifications': [
                 {
@@ -4433,12 +4439,15 @@ def get_notifications():
 def mark_notification_read(notification_id):
     """Mark notification as read"""
     try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("UPDATE notifications SET read=1 WHERE id=?", (notification_id,))
+        # Only allow marking notifications belonging to the authenticated user
+        cur.execute("UPDATE notifications SET read=1 WHERE id=? AND recipient_username=?", (notification_id, username))
         conn.commit()
         conn.close()
-
         return jsonify({'success': True}), 200
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
@@ -4447,12 +4456,15 @@ def mark_notification_read(notification_id):
 def delete_notification(notification_id):
     """Delete a single notification"""
     try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM notifications WHERE id=?", (notification_id,))
+        # Only allow deleting notifications belonging to the authenticated user
+        cur.execute("DELETE FROM notifications WHERE id=? AND recipient_username=?", (notification_id, username))
         conn.commit()
         conn.close()
-
         return jsonify({'success': True}), 200
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
@@ -4461,19 +4473,15 @@ def delete_notification(notification_id):
 def clear_read_notifications():
     """Clear all read notifications for a user"""
     try:
-        data = request.json
-        username = data.get('username')
-
+        username = get_authenticated_username()
         if not username:
-            return jsonify({'error': 'Username required'}), 400
-
+            return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("DELETE FROM notifications WHERE recipient_username=? AND read=1", (username,))
         deleted_count = cur.rowcount
         conn.commit()
         conn.close()
-
         return jsonify({'success': True, 'deleted': deleted_count}), 200
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
@@ -4483,18 +4491,21 @@ def clear_read_notifications():
 def get_pending_approvals():
     """Get pending patient approval requests for clinician"""
     try:
-        clinician = request.args.get('clinician')
-        if not clinician:
-            return jsonify({'error': 'Clinician username required'}), 400
-        
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        # Only allow clinicians to view their own pending approvals
         conn = get_db_connection()
         cur = conn.cursor()
+        role = cur.execute("SELECT role FROM users WHERE username=?", (username,)).fetchone()
+        if not role or role[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
         approvals = cur.execute(
             "SELECT id, patient_username, request_date FROM patient_approvals WHERE clinician_username=? AND status='pending' ORDER BY request_date DESC",
-            (clinician,)
+            (username,)
         ).fetchall()
         conn.close()
-        
         return jsonify({
             'pending_approvals': [
                 {
