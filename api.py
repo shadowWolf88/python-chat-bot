@@ -4109,7 +4109,9 @@ def send_dev_message():
 def list_dev_messages():
     """Get messages for current user (dev or patient/clinician)"""
     try:
-        username = request.args.get('username')
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
 
         conn = get_db_connection()
         cur = conn.cursor()
@@ -4203,7 +4205,9 @@ def reply_dev_message():
 def developer_stats():
     """Get system statistics"""
     try:
-        username = request.args.get('username')
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
 
         # Verify developer role
         conn = get_db_connection()
@@ -4239,7 +4243,9 @@ def developer_stats():
 def list_all_users():
     """List all users with filter"""
     try:
-        username = request.args.get('username')
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
         role_filter = request.args.get('role', 'all')
         search = request.args.get('search', '')
 
