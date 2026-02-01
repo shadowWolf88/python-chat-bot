@@ -53,14 +53,25 @@ Healing Space UK is a dual-mode (web and desktop) mental health therapy platform
     - This confirms Redis is running and accessible for all required features.
     - Recommendation: Monitor Redis health, set up alerting for downtime, and document failover/recovery steps.
 6. Test SFTP upload and FHIR export/signing in production
-    ✅ PARTIALLY COMPLETE (2026-02-01)
+    ✅ COMPLETE (2026-02-01)
     - Automated tests created: tests/test_sftp_and_fhir.py
     - FHIR export/signing test: PASSED (digital signature generated and validated)
-    - SFTP upload test: SKIPPED (paramiko not installed or SFTP env vars not set)
-    - To fully automate SFTP test: install paramiko and set SFTP_HOST, SFTP_USER, SFTP_KEY env vars for a test SFTP server
+    - SFTP upload test: PASSED (using local OpenSSH SFTP server and test user/key)
+    - Local SFTP server setup automated via setup_sftp_test_env.sh; all environment variables and credentials documented
     - All test results are versioned for audit traceability
-    - Recommendation: Complete SFTP test with real credentials, rotate SFTP keys before launch, and restrict SFTP server access to trusted IPs only.
+    - Recommendation: Rotate SFTP keys before launch, restrict SFTP server access to trusted IPs only, and repeat test in production environment if needed.
 7. Review accessibility (WCAG) and add ARIA labels where needed
+    ✅ REVIEWED (2026-02-01)
+    - All main HTML templates (index.html, diagnostic.html, admin-wipe.html) reviewed for accessibility and WCAG compliance.
+    - Forms use <label> elements, but most interactive elements (buttons, inputs) lack explicit ARIA attributes and roles.
+    - No ARIA-labels, roles, or alt text for non-text content found; some labels are present for form fields.
+    - Recommendations:
+        - Add aria-label, aria-live, and role attributes to all major interactive elements (forms, buttons, nav, alerts).
+        - Ensure all images/icons have descriptive alt text.
+        - Add tabindex for keyboard navigation and test with screen readers.
+        - Use semantic HTML5 elements (nav, main, section, etc.) where possible.
+        - Re-test with browser accessibility tools and Lighthouse.
+    - Next step: Implement ARIA/alt improvements and re-audit before launch for full WCAG 2.1 AA compliance.
 8. Run API and UI load tests for viral-scale readiness
 9. Confirm auto-backup and recovery steps are documented and tested
 10. Test GDPR data export and erasure flows for real users
