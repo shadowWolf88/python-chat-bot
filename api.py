@@ -4927,6 +4927,14 @@ def send_dev_message():
         message = data.get('message')
         subject = data.get('subject', '')
 
+        # Validate required fields
+        if not from_username or not from_username.strip():
+            return jsonify({'error': 'from_username is required'}), 400
+        if not to_username or not to_username.strip():
+            return jsonify({'error': 'to_username is required'}), 400
+        if not message or not message.strip():
+            return jsonify({'error': 'message content is required'}), 400
+
         # Check sender exists and get role
         conn = get_db_connection()
         cur = conn.cursor()
