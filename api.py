@@ -4919,59 +4919,101 @@ You have full knowledge of the codebase and can provide specific advice. Be conc
 
 @app.route('/api/developer/messages/send', methods=['POST'])
 def send_dev_message():
-    """Send message from developer to user(s)"""
+    """Send message from developer/clinician/user to another user (uses new messages table - Phase 3)"""
     try:
         data = request.json
         from_username = data.get('from_username')
         to_username = data.get('to_username')
         message = data.get('message')
-        message_type = data.get('message_type', 'info')
+        subject = data.get('subject', '')
 
-        # Allow: developer can message anyone; clinician can message patients; patient can only send new messages to developer
+        # Check sender exists and get role
         conn = get_db_connection()
         cur = conn.cursor()
-        role = cur.execute("SELECT role FROM users WHERE username=?", (from_username,)).fetchone()
+        sender_user = cur.execute("SELECT role FROM users WHERE username=?", (from_username,)).fetchone()
 
-        if not role:
+        if not sender_user:
             conn.close()
             return jsonify({'error': 'Unauthorized'}), 403
 
-        if role[0] == 'developer':
-            # Developer can message anyone
+        sender_role = sender_user[0]
+
+        # Developer: can message anyone
+        if sender_role == 'developer':
             if to_username == 'ALL':
+                # Message all non-developer users
                 users = cur.execute("SELECT username FROM users WHERE role != 'developer'").fetchall()
                 for user in users:
-                    cur.execute(
-                        "INSERT INTO dev_messages (from_username, to_username, message, message_type) VALUES (?,?,?,?)",
-                        (from_username, user[0], message, message_type)
+                    recipient_username = user[0]
+                    # Insert into messages table (new Phase 3 system)
+                    cur.execute('''
+                        INSERT INTO messages (sender_username, recipient_username, subject, content, sent_at)
+                        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ''', (from_username, recipient_username, subject if subject else None, message))
+                    
+                    # Send notification
+                    send_notification(
+                        recipient_username,
+                        f"New message from {from_username}: {subject if subject else message[:50]}",
+                        'dev_message'
                     )
             else:
-                cur.execute(
-                    "INSERT INTO dev_messages (from_username, to_username, message, message_type) VALUES (?,?,?,?)",
-                    (from_username, to_username, message, message_type)
+                # Message single user
+                recipient_user = cur.execute("SELECT username FROM users WHERE username=?", (to_username,)).fetchone()
+                if not recipient_user:
+                    conn.close()
+                    return jsonify({'error': 'Recipient not found'}), 404
+                
+                cur.execute('''
+                    INSERT INTO messages (sender_username, recipient_username, subject, content, sent_at)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (from_username, to_username, subject if subject else None, message))
+                
+                # Send notification
+                send_notification(
+                    to_username,
+                    f"New message from {from_username}: {subject if subject else message[:50]}",
+                    'dev_message'
                 )
-        elif role[0] == 'clinician':
-            # Clinician can only message patients
-            recipient_role = cur.execute("SELECT role FROM users WHERE username=?", (to_username,)).fetchone()
-            if recipient_role and recipient_role[0] == 'user':
-                cur.execute(
-                    "INSERT INTO dev_messages (from_username, to_username, message, message_type) VALUES (?,?,?,?)",
-                    (from_username, to_username, message, message_type)
-                )
-            else:
+        
+        # Clinician: can only message patients
+        elif sender_role == 'clinician':
+            recipient_user = cur.execute("SELECT role FROM users WHERE username=?", (to_username,)).fetchone()
+            if not recipient_user or recipient_user[0] != 'user':
                 conn.close()
-                return jsonify({'error': 'Clinicians can only send messages to patients.'}), 403
-        elif role[0] == 'user':
-            # Patient can only send new messages to developer
-            recipient_role = cur.execute("SELECT role FROM users WHERE username=?", (to_username,)).fetchone()
-            if recipient_role and recipient_role[0] == 'developer':
-                cur.execute(
-                    "INSERT INTO dev_messages (from_username, to_username, message, message_type) VALUES (?,?,?,?)",
-                    (from_username, to_username, message, message_type)
-                )
-            else:
+                return jsonify({'error': 'Clinicians can only send messages to patients'}), 403
+            
+            cur.execute('''
+                INSERT INTO messages (sender_username, recipient_username, subject, content, sent_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (from_username, to_username, subject if subject else None, message))
+            
+            # Send notification
+            send_notification(
+                to_username,
+                f"New message from {from_username}: {subject if subject else message[:50]}",
+                'dev_message'
+            )
+        
+        # Patient: can only message developer
+        elif sender_role == 'user':
+            recipient_user = cur.execute("SELECT role FROM users WHERE username=?", (to_username,)).fetchone()
+            if not recipient_user or recipient_user[0] != 'developer':
                 conn.close()
-                return jsonify({'error': 'Patients can only send new messages to the developer. You may only reply to messages from clinicians.'}), 403
+                return jsonify({'error': 'Patients can only send messages to developers'}), 403
+            
+            cur.execute('''
+                INSERT INTO messages (sender_username, recipient_username, subject, content, sent_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (from_username, to_username, subject if subject else None, message))
+            
+            # Send notification
+            send_notification(
+                to_username,
+                f"New message from {from_username}: {subject if subject else message[:50]}",
+                'dev_message'
+            )
+        
         else:
             conn.close()
             return jsonify({'error': 'Unauthorized'}), 403
@@ -4979,17 +5021,7 @@ def send_dev_message():
         conn.commit()
         conn.close()
 
-        # Send notifications after closing connection to avoid deadlock
-        try:
-            if to_username == 'ALL':
-                for user in users:
-                    send_notification(user[0], f"New message from admin", 'dev_message')
-            else:
-                send_notification(to_username, f"New message from admin", 'dev_message')
-        except:
-            pass  # Don't fail if notifications fail
-
-        return jsonify({'success': True}), 200
+        return jsonify({'success': True}), 201
 
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
@@ -12086,6 +12118,13 @@ def send_message():
         
         # Log the action
         log_event(sender, 'messaging', 'message_sent', f'To: {recipient}')
+        
+        # Send notification to recipient
+        send_notification(
+            recipient,
+            f"New message from {sender}: {subject if subject else content[:50]}",
+            'dev_message'
+        )
         
         return jsonify({
             'message_id': message_id,
