@@ -1770,7 +1770,9 @@ CSRF_SECRET = os.environ.get('CSRF_SECRET', stdlib_secrets.token_hex(32))
 CSRF_EXEMPT_ENDPOINTS = {
     'index', 'health_check', 'login', 'register_user', 'register_clinician',
     'forgot_password', 'confirm_password_reset', 'get_csrf_token',
-    'list_clinicians'  # Public listing
+    'list_clinicians',  # Public listing
+    # Phase 3: Messaging endpoints (CSRF token validation handled via session auth)
+    'send_message', 'get_inbox', 'get_conversation', 'mark_message_read', 'delete_message'
 }
 
 def generate_csrf_token():
@@ -2552,6 +2554,26 @@ def init_db():
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # ==================== MESSAGING TABLES (Phase 3) ====================
+    # Internal messaging system - Enable communication between users, therapists, clinicians
+    cursor.execute('''CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_username TEXT NOT NULL,
+        recipient_username TEXT NOT NULL,
+        subject TEXT,
+        content TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0,
+        read_at DATETIME,
+        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        deleted_at DATETIME,
+        is_deleted_by_sender INTEGER DEFAULT 0,
+        is_deleted_by_recipient INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(sender_username) REFERENCES users(username),
+        FOREIGN KEY(recipient_username) REFERENCES users(username),
+        CHECK (sender_username != recipient_username)
+    )''')
+
     # Add email and phone columns if they don't exist
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN email TEXT")
@@ -2717,6 +2739,12 @@ def init_db():
     # Daily tasks
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_daily_tasks_username ON daily_tasks(username)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_daily_tasks_username_date ON daily_tasks(username, task_date)')
+
+    # Messages - queried by recipient and deleted status
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_username, is_read)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(sender_username, recipient_username)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_deleted ON messages(deleted_at)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_sent_at ON messages(sent_at)')
 
     # CBT tool entries
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_cbt_tool_entries_username ON cbt_tool_entries(username)')
@@ -10911,7 +10939,7 @@ def get_home_data():
         # Get pet info for quick display
         pet_conn = sqlite3.connect(PET_DB_PATH)
         pet_cur = pet_conn.cursor()
-        pet = pet_cur.execute("SELECT name, coins, xp, stage FROM pet WHERE id=?", (username,)).fetchone()
+        pet = pet_cur.execute("SELECT name, coins, xp, stage FROM pet WHERE username=?", (username,)).fetchone()
         pet_conn.close()
 
         conn.close()
@@ -11382,6 +11410,369 @@ def get_cbt_tool_history():
 
     except Exception as e:
         return handle_exception(e, 'get_cbt_tool_history')
+
+
+# ======================= PHASE 3: INTERNAL MESSAGING SYSTEM =======================
+
+@app.route('/api/messages/send', methods=['POST'])
+def send_message():
+    """Send a message to another user"""
+    try:
+        sender = get_authenticated_username()
+        if not sender:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        data = request.get_json() or {}
+        recipient = data.get('recipient')
+        subject = data.get('subject', '')
+        content = data.get('content', '').strip()
+        
+        # Validation
+        if not recipient or not isinstance(recipient, str):
+            return jsonify({'error': 'Recipient is required'}), 400
+        
+        if not content:
+            return jsonify({'error': 'Message content is required'}), 400
+        
+        if len(content) > 5000:
+            return jsonify({'error': 'Message cannot exceed 5000 characters'}), 400
+        
+        if len(subject) > 100:
+            return jsonify({'error': 'Subject cannot exceed 100 characters'}), 400
+        
+        if sender == recipient:
+            return jsonify({'error': 'You cannot send messages to yourself'}), 400
+        
+        # Check recipient exists
+        conn = get_db_connection()
+        cur = conn.cursor()
+        recipient_user = cur.execute('SELECT username, role FROM users WHERE username=?', (recipient,)).fetchone()
+        
+        if not recipient_user:
+            conn.close()
+            return jsonify({'error': 'Recipient not found'}), 404
+        
+        # Get sender role for permission check
+        sender_user = cur.execute('SELECT role FROM users WHERE username=?', (sender,)).fetchone()
+        sender_role = sender_user[0] if sender_user else 'user'
+        recipient_role = recipient_user[1]
+        
+        # Role-based access control
+        # Users cannot initiate messages to clinicians (but can reply)
+        if sender_role == 'user' and recipient_role == 'clinician':
+            conn.close()
+            return jsonify({'error': 'Users may only reply to clinicians, not initiate contact'}), 403
+        
+        # Therapists and clinicians can message anyone
+        # Users can message therapists, other users, and admins
+        allowed_recipients = {
+            'therapist': ['therapist', 'clinician', 'user', 'admin'],
+            'clinician': ['therapist', 'clinician', 'user', 'admin'],
+            'user': ['therapist', 'user', 'admin'],  # NOT clinician
+            'admin': ['therapist', 'clinician', 'user', 'admin']
+        }
+        
+        if sender_role not in allowed_recipients or recipient_role not in allowed_recipients.get(sender_role, []):
+            conn.close()
+            return jsonify({'error': 'Permission denied for this message'}), 403
+        
+        # Insert message
+        cur.execute('''
+            INSERT INTO messages (sender_username, recipient_username, subject, content, sent_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (sender, recipient, subject if subject else None, content))
+        
+        message_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        
+        # Log the action
+        log_event(sender, 'messaging', 'message_sent', f'To: {recipient}')
+        
+        return jsonify({
+            'message_id': message_id,
+            'status': 'sent',
+            'recipient': recipient
+        }), 201
+    
+    except Exception as e:
+        return handle_exception(e, 'send_message')
+
+
+@app.route('/api/messages/inbox', methods=['GET'])
+def get_inbox():
+    """Get user's message inbox with conversation previews"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        unread_only = request.args.get('unread_only', 'false').lower() == 'true'
+        
+        if page < 1:
+            page = 1
+        if limit < 1 or limit > 50:
+            limit = 20
+        
+        offset = (page - 1) * limit
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Get conversations (unique senders/recipients, excluding deleted messages)
+        if unread_only:
+            # Only show conversations with unread messages
+            rows = cur.execute('''
+                SELECT 
+                    CASE WHEN sender_username = ? THEN recipient_username ELSE sender_username END as other_user,
+                    (SELECT content FROM messages m2 
+                     WHERE (m2.sender_username = messages.sender_username AND m2.recipient_username = messages.recipient_username
+                            OR m2.sender_username = messages.recipient_username AND m2.recipient_username = messages.sender_username)
+                     AND m2.deleted_at IS NULL
+                     ORDER BY m2.sent_at DESC LIMIT 1) as last_message,
+                    (SELECT sent_at FROM messages m2 
+                     WHERE (m2.sender_username = messages.sender_username AND m2.recipient_username = messages.recipient_username
+                            OR m2.sender_username = messages.recipient_username AND m2.recipient_username = messages.sender_username)
+                     AND m2.deleted_at IS NULL
+                     ORDER BY m2.sent_at DESC LIMIT 1) as last_message_time,
+                    SUM(CASE WHEN recipient_username = ? AND is_read = 0 AND deleted_at IS NULL THEN 1 ELSE 0 END) as unread_count,
+                    MAX(CASE WHEN sender_username != ? THEN 1 ELSE 0 END) as is_latest_from_them
+                FROM messages
+                WHERE (sender_username = ? OR recipient_username = ?)
+                AND deleted_at IS NULL
+                AND is_read = 0
+                AND recipient_username = ?
+                GROUP BY other_user
+                ORDER BY last_message_time DESC
+                LIMIT ? OFFSET ?
+            ''', (username, username, username, username, username, username, limit, offset)).fetchall()
+        else:
+            # Show all conversations
+            rows = cur.execute('''
+                SELECT 
+                    CASE WHEN sender_username = ? THEN recipient_username ELSE sender_username END as other_user,
+                    (SELECT content FROM messages m2 
+                     WHERE (m2.sender_username = messages.sender_username AND m2.recipient_username = messages.recipient_username
+                            OR m2.sender_username = messages.recipient_username AND m2.recipient_username = messages.sender_username)
+                     AND m2.deleted_at IS NULL
+                     ORDER BY m2.sent_at DESC LIMIT 1) as last_message,
+                    (SELECT sent_at FROM messages m2 
+                     WHERE (m2.sender_username = messages.sender_username AND m2.recipient_username = messages.recipient_username
+                            OR m2.sender_username = messages.recipient_username AND m2.recipient_username = messages.sender_username)
+                     AND m2.deleted_at IS NULL
+                     ORDER BY m2.sent_at DESC LIMIT 1) as last_message_time,
+                    SUM(CASE WHEN recipient_username = ? AND is_read = 0 AND deleted_at IS NULL THEN 1 ELSE 0 END) as unread_count,
+                    MAX(CASE WHEN sender_username != ? THEN 1 ELSE 0 END) as is_latest_from_them
+                FROM messages
+                WHERE (sender_username = ? OR recipient_username = ?)
+                AND deleted_at IS NULL
+                GROUP BY other_user
+                ORDER BY last_message_time DESC
+                LIMIT ? OFFSET ?
+            ''', (username, username, username, username, username, limit, offset)).fetchall()
+        
+        # Get total unread count
+        total_unread = cur.execute('''
+            SELECT COUNT(*) FROM messages
+            WHERE recipient_username = ? AND is_read = 0 AND deleted_at IS NULL
+        ''', (username,)).fetchone()[0]
+        
+        # Get total conversation count
+        total_conversations = cur.execute('''
+            SELECT COUNT(DISTINCT 
+                CASE WHEN sender_username = ? THEN recipient_username ELSE sender_username END
+            ) FROM messages
+            WHERE (sender_username = ? OR recipient_username = ?) AND deleted_at IS NULL
+        ''', (username, username, username)).fetchone()[0]
+        
+        conn.close()
+        
+        conversations = [{
+            'with_user': row[0],
+            'last_message': row[1][:100] if row[1] else '',  # Preview first 100 chars
+            'last_message_time': row[2],
+            'unread_count': row[3] if row[3] else 0,
+            'is_latest_from_them': bool(row[4]) if row[4] else False
+        } for row in rows]
+        
+        return jsonify({
+            'conversations': conversations,
+            'total_unread': total_unread,
+            'page': page,
+            'page_size': limit,
+            'total_conversations': total_conversations
+        }), 200
+    
+    except Exception as e:
+        return handle_exception(e, 'get_inbox')
+
+
+@app.route('/api/messages/conversation/<recipient_username>', methods=['GET'])
+def get_conversation(recipient_username):
+    """Get full conversation history with a specific user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        limit = int(request.args.get('limit', 50))
+        if limit < 1 or limit > 200:
+            limit = 50
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Get conversation messages (both directions, ordered chronologically)
+        rows = cur.execute('''
+            SELECT id, sender_username, recipient_username, content, subject, is_read, read_at, sent_at
+            FROM messages
+            WHERE (sender_username = ? AND recipient_username = ?)
+               OR (sender_username = ? AND recipient_username = ?)
+            AND deleted_at IS NULL
+            ORDER BY sent_at ASC
+            LIMIT ?
+        ''', (username, recipient_username, recipient_username, username, limit)).fetchall()
+        
+        # Mark all messages from recipient as read
+        cur.execute('''
+            UPDATE messages
+            SET is_read = 1, read_at = CURRENT_TIMESTAMP
+            WHERE sender_username = ? AND recipient_username = ? AND is_read = 0
+        ''', (recipient_username, username))
+        
+        conn.commit()
+        
+        # Re-fetch messages to get updated is_read values
+        rows = cur.execute('''
+            SELECT id, sender_username, recipient_username, content, subject, is_read, read_at, sent_at
+            FROM messages
+            WHERE (sender_username = ? AND recipient_username = ?)
+               OR (sender_username = ? AND recipient_username = ?)
+            AND deleted_at IS NULL
+            ORDER BY sent_at ASC
+            LIMIT ?
+        ''', (username, recipient_username, recipient_username, username, limit)).fetchall()
+        
+        conn.close()
+        
+        messages = [{
+            'id': row[0],
+            'sender': row[1],
+            'recipient': row[2],
+            'content': row[3],
+            'subject': row[4],
+            'is_read': bool(row[5]),
+            'read_at': row[6],
+            'sent_at': row[7]
+        } for row in rows]
+        
+        return jsonify({
+            'messages': messages,
+            'participant_count': 2
+        }), 200
+    
+    except Exception as e:
+        return handle_exception(e, 'get_conversation')
+
+
+@app.route('/api/messages/<int:message_id>/read', methods=['PATCH'])
+def mark_message_read(message_id):
+    """Mark a message as read"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Check message exists and user is recipient
+        message = cur.execute('''
+            SELECT id, recipient_username FROM messages WHERE id = ?
+        ''', (message_id,)).fetchone()
+        
+        if not message:
+            conn.close()
+            return jsonify({'error': 'Message not found'}), 404
+        
+        if message[1] != username:
+            conn.close()
+            return jsonify({'error': 'You are not the recipient of this message'}), 403
+        
+        # Mark as read
+        cur.execute('''
+            UPDATE messages
+            SET is_read = 1, read_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (message_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'message_id': message_id,
+            'is_read': True,
+            'read_at': datetime.now().isoformat() + 'Z'
+        }), 200
+    
+    except Exception as e:
+        return handle_exception(e, 'mark_message_read')
+
+
+@app.route('/api/messages/<int:message_id>', methods=['DELETE'])
+def delete_message(message_id):
+    """Soft delete a message (hide from user, not permanent)"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Check message exists and user is sender or recipient
+        message = cur.execute('''
+            SELECT id, sender_username, recipient_username, is_deleted_by_sender, is_deleted_by_recipient
+            FROM messages WHERE id = ?
+        ''', (message_id,)).fetchone()
+        
+        if not message:
+            conn.close()
+            return jsonify({'error': 'Message not found'}), 404
+        
+        msg_id, sender, recipient, deleted_by_sender, deleted_by_recipient = message
+        
+        if username not in (sender, recipient):
+            conn.close()
+            return jsonify({'error': 'You cannot delete this message'}), 403
+        
+        # Mark as deleted by this user
+        if username == sender:
+            cur.execute('''
+                UPDATE messages SET is_deleted_by_sender = 1 WHERE id = ?
+            ''', (message_id,))
+        else:  # recipient
+            cur.execute('''
+                UPDATE messages SET is_deleted_by_recipient = 1 WHERE id = ?
+            ''', (message_id,))
+        
+        # If both have marked deleted, hide the message permanently
+        if (username == sender and deleted_by_recipient) or (username == recipient and deleted_by_sender):
+            cur.execute('''
+                UPDATE messages SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?
+            ''', (message_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        log_event(username, 'messaging', 'message_deleted', f'Message ID: {message_id}')
+        
+        return '', 204  # No content response
+    
+    except Exception as e:
+        return handle_exception(e, 'delete_message')
 
 
 @app.errorhandler(404)

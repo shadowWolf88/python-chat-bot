@@ -4,6 +4,9 @@
 
 ---
 
+## MY ADDITIONS 
+1. ✅ FIXED - details for pet not update on the home page in the "Your Pet" section after adopting a pet. Fixed in api.py line 10914: Changed `WHERE id=?` to `WHERE username=?` in get_home_data() function
+
 # SECTION 1: CRITICAL - FIX IMMEDIATELY (This Week)
 
 ## ✅ #1: Test Suite Fixed

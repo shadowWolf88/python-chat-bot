@@ -5438,7 +5438,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         async function loadHomeTabData() {
             try {
-                const response = await fetch(`/api/home/data?username=${encodeURIComponent(currentUser)}`);
+                const response = await fetch(`/api/home/data`, {
+                    method: 'GET',
+                    credentials: 'include', // Ensure session cookies are sent
+                    headers: { 'Content-Type': 'application/json' }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     renderHomeTab(data);
@@ -13015,90 +13019,230 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         // ========== END DEVELOPER DASHBOARD FUNCTIONS ==========
 
-        // ========== USER MESSAGES (Inbox for patients/clinicians) ==========
+        // ========== USER MESSAGES (Inbox for patients/clinicians) - Phase 3 Messaging ==========
         async function loadUserMessages() {
             try {
-                const response = await fetch(`/api/developer/messages/list?username=${currentUser}`);
+                const response = await fetch(`/api/messages/inbox`, {
+                    method: 'GET',
+                    credentials: 'include', // Send session cookies
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to load messages');
+                }
+                
                 const data = await response.json();
-
                 const container = document.getElementById('userMessagesContainer');
 
-                if (!data.messages || data.messages.length === 0) {
+                if (!data.conversations || data.conversations.length === 0) {
                     container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No messages yet.</p>';
                     document.getElementById('messagesBadge').style.display = 'none';
                     return;
                 }
 
-                // Count unread messages
-                const unreadCount = data.messages.filter(m => !m.read && m.to_username === currentUser).length;
-                const badge = document.getElementById('messagesBadge');
-                if (unreadCount > 0) {
-                    badge.textContent = unreadCount;
+                // Show badge with unread count
+                if (data.total_unread > 0) {
+                    const badge = document.getElementById('messagesBadge');
+                    badge.textContent = data.total_unread;
                     badge.style.display = 'inline-block';
-                } else {
-                    badge.style.display = 'none';
                 }
 
-                // Display messages
-                container.innerHTML = data.messages.map(msg => `
-                    <div style="border-bottom: 1px solid #e0e0e0; padding: 20px; background: ${!msg.read && msg.to_username === currentUser ? '#f0f7ff' : 'white'};">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                // Display conversations
+                container.innerHTML = data.conversations.map(conv => `
+                    <div style="border-bottom: 1px solid #e0e0e0; padding: 15px; background: ${conv.unread_count > 0 ? '#f0f7ff' : 'white'}; cursor: pointer; transition: background 0.2s;"
+                         onmouseover="this.style.background='${conv.unread_count > 0 ? '#e8f2ff' : '#f9f9f9'}'"
+                         onmouseout="this.style.background='${conv.unread_count > 0 ? '#f0f7ff' : 'white'}'"
+                         onclick="viewMessageConversation('${conv.with_user}')">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
                             <div>
-                                <strong style="color: ${msg.from_username === 'dev_admin' ? '#667eea' : '#333'};">
-                                    ${msg.from_username === currentUser ? 'You' : (msg.from_username === 'dev_admin' ? '👨‍💻 Developer' : msg.from_username)}
-                                </strong>
-                                ${msg.to_username === 'ALL' ? '<span style="color: #999; font-size: 13px;"> → All Users</span>' : ''}
-                                ${msg.parent_message_id ? '<span style="color: #999; font-size: 13px;"> (Reply)</span>' : ''}
+                                <strong style="color: #333;">${conv.with_user}</strong>
+                                ${conv.unread_count > 0 ? `<span style="color: #e74c3c; font-weight: bold; margin-left: 8px;">(${conv.unread_count} unread)</span>` : ''}
                             </div>
-                            <span style="color: #999; font-size: 13px;">${new Date(msg.created_at).toLocaleString()}</span>
+                            <span style="color: #999; font-size: 12px; white-space: nowrap;">${new Date(conv.last_message_time).toLocaleString()}</span>
                         </div>
-                        <div style="color: #333; margin-bottom: 15px; white-space: pre-wrap;">${msg.message}</div>
-                        ${msg.from_username !== currentUser && !msg.parent_message_id ?
-                            `<button onclick="replyToDevMessage(${msg.id}, '${msg.from_username}')"
-                                style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                                ↩️ Reply
-                            </button>`
-                            : ''}
+                        <div style="color: #666; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${conv.is_latest_from_them ? '📨 ' : '📤 '}${conv.last_message}
+                        </div>
                     </div>
                 `).join('');
 
             } catch (error) {
                 console.error('Failed to load messages:', error);
-                document.getElementById('userMessagesContainer').innerHTML = '<p style="color: #e74c3c; padding: 20px;">Error loading messages</p>';
+                document.getElementById('userMessagesContainer').innerHTML = `<p style="color: #e74c3c; padding: 20px;">⚠️ Error loading messages: ${error.message}</p>`;
             }
         }
 
-        async function replyToDevMessage(parentId, toUsername) {
-            const reply = prompt(`Reply to message from ${toUsername}:`);
-            if (!reply || !reply.trim()) return;
-
+        async function viewMessageConversation(withUser) {
             try {
-                const response = await fetch('/api/developer/messages/reply', {
+                const response = await fetch(`/api/messages/conversation/${encodeURIComponent(withUser)}`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to load conversation');
+                }
+                
+                const data = await response.json();
+                const messages = data.messages || [];
+                
+                // Create conversation modal
+                const modal = document.createElement('div');
+                modal.id = 'messageModal';
+                modal.style.cssText = `
+                    position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                    background: rgba(0,0,0,0.5); display: flex; align-items: center; 
+                    justify-content: center; z-index: 10000;
+                `;
+                
+                const conversationDiv = document.createElement('div');
+                conversationDiv.style.cssText = `
+                    background: white; border-radius: 8px; width: 90%; max-width: 600px;
+                    max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+                `;
+                
+                // Header
+                const header = document.createElement('div');
+                header.style.cssText = 'padding: 15px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;';
+                header.innerHTML = `
+                    <h3 style="margin: 0; color: #333;">Conversation with ${withUser}</h3>
+                    <button onclick="document.getElementById('messageModal').remove()" 
+                        style="background: #f0f0f0; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 18px;">✕</button>
+                `;
+                conversationDiv.appendChild(header);
+                
+                // Messages container
+                const messagesContainer = document.createElement('div');
+                messagesContainer.style.cssText = 'flex: 1; overflow-y: auto; padding: 15px; background: #f9f9f9;';
+                messagesContainer.innerHTML = messages.map(msg => `
+                    <div style="margin-bottom: 15px; text-align: ${msg.sender_username === currentUser ? 'right' : 'left'};">
+                        <div style="display: inline-block; max-width: 70%; background: ${msg.sender_username === currentUser ? '#667eea' : '#e0e0e0'}; 
+                                    color: ${msg.sender_username === currentUser ? 'white' : '#333'}; padding: 10px 15px; border-radius: 8px; word-wrap: break-word;">
+                            ${msg.content}
+                        </div>
+                        <div style="font-size: 11px; color: #999; margin-top: 4px;">
+                            ${new Date(msg.sent_at).toLocaleString()}
+                            ${msg.is_read ? '✓✓' : '✓'}
+                        </div>
+                    </div>
+                `).join('');
+                conversationDiv.appendChild(messagesContainer);
+                
+                // Reply section (only allow if not patient, or if patient then only mark as read)
+                let replySection = document.createElement('div');
+                replySection.style.cssText = 'padding: 15px; border-top: 1px solid #e0e0e0; background: white;';
+                
+                if (currentUserRole === 'user') {
+                    // Patients can only mark as read, cannot reply
+                    replySection.innerHTML = `
+                        <button onclick="markConversationAsRead('${withUser}')" 
+                            style="width: 100%; background: #667eea; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;">
+                            ✓ Mark as Read
+                        </button>
+                    `;
+                } else if (currentUserRole === 'clinician' || currentUserRole === 'therapist' || currentUserRole === 'developer') {
+                    // Clinicians/therapists/developers can send replies
+                    replySection.innerHTML = `
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="replyInput" placeholder="Type a message..." 
+                                style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                            <button onclick="sendReply('${withUser}')" 
+                                style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                                Send
+                            </button>
+                        </div>
+                    `;
+                }
+                conversationDiv.appendChild(replySection);
+                
+                modal.appendChild(conversationDiv);
+                document.body.appendChild(modal);
+                modal.onclick = function(e) {
+                    if (e.target === modal) modal.remove();
+                };
+                
+            } catch (error) {
+                console.error('Failed to load conversation:', error);
+                alert('❌ Error loading conversation: ' + error.message);
+            }
+        }
+
+        async function sendReply(toUser) {
+            const replyInput = document.getElementById('replyInput');
+            const message = replyInput.value.trim();
+            
+            if (!message) {
+                alert('Please type a message');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/messages/send', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        from_username: currentUser,
-                        parent_message_id: parentId,
-                        message: reply.trim()
+                        recipient_username: toUser,
+                        content: message
                     })
                 });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert('✅ Reply sent!');
-                    loadUserMessages(); // Refresh
-                } else {
-                    alert(`❌ Error: ${data.error}`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to send message');
                 }
+                
+                alert('✅ Message sent!');
+                document.getElementById('messageModal').remove();
+                loadUserMessages(); // Refresh inbox
+                
             } catch (error) {
-                console.error('Failed to send reply:', error);
-                alert('❌ Failed to send reply. Please try again.');
+                console.error('Failed to send message:', error);
+                alert('❌ Error: ' + error.message);
+            }
+        }
+
+        async function markConversationAsRead(withUser) {
+            try {
+                const response = await fetch(`/api/messages/conversation/${encodeURIComponent(withUser)}`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) throw new Error('Failed to load messages');
+                
+                const data = await response.json();
+                const messages = data.messages || [];
+                
+                // Mark all unread messages as read
+                for (const msg of messages) {
+                    if (!msg.is_read && msg.recipient_username === currentUser) {
+                        await fetch(`/api/messages/${msg.id}/read`, {
+                            method: 'PATCH',
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                    }
+                }
+                
+                alert('✅ Messages marked as read!');
+                document.getElementById('messageModal').remove();
+                loadUserMessages(); // Refresh inbox
+                
+            } catch (error) {
+                console.error('Failed to mark as read:', error);
+                alert('❌ Error: ' + error.message);
             }
         }
 
         // Load messages when switching to messages tab
         function checkAndLoadMessages() {
+            // Load messages for all non-developer users (patients, clinicians, therapists)
             if (currentUserRole !== 'developer') {
                 loadUserMessages();
             }
