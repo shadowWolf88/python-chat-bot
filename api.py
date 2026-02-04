@@ -205,6 +205,82 @@ class InputValidator:
             field_name="Username"
         )
 
+# ================== PHASE 2B: CSRF PROTECTION ==================
+
+class CSRFProtection:
+    """Phase 2B: Prevent Cross-Site Request Forgery attacks"""
+    
+    @staticmethod
+    def generate_csrf_token(username):
+        """Generate a CSRF token for the user and store in session"""
+        token = secrets.token_urlsafe(32)
+        session[f'csrf_token_{username}'] = {
+            'token': token,
+            'created_at': datetime.utcnow().isoformat(),
+            'attempts': 0
+        }
+        session.permanent = True
+        return token
+    
+    @staticmethod
+    def validate_csrf_token(username, provided_token):
+        """Validate CSRF token from request header"""
+        if not username or not provided_token:
+            return False, "CSRF token missing"
+        
+        token_data = session.get(f'csrf_token_{username}')
+        if not token_data:
+            return False, "No CSRF token in session (try logging in again)"
+        
+        stored_token = token_data.get('token')
+        
+        # Prevent token reuse by tracking attempts
+        token_data['attempts'] = token_data.get('attempts', 0) + 1
+        if token_data['attempts'] > 10:
+            session.pop(f'csrf_token_{username}', None)
+            return False, "CSRF token validation failed too many times (suspicious activity)"
+        
+        # Timing-safe comparison
+        if not secrets.compare_digest(stored_token, provided_token):
+            return False, "CSRF token invalid"
+        
+        # Invalidate token after successful validation (one-time use)
+        session.pop(f'csrf_token_{username}', None)
+        
+        return True, "CSRF token valid"
+    
+    @staticmethod
+    def require_csrf(f):
+        """Decorator to require CSRF token for POST/PUT/DELETE requests"""
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Skip CSRF for GET requests
+            if request.method == 'GET':
+                return f(*args, **kwargs)
+            
+            # Get authenticated user
+            username = get_authenticated_username()
+            if not username:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            # Get CSRF token from header
+            csrf_token = request.headers.get('X-CSRF-Token')
+            
+            # In DEBUG mode, allow missing CSRF for testing (with warning)
+            if DEBUG and not csrf_token:
+                print(f"WARNING: Missing CSRF token in DEBUG mode (user: {username})")
+                return f(*args, **kwargs)
+            
+            # Validate CSRF token
+            is_valid, message = CSRFProtection.validate_csrf_token(username, csrf_token)
+            if not is_valid:
+                log_event(username, 'security', 'csrf_validation_failed', message)
+                return jsonify({'error': message}), 403
+            
+            return f(*args, **kwargs)
+        
+        return decorated_function
+
 # ================== CBT: GOAL SETTING/TRACKING ENDPOINTS ==================
 
 @app.route('/api/cbt/goals', methods=['POST'])
@@ -3470,6 +3546,9 @@ def login():
         session['clinician_id'] = clinician_id
         session['login_time'] = datetime.now().isoformat()
         
+        # PHASE 2B: Generate CSRF token on successful login
+        csrf_token = CSRFProtection.generate_csrf_token(username)
+        
         return jsonify({
             'success': True,
             'message': 'Login successful',
@@ -3478,7 +3557,8 @@ def login():
             'approval_status': approval_status,
             'clinician_id': clinician_id,
             'clinician_name': clinician_name,
-            'disclaimer_accepted': bool(disclaimer_accepted)
+            'disclaimer_accepted': bool(disclaimer_accepted),
+            'csrf_token': csrf_token  # NEW: Send CSRF token to client
         }), 200
         
     except Exception as e:
@@ -9186,6 +9266,7 @@ Be thorough, evidence-based, and clinically specific. Reference the actual data 
 
 # ===== CLINICIAN NOTES & PDF EXPORT =====
 @app.route('/api/professional/notes', methods=['POST'])
+@CSRFProtection.require_csrf  # PHASE 2B: CSRF protection
 def create_clinician_note():
     """Create a note about a patient (Phase 2A: Input validation added)"""
     try:
