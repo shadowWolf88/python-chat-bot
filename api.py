@@ -55,15 +55,26 @@ def ensure_pet_table():
         conn.close()
 
 def get_pet_db_connection():
-    """Get pet database connection to PostgreSQL"""
+    """Get pet database connection to PostgreSQL
+    
+    Supports both:
+    1. DATABASE_URL (Railway): postgresql://user:pass@host:port/db
+    2. Individual env vars: DB_HOST, DB_PORT, DB_NAME_PET, DB_USER, DB_PASSWORD
+    """
     try:
-        conn = psycopg2.connect(
-            host=os.environ.get('DB_HOST', 'localhost'),
-            port=os.environ.get('DB_PORT', '5432'),
-            database=os.environ.get('DB_NAME_PET', 'healing_space_pet_test'),
-            user=os.environ.get('DB_USER', 'healing_space'),
-            password=os.environ.get('DB_PASSWORD', 'healing_space_dev_pass')
-        )
+        # Check for Railway DATABASE_URL first
+        database_url = os.environ.get('DATABASE_URL')
+        if database_url:
+            conn = psycopg2.connect(database_url)
+        else:
+            # Fall back to individual environment variables
+            conn = psycopg2.connect(
+                host=os.environ.get('DB_HOST', 'localhost'),
+                port=os.environ.get('DB_PORT', '5432'),
+                database=os.environ.get('DB_NAME_PET', 'healing_space_pet_test'),
+                user=os.environ.get('DB_USER', 'healing_space'),
+                password=os.environ.get('DB_PASSWORD', 'healing_space_dev_pass')
+            )
         return conn
     except psycopg2.Error as e:
         print(f"Failed to connect to PostgreSQL pet database: {e}")
