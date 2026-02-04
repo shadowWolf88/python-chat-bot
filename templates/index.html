@@ -3116,16 +3116,20 @@
                 </div>
                 <div id="clinicianSection" style="display: block;">
                     <div class="form-group">
-                        <label>Clinician Username or Full Name *</label>
-                        <input type="text" id="regClinicianSearch" placeholder="Search clinician by username or name" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
-                        <button type="button" onclick="searchClinicians()" class="btn btn-secondary" style="width: 100%; margin-top: 8px; padding: 10px;">Search</button>
+                        <label>Search for Your Clinician *</label>
+                        <input type="text" id="regClinicianSearch" placeholder="Enter clinician username or full name" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                        <small style="color: #666; display: block; margin-top: 5px;">Example: "Dr. Smith" or "dr.smith"</small>
+                        <button type="button" onclick="searchClinicians()" class="btn btn-secondary" style="width: 100%; margin-top: 8px; padding: 10px;">🔍 Search Clinicians</button>
                     </div>
                     <div class="form-group">
                         <label>Select Your Clinician *</label>
-                        <select id="regClinician" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                        <select id="regClinician" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; display: none;" required>
                             <option value="">-- No clinicians found yet --</option>
                         </select>
-                        <small style="color: #666; display: block; margin-top: 5px;">Your assigned mental health professional</small>
+                        <div id="clinicianDropdownPlaceholder" style="color: #999; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; background: #f9f9f9;">
+                            Search above to find available clinicians
+                        </div>
+                        <small style="color: #666; display: block; margin-top: 5px;">Your clinician will need to approve your request</small>
                     </div>
                 </div>
                 <button class="btn" onclick="register()">Create Account</button>
@@ -8358,20 +8362,30 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 const data = await response.json();
                 
                 const select = document.getElementById('regClinician');
+                const placeholder = document.getElementById('clinicianDropdownPlaceholder');
+                
                 if (response.ok && data.clinicians && data.clinicians.length > 0) {
                     select.innerHTML = '<option value="">-- Select your clinician --</option>' +
                         data.clinicians.map(c => 
                             `<option value="${c.username}">${c.full_name || c.username}${c.area ? ' (' + c.area + ')' : ''}</option>`
                         ).join('');
-                    showAuthMessage(`Found ${data.clinicians.length} clinician(s)`, 'success');
+                    select.style.display = 'block';
+                    if (placeholder) placeholder.style.display = 'none';
+                    showAuthMessage(`✅ Found ${data.clinicians.length} clinician(s) - Select from dropdown`, 'success');
                 } else {
-                    select.innerHTML = '<option value="">No clinicians found matching your search</option>';
-                    showAuthMessage('No clinicians found. Try a different search or area.', 'error');
+                    select.innerHTML = '<option value="">-- No clinicians found --</option>';
+                    select.style.display = 'block';
+                    if (placeholder) placeholder.style.display = 'none';
+                    showAuthMessage('⚠️ No clinicians match your search. Try a different name or area.', 'error');
                 }
             } catch (error) {
-                console.error('Error loading clinicians:', error);
-                document.getElementById('regClinician').innerHTML = '<option value="">Error loading clinicians</option>';
-                showAuthMessage('Error searching for clinicians', 'error');
+                console.error('Error searching clinicians:', error);
+                const select = document.getElementById('regClinician');
+                select.innerHTML = '<option value="">Error loading clinicians</option>';
+                select.style.display = 'block';
+                const placeholder = document.getElementById('clinicianDropdownPlaceholder');
+                if (placeholder) placeholder.style.display = 'none';
+                showAuthMessage('Error searching for clinicians. Please try again.', 'error');
             }
         }
         

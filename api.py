@@ -4245,6 +4245,7 @@ def get_clinicians():
     try:
         country = request.args.get('country', '')
         area = request.args.get('area', '')
+        search = request.args.get('search', '')  # Search by username or full_name
         
         conn = get_db_connection()
         cur = conn.cursor()
@@ -4259,6 +4260,11 @@ def get_clinicians():
         if area:
             query += " AND LOWER(area) LIKE LOWER(?)"
             params.append(f"%{area}%")
+        
+        if search:
+            query += " AND (LOWER(username) LIKE LOWER(?) OR LOWER(full_name) LIKE LOWER(?))"
+            params.append(f"%{search}%")
+            params.append(f"%{search}%")
         
         query += " ORDER BY username"
         
