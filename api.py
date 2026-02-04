@@ -23,27 +23,35 @@ def ensure_pet_table():
     conn = sqlite3.connect(PET_DB_PATH)
     cur = conn.cursor()
     
-    # Create table with username column for multi-user support
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS pet (
-            id INTEGER PRIMARY KEY,
-            username TEXT NOT NULL,
-            name TEXT, species TEXT, gender TEXT,
-            hunger INTEGER DEFAULT 70, happiness INTEGER DEFAULT 70,
-            energy INTEGER DEFAULT 70, hygiene INTEGER DEFAULT 80,
-            coins INTEGER DEFAULT 0, xp INTEGER DEFAULT 0,
-            stage TEXT DEFAULT 'Baby', adventure_end REAL DEFAULT 0,
-            last_updated REAL, hat TEXT DEFAULT 'None',
-            UNIQUE(username)
-        )
-    """)
+    # Check if table exists
+    table_exists = cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='pet'"
+    ).fetchone()
     
-    # Add username column if it doesn't exist (migration for existing data)
-    try:
-        cur.execute("ALTER TABLE pet ADD COLUMN username TEXT")
-        cur.execute("ALTER TABLE pet ADD UNIQUE(username)")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
+    if not table_exists:
+        # Create new table with username column for multi-user support
+        cur.execute("""
+            CREATE TABLE pet (
+                id INTEGER PRIMARY KEY,
+                username TEXT NOT NULL,
+                name TEXT, species TEXT, gender TEXT,
+                hunger INTEGER DEFAULT 70, happiness INTEGER DEFAULT 70,
+                energy INTEGER DEFAULT 70, hygiene INTEGER DEFAULT 80,
+                coins INTEGER DEFAULT 0, xp INTEGER DEFAULT 0,
+                stage TEXT DEFAULT 'Baby', adventure_end REAL DEFAULT 0,
+                last_updated REAL, hat TEXT DEFAULT 'None',
+                UNIQUE(username)
+            )
+        """)
+    else:
+        # Table exists - try to add username column if it doesn't exist
+        columns = [row[1] for row in cur.execute("PRAGMA table_info(pet)")]
+        if 'username' not in columns:
+            try:
+                cur.execute("ALTER TABLE pet ADD COLUMN username TEXT")
+                cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_pet_username ON pet(username)")
+            except sqlite3.OperationalError:
+                pass  # Column might already exist
     
     conn.commit()
     conn.close()
