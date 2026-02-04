@@ -11432,38 +11432,45 @@ def test_database_connection():
         cur.execute("SELECT 1")
         cur.fetchone()
         conn.close()
-        print("✅ Database connection: SUCCESSFUL")
+        msg = "✅ Database connection: SUCCESSFUL"
+        print(msg, flush=True)
+        sys.stdout.flush()
         return True
     except Exception as e:
-        print(f"❌ Database connection: FAILED - {e}")
+        msg = f"❌ Database connection: FAILED - {e}"
+        print(msg, flush=True)
+        sys.stdout.flush()
         return False
 
 # Initialize pet table
 try:
     ensure_pet_table()
 except Exception as e:
-    print(f"⚠️  Pet table initialization failed: {e}")
+    msg = f"⚠️  Pet table initialization failed: {e}"
+    print(msg, flush=True)
+    sys.stdout.flush()
 
 # Log startup info
-print("=" * 80)
-print("🚀 HEALING SPACE UK - Flask API Starting")
-print("=" * 80)
-print(f"Environment: {'DEBUG MODE' if DEBUG else 'PRODUCTION'}")
-print(f"Database URL configured: {bool(os.environ.get('DATABASE_URL'))}")
-print(f"Using: {'Railway PostgreSQL' if os.environ.get('DATABASE_URL') else 'Local/env var PostgreSQL'}")
+print("=" * 80, flush=True)
+print("🚀 HEALING SPACE UK - Flask API Starting", flush=True)
+print("=" * 80, flush=True)
+print(f"Environment: {'DEBUG MODE' if DEBUG else 'PRODUCTION'}", flush=True)
+print(f"Database URL configured: {bool(os.environ.get('DATABASE_URL'))}", flush=True)
+print(f"Using: {'Railway PostgreSQL' if os.environ.get('DATABASE_URL') else 'Local/env var PostgreSQL'}", flush=True)
 
 # Test database connection on startup
 db_ready = test_database_connection()
 
 # Check required secrets
 groq_ready = bool(GROQ_API_KEY)
-print(f"✅ GROQ API Key configured: {groq_ready}")
-print(f"✅ SECRET_KEY configured: {bool(app.config.get('SECRET_KEY'))}")
-print(f"✅ PIN_SALT configured: {bool(PIN_SALT)}")
+print(f"✅ GROQ API Key configured: {groq_ready}", flush=True)
+print(f"✅ SECRET_KEY configured: {bool(app.config.get('SECRET_KEY'))}", flush=True)
+print(f"✅ PIN_SALT configured: {bool(PIN_SALT)}", flush=True)
 
 # Print app summary
-print(f"📊 API Routes: {len(app.url_map._rules)} routes registered")
-print("=" * 80)
+print(f"📊 API Routes: {len(app.url_map._rules)} routes registered", flush=True)
+print("=" * 80, flush=True)
+sys.stdout.flush()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
