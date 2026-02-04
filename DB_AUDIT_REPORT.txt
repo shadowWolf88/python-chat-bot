@@ -1,0 +1,54 @@
+=== DATABASE AUDIT REPORT - February 4, 2026 ===
+
+THERAPIST_APP.DB (Main Application)
+
+
+--- TABLE SUMMARY ---
+ai_memory
+alerts
+appointments
+audit_logs
+breathing_exercises
+cbt_records
+cbt_tool_entries
+chat_history
+chat_sessions
+clinical_scales
+clinician_notes
+community_channel_reads
+community_likes
+community_posts
+community_replies
+coping_cards
+core_beliefs
+daily_streaks
+daily_tasks
+dev_ai_chats
+dev_messages
+dev_terminal_logs
+exposure_attempts
+exposure_hierarchy
+feedback
+goal_checkins
+goal_milestones
+goals
+gratitude_logs
+messages
+mood_logs
+notifications
+patient_approvals
+problem_solving
+relaxation_techniques
+safety_plans
+self_compassion_journal
+sessions
+settings
+sleep_diary
+sqlite_sequence
+users
+values_clarification
+verification_codes
+
+PET_GAME.DB (Gamification)
+
+AI_TRAINING_DATA.DB (GDPR Compliant)
