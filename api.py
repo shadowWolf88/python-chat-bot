@@ -1600,11 +1600,11 @@ else:
 # ==================== SECURITY HEADERS ====================
 @app.after_request
 def add_security_headers(response):
-    """Add security headers to all responses"""
+    """PHASE 2C: Add comprehensive security headers to all responses"""
     # Prevent clickjacking attacks
     response.headers['X-Frame-Options'] = 'DENY'
 
-    # Prevent MIME type sniffing
+    # Prevent MIME type sniffing (critical for security)
     response.headers['X-Content-Type-Options'] = 'nosniff'
 
     # Enable XSS filter in older browsers
@@ -1612,15 +1612,15 @@ def add_security_headers(response):
 
     # Enforce HTTPS (only in production)
     if not DEBUG:
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
 
     # Referrer policy for privacy
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
     # Permissions policy (disable unnecessary features)
-    response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+    response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=(), payment=(), usb=()'
 
-    # Content Security Policy (basic - adjust as needed for your frontend)
+    # Content Security Policy (comprehensive - Phase 2C)
     if not DEBUG:
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
@@ -1628,8 +1628,10 @@ def add_security_headers(response):
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self' https:; "
-            "connect-src 'self' https://api.groq.com; "
-            "frame-ancestors 'none';"
+            "connect-src 'self' https://api.groq.com https://www.healing-space.org.uk; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self';"
         )
 
     return response
@@ -1750,6 +1752,27 @@ def validate_csrf_token(token):
     # For API use, we validate the token format and presence
     # In production, you'd want to validate against stored session tokens
     return len(token) == 64 and token.isalnum()
+
+# ================== PHASE 2C: CONTENT-TYPE VALIDATION ==================
+
+@app.before_request
+def validate_content_type():
+    """PHASE 2C: Validate Content-Type for POST/PUT/PATCH requests"""
+    # Skip validation for GET/DELETE requests
+    if request.method in ('GET', 'DELETE', 'HEAD', 'OPTIONS'):
+        return
+    
+    # Skip if no body
+    if not request.data:
+        return
+    
+    content_type = request.headers.get('Content-Type', '').lower()
+    
+    # Allow JSON requests only (or form data for file uploads)
+    if not (content_type.startswith('application/json') or 
+            content_type.startswith('multipart/form-data')):
+        log_event('system', 'security', 'invalid_content_type', f'Content-Type: {content_type}, Endpoint: {request.endpoint}')
+        return jsonify({'error': 'Invalid Content-Type. Only application/json is allowed.'}), 415
 
 @app.before_request
 def csrf_protect():
