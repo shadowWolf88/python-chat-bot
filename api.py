@@ -2608,8 +2608,11 @@ def health_check():
     """Health check endpoint for Railway"""
     return jsonify({
         'status': 'healthy',
-        'service': 'python-chat-bot Therapy API',
-        'version': '1.0.0',
+        'service': 'Healing Space UK - Mental Health Therapy API',
+        'version': '2.0.0-postgresql-ready',
+        'deployed': '2026-02-04T18:30:00Z',
+        'commit': '5faf610',
+        'database': 'PostgreSQL',
         'timestamp': datetime.now().isoformat()
     })
 
