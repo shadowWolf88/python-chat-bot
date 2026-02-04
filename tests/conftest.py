@@ -1,6 +1,9 @@
 """
 Shared pytest fixtures and configuration for Healing Space tests.
 Provides common test client setup, database fixtures, and test data factories.
+
+Configuration: Uses PostgreSQL by default for API tests. 
+Set DB_TYPE=sqlite to use SQLite for legacy desktop tests.
 """
 
 import os
@@ -13,6 +16,19 @@ from datetime import datetime, timezone
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+
+# Configure for PostgreSQL testing by default
+os.environ.setdefault('DEBUG', '1')
+os.environ.setdefault('DB_HOST', 'localhost')
+os.environ.setdefault('DB_PORT', '5432')
+os.environ.setdefault('DB_NAME', 'healing_space_test')
+os.environ.setdefault('DB_NAME_PET', 'healing_space_pet_test')
+os.environ.setdefault('DB_NAME_TRAINING', 'healing_space_training_test')
+os.environ.setdefault('DB_USER', 'healing_space')
+os.environ.setdefault('DB_PASSWORD', 'healing_space_dev_pass')
+os.environ.setdefault('PIN_SALT', 'test_pin_salt_12345')
+os.environ.setdefault('GROQ_API_KEY', 'test_key')
+os.environ.setdefault('SECRET_KEY', 'test_secret_key_do_not_use_in_production')
 
 import api
 
@@ -36,11 +52,8 @@ def tmp_db(tmp_path):
 
 
 @pytest.fixture
-def client(tmp_db, monkeypatch):
-    """Create Flask test client with temporary database."""
-    # Ensure DB_PATH is set in api module
-    monkeypatch.setattr(api, 'DB_PATH', tmp_db)
-    
+def client(monkeypatch):
+    """Create Flask test client with PostgreSQL database."""
     # Enable debug mode for tests and set secret key for sessions
     api.app.config['TESTING'] = True
     api.app.config['SECRET_KEY'] = 'test-secret-key-for-sessions'
