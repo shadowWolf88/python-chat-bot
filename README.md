@@ -2,8 +2,20 @@
 
 A mental health companion application (desktop and web) that combines AI therapy, mood tracking, CBT tools, clinical assessments, gamified self-care, clinician oversight, secure storage, and GDPR-compliant training-data collection.
 
+## ⭐ PROJECT MANAGEMENT HUB
+
+**👉 [Start Here: project_management/README.md](project_management/README.md)** ← Single source of truth for:
+- Current status & metrics
+- What's happening now (daily)
+- What's coming next (roadmap)
+- Decisions & approvals
+- Project navigation
+
+---
+
 ## Quick links
 
+- **Project Management**: [project_management/](project_management/README.md) - Status, roadmap, decisions
 - Documentation index: documentation/00_INDEX.md
 - Documentation folder: documentation/
 - User Guide: documentation/USER_GUIDE.md
