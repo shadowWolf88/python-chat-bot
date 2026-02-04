@@ -4047,7 +4047,7 @@
                                         const resp = await fetch('/api/cbt-tools/save', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ tool_type: toolId, data })
+                                            body: JSON.stringify({ tool_type: toolId, data, username: currentUser })
                                         });
                                         if (!resp.ok) throw new Error('Save failed');
                                         showCBTToolStatus('Saved!', true);
@@ -4064,7 +4064,7 @@
                                 async function loadCBTToolData(toolId) {
                                     const loader = document.getElementById('cbtToolLoader');
                                     try {
-                                        const resp = await fetch(`/api/cbt-tools/load?tool_type=${encodeURIComponent(toolId)}`);
+                                        const resp = await fetch(`/api/cbt-tools/load?tool_type=${encodeURIComponent(toolId)}&username=${encodeURIComponent(currentUser)}`);
                                         if (!resp.ok) {
                                             // Silently fail on auto-load if no saved data exists (404)
                                             return;
