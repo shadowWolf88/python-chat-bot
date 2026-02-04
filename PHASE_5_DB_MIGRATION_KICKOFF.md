@@ -30,7 +30,7 @@ This phase transitions the Healing Space application from SQLite to PostgreSQL, 
 - [ ] Schema export documents
 - [ ] Database audit report
 
-**Actions:**
+**Actions:**  *
 
 ```bash
 # 1. Create fresh backups
