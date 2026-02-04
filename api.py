@@ -3359,16 +3359,24 @@ def forgot_password():
         conn.commit()
         conn.close()
         
-        # Send email in background thread to avoid Railway timeout
-        import threading
-        email_thread = threading.Thread(target=send_reset_email, args=(email, username, reset_token), daemon=True)
-        email_thread.start()
-        
-        log_event(username, 'api', 'password_reset_requested', f'Reset requested for {email}')
-        return jsonify({
-            'success': True,
-            'message': 'Password reset link sent to your email'
-        }), 200
+        # Send email
+        try:
+            email_sent = send_reset_email(email, username, reset_token)
+            
+            if email_sent:
+                log_event(username, 'api', 'password_reset_requested', f'Reset requested for {email}')
+                return jsonify({
+                    'success': True,
+                    'message': 'Password reset link sent to your email'
+                }), 200
+            else:
+                # Email sending failed but token is stored
+                log_event(username, 'api', 'password_reset_requested', f'Token created but email failed for {email}')
+                return jsonify({
+                    'success': True,
+                    'message': 'Reset token created. Email service unavailable - please contact support with your username.',
+                    'token': reset_token if DEBUG else None
+                }), 200
                 
         except Exception as email_error:
             # Email failed but token is stored - still allow reset via support
@@ -3384,7 +3392,7 @@ def forgot_password():
         return handle_exception(e, 'password_reset')
 
 def send_reset_email(to_email, username, reset_token):
-    """Send password reset email via SMTP (runs in background thread)"""
+    """Send password reset email via SMTP"""
     try:
         # Get SMTP credentials from environment
         smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
@@ -3395,8 +3403,8 @@ def send_reset_email(to_email, username, reset_token):
         
         if not smtp_user or not smtp_password:
             error_msg = "SMTP credentials not configured. Set SMTP_USER and SMTP_PASSWORD environment variables."
-            print(f"❌ {error_msg}")
-            return False
+            print(error_msg)
+            raise Exception(error_msg)
         
         # Create message
         msg = MIMEMultipart('alternative')
@@ -3418,28 +3426,22 @@ def send_reset_email(to_email, username, reset_token):
             <p>This link expires in 1 hour.</p>
             <p>If you didn't request this, please ignore this email.</p>
             <br>
-            <p>Best regards,<br>Healing Space Team</p>
+            <p>Best regards,<br>python-chat-bot Team</p>
           </body>
         </html>
         """
         
         msg.attach(MIMEText(html, 'html'))
         
-        # Send email with timeout
-        try:
-            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-            server.starttls()
-            server.login(smtp_user, smtp_password)
-            server.send_message(msg)
-            server.quit()
-            print(f"✅ Password reset email sent to {to_email}")
-            return True
-        except smtplib.SMTPException as e:
-            print(f"❌ SMTP Error sending password reset email to {to_email}: {e}")
-            return False
-        except Exception as e:
-            print(f"❌ Connection Error sending password reset email to {to_email}: {e}")
-            return False
+        # Send email
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"✅ Password reset email sent to {to_email}")
+        return True
 
     except Exception as e:
         print(f"❌ Error sending password reset email: {e}")
