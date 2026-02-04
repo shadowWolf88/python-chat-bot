@@ -53,26 +53,73 @@ SUBTASKS:
 - Log to audit table
 ```
 
-## 🔴 #3: API Security Audit
-**Time**: 3-4 hours  
-**Blocker**: Endpoints may be vulnerable  
-**Why**: Not all endpoints validate user/role
+## 🔴 #3: API Security Remediation (Bug #3 - Critical)
+**Time**: 8-12 hours  
+**Blocker**: PRODUCTION UNSAFE - 193 endpoints have auth/validation issues  
+**Why**: See [API_SECURITY_AUDIT_2026.md](../API_SECURITY_AUDIT_2026.md) for details  
+**Status**: Audit complete, remediation in progress
 
+### Phase 1: CRITICAL (24 hours)
 ```
-CRITICAL CHECKS:
-[ ] POST /api/therapy/chat - Verify username in body matches session
-[ ] POST /api/mood/log - Verify username parameter
-[ ] POST /api/cbt/* - Verify all CBT endpoints validate user
-[ ] GET /api/debug/analytics - Remove or restrict to dev only
-[ ] POST /api/admin/wipe - Security risk, document restricted access
-[ ] All endpoints - Check for SQL injection (use parameterized queries)
-[ ] All POST endpoints - Validate input length, format, type
+PHASE 1A: FIX AUTHENTICATION (BLOCKER)
+[ ] Fix get_authenticated_username() to use Flask session (NOT headers)
+[ ] Verify session user exists in database
+[ ] Test: X-Username header should be ignored
+[ ] Test: Attempt to spoof username → 401 Unauthorized
 
-MEDIUM PRIORITY:
-[ ] Add rate limiting (5 req/sec per user)
-[ ] Add CORS whitelist (restrict to www.healing-space.org.uk only)
-[ ] Add session timeout (15 min inactivity)
-[ ] Document all security measures
+PHASE 1B: FIX AUTHORIZATION (BLOCKER)
+[ ] Add FK validation for clinician-patient relationships
+[ ] Endpoints: /api/professional/patient/<username>
+[ ] Endpoints: /api/professional/notes/<patient_username>
+[ ] Endpoints: /api/analytics/patient/<username>
+[ ] Test: Cross-patient access attempt → 403 Forbidden
+
+PHASE 1C: REMOVE DANGEROUS ENDPOINTS (BLOCKER)
+[ ] Remove /api/debug/analytics/<clinician> OR require dev role
+[ ] Test: Verify endpoint returns 403 without dev role
+
+PHASE 1D: ADD RATE LIMITING
+[ ] Add Flask-Limiter to requirements.txt
+[ ] /api/auth/login → 5 attempts/minute max
+[ ] /api/auth/verify-code → 10 attempts/minute max (6-digit code DOS)
+[ ] /api/therapy/chat → 30 requests/minute max
+```
+
+### Phase 2: HIGH (1 week)
+```
+PHASE 2A: INPUT VALIDATION
+[ ] Add length validation to all text fields
+[ ] Max message length: 10,000 chars
+[ ] Max note length: 50,000 chars
+[ ] Reject mood_val outside 1-10 range
+[ ] Reject sleep_val outside 0-10 range
+
+PHASE 2B: CSRF PROTECTION
+[ ] Generate CSRF token during login (store in database)
+[ ] Validate X-CSRF-Token header on all POST/PUT/DELETE
+[ ] Reject requests without valid CSRF token
+
+PHASE 2C: SECURITY HEADERS
+[ ] Add: X-Content-Type-Options: nosniff
+[ ] Add: X-Frame-Options: DENY
+[ ] Add: Content-Security-Policy: restrict sources
+```
+
+### Phase 3: MEDIUM (2 weeks)
+```
+[ ] Add request/response logging for audit trails
+[ ] Enforce HTTPS (redirect HTTP → HTTPS)
+[ ] Validate Content-Type (only accept application/json)
+[ ] Add deleted_at soft delete timestamps to sensitive tables
+[ ] Add foreign key constraints to database
+```
+
+### Phase 4: NICE-TO-HAVE (1 month)
+```
+[ ] Implement MFA for sensitive operations
+[ ] Add API key authentication for CLI tools
+[ ] Security penetration testing
+[ ] OAuth2 integration for third-party apps
 ```
 
 ---
