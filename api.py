@@ -3,7 +3,8 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from functools import wraps
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor, execute_batch
 import os
 import json
 import hashlib
@@ -19,50 +20,54 @@ from email.mime.multipart import MIMEMultipart
 
 # --- Pet Table Ensurer ---
 def ensure_pet_table():
-    """Ensure the pet table exists in pet_game.db with username support"""
+    """Ensure the pet table exists in PostgreSQL with username support"""
     conn = get_pet_db_connection()
     cur = conn.cursor()
     
-    # Check if table exists
-    table_exists = cur.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='pet'"
-    ).fetchone()
-    
-    if not table_exists:
-        # Create new table with username column for multi-user support
+    try:
+        # Check if table exists
         cur.execute("""
-            CREATE TABLE pet (
-                id INTEGER PRIMARY KEY,
-                username TEXT NOT NULL,
-                name TEXT, species TEXT, gender TEXT,
-                hunger INTEGER DEFAULT 70, happiness INTEGER DEFAULT 70,
-                energy INTEGER DEFAULT 70, hygiene INTEGER DEFAULT 80,
-                coins INTEGER DEFAULT 0, xp INTEGER DEFAULT 0,
-                stage TEXT DEFAULT 'Baby', adventure_end REAL DEFAULT 0,
-                last_updated REAL, hat TEXT DEFAULT 'None',
-                UNIQUE(username)
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' AND table_name = 'pet'
             )
         """)
-    else:
-        # Table exists - try to add username column if it doesn't exist
-        columns = [row[1] for row in cur.execute("PRAGMA table_info(pet)")]
-        if 'username' not in columns:
-            try:
-                cur.execute("ALTER TABLE pet ADD COLUMN username TEXT")
-                cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_pet_username ON pet(username)")
-            except sqlite3.OperationalError:
-                pass  # Column might already exist
-    
-    conn.commit()
-    conn.close()
+        
+        if not cur.fetchone()[0]:
+            # Create new table with username column for multi-user support
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS pet (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT NOT NULL UNIQUE,
+                    name TEXT, species TEXT, gender TEXT,
+                    hunger INTEGER DEFAULT 70, happiness INTEGER DEFAULT 70,
+                    energy INTEGER DEFAULT 70, hygiene INTEGER DEFAULT 80,
+                    coins INTEGER DEFAULT 0, xp INTEGER DEFAULT 0,
+                    stage TEXT DEFAULT 'Baby', adventure_end REAL DEFAULT 0,
+                    last_updated REAL, hat TEXT DEFAULT 'None'
+                )
+            """)
+        conn.commit()
+    except psycopg2.Error as e:
+        print(f"Error ensuring pet table: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
 
 def get_pet_db_connection():
-    """Get pet database connection with proper type handling"""
-    conn = sqlite3.connect(PET_DB_PATH, timeout=30.0, check_same_thread=False)
-    conn.execute('PRAGMA journal_mode=WAL')
-    conn.execute('PRAGMA busy_timeout=30000')
-    # Don't set row_factory - we'll handle type conversion explicitly where needed
-    return conn
+    """Get pet database connection to PostgreSQL"""
+    try:
+        conn = psycopg2.connect(
+            host=os.environ.get('DB_HOST', 'localhost'),
+            port=os.environ.get('DB_PORT', '5432'),
+            database=os.environ.get('DB_NAME_PET', 'healing_space_pet_test'),
+            user=os.environ.get('DB_USER', 'healing_space'),
+            password=os.environ.get('DB_PASSWORD', 'healing_space_dev_pass')
+        )
+        return conn
+    except psycopg2.Error as e:
+        print(f"Failed to connect to PostgreSQL pet database: {e}")
+        raise
 
 def normalize_pet_row(pet_row):
     """Convert pet row values to proper types"""
@@ -2004,14 +2009,21 @@ def get_pet_db_path():
 DB_PATH = get_db_path()
 PET_DB_PATH = get_pet_db_path()
 
-# Database connection helper with proper settings for concurrency
+# Database connection helper for PostgreSQL
 def get_db_connection(timeout=30.0):
-    """Create a database connection with proper settings to avoid locking"""
-    conn = sqlite3.connect(DB_PATH, timeout=timeout, check_same_thread=False)
-    conn.execute('PRAGMA journal_mode=WAL')  # Write-Ahead Logging for better concurrency
-    conn.execute('PRAGMA busy_timeout=30000')  # 30 second busy timeout
-    conn.execute('PRAGMA synchronous=NORMAL')  # Faster writes
-    return conn
+    """Create a connection to PostgreSQL database"""
+    try:
+        conn = psycopg2.connect(
+            host=os.environ.get('DB_HOST', 'localhost'),
+            port=os.environ.get('DB_PORT', '5432'),
+            database=os.environ.get('DB_NAME', 'healing_space_test'),
+            user=os.environ.get('DB_USER', 'healing_space'),
+            password=os.environ.get('DB_PASSWORD', 'healing_space_dev_pass')
+        )
+        return conn
+    except psycopg2.Error as e:
+        print(f"Failed to connect to PostgreSQL database: {e}")
+        raise
 
 # Load secrets
 secrets_manager = SecretsManager(debug=DEBUG)
@@ -2229,1257 +2241,34 @@ def decrypt_text(encrypted: str) -> str:
         return encrypted
 
 def init_db():
-    """Initialize database with all required tables"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users 
-                      (username TEXT PRIMARY KEY, password TEXT, pin TEXT, last_login TIMESTAMP, 
-                       full_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user', 
-                       clinician_id TEXT, disclaimer_accepted INTEGER DEFAULT 0)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS sessions 
-                      (session_id TEXT PRIMARY KEY, username TEXT, title TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS gratitude_logs 
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, entry TEXT, entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS mood_logs 
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, mood_val INTEGER, 
-                       sleep_val REAL, meds TEXT, notes TEXT, sentiment TEXT,
-                       exercise_mins INTEGER DEFAULT 0, outside_mins INTEGER DEFAULT 0, water_pints REAL DEFAULT 0,
-                       entrestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS safety_plans
-                      (username TEXT PRIMARY KEY, triggers TEXT, coping TEXT, contacts TEXT)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS ai_memory 
-                      (username TEXT PRIMARY KEY, memory_summary TEXT, last_updated DATETIME)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS cbt_records 
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, situation TEXT, thought TEXT, evidence TEXT, entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS clinical_scales
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, scale_name TEXT, score INTEGER, severity TEXT, entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS community_posts
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, message TEXT, likes INTEGER DEFAULT 0, category TEXT DEFAULT 'general', is_pinned INTEGER DEFAULT 0, entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    # Add category column if it doesn't exist (migration for existing DBs)
-    try:
-        cursor.execute("ALTER TABLE community_posts ADD COLUMN category TEXT DEFAULT 'general'")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    # Add is_pinned column if it doesn't exist (migration for existing DBs)
-    try:
-        cursor.execute("ALTER TABLE community_posts ADD COLUMN is_pinned INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    # Table to track last read timestamp per user per channel for unread indicators
-    cursor.execute('''CREATE TABLE IF NOT EXISTS community_channel_reads
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, channel TEXT, last_read DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(username, channel))''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS community_likes
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, username TEXT, reaction_type TEXT DEFAULT 'like', timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(post_id, username, reaction_type))''')
-    # Add reaction_type column if it doesn't exist (migration for existing DBs)
-    try:
-        cursor.execute("ALTER TABLE community_likes ADD COLUMN reaction_type TEXT DEFAULT 'like'")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    cursor.execute('''CREATE TABLE IF NOT EXISTS community_replies
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, username TEXT, message TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS clinician_notes
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, clinician_username TEXT, patient_username TEXT, note_text TEXT, 
-                       is_highlighted INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS audit_logs
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, actor TEXT, action TEXT, details TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS alerts
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, alert_type TEXT, details TEXT, status TEXT DEFAULT 'open', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS patient_approvals
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, patient_username TEXT, clinician_username TEXT, 
-                       status TEXT DEFAULT 'pending', request_date DATETIME DEFAULT CURRENT_TIMESTAMP, 
-                       approval_date DATETIME)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS notifications
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_username TEXT, message TEXT, 
-                       notification_type TEXT, read INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS chat_sessions
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT,
-                       session_name TEXT,
-                       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       last_active DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       is_active INTEGER DEFAULT 0)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS chat_history 
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       session_id TEXT, 
-                       chat_session_id INTEGER,
-                       sender TEXT, 
-                       message TEXT, 
-                       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       FOREIGN KEY (chat_session_id) REFERENCES chat_sessions(id))''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS verification_codes
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       identifier TEXT,
-                       code TEXT,
-                       method TEXT,
-                       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       expires_at DATETIME,
-                       verified INTEGER DEFAULT 0)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS appointments
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                       clinician_username TEXT, 
-                       patient_username TEXT,
-                       appointment_date DATETIME, 
-                       appointment_type TEXT DEFAULT 'consultation',
-                       notes TEXT,
-                       pdf_generated INTEGER DEFAULT 0,
-                       pdf_path TEXT,
-                       notification_sent INTEGER DEFAULT 0,
-                       created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-
-    # ========== CBT TOOLS TABLES ==========
-
-    # 1. Breathing Exercises - Track breathing exercise sessions
-    cursor.execute('''CREATE TABLE IF NOT EXISTS breathing_exercises
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       exercise_type TEXT NOT NULL,
-                       duration_seconds INTEGER,
-                       pre_anxiety_level INTEGER,
-                       post_anxiety_level INTEGER,
-                       notes TEXT,
-                       completed INTEGER DEFAULT 1,
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-
-    # 2. Relaxation Techniques - Track relaxation technique usage
-    cursor.execute('''CREATE TABLE IF NOT EXISTS relaxation_techniques
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       technique_type TEXT NOT NULL,
-                       duration_minutes INTEGER,
-                       effectiveness_rating INTEGER,
-                       body_scan_areas TEXT,
-                       notes TEXT,
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-
-    # 3. Sleep Diary - Detailed sleep tracking
-    cursor.execute('''CREATE TABLE IF NOT EXISTS sleep_diary
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       sleep_date DATE NOT NULL,
-                       bedtime TEXT,
-                       wake_time TEXT,
-                       time_to_fall_asleep INTEGER,
-                       times_woken INTEGER DEFAULT 0,
-                       total_sleep_hours REAL,
-                       sleep_quality INTEGER,
-                       dreams_nightmares TEXT,
-                       factors_affecting TEXT,
-                       morning_mood INTEGER,
-                       notes TEXT,
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-
-    # 4. Core Belief Worksheet - Challenge and reframe core beliefs
-    cursor.execute('''CREATE TABLE IF NOT EXISTS core_beliefs
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       old_belief TEXT NOT NULL,
-                       belief_origin TEXT,
-                       evidence_for TEXT,
-                       evidence_against TEXT,
-                       new_balanced_belief TEXT,
-                       belief_strength_before INTEGER,
-                       belief_strength_after INTEGER,
-                       is_active INTEGER DEFAULT 1,
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       last_reviewed DATETIME)''')
-
-    # 5. Exposure Hierarchy - Track exposure therapy progress
-    cursor.execute('''CREATE TABLE IF NOT EXISTS exposure_hierarchy
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       fear_situation TEXT NOT NULL,
-                       initial_suds INTEGER,
-                       target_suds INTEGER,
-                       hierarchy_rank INTEGER,
-                       status TEXT DEFAULT 'not_started',
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-
-    # Exposure attempts - Track individual exposure sessions
-    cursor.execute('''CREATE TABLE IF NOT EXISTS exposure_attempts
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       exposure_id INTEGER NOT NULL,
-                       username TEXT NOT NULL,
-                       pre_suds INTEGER,
-                       peak_suds INTEGER,
-                       post_suds INTEGER,
-                       duration_minutes INTEGER,
-                       coping_strategies_used TEXT,
-                       notes TEXT,
-                       attempt_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       FOREIGN KEY (exposure_id) REFERENCES exposure_hierarchy(id))''')
-
-    # 6. Problem-Solving Worksheet
-    cursor.execute('''CREATE TABLE IF NOT EXISTS problem_solving
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       problem_description TEXT NOT NULL,
-                       problem_importance INTEGER,
-                       brainstormed_solutions TEXT,
-                       chosen_solution TEXT,
-                       action_steps TEXT,
-                       outcome TEXT,
-                       status TEXT DEFAULT 'in_progress',
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       completed_timestamp DATETIME)''')
-
-    # 7. Coping Cards - Quick reference coping strategies
-    cursor.execute('''CREATE TABLE IF NOT EXISTS coping_cards
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       card_title TEXT NOT NULL,
-                       situation_trigger TEXT,
-                       unhelpful_thought TEXT,
-                       helpful_response TEXT,
-                       coping_strategies TEXT,
-                       is_favorite INTEGER DEFAULT 0,
-                       times_used INTEGER DEFAULT 0,
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       last_used DATETIME)''')
-
-    # 8. Self-Compassion Journal
-    cursor.execute('''CREATE TABLE IF NOT EXISTS self_compassion_journal
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       difficult_situation TEXT,
-                       self_critical_thoughts TEXT,
-                       common_humanity TEXT,
-                       kind_response TEXT,
-                       self_care_action TEXT,
-                       mood_before INTEGER,
-                       mood_after INTEGER,
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-
-    # 9. Values Clarification
-    cursor.execute('''CREATE TABLE IF NOT EXISTS values_clarification
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       value_name TEXT NOT NULL,
-                       value_description TEXT,
-                       importance_rating INTEGER,
-                       current_alignment INTEGER,
-                       life_area TEXT,
-                       related_goals TEXT,
-                       is_active INTEGER DEFAULT 1,
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       last_reviewed DATETIME)''')
-
-    # 10. Goal Setting and Tracking
-    cursor.execute('''CREATE TABLE IF NOT EXISTS goals
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       goal_title TEXT NOT NULL,
-                       goal_description TEXT,
-                       goal_type TEXT,
-                       target_date DATE,
-                       related_value_id INTEGER,
-                       status TEXT DEFAULT 'active',
-                       progress_percentage INTEGER DEFAULT 0,
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       completed_timestamp DATETIME,
-                       FOREIGN KEY (related_value_id) REFERENCES values_clarification(id))''')
-
-    # Goal milestones - Track progress steps
-    cursor.execute('''CREATE TABLE IF NOT EXISTS goal_milestones
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       goal_id INTEGER NOT NULL,
-                       username TEXT NOT NULL,
-                       milestone_title TEXT NOT NULL,
-                       milestone_description TEXT,
-                       target_date DATE,
-                       is_completed INTEGER DEFAULT 0,
-                       completed_timestamp DATETIME,
-                       entry_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       FOREIGN KEY (goal_id) REFERENCES goals(id))''')
-
-    # Goal check-ins - Regular progress updates
-    cursor.execute('''CREATE TABLE IF NOT EXISTS goal_checkins
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       goal_id INTEGER NOT NULL,
-                       username TEXT NOT NULL,
-                       progress_notes TEXT,
-                       obstacles TEXT,
-                       next_steps TEXT,
-                       motivation_level INTEGER,
-                       checkin_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                       FOREIGN KEY (goal_id) REFERENCES goals(id))''')
-
-    # Developer Dashboard Tables
-    cursor.execute('''CREATE TABLE IF NOT EXISTS dev_messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        from_username TEXT,
-        to_username TEXT,
-        message TEXT,
-        message_type TEXT DEFAULT 'info',
-        read INTEGER DEFAULT 0,
-        parent_message_id INTEGER,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (parent_message_id) REFERENCES dev_messages(id)
-    )''')
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS dev_terminal_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT,
-        command TEXT,
-        output TEXT,
-        exit_code INTEGER,
-        duration_ms INTEGER,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )''')
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS dev_ai_chats (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT,
-        session_id TEXT,
-        role TEXT,
-        message TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )''')
-
-    # ==================== HOME TAB TABLES ====================
-
-    # Feedback table - User feedback to developers
-    cursor.execute('''CREATE TABLE IF NOT EXISTS feedback (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL,
-        role TEXT DEFAULT 'user',
-        category TEXT NOT NULL,
-        message TEXT NOT NULL,
-        status TEXT DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        resolved_at DATETIME,
-        admin_notes TEXT
-    )''')
-
-    # Daily tasks tracking - Track completion of daily wellness tasks
-    cursor.execute('''CREATE TABLE IF NOT EXISTS daily_tasks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL,
-        task_type TEXT NOT NULL,
-        completed INTEGER DEFAULT 0,
-        completed_at DATETIME,
-        task_date DATE DEFAULT (date('now')),
-        UNIQUE(username, task_type, task_date)
-    )''')
-
-    # Daily streaks - Track user engagement streaks
-    cursor.execute('''CREATE TABLE IF NOT EXISTS daily_streaks (
-        username TEXT PRIMARY KEY,
-        current_streak INTEGER DEFAULT 0,
-        longest_streak INTEGER DEFAULT 0,
-        last_complete_date DATE,
-        total_bonus_coins INTEGER DEFAULT 0,
-        total_bonus_xp INTEGER DEFAULT 0
-    )''')
-
-    # CBT Tools Dashboard entries - Store data from CBT tool components
-    cursor.execute('''CREATE TABLE IF NOT EXISTS cbt_tool_entries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL,
-        tool_type TEXT NOT NULL,
-        data TEXT NOT NULL,
-        mood_rating INTEGER,
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )''')
-
-    # ==================== MESSAGING TABLES (Phase 3) ====================
-    # Internal messaging system - Enable communication between users, therapists, clinicians
-    cursor.execute('''CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sender_username TEXT NOT NULL,
-        recipient_username TEXT NOT NULL,
-        subject TEXT,
-        content TEXT NOT NULL,
-        is_read INTEGER DEFAULT 0,
-        read_at DATETIME,
-        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        deleted_at DATETIME,
-        is_deleted_by_sender INTEGER DEFAULT 0,
-        is_deleted_by_recipient INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(sender_username) REFERENCES users(username),
-        FOREIGN KEY(recipient_username) REFERENCES users(username),
-        CHECK (sender_username != recipient_username)
-    )''')
-
-    # ==================== PHASE 4A: FOREIGN KEY CONSTRAINTS ====================
-    # Enable FK constraint enforcement (default in SQLite is OFF)
-    try:
-        cursor.execute("PRAGMA foreign_keys = ON")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for clinician_notes (clinician-patient relationship)
-    try:
-        cursor.execute("ALTER TABLE clinician_notes ADD CONSTRAINT fk_clinician_notes_clinician FOREIGN KEY(clinician_username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass  # Constraint already exists or table structure issue
-    
-    try:
-        cursor.execute("ALTER TABLE clinician_notes ADD CONSTRAINT fk_clinician_notes_patient FOREIGN KEY(patient_username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass  # Constraint already exists or table structure issue
-    
-    # Add FK constraints for patient_approvals
-    try:
-        cursor.execute("ALTER TABLE patient_approvals ADD CONSTRAINT fk_approvals_patient FOREIGN KEY(patient_username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE patient_approvals ADD CONSTRAINT fk_approvals_clinician FOREIGN KEY(clinician_username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for appointments
-    try:
-        cursor.execute("ALTER TABLE appointments ADD CONSTRAINT fk_appointments_clinician FOREIGN KEY(clinician_username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE appointments ADD CONSTRAINT fk_appointments_patient FOREIGN KEY(patient_username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for community_replies
-    try:
-        cursor.execute("ALTER TABLE community_replies ADD CONSTRAINT fk_community_replies_post FOREIGN KEY(post_id) REFERENCES community_posts(id)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE community_replies ADD CONSTRAINT fk_community_replies_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for community_likes
-    try:
-        cursor.execute("ALTER TABLE community_likes ADD CONSTRAINT fk_community_likes_post FOREIGN KEY(post_id) REFERENCES community_posts(id)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE community_likes ADD CONSTRAINT fk_community_likes_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for community_channel_reads
-    try:
-        cursor.execute("ALTER TABLE community_channel_reads ADD CONSTRAINT fk_channel_reads_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for alerts
-    try:
-        cursor.execute("ALTER TABLE alerts ADD CONSTRAINT fk_alerts_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for notifications
-    try:
-        cursor.execute("ALTER TABLE notifications ADD CONSTRAINT fk_notifications_user FOREIGN KEY(recipient_username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for feedback
-    try:
-        cursor.execute("ALTER TABLE feedback ADD CONSTRAINT fk_feedback_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for sessions
-    try:
-        cursor.execute("ALTER TABLE sessions ADD CONSTRAINT fk_sessions_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for audit_logs
-    try:
-        cursor.execute("ALTER TABLE audit_logs ADD CONSTRAINT fk_audit_logs_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for CBT tool tables
-    try:
-        cursor.execute("ALTER TABLE breathing_exercises ADD CONSTRAINT fk_breathing_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE relaxation_techniques ADD CONSTRAINT fk_relaxation_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE sleep_diary ADD CONSTRAINT fk_sleep_diary_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE core_beliefs ADD CONSTRAINT fk_core_beliefs_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE exposure_hierarchy ADD CONSTRAINT fk_exposure_hierarchy_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE exposure_attempts ADD CONSTRAINT fk_exposure_attempts_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE problem_solving ADD CONSTRAINT fk_problem_solving_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE coping_cards ADD CONSTRAINT fk_coping_cards_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE self_compassion_journal ADD CONSTRAINT fk_self_compassion_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE values_clarification ADD CONSTRAINT fk_values_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE goals ADD CONSTRAINT fk_goals_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE goal_milestones ADD CONSTRAINT fk_goal_milestones_goal FOREIGN KEY(goal_id) REFERENCES goals(id)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE goal_milestones ADD CONSTRAINT fk_goal_milestones_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE goal_checkins ADD CONSTRAINT fk_goal_checkins_goal FOREIGN KEY(goal_id) REFERENCES goals(id)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE goal_checkins ADD CONSTRAINT fk_goal_checkins_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for daily task tracking
-    try:
-        cursor.execute("ALTER TABLE daily_tasks ADD CONSTRAINT fk_daily_tasks_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE daily_streaks ADD CONSTRAINT fk_daily_streaks_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for CBT records and clinical scales
-    try:
-        cursor.execute("ALTER TABLE cbt_records ADD CONSTRAINT fk_cbt_records_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE clinical_scales ADD CONSTRAINT fk_clinical_scales_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for mood and gratitude logs
-    try:
-        cursor.execute("ALTER TABLE mood_logs ADD CONSTRAINT fk_mood_logs_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE gratitude_logs ADD CONSTRAINT fk_gratitude_logs_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for safety plans and ai_memory
-    try:
-        cursor.execute("ALTER TABLE safety_plans ADD CONSTRAINT fk_safety_plans_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE ai_memory ADD CONSTRAINT fk_ai_memory_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for community posts
-    try:
-        cursor.execute("ALTER TABLE community_posts ADD CONSTRAINT fk_community_posts_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for chat tables
-    try:
-        cursor.execute("ALTER TABLE chat_sessions ADD CONSTRAINT fk_chat_sessions_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for CBT tool entries
-    try:
-        cursor.execute("ALTER TABLE cbt_tool_entries ADD CONSTRAINT fk_cbt_tool_entries_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add FK constraints for dev tables
-    try:
-        cursor.execute("ALTER TABLE dev_messages ADD CONSTRAINT fk_dev_messages_from FOREIGN KEY(from_username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE dev_messages ADD CONSTRAINT fk_dev_messages_to FOREIGN KEY(to_username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE dev_terminal_logs ADD CONSTRAINT fk_dev_terminal_logs_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE dev_ai_chats ADD CONSTRAINT fk_dev_ai_chats_user FOREIGN KEY(username) REFERENCES users(username)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # ==================== PHASE 4D: CHECK CONSTRAINTS ====================
-    # Add CHECK constraints to enforce valid data ranges
-    # These prevent invalid data from being inserted at the database level
-    
-    # Mood validation: ratings must be 1-10
-    try:
-        cursor.execute("ALTER TABLE mood_logs ADD CONSTRAINT check_mood_val CHECK (mood_val >= 1 AND mood_val <= 10)")
-    except sqlite3.OperationalError:
-        pass  # Constraint already exists
-    
-    # Sleep validation: sleep_val must be 0-10
-    try:
-        cursor.execute("ALTER TABLE mood_logs ADD CONSTRAINT check_sleep_val CHECK (sleep_val >= 0 AND sleep_val <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Exercise minutes: must be >= 0
-    try:
-        cursor.execute("ALTER TABLE mood_logs ADD CONSTRAINT check_exercise_mins CHECK (exercise_mins >= 0)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Outside time: must be >= 0
-    try:
-        cursor.execute("ALTER TABLE mood_logs ADD CONSTRAINT check_outside_mins CHECK (outside_mins >= 0)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Water intake: must be >= 0
-    try:
-        cursor.execute("ALTER TABLE mood_logs ADD CONSTRAINT check_water_pints CHECK (water_pints >= 0)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Breathing exercises - pre/post anxiety must be 0-10
-    try:
-        cursor.execute("ALTER TABLE breathing_exercises ADD CONSTRAINT check_pre_anxiety CHECK (pre_anxiety_level >= 0 AND pre_anxiety_level <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE breathing_exercises ADD CONSTRAINT check_post_anxiety CHECK (post_anxiety_level >= 0 AND post_anxiety_level <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Breathing duration: must be positive (in seconds)
-    try:
-        cursor.execute("ALTER TABLE breathing_exercises ADD CONSTRAINT check_duration CHECK (duration_seconds > 0)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Relaxation effectiveness: must be 1-10
-    try:
-        cursor.execute("ALTER TABLE relaxation_techniques ADD CONSTRAINT check_effectiveness CHECK (effectiveness_rating >= 1 AND effectiveness_rating <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Sleep quality: must be 1-10
-    try:
-        cursor.execute("ALTER TABLE sleep_diary ADD CONSTRAINT check_sleep_quality CHECK (sleep_quality >= 1 AND sleep_quality <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Sleep diary - morning mood must be 1-10
-    try:
-        cursor.execute("ALTER TABLE sleep_diary ADD CONSTRAINT check_morning_mood CHECK (morning_mood >= 1 AND morning_mood <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Sleep diary - times woken must be >= 0
-    try:
-        cursor.execute("ALTER TABLE sleep_diary ADD CONSTRAINT check_times_woken CHECK (times_woken >= 0)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Sleep diary - total sleep hours must be >= 0
-    try:
-        cursor.execute("ALTER TABLE sleep_diary ADD CONSTRAINT check_total_sleep CHECK (total_sleep_hours >= 0)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Core beliefs - strength ratings must be 0-100 (percentage)
-    try:
-        cursor.execute("ALTER TABLE core_beliefs ADD CONSTRAINT check_belief_strength CHECK (belief_strength_before >= 0 AND belief_strength_before <= 100 AND belief_strength_after >= 0 AND belief_strength_after <= 100)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Exposure hierarchy - SUDS must be 0-100
-    try:
-        cursor.execute("ALTER TABLE exposure_hierarchy ADD CONSTRAINT check_suds_values CHECK (initial_suds >= 0 AND initial_suds <= 100 AND target_suds >= 0 AND target_suds <= 100)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Exposure attempts - SUDS values must be 0-100
-    try:
-        cursor.execute("ALTER TABLE exposure_attempts ADD CONSTRAINT check_exposure_suds CHECK (pre_suds >= 0 AND pre_suds <= 100 AND peak_suds >= 0 AND peak_suds <= 100 AND post_suds >= 0 AND post_suds <= 100)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Coping cards - mood ratings must be 1-10
-    try:
-        cursor.execute("ALTER TABLE self_compassion_journal ADD CONSTRAINT check_mood_before CHECK (mood_before >= 1 AND mood_before <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    try:
-        cursor.execute("ALTER TABLE self_compassion_journal ADD CONSTRAINT check_mood_after CHECK (mood_after >= 1 AND mood_after <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Values clarification - importance rating must be 1-10
-    try:
-        cursor.execute("ALTER TABLE values_clarification ADD CONSTRAINT check_importance CHECK (importance_rating >= 1 AND importance_rating <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Values clarification - alignment must be 0-100
-    try:
-        cursor.execute("ALTER TABLE values_clarification ADD CONSTRAINT check_alignment CHECK (current_alignment >= 0 AND current_alignment <= 100)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Goal progress - must be 0-100 percentage
-    try:
-        cursor.execute("ALTER TABLE goals ADD CONSTRAINT check_progress CHECK (progress_percentage >= 0 AND progress_percentage <= 100)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Problem solving - importance must be 1-10
-    try:
-        cursor.execute("ALTER TABLE problem_solving ADD CONSTRAINT check_problem_importance CHECK (problem_importance >= 1 AND problem_importance <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Goal check-ins - motivation level must be 1-10
-    try:
-        cursor.execute("ALTER TABLE goal_checkins ADD CONSTRAINT check_motivation CHECK (motivation_level >= 1 AND motivation_level <= 10)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Clinical scales - scores should be reasonable (typically 0-100 for most scales)
-    try:
-        cursor.execute("ALTER TABLE clinical_scales ADD CONSTRAINT check_score CHECK (score >= 0)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Daily tasks - only 0 or 1 for boolean
-    try:
-        cursor.execute("ALTER TABLE daily_tasks ADD CONSTRAINT check_completed CHECK (completed IN (0, 1))")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Daily streaks - streak counts must be non-negative
-    try:
-        cursor.execute("ALTER TABLE daily_streaks ADD CONSTRAINT check_streaks CHECK (current_streak >= 0 AND longest_streak >= 0 AND total_bonus_coins >= 0 AND total_bonus_xp >= 0)")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Community likes - must be valid reactions
-    try:
-        cursor.execute("ALTER TABLE community_likes ADD CONSTRAINT check_reaction_type CHECK (reaction_type IN ('like', 'love', 'helpful', 'funny'))")
-    except sqlite3.OperationalError:
-        pass
-    
-    # ==================== PHASE 4B: SOFT DELETE TIMESTAMPS ====================
-    # Add deleted_at column to key tables for logical deletion (not hard delete)
-    # This allows data recovery and maintains referential integrity
-    
-    # Appointments - allow undoing appointment deletions
-    try:
-        cursor.execute("ALTER TABLE appointments ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    # Clinician notes - allow clinicians to "delete" notes while maintaining audit trail
-    try:
-        cursor.execute("ALTER TABLE clinician_notes ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Feedback - keep all user feedback even if deleted
-    try:
-        cursor.execute("ALTER TABLE feedback ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Alerts - archive instead of delete
-    try:
-        cursor.execute("ALTER TABLE alerts ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # CBT records - allow undoing entries
-    try:
-        cursor.execute("ALTER TABLE cbt_records ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Community posts - soft delete for moderation
-    try:
-        cursor.execute("ALTER TABLE community_posts ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Community replies - soft delete for moderation
-    try:
-        cursor.execute("ALTER TABLE community_replies ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # CBT tool entries - allow undoing
-    try:
-        cursor.execute("ALTER TABLE cbt_tool_entries ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Coping cards - allow deletion while preserving history
-    try:
-        cursor.execute("ALTER TABLE coping_cards ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Core beliefs - track deletion of beliefs
-    try:
-        cursor.execute("ALTER TABLE core_beliefs ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Goals - soft delete goals
-    try:
-        cursor.execute("ALTER TABLE goals ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Goal milestones - track milestone deletions
-    try:
-        cursor.execute("ALTER TABLE goal_milestones ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Gratitude logs - allow undoing
-    try:
-        cursor.execute("ALTER TABLE gratitude_logs ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Mood logs - allow undoing
-    try:
-        cursor.execute("ALTER TABLE mood_logs ADD COLUMN deleted_at DATETIME")
-    except sqlite3.OperationalError:
-        pass
-    
-    # Add email and phone columns if they don't exist
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN email TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN phone TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN reset_token TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN reset_token_expiry DATETIME")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN country TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN area TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN postcode TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN nhs_number TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN professional_id TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    # Add chat_session_id column to chat_history if it doesn't exist
-    try:
-        cursor.execute("ALTER TABLE chat_history ADD COLUMN chat_session_id INTEGER")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    # Add appointment response tracking columns
-    try:
-        cursor.execute("ALTER TABLE appointments ADD COLUMN patient_acknowledged INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute("ALTER TABLE appointments ADD COLUMN patient_response TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists (values: 'pending', 'accepted', 'declined')
-    
-    try:
-        cursor.execute("ALTER TABLE appointments ADD COLUMN patient_response_date DATETIME")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-
-    # Add appointment attendance tracking columns
-    try:
-        cursor.execute("ALTER TABLE appointments ADD COLUMN attendance_status TEXT DEFAULT 'scheduled'")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-
-    try:
-        cursor.execute("ALTER TABLE appointments ADD COLUMN attendance_confirmed_by TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-
-    try:
-        cursor.execute("ALTER TABLE appointments ADD COLUMN attendance_confirmed_at DATETIME")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-
-    # ==================== DATABASE INDEXES ====================
-    # Create indexes on frequently queried columns for performance
-    # Using IF NOT EXISTS to make this idempotent
-
-    # User lookups (used in almost every authenticated request)
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_clinician_id ON users(clinician_id)')
-
-    # Mood logs - queried by username and timestamp frequently
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_mood_logs_username ON mood_logs(username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_mood_logs_entrestamp ON mood_logs(entrestamp)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_mood_logs_username_entrestamp ON mood_logs(username, entrestamp)')
-
-    # Sessions - queried by username for session management
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username)')
-
-    # Chat history - queried by session_id and chat_session_id
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_chat_history_session_id ON chat_history(session_id)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_chat_history_chat_session_id ON chat_history(chat_session_id)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_chat_history_timestamp ON chat_history(timestamp)')
-
-    # Chat sessions - queried by username and is_active
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_chat_sessions_username ON chat_sessions(username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_chat_sessions_username_active ON chat_sessions(username, is_active)')
-
-    # Alerts - critical for clinician dashboard performance
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alerts_username ON alerts(username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alerts_username_status ON alerts(username, status)')
-
-    # Patient approvals - used in all professional endpoint authorization
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_patient_approvals_clinician ON patient_approvals(clinician_username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_patient_approvals_patient ON patient_approvals(patient_username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_patient_approvals_status ON patient_approvals(status)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_patient_approvals_clinician_status ON patient_approvals(clinician_username, status)')
-
-    # Clinical scales - queried for assessments
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_clinical_scales_username ON clinical_scales(username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_clinical_scales_entry_timestamp ON clinical_scales(entry_timestamp)')
-
-    # Notifications - queried for unread notifications
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_notifications_recipient_read ON notifications(recipient_username, read)')
-
-    # Appointments - queried by clinician and patient
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_appointments_clinician ON appointments(clinician_username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_appointments_patient ON appointments(patient_username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(appointment_date)')
-
-    # Audit logs - queried by username and timestamp
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_username ON audit_logs(username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp)')
-
-    # Gratitude logs
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_gratitude_logs_username ON gratitude_logs(username)')
-
-    # CBT records
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_cbt_records_username ON cbt_records(username)')
-
-    # Community posts
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_community_posts_username ON community_posts(username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_community_posts_timestamp ON community_posts(entry_timestamp)')
-
-    # Community replies
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_community_replies_post_id ON community_replies(post_id)')
-
-    # Clinician notes
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_clinician_notes_clinician ON clinician_notes(clinician_username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_clinician_notes_patient ON clinician_notes(patient_username)')
-
-    # Verification codes
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_verification_codes_identifier ON verification_codes(identifier)')
-
-    # Feedback
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_feedback_username ON feedback(username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status)')
-
-    # Daily tasks
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_daily_tasks_username ON daily_tasks(username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_daily_tasks_username_date ON daily_tasks(username, task_date)')
-
-    # Messages - queried by recipient and deleted status
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_username, is_read)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(sender_username, recipient_username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_deleted ON messages(deleted_at)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_sent_at ON messages(sent_at)')
-
-    # CBT tool entries
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_cbt_tool_entries_username ON cbt_tool_entries(username)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_cbt_tool_entries_tool_type ON cbt_tool_entries(username, tool_type)')
-
-    # ==================== SOFT DELETE INDEXES ====================
-    # Indexes for commonly queried tables filtering by deleted_at IS NULL
-    
-    # Appointments - most queries exclude deleted appointments
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_appointments_active ON appointments(patient_username, deleted_at)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_appointments_clinician_active ON appointments(clinician_username, deleted_at)')
-    
-    # Clinician notes - queries exclude deleted notes
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_clinician_notes_active ON clinician_notes(patient_username, deleted_at)')
-    
-    # Feedback - queries show only active feedback
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_feedback_active ON feedback(username, deleted_at)')
-    
-    # Alerts - queries exclude archived/deleted alerts
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alerts_active ON alerts(username, deleted_at)')
-    
-    # Community posts - queries exclude deleted posts
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_community_posts_active ON community_posts(username, deleted_at)')
-    
-    # Community replies - queries exclude deleted replies
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_community_replies_active ON community_replies(post_id, deleted_at)')
-    
-    # CBT records - queries exclude deleted entries
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_cbt_records_active ON cbt_records(username, deleted_at)')
-    
-    # Mood logs - queries exclude deleted entries
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_mood_logs_active ON mood_logs(username, deleted_at)')
-    
-    # Goals - queries exclude deleted goals
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_goals_active ON goals(username, deleted_at)')
-
-    conn.commit()
-    conn.close()
-
-class SafetyMonitor:
-    """Safety monitoring for crisis detection"""
-    def __init__(self):
-        self.risk_keywords = [
-            "kill myself", "suicide", "end my life", "want to die",
-            "hurt myself", "self harm", "don't want to live", 
-            "better off dead", "swallow pills", "overdose", "hanging myself", 
-            "hurt someone else", "violent thoughts", "feeling hopeless", "no reason to live"
-        ]
-
-    def is_high_risk(self, text):
-        clean_text = text.lower().strip()
-        return any(phrase in clean_text for phrase in self.risk_keywords)
-    
-    def send_crisis_alert(self, user_details):
-        try:
-            username = user_details if isinstance(user_details, str) else user_details.get('username')
-            details = str(user_details)
-            conn = get_db_connection()
-            conn.execute("INSERT INTO alerts (username, alert_type, details) VALUES (?,?,?)", (username, 'crisis', details))
-            conn.commit()
+    """Initialize database - tables should already exist in PostgreSQL from migration"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # PostgreSQL: Just verify the database is accessible
+        # Tables are already created from migration (Step 3)
+        cursor.execute("SELECT 1")
+        
+        conn.commit()
+        conn.close()
+        print("✓ Database connection verified")
+        return True
+        
+    except psycopg2.Error as e:
+        print(f"Database initialization error: {e}")
+        if conn:
+            conn.rollback()
             conn.close()
-            log_event(username or 'unknown', 'system', 'crisis_alert_sent', details)
-            return True
-        except Exception:
-            return False
-
-class TherapistAI:
-    """AI therapy interface - supports Groq API or local trained model"""
-
-    def get_insight(self, ai_input):
-        """Generate a full detailed insight using the same logic as get_response (for insights endpoint compatibility)."""
-        return self.get_response(ai_input)
-
-    def __init__(self, username=None):
-        self.username = username
-        self.headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        self.use_local_model = os.environ.get('USE_LOCAL_AI', '0') == '1'
-        self.local_trainer = None
-
-    def get_response(self, user_message, chat_history=None):
-        """Get AI response - uses local model if enabled, otherwise Groq"""
-        if self.use_local_model:
-            return self._get_local_response(user_message, chat_history)
-        else:
-            return self._get_groq_response(user_message, chat_history)
+        return False
     
-    def _get_local_response(self, user_message, chat_history=None):
-        """Generate response using locally trained model"""
-        try:
-            from ai_trainer import BackgroundAITrainer
-            
-            if self.local_trainer is None:
-                self.local_trainer = BackgroundAITrainer()
-            
-            response = self.local_trainer.generate_response(
-                user_message,
-                chat_history
-            )
-            
-            return response
-        except Exception as e:
-            print(f"❌ Local model error: {e}, falling back to Groq")
-            return self._get_groq_response(user_message, chat_history)
-    
-    def _get_groq_response(self, user_message, chat_history=None):
-        """Get AI response for therapy chat with full context (Groq API)"""
-        try:
-            # Get user context from AI memory
-            conn = get_db_connection()
-            cur = conn.cursor()
-            
-            memory = cur.execute(
-                "SELECT memory_summary FROM ai_memory WHERE username=?",
-                (self.username,)
-            ).fetchone()
-            
-            # Get clinician notes for context
-            clinician_notes = cur.execute(
-                "SELECT note_text FROM clinician_notes WHERE patient_username=? ORDER BY created_at DESC LIMIT 3",
-                (self.username,)
-            ).fetchall()
-            
-            conn.close()
-            
-            # Build system prompt with context - designed for natural, therapeutic responses
-            system_prompt = """You are a warm, experienced therapist having a real conversation. Your approach:
+    # Initialize pet database
+    try:
+        ensure_pet_table()
+        print("Pet database initialized successfully")
+    except Exception as e:
+        print(f"Pet database initialization error: {e}")
 
-CONVERSATION STYLE:
-- Respond like a real person, not a chatbot. Be warm but not overly effusive.
-- Keep responses concise - typically 2-4 sentences unless the topic needs more depth.
-- Ask ONE thoughtful follow-up question at most, not multiple.
-- Don't repeat back everything they said. Show you understood with brief acknowledgment.
-- Vary your responses - don't start every message the same way.
-- Use natural language, not clinical jargon.
-
-AVOID:
-- Long lists of suggestions or coping strategies (unless specifically asked)
-- Overwhelming them with questions
-- Generic responses that could apply to anyone
-- Being preachy or giving unsolicited advice
-
-DO:
-- Be genuinely curious about their specific situation
-- Sit with difficult emotions rather than rushing to fix them
-- Remember details from earlier in the conversation
-- Sometimes just acknowledge without asking a question
-- Use gentle humour when appropriate
-- Be honest if you notice patterns or gently challenge when helpful
-
-You're here to help them explore their thoughts and feelings, not to solve everything for them."""
-
-            if memory:
-                system_prompt += f"\n\nWhat you know about this person from previous sessions: {memory[0]}"
-
-            if clinician_notes:
-                notes_text = "; ".join([note[0] for note in clinician_notes])
-                system_prompt += f"\n\nTheir clinician has noted: {notes_text[:300]}"
-            
-            messages = [{"role": "system", "content": system_prompt}]
-            
-            if chat_history:
-                for sender, msg in chat_history[-10:]:
-                    role = "assistant" if sender == "ai" else "user"
-                    messages.append({"role": role, "content": msg})
-            
-            messages.append({"role": "user", "content": user_message})
-            
-            payload = {
-                "model": "llama-3.3-70b-versatile",
-                "messages": messages,
-                "temperature": 0.8,  # Slightly higher for more natural variation
-                "max_tokens": 300   # Encourage concise responses
-            }
-            
-            response = requests.post(API_URL, headers=self.headers, json=payload, timeout=30)
-            response.raise_for_status()
-            
-            return response.json()["choices"][0]["message"]["content"]
-        except Exception as e:
-            print(f"[AI ERROR] {str(e)}")  # Log for debugging
-            return "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
-
-
-# Crisis resources text
-CRISIS_RESOURCES = """
-*** IMPORTANT SAFETY NOTICE ***
-If you are feeling overwhelmed and considering self-harm or ending your life, please reach out for help immediately. 
-
-- UK: Call 999 or 111, or text SHOUT to 85258.
-- USA/Canada: Call or text 988.
-- International: Visit findahelpline.com
-"""
-
-# ================== CBT: BREATHING EXERCISES ENDPOINTS ==================
-from flask import g
 
 def get_authenticated_username():
     """Get authenticated username from Flask session (SECURE - Phase 1A).
@@ -3662,7 +2451,7 @@ except Exception as e:
 def init_pet_db():
     """Initialize pet game database with required table"""
     try:
-        conn = sqlite3.connect(PET_DB_PATH)
+        conn = get_pet_db_connection()
         cur = conn.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS pet (
@@ -4410,7 +3199,7 @@ def send_reset_email(to_email, username, reset_token):
         
         # Reset URL (use Railway URL or localhost)
         base_url = os.getenv('APP_URL', 'http://localhost:5000')
-        reset_url = f"{base_url}/reset-password?token={reset_token}&username={username}"
+        reset_url = f"{base_url}/reset-password%stoken={reset_token}&username={username}"
         
         html = f"""
         <html>
@@ -5679,7 +4468,7 @@ def reward_pet(action, activity_type=None):
     """
     try:
         ensure_pet_table()
-        conn = sqlite3.connect(PET_DB_PATH)
+        conn = get_pet_db_connection()
         cur = conn.cursor()
         pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
         
@@ -5902,7 +4691,7 @@ def therapy_chat():
                     
                     if config['enable_auto_training'] and IS_RAILWAY:
                         # Check number of new messages since last training
-                        conn = sqlite3.connect(TRAINING_DB_PATH)
+                        conn = get_pet_db_connection()  # Use pet connection for now
                         cur = conn.cursor()
                         
                         # Get last trained ID from metrics file
@@ -7764,7 +6553,7 @@ def pet_status():
         valid, error = verify_pet_user(username)
         if not valid:
             return jsonify({'exists': False, 'error': error}), 200
-        conn = sqlite3.connect(PET_DB_PATH)
+        conn = get_pet_db_connection()
         cur = conn.cursor()
         ensure_pet_table()
         
@@ -7844,7 +6633,7 @@ def pet_create():
             return jsonify({'error': 'Pet name required'}), 400
 
         ensure_pet_table()
-        conn = sqlite3.connect(PET_DB_PATH)
+        conn = get_pet_db_connection()
         cur = conn.cursor()
         
         # Delete only THIS user's pet, not all pets
@@ -7874,7 +6663,7 @@ def pet_feed():
         if not valid:
             return jsonify({'error': error}), 401
 
-        conn = sqlite3.connect(PET_DB_PATH)
+        conn = get_pet_db_connection()
         cur = conn.cursor()
         pet = cur.execute("SELECT * FROM pet WHERE username = ?", (username,)).fetchone()
         
@@ -8028,7 +6817,7 @@ def pet_buy():
         
         item = items[item_id]
         
-        conn = sqlite3.connect(PET_DB_PATH)
+        conn = get_pet_db_connection()
         cur = conn.cursor()
         pet = cur.execute("SELECT * FROM pet WHERE username = ?", (username,)).fetchone()
         
@@ -11575,7 +10364,7 @@ def get_home_data():
         ).fetchone()
 
         # Get pet info for quick display
-        pet_conn = sqlite3.connect(PET_DB_PATH)
+        pet_conn = get_pet_db_connection()
         pet_cur = pet_conn.cursor()
         pet = pet_cur.execute("SELECT name, coins, xp, stage FROM pet WHERE username=?", (username,)).fetchone()
         pet_conn.close()
@@ -11792,7 +10581,7 @@ def award_daily_completion_bonus(username, cursor, today):
 
         # Award pet bonus (50 coins, 100 XP, +10 happiness)
         try:
-            pet_conn = sqlite3.connect(PET_DB_PATH)
+            pet_conn = get_pet_db_connection()
             pet_cur = pet_conn.cursor()
             pet_cur.execute('''
                 UPDATE pet SET coins=coins+50, xp=xp+100, happiness=MIN(100, happiness+10)
