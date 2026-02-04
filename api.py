@@ -3090,21 +3090,24 @@ def register():
         if not is_valid:
             return jsonify({'error': error_msg}), 400
 
-        if not clinician_id:
-            return jsonify({'error': 'Please select your clinician'}), 400
+        # Clinician is now optional
+        if clinician_id:
+            # Verify clinician exists if provided
+            conn = get_db_connection()
+            cur = conn.cursor()
+            clinician = cur.execute(
+                "SELECT username FROM users WHERE username=? AND role='clinician'",
+                (clinician_id,)
+            ).fetchone()
+            
+            if not clinician:
+                conn.close()
+                return jsonify({'error': 'Invalid clinician ID. Please select a valid clinician.'}), 400
+        else:
+            clinician = None
         
         conn = get_db_connection()
         cur = conn.cursor()
-        
-        # Verify clinician exists
-        clinician = cur.execute(
-            "SELECT username FROM users WHERE username=? AND role='clinician'",
-            (clinician_id,)
-        ).fetchone()
-        
-        if not clinician:
-            conn.close()
-            return jsonify({'error': 'Invalid clinician ID. Please select a valid clinician.'}), 400
         
         # Check if username exists
         if cur.execute("SELECT username FROM users WHERE username=?", (username,)).fetchone():
@@ -3126,31 +3129,45 @@ def register():
         hashed_pin = hash_pin(pin)
         
         # Create user with full profile information
-        cur.execute("INSERT INTO users (username, password, pin, email, phone, full_name, dob, conditions, last_login, role, country, area, postcode, nhs_number) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                   (username, hashed_password, hashed_pin, email, phone, full_name, dob, conditions, datetime.now(), 'user', country, area, postcode, nhs_number))
+        cur.execute("INSERT INTO users (username, password, pin, email, phone, full_name, dob, conditions, last_login, role, country, area, postcode, nhs_number, clinician_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                   (username, hashed_password, hashed_pin, email, phone, full_name, dob, conditions, datetime.now(), 'user', country, area, postcode, nhs_number, clinician_id))
         
-        # Create pending approval request
-        cur.execute("INSERT INTO patient_approvals (patient_username, clinician_username, status) VALUES (?,?,?)",
-                   (username, clinician_id, 'pending'))
-        
-        # Notify clinician of new patient request
-        cur.execute("INSERT INTO notifications (recipient_username, message, notification_type) VALUES (?,?,?)",
-                   (clinician_id, f'New patient request from {full_name} ({username})', 'patient_request'))
-        
-        # Notify patient that request is pending
-        cur.execute("INSERT INTO notifications (recipient_username, message, notification_type) VALUES (?,?,?)",
-                   (username, f'Your request to join Dr. {clinician_id} is pending approval', 'approval_pending'))
+        # Only create approval request if clinician is provided
+        if clinician_id:
+            # Create pending approval request
+            cur.execute("INSERT INTO patient_approvals (patient_username, clinician_username, status) VALUES (?,?,?)",
+                       (username, clinician_id, 'pending'))
+            
+            # Notify clinician of new patient request
+            cur.execute("INSERT INTO notifications (recipient_username, message, notification_type) VALUES (?,?,?)",
+                       (clinician_id, f'New patient request from {full_name} ({username})', 'patient_request'))
+            
+            # Notify patient that request is pending
+            cur.execute("INSERT INTO notifications (recipient_username, message, notification_type) VALUES (?,?,?)",
+                       (username, f'Your request to join {clinician_id} is pending approval', 'approval_pending'))
+            
+            log_msg = f'Registration via API, pending approval from clinician: {clinician_id}'
+            success_msg = 'Account created! Your clinician will approve your request shortly.'
+            pending = True
+        else:
+            # Notify patient that they can use the app independently
+            cur.execute("INSERT INTO notifications (recipient_username, message, notification_type) VALUES (?,?,?)",
+                       (username, 'Account created! You can start using Healing Space independently. You can connect with a clinician anytime.', 'account_created'))
+            
+            log_msg = 'Registration via API without clinician assignment'
+            success_msg = 'Account created! You can start using Healing Space immediately.'
+            pending = False
         
         conn.commit()
         conn.close()
         
-        log_event(username, 'api', 'user_registered', f'Registration via API, pending approval from clinician: {clinician_id}')
+        log_event(username, 'api', 'user_registered', log_msg)
         
         return jsonify({
             'success': True,
-            'message': 'Account created! Your clinician will approve your request shortly.',
+            'message': success_msg,
             'username': username,
-            'pending_approval': True
+            'pending_approval': pending
         }), 201
         
     except Exception as e:

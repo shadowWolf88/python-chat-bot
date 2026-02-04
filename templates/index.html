@@ -3051,12 +3051,9 @@
                     <small style="color: #666; display: block; margin-top: 5px;">This helps your clinician provide better care</small>
                 </div>
                 <div class="form-group">
-                    <label>Country *</label>
-                    <input type="text" id="regCountry" placeholder="United Kingdom" required>
-                </div>
-                <div class="form-group">
-                    <label>Area / Region *</label>
-                    <input type="text" id="regArea" placeholder="London, Manchester, etc." required>
+                    <label>Area / Region (UK) *</label>
+                    <input type="text" id="regArea" placeholder="London, Manchester, Edinburgh, etc." required>
+                    <small style="color: #666; display: block; margin-top: 5px;">Your UK region for clinician matching</small>
                 </div>
                 <div class="form-group">
                     <label>Postcode (optional)</label>
@@ -3108,14 +3105,28 @@
                 </div>
                 <div class="form-group">
                     <label>Phone Number *</label>
-                    <input type="tel" id="regPhone" placeholder="+1234567890" required>
+                    <input type="tel" id="regPhone" placeholder="+44 7XXX XXXXXX" required>
                 </div>
-                <div class="form-group">
-                    <label>Select Your Clinician *</label>
-                    <select id="regClinician" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
-                        <option value="">-- Loading clinicians --</option>
-                    </select>
-                    <small style="color: #666; display: block; margin-top: 5px;">Your assigned mental health professional</small>
+                <div class="form-group" style="border: 2px solid #e0e0e0; border-radius: 8px; padding: 12px; background: #f9f9f9;">
+                    <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 0;">
+                        <input type="checkbox" id="regHasClinician" checked style="width: 18px; height: 18px; cursor: pointer; margin-right: 10px;">
+                        <span>I have a clinician and want to connect with them</span>
+                    </label>
+                    <small style="color: #666; display: block; margin-top: 8px;">You can connect with a clinician now or opt to use the app independently</small>
+                </div>
+                <div id="clinicianSection" style="display: block;">
+                    <div class="form-group">
+                        <label>Clinician Username or Full Name *</label>
+                        <input type="text" id="regClinicianSearch" placeholder="Search clinician by username or name" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                        <button type="button" onclick="searchClinicians()" class="btn btn-secondary" style="width: 100%; margin-top: 8px; padding: 10px;">Search</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Select Your Clinician *</label>
+                        <select id="regClinician" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                            <option value="">-- No clinicians found yet --</option>
+                        </select>
+                        <small style="color: #666; display: block; margin-top: 5px;">Your assigned mental health professional</small>
+                    </div>
                 </div>
                 <button class="btn" onclick="register()">Create Account</button>
                 <button class="btn btn-secondary" onclick="showPatientAuth()">Back to Login</button>
@@ -7642,15 +7653,16 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             document.getElementById('registerForm').classList.remove('hidden');
             // Set max date to today for DOB field
             document.getElementById('regDOB').max = new Date().toISOString().split('T')[0];
-            loadCliniciansForRegistration();
+            initClinicianToggle();
             
-            // Add event listeners to filter clinicians by location
-            const countryInput = document.getElementById('regCountry');
+            // Auto-search clinicians when area is filled in
             const areaInput = document.getElementById('regArea');
-            
-            if (countryInput && areaInput) {
-                countryInput.addEventListener('blur', loadCliniciansForRegistration);
-                areaInput.addEventListener('blur', loadCliniciansForRegistration);
+            if (areaInput) {
+                areaInput.addEventListener('blur', function() {
+                    if (this.value.trim() && document.getElementById('regHasClinician').checked) {
+                        searchClinicians();
+                    }
+                });
             }
         }
         
@@ -8084,7 +8096,6 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const fullName = document.getElementById('regFullName').value.trim();
             const dob = document.getElementById('regDOB').value;
             const conditions = document.getElementById('regConditions').value.trim();
-            const country = document.getElementById('regCountry').value.trim();
             const area = document.getElementById('regArea').value.trim();
             const postcode = document.getElementById('regPostcode').value.trim();
             const nhs_number = document.getElementById('regNHS').value.trim();
@@ -8095,7 +8106,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const confirmPin = document.getElementById('regConfirmPin').value;
             const email = document.getElementById('regEmail').value.trim();
             const phone = document.getElementById('regPhone').value.trim();
-            const clinician_id = document.getElementById('regClinician').value;
+            const hasClinician = document.getElementById('regHasClinician').checked;
+            const clinician_id = hasClinician ? document.getElementById('regClinician').value : null;
             
             if (!fullName) {
                 showAuthMessage('Please enter your full name', 'error');
@@ -8112,13 +8124,18 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 return;
             }
             
-            if (!country || !area) {
-                showAuthMessage('Please enter your country and area', 'error');
+            if (!area) {
+                showAuthMessage('Please enter your UK area/region', 'error');
                 return;
             }
             
             if (!username || !password || !pin || !email || !phone) {
                 showAuthMessage('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            if (hasClinician && !clinician_id) {
+                showAuthMessage('Please select your clinician or uncheck the clinician option', 'error');
                 return;
             }
             
@@ -8129,11 +8146,6 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             
             if (pin !== confirmPin) {
                 showAuthMessage('PINs do not match', 'error');
-                return;
-            }
-            
-            if (!clinician_id) {
-                showAuthMessage('Please select your clinician', 'error');
                 return;
             }
             
@@ -8175,8 +8187,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 full_name: fullName,
                 dob: dob,
                 conditions: conditions,
-                clinician_id,
-                country,
+                clinician_id: clinician_id || undefined,
+                country: 'United Kingdom',
                 area,
                 postcode,
                 nhs_number
@@ -8325,17 +8337,22 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
         
-        async function loadCliniciansForRegistration() {
+        async function searchClinicians() {
             try {
-                // Get country and area filters if provided
-                const country = document.getElementById('regCountry')?.value.trim() || '';
+                const searchQuery = document.getElementById('regClinicianSearch')?.value.trim() || '';
                 const area = document.getElementById('regArea')?.value.trim() || '';
+                
+                if (!searchQuery && !area) {
+                    showAuthMessage('Please enter a clinician name/username or area', 'error');
+                    return;
+                }
                 
                 let url = '/api/clinicians/list';
                 const params = new URLSearchParams();
-                if (country) params.append('country', country);
+                params.append('country', 'United Kingdom');
+                if (searchQuery) params.append('search', searchQuery);
                 if (area) params.append('area', area);
-                if (params.toString()) url += '?' + params.toString();
+                url += '?' + params.toString();
                 
                 const response = await fetch(url);
                 const data = await response.json();
@@ -8346,14 +8363,41 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         data.clinicians.map(c => 
                             `<option value="${c.username}">${c.full_name || c.username}${c.area ? ' (' + c.area + ')' : ''}</option>`
                         ).join('');
+                    showAuthMessage(`Found ${data.clinicians.length} clinician(s)`, 'success');
                 } else {
-                    select.innerHTML = '<option value="">No clinicians found in your area</option>';
+                    select.innerHTML = '<option value="">No clinicians found matching your search</option>';
+                    showAuthMessage('No clinicians found. Try a different search or area.', 'error');
                 }
             } catch (error) {
                 console.error('Error loading clinicians:', error);
                 document.getElementById('regClinician').innerHTML = '<option value="">Error loading clinicians</option>';
+                showAuthMessage('Error searching for clinicians', 'error');
             }
         }
+        
+        // Toggle clinician section based on checkbox
+        function initClinicianToggle() {
+            const clinicianCheckbox = document.getElementById('regHasClinician');
+            const clinicianSection = document.getElementById('clinicianSection');
+            if (clinicianCheckbox) {
+                clinicianCheckbox.addEventListener('change', function() {
+                    if (clinicianSection) {
+                        clinicianSection.style.display = this.checked ? 'block' : 'none';
+                        const clinicianSelect = document.getElementById('regClinician');
+                        if (clinicianSelect) {
+                            clinicianSelect.required = this.checked;
+                        }
+                        const clinicianSearch = document.getElementById('regClinicianSearch');
+                        if (clinicianSearch) {
+                            clinicianSearch.required = this.checked;
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Initialize when showing patient registration form
+        document.addEventListener('DOMContentLoaded', initClinicianToggle);
         
         function showAuthMessage(message, type) {
             const msgDiv = document.getElementById('authMessage');
@@ -11893,6 +11937,12 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 button.textContent = '👁️';
                 button.title = 'Show password';
             }
+        }
+        
+        // Alias for registration form compatibility
+        function togglePasswordVisibility(inputId, buttonId) {
+            const button = document.getElementById(buttonId);
+            togglePassword(inputId, button);
         }
         
         // Analytics Dashboard Functions
