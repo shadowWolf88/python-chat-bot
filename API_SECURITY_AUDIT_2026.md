@@ -6,7 +6,73 @@
 
 ---
 
-##
+## RECENT BUG FIXES (Feb 4, 2026)
+
+### ✅ Fixed: AI "Thinking" Animation
+- **Issue**: Animation displayed escaped HTML code instead of animated dots
+- **Status**: FIXED (commit `80bca1a`)
+- **Details**: Added `isRawHtml` parameter to `addMessage()` function
+- **Testing**: All 4 core tests passing ✅
+
+### ✅ Fixed: Shared Pet Database (Critical)
+- **Issue**: All users shared same pet, new accounts inherited previous user's pet
+- **Status**: FIXED (commit `80bca1a`)
+- **Details**: Added `username` column to pet table, updated all 8 pet endpoints
+- **Testing**: Per-user pet isolation working correctly ✅
+- **Data**: Auto-migration for existing `pet_game.db` ✅
+
+---
+
+## FEATURE REQUEST - Internal Messaging System
+
+**Requested By**: User (Feb 4, 2026)  
+**Priority**: HIGH (After Phase 2 bugs fixed)  
+**Time Estimate**: 6-8 hours
+
+```
+REQUIREMENTS:
+- Developer ↔ Clinician: Full bidirectional messaging
+- Developer ↔ User: Full bidirectional messaging (for bug testing)
+- Clinician ↔ User: NOT ALLOWED (direct mailing disabled)
+- Users can NEVER directly mail clinicians
+
+ENDPOINTS NEEDED:
+[ ] POST /api/messages/send - Send message
+[ ] GET /api/messages/inbox - Get all messages for current user
+[ ] GET /api/messages/conversation/<user1>/<user2> - Get conversation thread
+[ ] DELETE /api/messages/<message_id> - Delete message
+[ ] PATCH /api/messages/<message_id>/read - Mark as read
+
+DATABASE SCHEMA:
+```sql
+CREATE TABLE messages (
+    id INTEGER PRIMARY KEY,
+    sender_username TEXT NOT NULL,
+    recipient_username TEXT NOT NULL,
+    subject TEXT,
+    body TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    deleted_at TIMESTAMP,
+    FOREIGN KEY (sender_username) REFERENCES users(username),
+    FOREIGN KEY (recipient_username) REFERENCES users(username)
+);
+```
+
+PERMISSION RULES:
+- Dev can message clinician/user
+- Clinician can message dev/user
+- User can message dev/user (NOT clinician)
+- All endpoints enforce sender role check
+```
+
+---
+
+## MY ADDITIONS
+
+1. i want you to work on the messages feature (internal messages) i want the user/clinician/dev to all be able to mail eachother (create new mails etc, recieve, send etc etc) the patient should NEVER be able to directly mail their clinician, this is purely between developer/clinician and developer/user for bug testing purposes. 
+
+
 
 
 ## Executive Summary

@@ -167,6 +167,85 @@ COMPLETION STATUS:
 
 ---
 
+# BUG FIXES (Feb 4, 2026) ✅ COMPLETE
+
+## 🔧 Bug #1: AI "Thinking" Animation Showing Code
+**Status**: ✅ FIXED (Feb 4, 13:12 UTC)  
+**Commit**: `80bca1a`
+
+```
+PROBLEM:
+- AI thinking animation displayed escaped HTML code instead of animated dots
+- Example: "<div class="ai-thinking">..." instead of "Thinking... ⏳"
+
+ROOT CAUSE:
+- addMessage() function sanitized all HTML to prevent XSS
+- Thinking animation HTML was being escaped and displayed as text
+
+SOLUTION IMPLEMENTED:
+[x] Added isRawHtml parameter to addMessage() function
+[x] Only thinking animation uses isRawHtml=true (trusted HTML)
+[x] User messages still sanitized (XSS protection maintained)
+[x] Updated thinking animation call to pass isRawHtml=true
+
+FILES MODIFIED:
+- templates/index.html: addMessage() function (lines 8966-8983)
+- templates/index.html: thinking animation call (line 8798)
+
+TESTING:
+[x] All 4 core tests passing
+[x] Thinking animation displays correctly in production
+[x] No breaking changes
+[x] XSS protection maintained for user messages
+```
+
+## 🔧 Bug #2: Shared Pet Database (Critical Multi-User Bug)
+**Status**: ✅ FIXED (Feb 4, 13:12 UTC)  
+**Commit**: `80bca1a`
+
+```
+PROBLEM:
+- All users shared the same pet
+- Creating new account inherited previous user's pet
+- Pet changes for one user affected all users
+
+ROOT CAUSE:
+- Pet table schema missing 'username' column
+- All queries used "SELECT * FROM pet LIMIT 1" (no username filtering)
+- No per-user isolation in database
+
+SOLUTION IMPLEMENTED:
+[x] Added 'username' column to pet table schema (UNIQUE constraint)
+[x] Added auto-migration for existing databases
+[x] Updated all 8 pet endpoints to filter by username:
+    - /api/pet/status (GET)
+    - /api/pet/create (POST)
+    - /api/pet/feed (POST)
+    - /api/pet/reward (POST)
+    - /api/pet/buy (POST)
+    - /api/pet/declutter (POST)
+    - /api/pet/adventure (POST)
+    - /api/pet/check-return (POST)
+    - /api/pet/apply-decay (POST)
+
+FILES MODIFIED:
+- api.py: ensure_pet_table() function - added username column + migration
+- api.py: All 8 pet endpoints - updated to filter by username
+
+TESTING:
+[x] All 4 core tests passing
+[x] Each user gets isolated pet
+[x] New accounts get fresh pets
+[x] Existing pet_game.db migrated automatically
+[x] No breaking changes
+[x] Backward compatible
+
+VERIFICATION:
+- curl https://www.healing-space.org.uk/api/health → OK ✅
+```
+
+---
+
 # SECTION 2: HIGH PRIORITY (Next 1-2 Weeks)
 
 ## Task #1: Database Validation & Constraints
