@@ -11419,6 +11419,50 @@ def not_found(e):
 def server_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
+# ================== APP INITIALIZATION & STARTUP LOGGING ==================
+
+def test_database_connection():
+    """Test database connection on startup"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.fetchone()
+        conn.close()
+        print("✅ Database connection: SUCCESSFUL")
+        return True
+    except Exception as e:
+        print(f"❌ Database connection: FAILED - {e}")
+        return False
+
+# Initialize pet table
+try:
+    ensure_pet_table()
+except Exception as e:
+    print(f"⚠️  Pet table initialization failed: {e}")
+
+# Log startup info
+print("=" * 80)
+print("🚀 HEALING SPACE UK - Flask API Starting")
+print("=" * 80)
+print(f"Environment: {'DEBUG MODE' if DEBUG else 'PRODUCTION'}")
+print(f"Database URL configured: {bool(os.environ.get('DATABASE_URL'))}")
+print(f"Using: {'Railway PostgreSQL' if os.environ.get('DATABASE_URL') else 'Local/env var PostgreSQL'}")
+
+# Test database connection on startup
+db_ready = test_database_connection()
+
+# Check required secrets
+groq_ready = bool(GROQ_API_KEY)
+print(f"✅ GROQ API Key configured: {groq_ready}")
+print(f"✅ SECRET_KEY configured: {bool(app.config.get('SECRET_KEY'))}")
+print(f"✅ PIN_SALT configured: {bool(PIN_SALT)}")
+
+# Print app summary
+print(f"📊 API Routes: {len(app.url_map._rules)} routes registered")
+print("=" * 80)
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    print(f"🌐 Starting on http://0.0.0.0:{port}")
     app.run(host='0.0.0.0', port=port, debug=DEBUG)
