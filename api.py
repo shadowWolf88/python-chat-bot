@@ -11521,13 +11521,13 @@ def send_message():
             conn.close()
             return jsonify({'error': 'Users may only reply to clinicians, not initiate contact'}), 403
         
-        # Therapists and clinicians can message anyone
-        # Users can message therapists, other users, and admins
+        # Define allowed recipients for each role
         allowed_recipients = {
-            'therapist': ['therapist', 'clinician', 'user', 'admin'],
-            'clinician': ['therapist', 'clinician', 'user', 'admin'],
-            'user': ['therapist', 'user', 'admin'],  # NOT clinician
-            'admin': ['therapist', 'clinician', 'user', 'admin']
+            'therapist': ['therapist', 'clinician', 'user', 'admin', 'developer'],
+            'clinician': ['therapist', 'clinician', 'user', 'admin', 'developer'],
+            'user': ['therapist', 'user', 'admin', 'developer'],  # NOT clinician
+            'admin': ['therapist', 'clinician', 'user', 'admin', 'developer'],
+            'developer': ['therapist', 'clinician', 'user', 'admin', 'developer']
         }
         
         if sender_role not in allowed_recipients or recipient_role not in allowed_recipients.get(sender_role, []):
@@ -11777,6 +11777,96 @@ def mark_message_read(message_id):
     
     except Exception as e:
         return handle_exception(e, 'mark_message_read')
+
+
+@app.route('/api/messages/sent', methods=['GET'])
+def get_sent_messages():
+    """Get messages sent by the authenticated user"""
+    try:
+        sender = get_authenticated_username()
+        if not sender:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Get sent messages (messages where user is sender)
+        messages = cur.execute('''
+            SELECT id, sender_username, recipient_username, subject, content, sent_at, is_read, read_at
+            FROM messages 
+            WHERE sender_username = ? AND is_deleted_by_sender = 0
+            ORDER BY sent_at DESC
+        ''', (sender,)).fetchall()
+
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'messages': [
+                {
+                    'id': m[0],
+                    'sender': m[1],
+                    'recipient': m[2],
+                    'subject': m[3],
+                    'content': m[4],
+                    'sent_at': m[5],
+                    'is_read': bool(m[6]),
+                    'read_at': m[7]
+                }
+                for m in messages
+            ]
+        }), 200
+
+    except Exception as e:
+        return handle_exception(e, 'get_sent_messages')
+
+
+@app.route('/api/feedback/all', methods=['GET'])
+def get_all_feedback():
+    """Get all feedback (developers only)"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Check if user is developer
+        user_role = cur.execute('SELECT role FROM users WHERE username=?', (username,)).fetchone()
+        if not user_role or user_role[0] != 'developer':
+            conn.close()
+            return jsonify({'error': 'Only developers can view all feedback'}), 403
+
+        # Get all feedback
+        feedback = cur.execute('''
+            SELECT id, username, role, category, message, status, created_at 
+            FROM feedback 
+            ORDER BY created_at DESC 
+            LIMIT 500
+        ''').fetchall()
+
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'feedback_count': len(feedback),
+            'feedback': [
+                {
+                    'id': f[0],
+                    'username': f[1],
+                    'user_role': f[2],
+                    'category': f[3],
+                    'message': f[4],
+                    'status': f[5],
+                    'created_at': f[6]
+                }
+                for f in feedback
+            ]
+        }), 200
+
+    except Exception as e:
+        return handle_exception(e, 'get_all_feedback')
 
 
 @app.route('/api/messages/<int:message_id>', methods=['DELETE'])

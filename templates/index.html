@@ -4624,11 +4624,59 @@
             <!-- Messages Tab -->
             <div id="messagesTab" class="tab-content">
                 <h3>📬 Messages</h3>
-                <p style="color: #666; margin-bottom: 20px;">Messages from the development team and administrators.</p>
+                <p style="color: #666; margin-bottom: 20px;">Send and receive messages with clinicians, therapists, and the development team.</p>
 
-                <div class="card">
-                    <div id="userMessagesContainer" style="max-height: 600px; overflow-y: auto;">
-                        <p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>
+                <!-- Messages Navigation Tabs -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; overflow-x: auto; flex-wrap: wrap;">
+                    <button class="message-subtab-btn" onclick="switchMessageTab('inbox', this)" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        📨 Inbox
+                    </button>
+                    <button class="message-subtab-btn" onclick="switchMessageTab('sent', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        📤 Sent
+                    </button>
+                    <button class="message-subtab-btn" onclick="switchMessageTab('newmessage', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        ✍️ New Message
+                    </button>
+                </div>
+
+                <!-- Inbox Subtab -->
+                <div id="messagesInboxTab" class="message-subtab-content" style="display: block;">
+                    <div class="card">
+                        <h4>Inbox</h4>
+                        <div id="messagesInboxContainer" style="max-height: 600px; overflow-y: auto;">
+                            <p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sent Subtab -->
+                <div id="messagesSentTab" class="message-subtab-content" style="display: none;">
+                    <div class="card">
+                        <h4>Sent Messages</h4>
+                        <div id="messagesSentContainer" style="max-height: 600px; overflow-y: auto;">
+                            <p style="color: #999; text-align: center; padding: 40px;">Loading sent messages...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- New Message Subtab -->
+                <div id="messagesNewTab" class="message-subtab-content" style="display: none;">
+                    <div class="card">
+                        <h4>Send New Message</h4>
+                        <div class="form-group">
+                            <label>To (Username)</label>
+                            <input type="text" id="messageRecipient" class="themed-input" placeholder="Enter recipient username">
+                        </div>
+                        <div class="form-group">
+                            <label>Subject</label>
+                            <input type="text" id="messageSubject" class="themed-input" placeholder="Message subject (optional)">
+                        </div>
+                        <div class="form-group">
+                            <label>Message</label>
+                            <textarea id="messageContent" class="themed-textarea" rows="8" placeholder="Type your message here..."></textarea>
+                        </div>
+                        <button class="btn" onclick="sendNewMessage()" style="background: #667eea;">📨 Send Message</button>
+                        <p id="messageSendStatus" style="margin-top: 10px; display: none;"></p>
                     </div>
                 </div>
             </div>
@@ -4810,6 +4858,9 @@
                     <button class="clinical-subtab-btn" onclick="switchClinicalTab('approvals', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         ⏳ Approvals
                     </button>
+                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('messages', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        📨 Messages
+                    </button>
                 </div>
                 
                 <!-- Overview Subtab -->
@@ -4963,6 +5014,69 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Messages Subtab -->
+                <div id="clinicalMessagesTab" class="clinical-subtab-content" style="display: none;">
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <!-- Message Navigation -->
+                        <div class="card">
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px;">
+                                <button class="message-subtab-btn" onclick="switchMessageTab('inbox', this)" style="background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                    📬 Inbox
+                                </button>
+                                <button class="message-subtab-btn" onclick="switchMessageTab('sent', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                    📤 Sent
+                                </button>
+                                <button class="message-subtab-btn" onclick="switchMessageTab('new', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                    ✏️ New Message
+                                </button>
+                            </div>
+
+                            <!-- Inbox Tab -->
+                            <div id="messagesInboxTab" class="message-subtab-content">
+                                <div id="messagesInboxContainer">
+                                    <p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>
+                                </div>
+                            </div>
+
+                            <!-- Sent Tab -->
+                            <div id="messagesSentTab" class="message-subtab-content" style="display: none;">
+                                <div id="messagesSentContainer">
+                                    <p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>
+                                </div>
+                            </div>
+
+                            <!-- New Message Tab -->
+                            <div id="messagesNewTab" class="message-subtab-content" style="display: none;">
+                                <div style="max-width: 600px;">
+                                    <div style="margin-bottom: 15px;">
+                                        <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #333;">Recipient</label>
+                                        <input type="text" id="messageRecipient" placeholder="Enter patient username..."
+                                            style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
+                                    </div>
+
+                                    <div style="margin-bottom: 15px;">
+                                        <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #333;">Subject</label>
+                                        <input type="text" id="messageSubject" placeholder="Message subject (optional)..."
+                                            style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
+                                    </div>
+
+                                    <div style="margin-bottom: 15px;">
+                                        <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #333;">Message</label>
+                                        <textarea id="messageContent" rows="6" placeholder="Type your message..."
+                                            style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; resize: vertical;"></textarea>
+                                    </div>
+
+                                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                        <button class="btn" onclick="sendNewMessage()" style="flex: 1;">📤 Send Message</button>
+                                    </div>
+
+                                    <div id="messageSendStatus" style="display: none; padding: 12px; border-radius: 8px; background: #f0f0f0; color: #333; border-left: 4px solid #667eea;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Patient List Section - Hidden by default, kept for compatibility -->
                 <div id="patientListSection" style="display: none;">
@@ -5108,6 +5222,9 @@
                     <button class="dev-subtab-btn" onclick="switchDevTab('messages', this)">
                         📨 Messages
                     </button>
+                    <button class="dev-subtab-btn" onclick="switchDevTab('feedback', this)">
+                        📋 Feedback
+                    </button>
                     <button class="dev-subtab-btn" onclick="switchDevTab('stats', this)">
                         📊 Stats
                     </button>
@@ -5204,6 +5321,41 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             <div id="messageThread">
                                 <p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback Subtab -->
+                <div id="devFeedbackTab" class="dev-subtab-content" style="display: none;">
+                    <div class="card" style="background: var(--bg-card); color: var(--text-primary);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h4>📋 User Feedback</h4>
+                            <button class="btn btn-secondary" onclick="loadFeedback()">🔄 Refresh</button>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                            <select id="feedbackCategoryFilter" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                                <option value="">All Categories</option>
+                                <option value="bug">🐛 Bug Report</option>
+                                <option value="feature">✨ Feature Request</option>
+                                <option value="improvement">📈 Improvement</option>
+                                <option value="ui">🎨 UI/UX</option>
+                                <option value="performance">⚡ Performance</option>
+                                <option value="other">📝 Other</option>
+                            </select>
+                            <select id="feedbackStatusFilter" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                                <option value="">All Status</option>
+                                <option value="new">🆕 New</option>
+                                <option value="reviewed">👀 Reviewed</option>
+                                <option value="in_progress">⚙️ In Progress</option>
+                                <option value="resolved">✅ Resolved</option>
+                                <option value="wontfix">❌ Won't Fix</option>
+                            </select>
+                            <button class="btn" onclick="filterFeedback()">Filter</button>
+                        </div>
+
+                        <div id="feedbackContainer" style="max-height: 600px; overflow-y: auto;">
+                            <p style="color: #999; text-align: center; padding: 40px;">Loading feedback...</p>
                         </div>
                     </div>
                 </div>
@@ -12645,6 +12797,8 @@ ${reportText}
             if (subtabName === 'messages') {
                 loadMessageRecipients();
                 loadMessageThread();
+            } else if (subtabName === 'feedback') {
+                loadFeedback();
             } else if (subtabName === 'stats') {
                 loadSystemStats();
             } else if (subtabName === 'users') {
@@ -13017,79 +13171,362 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
 
-        // ========== END DEVELOPER DASHBOARD FUNCTIONS ==========
-
-        // ========== USER MESSAGES (Inbox for patients/clinicians) - Phase 3 Messaging ==========
-        async function loadUserMessages() {
+        // Feedback Functions
+        async function loadFeedback() {
             try {
-                console.log('🔄 Loading messages for user:', currentUser, 'role:', currentUserRole);
-                
-                // Silently skip if messages container doesn't exist (not on messages tab yet)
-                const container = document.getElementById('userMessagesContainer');
-                if (!container) {
-                    console.log('ℹ️ Messages container not found, skipping load');
-                    return;
-                }
-                
-                const response = await fetch(`/api/messages/inbox`, {
+                const container = document.getElementById('feedbackContainer');
+                container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">Loading feedback...</p>';
+
+                const response = await fetch('/api/feedback/all', {
                     method: 'GET',
-                    credentials: 'include', // Send session cookies
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' }
                 });
-                
-                console.log('📨 Inbox response status:', response.status);
-                
-                if (!response.ok) {
-                    // Silently handle auth errors (session may not be ready yet)
-                    if (response.status === 401) {
-                        console.log('ℹ️ Session not authenticated yet (401), will retry when user navigates to messages');
-                        return;
-                    }
-                    const errorData = await response.json().catch(() => ({}));
-                    console.error('❌ API Error:', errorData);
-                    throw new Error(errorData.error || 'Failed to load messages');
-                }
-                
-                const data = await response.json();
-                console.log('✅ Got conversations:', data.conversations?.length || 0, 'Unread:', data.total_unread);
-                
-                if (!data.conversations || data.conversations.length === 0) {
-                    container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No messages yet. Waiting for messages from clinicians or therapists.</p>';
-                    document.getElementById('messagesBadge').style.display = 'none';
+
+                if (response.status === 403) {
+                    container.innerHTML = '<p style="color: #e74c3c; padding: 20px;">❌ You do not have permission to view feedback.</p>';
                     return;
                 }
 
-                // Show badge with unread count
-                if (data.total_unread > 0) {
-                    const badge = document.getElementById('messagesBadge');
-                    badge.textContent = data.total_unread;
-                    badge.style.display = 'inline-block';
+                if (!response.ok) {
+                    throw new Error('Failed to load feedback');
                 }
 
-                // Display conversations
-                container.innerHTML = data.conversations.map(conv => `
-                    <div style="border-bottom: 1px solid #e0e0e0; padding: 15px; background: ${conv.unread_count > 0 ? '#f0f7ff' : 'white'}; cursor: pointer; transition: background 0.2s;"
-                         onmouseover="this.style.background='${conv.unread_count > 0 ? '#e8f2ff' : '#f9f9f9'}'"
-                         onmouseout="this.style.background='${conv.unread_count > 0 ? '#f0f7ff' : 'white'}'"
-                         onclick="viewMessageConversation('${conv.with_user}')">
+                const data = await response.json();
+
+                if (!data.feedback || data.feedback.length === 0) {
+                    container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">📭 No feedback submissions yet</p>';
+                    return;
+                }
+
+                // Display all feedback
+                container.innerHTML = data.feedback.map(item => `
+                    <div style="border-left: 4px solid ${getCategoryColor(item.category)}; padding: 15px; margin-bottom: 10px; background: white; border-radius: 8px; border: 1px solid #e0e0e0;">
                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
                             <div>
-                                <strong style="color: #333;">${conv.with_user}</strong>
-                                ${conv.unread_count > 0 ? `<span style="color: #e74c3c; font-weight: bold; margin-left: 8px;">(${conv.unread_count} unread)</span>` : ''}
+                                <strong style="color: #333; font-size: 15px;">${getCategoryEmoji(item.category)} ${item.category}</strong>
+                                <div style="color: #666; font-size: 12px; margin-top: 4px;">
+                                    👤 ${item.username} (${item.user_role}) • ${new Date(item.created_at).toLocaleString()}
+                                </div>
                             </div>
-                            <span style="color: #999; font-size: 12px; white-space: nowrap;">${new Date(conv.last_message_time).toLocaleString()}</span>
+                            <span style="background: ${getStatusColor(item.status)}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold;">
+                                ${getStatusEmoji(item.status)} ${item.status}
+                            </span>
                         </div>
-                        <div style="color: #666; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ${conv.is_latest_from_them ? '📨 ' : '📤 '}${conv.last_message}
+                        <div style="color: #555; font-size: 14px; line-height: 1.6; margin-top: 10px; background: #f9f9f9; padding: 10px; border-radius: 4px;">
+                            ${item.message}
                         </div>
                     </div>
                 `).join('');
 
             } catch (error) {
+                console.error('Error loading feedback:', error);
+                document.getElementById('feedbackContainer').innerHTML = `<p style="color: #e74c3c; padding: 20px;">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        function filterFeedback() {
+            const categoryFilter = document.getElementById('feedbackCategoryFilter').value;
+            const statusFilter = document.getElementById('feedbackStatusFilter').value;
+
+            const feedbackItems = document.querySelectorAll('#feedbackContainer > div');
+            feedbackItems.forEach(item => {
+                const category = item.innerText.split('\n')[0].toLowerCase();
+                const status = item.innerText.split('\n')[1].toLowerCase();
+
+                const categoryMatch = !categoryFilter || category.includes(categoryFilter);
+                const statusMatch = !statusFilter || status.includes(statusFilter);
+
+                item.style.display = (categoryMatch && statusMatch) ? 'block' : 'none';
+            });
+        }
+
+        function getCategoryColor(category) {
+            const colors = {
+                'bug': '#e74c3c',
+                'feature': '#3498db',
+                'improvement': '#f39c12',
+                'ui': '#9b59b6',
+                'performance': '#e67e22',
+                'other': '#95a5a6'
+            };
+            return colors[category] || '#95a5a6';
+        }
+
+        function getCategoryEmoji(category) {
+            const emojis = {
+                'bug': '🐛',
+                'feature': '✨',
+                'improvement': '📈',
+                'ui': '🎨',
+                'performance': '⚡',
+                'other': '📝'
+            };
+            return emojis[category] || '📝';
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'new': '#3498db',
+                'reviewed': '#f39c12',
+                'in_progress': '#e67e22',
+                'resolved': '#27ae60',
+                'wontfix': '#e74c3c'
+            };
+            return colors[status] || '#95a5a6';
+        }
+
+        function getStatusEmoji(status) {
+            const emojis = {
+                'new': '🆕',
+                'reviewed': '👀',
+                'in_progress': '⚙️',
+                'resolved': '✅',
+                'wontfix': '❌'
+            };
+            return emojis[status] || '📝';
+        }
+
+        // ========== END DEVELOPER DASHBOARD FUNCTIONS ==========
+
+        // ========== USER MESSAGES (Inbox for patients/clinicians) - Phase 3 Messaging ==========
+        // ========== MESSAGING SYSTEM (New UI) ==========
+        async function switchMessageTab(tabName, buttonEl) {
+            // Hide all message subtabs
+            document.querySelectorAll('.message-subtab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Reset all message subtab buttons
+            document.querySelectorAll('.message-subtab-btn').forEach(btn => {
+                btn.style.background = 'transparent';
+                btn.style.color = '#667eea';
+                btn.style.borderColor = '#667eea';
+            });
+            
+            // Show selected tab and highlight button
+            const tabId = `messages${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Tab`;
+            const tab = document.getElementById(tabId);
+            if (tab) {
+                tab.style.display = 'block';
+                buttonEl.style.background = '#667eea';
+                buttonEl.style.color = 'white';
+                buttonEl.style.borderColor = '#667eea';
+                
+                // Load content based on tab
+                if (tabName === 'inbox') {
+                    loadMessagesInbox();
+                } else if (tabName === 'sent') {
+                    loadMessagesSent();
+                }
+            }
+        }
+
+        async function loadMessagesInbox() {
+            try {
+                const container = document.getElementById('messagesInboxContainer');
+                container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>';
+
+                const response = await fetch(`/api/messages/inbox`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.status === 401) {
+                    container.innerHTML = '<p style="color: #e74c3c; padding: 20px;">⚠️ Please log in again</p>';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Failed to load messages');
+                }
+                
+                const data = await response.json();
+                
+                if (!data.conversations || data.conversations.length === 0) {
+                    container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">📭 No messages in your inbox</p>';
+                    return;
+                }
+
+                // Display inbox messages
+                container.innerHTML = data.conversations.map(conv => `
+                    <div style="border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 10px; background: ${conv.unread_count > 0 ? '#f0f7ff' : 'white'}; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
+                         onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'"
+                         onmouseout="this.style.boxShadow='none'"
+                         onclick="viewMessageThread('${conv.with_user}', 'inbox')">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="flex: 1;">
+                                <strong style="color: #333; font-size: 15px;">📧 ${conv.with_user}</strong>
+                                ${conv.unread_count > 0 ? `<span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">${conv.unread_count}</span>` : ''}
+                            </div>
+                            <span style="color: #999; font-size: 12px; white-space: nowrap;">${new Date(conv.last_message_time).toLocaleString()}</span>
+                        </div>
+                        <div style="color: #666; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 8px;">
+                            ${conv.last_message ? (conv.last_message.length > 100 ? conv.last_message.substring(0, 100) + '...' : conv.last_message) : 'No message text'}
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading inbox:', error);
+                document.getElementById('messagesInboxContainer').innerHTML = `<p style="color: #e74c3c; padding: 20px;">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function loadMessagesSent() {
+            try {
+                const container = document.getElementById('messagesSentContainer');
+                container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>';
+
+                const response = await fetch(`/api/messages/sent`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.status === 401) {
+                    container.innerHTML = '<p style="color: #e74c3c; padding: 20px;">⚠️ Please log in again</p>';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Failed to load messages');
+                }
+                
+                const data = await response.json();
+                
+                if (!data.messages || data.messages.length === 0) {
+                    container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">📤 No sent messages</p>';
+                    return;
+                }
+
+                // Display sent messages
+                container.innerHTML = data.messages.map(msg => `
+                    <div style="border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 10px; background: #f9f9f9; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div>
+                                <strong style="color: #333; font-size: 15px;">📤 To: ${msg.recipient}</strong>
+                                <span style="background: ${msg.is_read ? '#4caf50' : '#999'}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 10px; font-weight: bold;">
+                                    ${msg.is_read ? '✓ Read' : 'Unread'}
+                                </span>
+                            </div>
+                            <span style="color: #999; font-size: 12px; white-space: nowrap;">${new Date(msg.sent_at).toLocaleString()}</span>
+                        </div>
+                        ${msg.subject ? `<div style="font-weight: 600; color: #555; margin-bottom: 8px;">Subject: ${msg.subject}</div>` : ''}
+                        <div style="color: #666; font-size: 14px; background: white; padding: 10px; border-radius: 4px;">
+                            ${msg.content.substring(0, 150)}${msg.content.length > 150 ? '...' : ''}
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading sent messages:', error);
+                document.getElementById('messagesSentContainer').innerHTML = `<p style="color: #e74c3c; padding: 20px;">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function sendNewMessage() {
+            const recipient = document.getElementById('messageRecipient').value.trim();
+            const subject = document.getElementById('messageSubject').value.trim();
+            const content = document.getElementById('messageContent').value.trim();
+            const statusEl = document.getElementById('messageSendStatus');
+
+            if (!recipient) {
+                statusEl.textContent = '⚠️ Please enter a recipient username';
+                statusEl.style.color = '#ff9800';
+                statusEl.style.display = 'block';
+                return;
+            }
+
+            if (!content) {
+                statusEl.textContent = '⚠️ Please enter a message';
+                statusEl.style.color = '#ff9800';
+                statusEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                statusEl.textContent = '📤 Sending message...';
+                statusEl.style.color = '#667eea';
+                statusEl.style.display = 'block';
+
+                const response = await fetch('/api/messages/send', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({
+                        recipient,
+                        subject,
+                        content
+                    })
+                });
+
+                if (response.status === 403) {
+                    statusEl.textContent = '❌ You cannot send messages to this person';
+                    statusEl.style.color = '#e74c3c';
+                    statusEl.style.display = 'block';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Failed to send message');
+                }
+
+                statusEl.textContent = '✅ Message sent successfully!';
+                statusEl.style.color = '#4caf50';
+                statusEl.style.display = 'block';
+
+                // Clear form
+                document.getElementById('messageRecipient').value = '';
+                document.getElementById('messageSubject').value = '';
+                document.getElementById('messageContent').value = '';
+
+                // Hide success message after 3 seconds
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+
+                // Reload sent messages
+                loadMessagesSent();
+
+            } catch (error) {
+                console.error('Error sending message:', error);
+                statusEl.textContent = `❌ ${error.message}`;
+                statusEl.style.color = '#e74c3c';
+                statusEl.style.display = 'block';
+            }
+        }
+
+        async function viewMessageThread(withUser, context) {
+            console.log(`Opening conversation with ${withUser} from ${context}`);
+            // This could open a detailed view - for now just log it
+            alert(`Message thread with ${withUser} (detailed view coming soon)`);
+        }
+
+        async function loadUserMessages() {
+            try {
+                console.log('🔄 Loading messages for user:', currentUser, 'role:', currentUserRole);
+                
+                // Silently skip if messages container doesn't exist (not on messages tab yet)
+                const container = document.getElementById('messagesInboxContainer');
+                if (!container) {
+                    console.log('ℹ️ Messages container not found, skipping load');
+                    return;
+                }
+                
+                // Load inbox on first access
+                loadMessagesInbox();
+
+            } catch (error) {
                 // Silently log errors to avoid breaking login flow
                 console.log('ℹ️ Messages load error (expected if session not ready):', error.message);
-                // Don't show error UI - just skip loading for now
-                // Messages will load properly once session is authenticated
             }
         }
 

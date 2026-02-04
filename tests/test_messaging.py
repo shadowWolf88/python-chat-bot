@@ -427,3 +427,103 @@ class TestMessagingIntegration:
         contents = [msg['content'] for msg in final_msgs]
         assert 'How are you today?' in contents
         assert 'I am feeling much better today' in contents
+
+class TestMessagesSentEndpoint:
+    """Tests for GET /api/messages/sent endpoint (NEW)"""
+    
+    def test_get_sent_messages(self, authenticated_patient, tmp_db):
+        """Test retrieving all messages sent by user"""
+        import sqlite3
+        from hashlib import pbkdf2_hmac
+        
+        client, patient = authenticated_patient
+        
+        # Create another user to send to
+        conn = sqlite3.connect(tmp_db)
+        cur = conn.cursor()
+        hashed = pbkdf2_hmac('sha256', b'pass', b'salt', 100000).hex()
+        cur.execute(
+            "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+            ('recipient_user', hashed, 'user')
+        )
+        conn.commit()
+        conn.close()
+        
+        # Send a message first
+        send_response = client.post('/api/messages/send',
+            json={
+                'recipient': 'recipient_user',
+                'subject': 'Test Subject',
+                'content': 'Test message content'
+            })
+        assert send_response.status_code == 201
+        
+        # Now retrieve sent messages
+        response = client.get('/api/messages/sent')
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        assert 'messages' in data
+        assert len(data['messages']) > 0
+        
+        # Verify message structure
+        sent_msg = data['messages'][0]
+        assert sent_msg['recipient'] == 'recipient_user'
+        assert sent_msg['subject'] == 'Test Subject'
+        assert sent_msg['content'] == 'Test message content'
+        assert 'sent_at' in sent_msg
+        assert 'is_read' in sent_msg
+
+
+class TestFeedbackAllEndpoint:
+    """Tests for GET /api/feedback/all endpoint (NEW - developers only)"""
+    
+    def test_developer_can_view_all_feedback(self, authenticated_developer, tmp_db):
+        """Test that developers can view all feedback submissions"""
+        import sqlite3
+        from hashlib import pbkdf2_hmac
+        
+        client, developer = authenticated_developer
+        
+        # Create a patient to submit feedback
+        conn = sqlite3.connect(tmp_db)
+        cur = conn.cursor()
+        hashed = pbkdf2_hmac('sha256', b'pass', b'salt', 100000).hex()
+        cur.execute(
+            "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+            ('feedback_patient', hashed, 'user')
+        )
+        
+        # Insert feedback
+        from datetime import datetime
+        cur.execute("""
+            INSERT INTO feedback (username, role, category, message, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, ('feedback_patient', 'user', 'bug', 'App crashes on login', 'new', 
+              datetime.utcnow().isoformat()))
+        conn.commit()
+        conn.close()
+        
+        # Login as developer and retrieve feedback
+        response = client.get('/api/feedback/all')
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        assert 'feedback' in data
+        assert len(data['feedback']) > 0
+        
+        # Verify feedback structure
+        feedback_item = data['feedback'][0]
+        assert feedback_item['username'] == 'feedback_patient'
+        assert feedback_item['category'] == 'bug'
+        assert feedback_item['message'] == 'App crashes on login'
+        assert feedback_item['status'] == 'new'
+    
+    def test_patient_cannot_view_all_feedback(self, authenticated_patient):
+        """Test that patients cannot view all feedback (forbidden)"""
+        client, patient = authenticated_patient
+        
+        response = client.get('/api/feedback/all')
+        assert response.status_code == 403
+        data = response.get_json()
+        assert 'error' in data
