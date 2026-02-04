@@ -353,6 +353,17 @@ class CSRFProtection:
 
 # ================== CBT: GOAL SETTING/TRACKING ENDPOINTS ==================
 
+def get_last_insert_id(cursor):
+    """
+    Get the ID of the last inserted row in PostgreSQL.
+    Use after an INSERT ... RETURNING id statement.
+    """
+    try:
+        row = cursor.fetchone()
+        return row[0] if row else None
+    except Exception:
+        return None
+
 @app.route('/api/cbt/goals', methods=['POST'])
 def create_goal():
     """Create a new goal entry"""
@@ -4428,7 +4439,7 @@ def update_ai_memory(username):
         
         # Update or insert memory
         cur.execute(
-            "INSERT OR REPLACE INTO ai_memory (username, memory_summary, last_updated) VALUES (?,?,?)",
+            "INSERT INTO ai_memory (username, memory_summary, last_updated) VALUES (?,?,?)",
             (username, memory_summary, datetime.now())
         )
         conn.commit()
@@ -4570,11 +4581,11 @@ def therapy_chat():
             if not active_session:
                 # Create default session
                 cur.execute(
-                    "INSERT INTO chat_sessions (username, session_name, is_active) VALUES (?, 'Main Chat', 1)",
+                    "INSERT INTO chat_sessions (username, session_name, is_active) VALUES (%s, 'Main Chat', 1) RETURNING id",
                     (username,)
                 )
                 conn.commit()
-                chat_session_id = cur.lastrowid
+                chat_session_id = cur.fetchone()[0]
             else:
                 chat_session_id = active_session[0]
         except Exception as session_error:
@@ -5197,7 +5208,7 @@ def initialize_chat():
         # Initialize AI memory with profile data
         initial_memory = f"Patient: {full_name}. Date of Birth: {dob}. Medical conditions: {conditions}. First session: {timestamp}."
         cur.execute(
-            "INSERT OR REPLACE INTO ai_memory (username, memory_summary, last_updated) VALUES (?,?,?)",
+            "INSERT INTO ai_memory (username, memory_summary, last_updated) VALUES (?,?,?)",
             (username, initial_memory, timestamp)
         )
         
@@ -7310,7 +7321,7 @@ def get_community_posts():
             # Mark channel as read for this user
             if username:
                 cur.execute(
-                    "INSERT OR REPLACE INTO community_channel_reads (username, channel, last_read) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                    "INSERT INTO community_channel_reads (username, channel, last_read) VALUES (?, ?, CURRENT_TIMESTAMP)",
                     (username, category)
                 )
                 conn.commit()
