@@ -145,7 +145,7 @@ app.config['SECRET_KEY'] = SECRET_KEY
 app.config['SESSION_COOKIE_SECURE'] = not os.getenv('DEBUG', '').lower() in ('1', 'true', 'yes')  # HTTPS in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)  # 2-hour timeout
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # 30-day session for remember me functionality
 
 # Initialize rate limiter (Phase 1D)
 limiter = Limiter(
@@ -6746,36 +6746,61 @@ def pet_create():
         if not name:
             return jsonify({'error': 'Pet name required'}), 400
 
-        ensure_pet_table()
-        conn = get_pet_db_connection()
-        cur = get_wrapped_cursor(conn)
+        try:
+            ensure_pet_table()
+        except Exception as e:
+            print(f"Error ensuring pet table: {e}")
+            pass  # Table might already exist
         
-        # Use PostgreSQL INSERT ... ON CONFLICT for safe upsert (no race condition)
-        cur.execute("""
-            INSERT INTO pet (username, name, species, gender, hunger, happiness, energy, hygiene, 
-                           coins, xp, stage, adventure_end, last_updated, hat)
-            VALUES (%s, %s, %s, %s, 70, 70, 70, 80, 0, 0, 'Baby', 0, %s, 'None')
-            ON CONFLICT(username) DO UPDATE SET
-                name = EXCLUDED.name,
-                species = EXCLUDED.species,
-                gender = EXCLUDED.gender,
-                hunger = 70,
-                happiness = 70,
-                energy = 70,
-                hygiene = 80,
-                coins = 0,
-                xp = 0,
-                stage = 'Baby',
-                adventure_end = 0,
-                last_updated = EXCLUDED.last_updated,
-                hat = 'None'
-        """, (username, name, species, gender, datetime.now().timestamp()))
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'success': True, 'message': 'Pet created!'}), 201
+        conn = None
+        try:
+            conn = get_pet_db_connection()
+            if not conn:
+                print(f"Failed to get pet database connection for {username}")
+                return jsonify({'error': 'Database connection error'}), 503
+                
+            cur = get_wrapped_cursor(conn)
+            
+            # Use PostgreSQL INSERT ... ON CONFLICT for safe upsert (no race condition)
+            cur.execute("""
+                INSERT INTO pet (username, name, species, gender, hunger, happiness, energy, hygiene, 
+                               coins, xp, stage, adventure_end, last_updated, hat)
+                VALUES (%s, %s, %s, %s, 70, 70, 70, 80, 0, 0, 'Baby', 0, %s, 'None')
+                ON CONFLICT(username) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    species = EXCLUDED.species,
+                    gender = EXCLUDED.gender,
+                    hunger = 70,
+                    happiness = 70,
+                    energy = 70,
+                    hygiene = 80,
+                    coins = 0,
+                    xp = 0,
+                    stage = 'Baby',
+                    adventure_end = 0,
+                    last_updated = EXCLUDED.last_updated,
+                    hat = 'None'
+            """, (username, name, species, gender, datetime.now().timestamp()))
+            conn.commit()
+            print(f"✓ Pet created for user: {username}")
+            return jsonify({'success': True, 'message': 'Pet created!'}), 201
+        except Exception as e:
+            print(f"Error in pet creation for {username}: {e}")
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            raise
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except:
+                    pass
     except Exception as e:
-        return handle_exception(e, request.endpoint or 'unknown')
+        print(f"Pet creation error: {str(e)}")
+        return handle_exception(e, request.endpoint or 'pet_create')
 
 @app.route('/api/pet/feed', methods=['POST'])
 def pet_feed():
