@@ -11326,54 +11326,75 @@ def get_inbox():
         cur = get_wrapped_cursor(conn)
         
         # Get conversations (unique senders/recipients, excluding deleted messages)
+        # Use WITH clause to avoid PostgreSQL GROUP BY strictness issues
         if unread_only:
             # Only show conversations with unread messages
             rows = cur.execute('''
+                WITH conversations AS (
+                    SELECT DISTINCT
+                        CASE WHEN sender_username = %s THEN recipient_username ELSE sender_username END as other_user,
+                        LEAST(sender_username, recipient_username) as user_a,
+                        GREATEST(sender_username, recipient_username) as user_b,
+                        MAX(sent_at) as last_message_time
+                    FROM messages
+                    WHERE (sender_username = %s OR recipient_username = %s)
+                    AND deleted_at IS NULL
+                    AND is_read = 0
+                    AND recipient_username = %s
+                    GROUP BY other_user, user_a, user_b
+                )
                 SELECT 
-                    CASE WHEN sender_username = %s THEN recipient_username ELSE sender_username END as other_user,
+                    c.other_user,
                     (SELECT content FROM messages m2 
-                     WHERE (m2.sender_username = messages.sender_username AND m2.recipient_username = messages.recipient_username
-                            OR m2.sender_username = messages.recipient_username AND m2.recipient_username = messages.sender_username)
+                     WHERE (m2.sender_username = c.user_a AND m2.recipient_username = c.user_b
+                            OR m2.sender_username = c.user_b AND m2.recipient_username = c.user_a)
                      AND m2.deleted_at IS NULL
                      ORDER BY m2.sent_at DESC LIMIT 1) as last_message,
-                    (SELECT sent_at FROM messages m2 
-                     WHERE (m2.sender_username = messages.sender_username AND m2.recipient_username = messages.recipient_username
-                            OR m2.sender_username = messages.recipient_username AND m2.recipient_username = messages.sender_username)
-                     AND m2.deleted_at IS NULL
-                     ORDER BY m2.sent_at DESC LIMIT 1) as last_message_time,
-                    SUM(CASE WHEN recipient_username = %s AND is_read = 0 AND deleted_at IS NULL THEN 1 ELSE 0 END) as unread_count,
-                    MAX(CASE WHEN sender_username != %s THEN 1 ELSE 0 END) as is_latest_from_them
-                FROM messages
-                WHERE (sender_username = %s OR recipient_username = %s)
-                AND deleted_at IS NULL
-                AND is_read = 0
-                AND recipient_username = %s
-                GROUP BY other_user
-                ORDER BY last_message_time DESC
+                    c.last_message_time,
+                    (SELECT COUNT(*) FROM messages m3
+                     WHERE (m3.sender_username = c.user_a AND m3.recipient_username = c.user_b
+                            OR m3.sender_username = c.user_b AND m3.recipient_username = c.user_a)
+                     AND m3.recipient_username = %s AND m3.is_read = 0 AND m3.deleted_at IS NULL) as unread_count,
+                    (SELECT CASE WHEN MAX(sender_username) != %s THEN 1 ELSE 0 END FROM messages m4
+                     WHERE (m4.sender_username = c.user_a AND m4.recipient_username = c.user_b
+                            OR m4.sender_username = c.user_b AND m4.recipient_username = c.user_a)
+                     AND m4.deleted_at IS NULL ORDER BY m4.sent_at DESC LIMIT 1) as is_latest_from_them
+                FROM conversations c
+                ORDER BY c.last_message_time DESC
                 LIMIT %s OFFSET %s
             ''', (username, username, username, username, username, username, limit, offset)).fetchall()
         else:
             # Show all conversations
             rows = cur.execute('''
+                WITH conversations AS (
+                    SELECT DISTINCT
+                        CASE WHEN sender_username = %s THEN recipient_username ELSE sender_username END as other_user,
+                        LEAST(sender_username, recipient_username) as user_a,
+                        GREATEST(sender_username, recipient_username) as user_b,
+                        MAX(sent_at) as last_message_time
+                    FROM messages
+                    WHERE (sender_username = %s OR recipient_username = %s)
+                    AND deleted_at IS NULL
+                    GROUP BY other_user, user_a, user_b
+                )
                 SELECT 
-                    CASE WHEN sender_username = %s THEN recipient_username ELSE sender_username END as other_user,
+                    c.other_user,
                     (SELECT content FROM messages m2 
-                     WHERE (m2.sender_username = messages.sender_username AND m2.recipient_username = messages.recipient_username
-                            OR m2.sender_username = messages.recipient_username AND m2.recipient_username = messages.sender_username)
+                     WHERE (m2.sender_username = c.user_a AND m2.recipient_username = c.user_b
+                            OR m2.sender_username = c.user_b AND m2.recipient_username = c.user_a)
                      AND m2.deleted_at IS NULL
                      ORDER BY m2.sent_at DESC LIMIT 1) as last_message,
-                    (SELECT sent_at FROM messages m2 
-                     WHERE (m2.sender_username = messages.sender_username AND m2.recipient_username = messages.recipient_username
-                            OR m2.sender_username = messages.recipient_username AND m2.recipient_username = messages.sender_username)
-                     AND m2.deleted_at IS NULL
-                     ORDER BY m2.sent_at DESC LIMIT 1) as last_message_time,
-                    SUM(CASE WHEN recipient_username = %s AND is_read = 0 AND deleted_at IS NULL THEN 1 ELSE 0 END) as unread_count,
-                    MAX(CASE WHEN sender_username != %s THEN 1 ELSE 0 END) as is_latest_from_them
-                FROM messages
-                WHERE (sender_username = %s OR recipient_username = %s)
-                AND deleted_at IS NULL
-                GROUP BY other_user
-                ORDER BY last_message_time DESC
+                    c.last_message_time,
+                    (SELECT COUNT(*) FROM messages m3
+                     WHERE (m3.sender_username = c.user_a AND m3.recipient_username = c.user_b
+                            OR m3.sender_username = c.user_b AND m3.recipient_username = c.user_a)
+                     AND m3.recipient_username = %s AND m3.is_read = 0 AND m3.deleted_at IS NULL) as unread_count,
+                    (SELECT CASE WHEN MAX(sender_username) != %s THEN 1 ELSE 0 END FROM messages m4
+                     WHERE (m4.sender_username = c.user_a AND m4.recipient_username = c.user_b
+                            OR m4.sender_username = c.user_b AND m4.recipient_username = c.user_a)
+                     AND m4.deleted_at IS NULL ORDER BY m4.sent_at DESC LIMIT 1) as is_latest_from_them
+                FROM conversations c
+                ORDER BY c.last_message_time DESC
                 LIMIT %s OFFSET %s
             ''', (username, username, username, username, username, limit, offset)).fetchall()
         
