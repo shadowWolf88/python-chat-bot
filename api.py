@@ -22,7 +22,7 @@ from email.mime.multipart import MIMEMultipart
 def ensure_pet_table():
     """Ensure the pet table exists in PostgreSQL with username support"""
     conn = get_pet_db_connection()
-    cur = conn.cursor()
+    cur = get_wrapped_cursor(conn)
     
     try:
         # Check if table exists
@@ -395,7 +395,7 @@ def create_goal():
         status = data.get('status', 'active')
         progress_percentage = data.get('progress_percentage', 0)
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO goals (username, goal_title, goal_description, goal_type, target_date, related_value_id, status, progress_percentage) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
             (username, goal_title, goal_description, goal_type, target_date, related_value_id, status, progress_percentage))
         conn.commit()
@@ -413,7 +413,7 @@ def list_goals():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM goals WHERE username=%s ORDER BY entry_timestamp DESC', (username,)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -429,7 +429,7 @@ def get_goal(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM goals WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         conn.close()
         if not row:
@@ -448,7 +448,7 @@ def update_goal(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM goals WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -473,7 +473,7 @@ def delete_goal(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM goals WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -499,7 +499,7 @@ def create_goal_milestone(goal_id):
         target_date = data.get('target_date')
         is_completed = int(data.get('is_completed', 0))
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO goal_milestones (goal_id, username, milestone_title, milestone_description, target_date, is_completed) VALUES (%s, %s, %s, %s, %s, %s)''',
             (goal_id, username, milestone_title, milestone_description, target_date, is_completed))
         conn.commit()
@@ -516,7 +516,7 @@ def list_goal_milestones(goal_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM goal_milestones WHERE goal_id=%s AND username=%s ORDER BY entry_timestamp DESC', (goal_id, username)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -537,7 +537,7 @@ def create_goal_checkin(goal_id):
         next_steps = data.get('next_steps')
         motivation_level = data.get('motivation_level')
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO goal_checkins (goal_id, username, progress_notes, obstacles, next_steps, motivation_level) VALUES (%s, %s, %s, %s, %s, %s)''',
             (goal_id, username, progress_notes, obstacles, next_steps, motivation_level))
         conn.commit()
@@ -554,7 +554,7 @@ def list_goal_checkins(goal_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM goal_checkins WHERE goal_id=%s AND username=%s ORDER BY checkin_timestamp DESC', (goal_id, username)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -567,7 +567,7 @@ def summarize_goals(username, limit=3):
     """Summarize recent goal activity for AI memory/context"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT goal_title, status, progress_percentage, entry_timestamp FROM goals WHERE username=%s ORDER BY entry_timestamp DESC LIMIT %s', (username, limit)).fetchall()
         conn.close()
         if not rows:
@@ -600,7 +600,7 @@ def create_value():
         related_goals = data.get('related_goals')
         is_active = int(data.get('is_active', 1))
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO values_clarification (username, value_name, value_description, importance_rating, current_alignment, life_area, related_goals, is_active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
             (username, value_name, value_description, importance_rating, current_alignment, life_area, related_goals, is_active))
         conn.commit()
@@ -618,7 +618,7 @@ def list_values():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM values_clarification WHERE username=%s ORDER BY entry_timestamp DESC', (username,)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -634,7 +634,7 @@ def get_value(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM values_clarification WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         conn.close()
         if not row:
@@ -653,7 +653,7 @@ def update_value(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM values_clarification WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -678,7 +678,7 @@ def delete_value(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM values_clarification WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -696,7 +696,7 @@ def summarize_values_clarification(username, limit=3):
     """Summarize recent values clarification activity for AI memory/context"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT value_name, importance_rating, current_alignment, entry_timestamp FROM values_clarification WHERE username=%s ORDER BY entry_timestamp DESC LIMIT %s', (username, limit)).fetchall()
         conn.close()
         if not rows:
@@ -725,7 +725,7 @@ def create_self_compassion():
         mood_before = data.get('mood_before')
         mood_after = data.get('mood_after')
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO self_compassion_journal (username, difficult_situation, self_critical_thoughts, common_humanity, kind_response, self_care_action, mood_before, mood_after) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
             (username, difficult_situation, self_critical_thoughts, common_humanity, kind_response, self_care_action, mood_before, mood_after))
         conn.commit()
@@ -743,7 +743,7 @@ def list_self_compassion():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM self_compassion_journal WHERE username=%s ORDER BY entry_timestamp DESC', (username,)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -759,7 +759,7 @@ def get_self_compassion(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM self_compassion_journal WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         conn.close()
         if not row:
@@ -778,7 +778,7 @@ def update_self_compassion(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM self_compassion_journal WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -803,7 +803,7 @@ def delete_self_compassion(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM self_compassion_journal WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -821,7 +821,7 @@ def summarize_self_compassion(username, limit=3):
     """Summarize recent self-compassion journal activity for AI memory/context"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT difficult_situation, kind_response, mood_before, mood_after, entry_timestamp FROM self_compassion_journal WHERE username=%s ORDER BY entry_timestamp DESC LIMIT %s', (username, limit)).fetchall()
         conn.close()
         if not rows:
@@ -854,7 +854,7 @@ def create_coping_card():
         is_favorite = int(data.get('is_favorite', 0))
         times_used = int(data.get('times_used', 0))
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO coping_cards (username, card_title, situation_trigger, unhelpful_thought, helpful_response, coping_strategies, is_favorite, times_used) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
             (username, card_title, situation_trigger, unhelpful_thought, helpful_response, coping_strategies, is_favorite, times_used))
         conn.commit()
@@ -872,7 +872,7 @@ def list_coping_cards():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM coping_cards WHERE username=%s ORDER BY entry_timestamp DESC', (username,)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -888,7 +888,7 @@ def get_coping_card(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM coping_cards WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         conn.close()
         if not row:
@@ -907,7 +907,7 @@ def update_coping_card(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM coping_cards WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -932,7 +932,7 @@ def delete_coping_card(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM coping_cards WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -950,7 +950,7 @@ def summarize_coping_cards(username, limit=3):
     """Summarize recent coping card activity for AI memory/context"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT card_title, helpful_response, times_used, entry_timestamp FROM coping_cards WHERE username=%s ORDER BY entry_timestamp DESC LIMIT %s', (username, limit)).fetchall()
         conn.close()
         if not rows:
@@ -983,7 +983,7 @@ def create_problem_solving():
         outcome = data.get('outcome')
         status = data.get('status', 'in_progress')
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO problem_solving (username, problem_description, problem_importance, brainstormed_solutions, chosen_solution, action_steps, outcome, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
             (username, problem_description, problem_importance, brainstormed_solutions, chosen_solution, action_steps, outcome, status))
         conn.commit()
@@ -1001,7 +1001,7 @@ def list_problem_solving():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM problem_solving WHERE username=%s ORDER BY entry_timestamp DESC', (username,)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -1017,7 +1017,7 @@ def get_problem_solving(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM problem_solving WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         conn.close()
         if not row:
@@ -1036,7 +1036,7 @@ def update_problem_solving(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM problem_solving WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -1061,7 +1061,7 @@ def delete_problem_solving(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM problem_solving WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -1079,7 +1079,7 @@ def summarize_problem_solving(username, limit=3):
     """Summarize recent problem-solving worksheet activity for AI memory/context"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT problem_description, chosen_solution, outcome, status, entry_timestamp FROM problem_solving WHERE username=%s ORDER BY entry_timestamp DESC LIMIT %s', (username, limit)).fetchall()
         conn.close()
         if not rows:
@@ -1110,7 +1110,7 @@ def create_exposure_hierarchy():
         hierarchy_rank = data.get('hierarchy_rank')
         status = data.get('status', 'not_started')
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO exposure_hierarchy (username, fear_situation, initial_suds, target_suds, hierarchy_rank, status) VALUES (%s, %s, %s, %s, %s, %s)''',
             (username, fear_situation, initial_suds, target_suds, hierarchy_rank, status))
         conn.commit()
@@ -1128,7 +1128,7 @@ def list_exposure_hierarchy():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM exposure_hierarchy WHERE username=%s ORDER BY hierarchy_rank ASC, entry_timestamp DESC', (username,)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -1144,7 +1144,7 @@ def get_exposure_hierarchy(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM exposure_hierarchy WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         conn.close()
         if not row:
@@ -1163,7 +1163,7 @@ def update_exposure_hierarchy(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM exposure_hierarchy WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -1188,7 +1188,7 @@ def delete_exposure_hierarchy(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM exposure_hierarchy WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -1217,7 +1217,7 @@ def create_exposure_attempt(exposure_id):
         coping_strategies_used = data.get('coping_strategies_used')
         notes = data.get('notes')
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO exposure_attempts (exposure_id, username, pre_suds, peak_suds, post_suds, duration_minutes, coping_strategies_used, notes) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
             (exposure_id, username, pre_suds, peak_suds, post_suds, duration_minutes, coping_strategies_used, notes))
         conn.commit()
@@ -1235,7 +1235,7 @@ def list_exposure_attempts(exposure_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM exposure_attempts WHERE exposure_id=%s AND username=%s ORDER BY attempt_timestamp DESC', (exposure_id, username)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -1248,7 +1248,7 @@ def summarize_exposure_hierarchy(username, limit=3):
     """Summarize recent exposure hierarchy activity for AI memory/context"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT fear_situation, status, initial_suds, target_suds, entry_timestamp FROM exposure_hierarchy WHERE username=%s ORDER BY entry_timestamp DESC LIMIT %s', (username, limit)).fetchall()
         conn.close()
         if not rows:
@@ -1282,7 +1282,7 @@ def create_core_belief():
         belief_strength_after = data.get('belief_strength_after')
         is_active = int(data.get('is_active', 1))
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO core_beliefs (username, old_belief, belief_origin, evidence_for, evidence_against, new_balanced_belief, belief_strength_before, belief_strength_after, is_active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)''',
             (username, old_belief, belief_origin, evidence_for, evidence_against, new_balanced_belief, belief_strength_before, belief_strength_after, is_active))
         conn.commit()
@@ -1300,7 +1300,7 @@ def list_core_beliefs():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM core_beliefs WHERE username=%s ORDER BY entry_timestamp DESC', (username,)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -1316,7 +1316,7 @@ def get_core_belief(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM core_beliefs WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         conn.close()
         if not row:
@@ -1335,7 +1335,7 @@ def update_core_belief(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM core_beliefs WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -1361,7 +1361,7 @@ def delete_core_belief(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM core_beliefs WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -1379,7 +1379,7 @@ def summarize_core_beliefs(username, limit=3):
     """Summarize recent core belief worksheet activity for AI memory/context"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT old_belief, new_balanced_belief, belief_strength_before, belief_strength_after, entry_timestamp FROM core_beliefs WHERE username=%s ORDER BY entry_timestamp DESC LIMIT %s', (username, limit)).fetchall()
         conn.close()
         if not rows:
@@ -1416,7 +1416,7 @@ def create_sleep_diary():
         morning_mood = data.get('morning_mood')
         notes = data.get('notes')
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO sleep_diary (username, sleep_date, bedtime, wake_time, time_to_fall_asleep, times_woken, total_sleep_hours, sleep_quality, dreams_nightmares, factors_affecting, morning_mood, notes) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
             (username, sleep_date, bedtime, wake_time, time_to_fall_asleep, times_woken, total_sleep_hours, sleep_quality, dreams_nightmares, factors_affecting, morning_mood, notes))
         conn.commit()
@@ -1434,7 +1434,7 @@ def list_sleep_diary():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM sleep_diary WHERE username=%s ORDER BY entry_timestamp DESC', (username,)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -1450,7 +1450,7 @@ def get_sleep_diary(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM sleep_diary WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         conn.close()
         if not row:
@@ -1469,7 +1469,7 @@ def update_sleep_diary(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM sleep_diary WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -1495,7 +1495,7 @@ def delete_sleep_diary(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM sleep_diary WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -1513,7 +1513,7 @@ def summarize_sleep_diary(username, limit=3):
     """Summarize recent sleep diary activity for AI memory/context"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT sleep_date, total_sleep_hours, sleep_quality, morning_mood, entry_timestamp FROM sleep_diary WHERE username=%s ORDER BY entry_timestamp DESC LIMIT %s', (username, limit)).fetchall()
         conn.close()
         if not rows:
@@ -1544,7 +1544,7 @@ def create_relaxation_technique():
         body_scan_areas = data.get('body_scan_areas')
         notes = data.get('notes')
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO relaxation_techniques (username, technique_type, duration_minutes, effectiveness_rating, body_scan_areas, notes) VALUES (%s, %s, %s, %s, %s, %s)''',
             (username, technique_type, duration_minutes, effectiveness_rating, body_scan_areas, notes))
         conn.commit()
@@ -1562,7 +1562,7 @@ def list_relaxation_techniques():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM relaxation_techniques WHERE username=%s ORDER BY entry_timestamp DESC', (username,)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -1578,7 +1578,7 @@ def get_relaxation_technique(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM relaxation_techniques WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         conn.close()
         if not row:
@@ -1597,7 +1597,7 @@ def update_relaxation_technique(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM relaxation_techniques WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -1623,7 +1623,7 @@ def delete_relaxation_technique(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM relaxation_techniques WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -1641,7 +1641,7 @@ def summarize_relaxation_techniques(username, limit=3):
     """Summarize recent relaxation technique activity for AI memory/context"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT technique_type, duration_minutes, effectiveness_rating, entry_timestamp FROM relaxation_techniques WHERE username=%s ORDER BY entry_timestamp DESC LIMIT %s', (username, limit)).fetchall()
         conn.close()
         if not rows:
@@ -2058,6 +2058,41 @@ def get_db_connection(timeout=30.0):
         print(f"Failed to connect to PostgreSQL database: {e}")
         raise
 
+
+class PostgreSQLCursorWrapper:
+    """Wrapper to make psycopg2 cursor API compatible with sqlite3 chaining"""
+    def __init__(self, cursor):
+        self.cursor = cursor
+    
+    def execute(self, query, params=()):
+        """Execute and return self for method chaining"""
+        self.cursor.execute(query, params)
+        return self
+    
+    def fetchone(self):
+        """Fetch one result"""
+        return self.cursor.fetchone()
+    
+    def fetchall(self):
+        """Fetch all results"""
+        return self.cursor.fetchall()
+    
+    def __getattr__(self, name):
+        """Delegate all other methods to the wrapped cursor"""
+        return getattr(self.cursor, name)
+
+
+def get_wrapped_cursor(conn):
+    """Get a cursor with method chaining support (psycopg2 compatible)"""
+    cursor = conn.cursor()
+    try:
+        # Wrap psycopg2 cursors to support chaining
+        if 'psycopg2' in str(type(cursor)):
+            return PostgreSQLCursorWrapper(cursor)
+    except:
+        pass
+    return cursor
+
 # Load secrets
 secrets_manager = SecretsManager(debug=DEBUG)
 # Support both GROQ_API_KEY and GROQ_API variable names for compatibility
@@ -2366,7 +2401,7 @@ def get_authenticated_username():
             
             # Verify user still exists in database (prevents stale sessions)
             conn = get_db_connection()
-            cur = conn.cursor()
+            cur = get_wrapped_cursor(conn)
             result = cur.execute(
                 "SELECT role FROM users WHERE username=? AND role=?",
                 (username, role)
@@ -2412,7 +2447,7 @@ def create_breathing_exercise():
         notes = data.get('notes')
         completed = int(data.get('completed', 1))
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute('''INSERT INTO breathing_exercises (username, exercise_type, duration_seconds, pre_anxiety_level, post_anxiety_level, notes, completed) VALUES (%s, %s, %s, %s, %s, %s, %s)''',
             (username, exercise_type, duration_seconds, pre_anxiety_level, post_anxiety_level, notes, completed))
         conn.commit()
@@ -2430,7 +2465,7 @@ def list_breathing_exercises():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT * FROM breathing_exercises WHERE username=%s ORDER BY entry_timestamp DESC', (username,)).fetchall()
         conn.close()
         result = [dict(zip([c[0] for c in cur.description], row)) for row in rows]
@@ -2446,7 +2481,7 @@ def get_breathing_exercise(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM breathing_exercises WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         conn.close()
         if not row:
@@ -2465,7 +2500,7 @@ def update_breathing_exercise(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM breathing_exercises WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -2491,7 +2526,7 @@ def delete_breathing_exercise(entry_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         row = cur.execute('SELECT * FROM breathing_exercises WHERE id=%s AND username=%s', (entry_id, username)).fetchone()
         if not row:
             conn.close()
@@ -2509,7 +2544,7 @@ def summarize_breathing_exercises(username, limit=3):
     """Summarize recent breathing exercise activity for AI memory/context"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         rows = cur.execute('SELECT exercise_type, duration_seconds, pre_anxiety_level, post_anxiety_level, entry_timestamp FROM breathing_exercises WHERE username=%s ORDER BY entry_timestamp DESC LIMIT %s', (username, limit)).fetchall()
         conn.close()
         if not rows:
@@ -2532,7 +2567,7 @@ def init_pet_db():
     """Initialize pet game database with required table"""
     try:
         conn = get_pet_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS pet (
                 id INTEGER PRIMARY KEY,
@@ -2577,7 +2612,7 @@ def debug_analytics(clinician):
             return jsonify({'error': 'Authentication required'}), 401
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Verify user is a developer
         user_role = cur.execute(
@@ -2687,7 +2722,7 @@ def admin_wipe_database():
             return jsonify({'error': 'Unauthorized - invalid admin key'}), 403
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         print("🗑️  ADMIN: Wiping all user data from database...")
         
@@ -2755,7 +2790,7 @@ def send_verification():
         
         # Store code in database with 10 minute expiration
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Clear old codes for this identifier
         cur.execute("DELETE FROM verification_codes WHERE identifier=%s AND verified=0", (identifier,))
@@ -2798,7 +2833,7 @@ def verify_code():
             return jsonify({'error': 'Identifier and code required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Find valid code
         result = cur.execute(
@@ -2854,7 +2889,7 @@ def register():
                 return jsonify({'error': 'Please verify your email or phone number first'}), 400
             
             conn = get_db_connection()
-            cur = conn.cursor()
+            cur = get_wrapped_cursor(conn)
             
             # Check if verification exists and is valid
             verified = cur.execute(
@@ -2897,7 +2932,7 @@ def register():
         if clinician_id:
             # Verify clinician exists if provided
             conn = get_db_connection()
-            cur = conn.cursor()
+            cur = get_wrapped_cursor(conn)
             clinician = cur.execute(
                 "SELECT username FROM users WHERE username=? AND role='clinician'",
                 (clinician_id,)
@@ -2910,7 +2945,7 @@ def register():
             clinician = None
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Check if username exists
         if cur.execute("SELECT username FROM users WHERE username=%s", (username,)).fetchone():
@@ -2997,7 +3032,7 @@ def login():
             return jsonify({'error': 'PIN required for 2FA authentication'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         user = cur.execute("SELECT username, password, role, pin, clinician_id FROM users WHERE username=%s", (username,)).fetchone()
         
         if not user:
@@ -3110,7 +3145,7 @@ def verify_clinician_patient_relationship(clinician_username, patient_username):
     """
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get clinician's ID
         clinician = cur.execute(
@@ -3152,7 +3187,7 @@ def validate_session():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Check if user still exists and get their current role
         user = cur.execute(
@@ -3195,7 +3230,7 @@ def forgot_password():
             return jsonify({'error': 'Username and email required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Verify user exists and email matches
         user = cur.execute(
@@ -3330,7 +3365,7 @@ def confirm_password_reset():
             return jsonify({'error': error_msg}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Verify token and expiry
         user = cur.execute(
@@ -3515,7 +3550,7 @@ def clinician_register():
         hashed_pin = hash_pin(pin)
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Check if username exists
         if cur.execute("SELECT username FROM users WHERE username=%s", (username,)).fetchone():
@@ -3563,8 +3598,8 @@ def developer_register():
 
         # Check if developer already exists
         conn = get_db_connection()
-        cur = conn.cursor()
-        existing = cur.execute("SELECT username FROM users WHERE role='developer'").fetchone()
+        cur = get_wrapped_cursor(conn)
+        cur.execute("SELECT username FROM users WHERE role='developer'"); existing = cur.fetchone()
         if existing:
             conn.close()
             return jsonify({'error': 'Developer account already exists'}), 409
@@ -3601,7 +3636,7 @@ def accept_disclaimer():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute("UPDATE users SET disclaimer_accepted=1 WHERE username=%s", (username,))
         conn.commit()
         conn.close()
@@ -3622,7 +3657,7 @@ def execute_terminal():
 
         # Verify developer role
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
 
         if not role or role[0] != 'developer':
@@ -3718,7 +3753,7 @@ def developer_ai_chat():
 
         # Verify developer role
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
 
         if not role or role[0] != 'developer':
@@ -3805,7 +3840,7 @@ def send_dev_message():
 
         # Check sender exists and get role
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         sender_user = cur.execute("SELECT role FROM users WHERE username=%s", (from_username,)).fetchone()
 
         if not sender_user:
@@ -3818,7 +3853,7 @@ def send_dev_message():
         if sender_role == 'developer':
             if to_username == 'ALL':
                 # Message all non-developer users
-                users = cur.execute("SELECT username FROM users WHERE role != 'developer'").fetchall()
+                cur.execute("SELECT username FROM users WHERE role != 'developer'"); users = cur.fetchall()
                 for user in users:
                     recipient_username = user[0]
                     # Insert into messages table (new Phase 3 system)
@@ -3909,7 +3944,7 @@ def list_dev_messages():
         username = request.args.get('username')
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Get role
         role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
@@ -3962,7 +3997,7 @@ def reply_dev_message():
         message = data.get('message')
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Get original message to determine recipient
         original = cur.execute(
@@ -4004,7 +4039,7 @@ def developer_stats():
 
         # Verify developer role
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
 
         if not role or role[0] != 'developer':
@@ -4042,7 +4077,7 @@ def list_all_users():
 
         # Verify developer role
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
 
         if not role or role[0] != 'developer':
@@ -4063,7 +4098,7 @@ def list_all_users():
 
         query += " ORDER BY last_login DESC"
 
-        users = cur.execute(query, params).fetchall()
+        cur.execute(query, params); users = cur.fetchall()
         conn.close()
 
         return jsonify({
@@ -4090,7 +4125,7 @@ def delete_user():
 
         # Verify developer role
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         role = cur.execute("SELECT role FROM users WHERE username=%s", (dev_username,)).fetchone()
 
         if not role or role[0] != 'developer':
@@ -4152,7 +4187,7 @@ def get_clinicians():
         search = request.args.get('search', '')  # Search by username or full_name
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         query = "SELECT username, full_name, country, area FROM users WHERE role='clinician'"
         params = []
@@ -4172,7 +4207,7 @@ def get_clinicians():
         
         query += " ORDER BY username"
         
-        clinicians = cur.execute(query, params).fetchall()
+        cur.execute(query, params); clinicians = cur.fetchall()
         conn.close()
         
         return jsonify({
@@ -4199,7 +4234,7 @@ def get_notifications():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         notifications = cur.execute(
             "SELECT id, message, notification_type, read, created_at FROM notifications WHERE recipient_username=? ORDER BY created_at DESC LIMIT 20",
             (username,)
@@ -4225,7 +4260,7 @@ def mark_notification_read(notification_id):
     """Mark notification as read"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute("UPDATE notifications SET read=1 WHERE id=%s", (notification_id,))
         conn.commit()
         conn.close()
@@ -4239,7 +4274,7 @@ def delete_notification(notification_id):
     """Delete a single notification"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute("DELETE FROM notifications WHERE id=%s", (notification_id,))
         conn.commit()
         conn.close()
@@ -4259,7 +4294,7 @@ def clear_read_notifications():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute("DELETE FROM notifications WHERE recipient_username=%s AND read=1", (username,))
         deleted_count = cur.rowcount
         conn.commit()
@@ -4279,7 +4314,7 @@ def get_pending_approvals():
             return jsonify({'error': 'Clinician username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         approvals = cur.execute(
             "SELECT id, patient_username, request_date FROM patient_approvals WHERE clinician_username=? AND status='pending' ORDER BY request_date DESC",
             (clinician,)
@@ -4303,7 +4338,7 @@ def approve_patient(approval_id):
     """Approve patient request"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get approval details
         approval = cur.execute(
@@ -4359,7 +4394,7 @@ def reject_patient(approval_id):
     """Reject patient request"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get approval details
         approval = cur.execute(
@@ -4402,7 +4437,7 @@ def update_ai_memory(username):
     """Update AI memory with recent user activity summary including clinician notes"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get recent activities
         recent_moods = cur.execute(
@@ -4520,7 +4555,7 @@ def send_notification(username, message, notification_type='info'):
     """Helper function to send notification to user"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             "INSERT INTO notifications (recipient_username, message, notification_type) VALUES (?,?,?)",
             (username, message, notification_type)
@@ -4548,8 +4583,8 @@ def reward_pet(action, activity_type=None):
     try:
         ensure_pet_table()
         conn = get_pet_db_connection()
-        cur = conn.cursor()
-        pet = cur.execute("SELECT * FROM pet LIMIT 1").fetchone()
+        cur = get_wrapped_cursor(conn)
+        cur.execute("SELECT * FROM pet LIMIT 1"); pet = cur.fetchone()
         
         if not pet:
             conn.close()
@@ -4638,7 +4673,7 @@ def therapy_chat():
         
         # Get or create active chat session
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         try:
             active_session = cur.execute(
@@ -4706,7 +4741,7 @@ def therapy_chat():
         
         # Save to chat history with session tracking
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get or create active session
         active_session = cur.execute(
@@ -4744,7 +4779,7 @@ def therapy_chat():
             if training_manager.check_user_consent(username):
                 # Get user's mood context
                 conn = get_db_connection()
-                cur = conn.cursor()
+                cur = get_wrapped_cursor(conn)
                 recent_mood = cur.execute(
                     "SELECT mood_val FROM mood_logs WHERE username=? ORDER BY entrestamp DESC LIMIT 1",
                     (username,)
@@ -4771,7 +4806,7 @@ def therapy_chat():
                     if config['enable_auto_training'] and IS_RAILWAY:
                         # Check number of new messages since last training
                         conn = get_pet_db_connection()  # Use pet connection for now
-                        cur = conn.cursor()
+                        cur = get_wrapped_cursor(conn)
                         
                         # Get last trained ID from metrics file
                         import json
@@ -4841,7 +4876,7 @@ def get_chat_history():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         if chat_session_id:
             # Get history for specific chat session
@@ -4900,7 +4935,7 @@ def export_chat_history():
         to_datetime = datetime.strptime(to_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         if chat_session_id:
             # Export specific session
@@ -4983,7 +5018,7 @@ def get_chat_sessions():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Create default session if none exist
         existing = cur.execute(
@@ -5032,7 +5067,7 @@ def create_chat_session():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         try:
             # Deactivate all other sessions
@@ -5074,7 +5109,7 @@ def update_chat_session(session_id):
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Verify session belongs to user
         owner = cur.execute(
@@ -5115,7 +5150,7 @@ def delete_chat_session(session_id):
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Verify session belongs to user
         owner = cur.execute(
@@ -5182,7 +5217,7 @@ def get_therapy_greeting():
         
         # Get user context
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         memory = cur.execute(
             "SELECT memory_summary FROM ai_memory WHERE username=?",
@@ -5229,7 +5264,7 @@ def initialize_chat():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Check if chat already initialized (has any chat history)
         existing_chat = cur.execute(
@@ -5363,7 +5398,7 @@ def log_mood():
             notes = re.sub(r'<[^>]+>', '', notes)  # Remove all HTML tags
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Check if user already logged mood today
         existing_today = cur.execute(
@@ -5426,7 +5461,7 @@ def mood_history():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         logs = cur.execute(
             """SELECT id, mood_val, sleep_val, meds, notes, entrestamp, 
                water_pints, exercise_mins, outside_mins 
@@ -5473,7 +5508,7 @@ def log_gratitude():
             return jsonify({'error': f'Entry too long. Maximum {MAX_ENTRY_LENGTH} characters allowed.'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute("INSERT INTO gratitude_logs (username, entry) VALUES (%s,%s)", (username, entry))
         conn.commit()
         log_id = cur.lastrowid
@@ -5515,7 +5550,7 @@ def get_breathing_exercises():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         exercises = cur.execute(
             """SELECT id, exercise_type, duration_seconds, pre_anxiety_level,
                       post_anxiety_level, notes, completed, entry_timestamp
@@ -5557,7 +5592,7 @@ def log_breathing_exercise():
             return jsonify({'error': 'Anxiety level must be between 1-10'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             """INSERT INTO breathing_exercises
                (username, exercise_type, duration_seconds, pre_anxiety_level, post_anxiety_level, notes)
@@ -5590,7 +5625,7 @@ def get_relaxation_sessions():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         sessions = cur.execute(
             """SELECT id, technique_type, duration_minutes, effectiveness_rating,
                       body_scan_areas, notes, entry_timestamp
@@ -5629,7 +5664,7 @@ def log_relaxation_session():
             return jsonify({'error': 'Effectiveness rating must be between 1-10'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             """INSERT INTO relaxation_techniques
                (username, technique_type, duration_minutes, effectiveness_rating, body_scan_areas, notes)
@@ -5659,7 +5694,7 @@ def get_sleep_diary_list():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         entries = cur.execute(
             """SELECT id, sleep_date, bedtime, wake_time, time_to_fall_asleep,
                       times_woken, total_sleep_hours, sleep_quality, dreams_nightmares,
@@ -5706,7 +5741,7 @@ def log_sleep_diary():
             return jsonify({'error': 'Sleep quality must be between 1-10'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             """INSERT INTO sleep_diary
                (username, sleep_date, bedtime, wake_time, time_to_fall_asleep, times_woken,
@@ -5739,7 +5774,7 @@ def get_core_beliefs():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         query = """SELECT id, old_belief, belief_origin, evidence_for, evidence_against,
                           new_balanced_belief, belief_strength_before, belief_strength_after,
@@ -5785,7 +5820,7 @@ def create_core_belief_alt():
             return jsonify({'error': 'Belief strength must be between 0-100'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             """INSERT INTO core_beliefs
                (username, old_belief, belief_origin, evidence_for, evidence_against,
@@ -5818,7 +5853,7 @@ def get_exposure_hierarchy_list():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         exposures = cur.execute(
             """SELECT id, fear_situation, initial_suds, target_suds, hierarchy_rank, status, entry_timestamp
@@ -5872,7 +5907,7 @@ def create_exposure_item():
             return jsonify({'error': 'SUDS must be between 0-100'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             """INSERT INTO exposure_hierarchy
                (username, fear_situation, initial_suds, target_suds, hierarchy_rank)
@@ -5907,7 +5942,7 @@ def log_exposure_attempt(exposure_id):
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Verify exposure exists and belongs to user
         exposure = cur.execute(
@@ -5956,7 +5991,7 @@ def get_problem_solving_list():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         query = """SELECT id, problem_description, problem_importance, brainstormed_solutions,
                           chosen_solution, action_steps, outcome, status, entry_timestamp, completed_timestamp
@@ -5967,7 +6002,7 @@ def get_problem_solving_list():
             params.append(status)
         query += " ORDER BY entry_timestamp DESC"
 
-        problems = cur.execute(query, params).fetchall()
+        cur.execute(query, params); problems = cur.fetchall()
         conn.close()
 
         return jsonify({
@@ -5993,7 +6028,7 @@ def get_coping_cards():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         query = """SELECT id, card_title, situation_trigger, unhelpful_thought,
                           helpful_response, coping_strategies, is_favorite, times_used,
@@ -6033,7 +6068,7 @@ def create_coping_card_alt():
             return jsonify({'error': 'Username and card_title required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             """INSERT INTO coping_cards
                (username, card_title, situation_trigger, unhelpful_thought, helpful_response, coping_strategies)
@@ -6065,7 +6100,7 @@ def use_coping_card(card_id):
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Verify ownership and update
         result = cur.execute(
@@ -6097,7 +6132,7 @@ def update_coping_card_alt(card_id):
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         updates = []
         values = []
@@ -6129,7 +6164,7 @@ def delete_coping_card_alt(card_id):
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute("DELETE FROM coping_cards WHERE id=%s AND username=%s", (card_id, username))
 
         if cur.rowcount == 0:
@@ -6154,7 +6189,7 @@ def get_self_compassion_entries():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         entries = cur.execute(
             """SELECT id, difficult_situation, self_critical_thoughts, common_humanity,
                       kind_response, self_care_action, mood_before, mood_after, entry_timestamp
@@ -6192,7 +6227,7 @@ def log_self_compassion():
             return jsonify({'error': 'Username and difficult_situation required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             """INSERT INTO self_compassion_journal
                (username, difficult_situation, self_critical_thoughts, common_humanity,
@@ -6225,7 +6260,7 @@ def get_values():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         query = """SELECT id, value_name, value_description, importance_rating,
                           current_alignment, life_area, related_goals, is_active,
@@ -6262,7 +6297,7 @@ def get_goals():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         query = """SELECT id, goal_title, goal_description, goal_type, target_date,
                           related_value_id, status, progress_percentage, entry_timestamp, completed_timestamp
@@ -6273,7 +6308,7 @@ def get_goals():
             params.append(status)
         query += " ORDER BY entry_timestamp DESC"
 
-        goals = cur.execute(query, params).fetchall()
+        cur.execute(query, params); goals = cur.fetchall()
 
         result = []
         for goal in goals:
@@ -6338,7 +6373,7 @@ def add_goal_milestone(goal_id):
             return jsonify({'error': 'Username and milestone_title required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Verify goal ownership
         goal = cur.execute(
@@ -6374,7 +6409,7 @@ def update_milestone(goal_id, milestone_id):
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         updates = []
         values = []
@@ -6436,7 +6471,7 @@ def add_goal_checkin(goal_id):
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Verify goal ownership
         goal = cur.execute(
@@ -6476,7 +6511,7 @@ def get_cbt_summary():
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         summary = {}
 
@@ -6616,7 +6651,7 @@ def verify_pet_user(username):
     if not username:
         return False, "Username required"
     conn = get_db_connection()
-    cur = conn.cursor()
+    cur = get_wrapped_cursor(conn)
     user = cur.execute("SELECT username FROM users WHERE username=%s", (username,)).fetchone()
     conn.close()
     if not user:
@@ -6633,7 +6668,7 @@ def pet_status():
         if not valid:
             return jsonify({'exists': False, 'error': error}), 200
         conn = get_pet_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         ensure_pet_table()
         
         pet = cur.execute("SELECT * FROM pet WHERE username = %s", (username,)).fetchone()
@@ -6663,7 +6698,7 @@ def trigger_background_training():
         
         # Verify admin/clinician (you can adjust this check)
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         user = cur.execute(
             "SELECT role FROM users WHERE username=?",
             (username,)
@@ -6713,7 +6748,7 @@ def pet_create():
 
         ensure_pet_table()
         conn = get_pet_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Delete only THIS user's pet, not all pets
         cur.execute("DELETE FROM pet WHERE username = %s", (username,))
@@ -6743,7 +6778,7 @@ def pet_feed():
             return jsonify({'error': error}), 401
 
         conn = get_pet_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         pet = cur.execute("SELECT * FROM pet WHERE username = %s", (username,)).fetchone()
         
         if not pet:
@@ -6785,7 +6820,7 @@ def pet_reward():
             return jsonify({'success': False, 'message': error}), 200
 
         conn = get_pet_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         pet_raw = cur.execute("SELECT * FROM pet WHERE username = %s", (username,)).fetchone()
         pet = normalize_pet_row(pet_raw)
         
@@ -6897,7 +6932,7 @@ def pet_buy():
         item = items[item_id]
         
         conn = get_pet_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         pet = cur.execute("SELECT * FROM pet WHERE username = %s", (username,)).fetchone()
         
         if not pet:
@@ -6960,7 +6995,7 @@ def pet_declutter():
             return jsonify({'error': 'Please provide at least one worry'}), 400
 
         conn = get_pet_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         pet_raw = cur.execute("SELECT * FROM pet WHERE username = %s", (username,)).fetchone()
         pet = normalize_pet_row(pet_raw)
         
@@ -7003,7 +7038,7 @@ def pet_adventure():
             return jsonify({'error': error}), 401
 
         conn = get_pet_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         pet_raw = cur.execute("SELECT * FROM pet WHERE username = %s", (username,)).fetchone()
         pet = normalize_pet_row(pet_raw)
         
@@ -7051,7 +7086,7 @@ def pet_check_return():
             return jsonify({'error': error}), 401
 
         conn = get_pet_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         pet_raw = cur.execute("SELECT * FROM pet WHERE username = %s", (username,)).fetchone()
         pet = normalize_pet_row(pet_raw)
         
@@ -7106,7 +7141,7 @@ def pet_apply_decay():
             return jsonify({'error': error}), 401
 
         conn = get_pet_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         pet_raw = cur.execute("SELECT * FROM pet WHERE username = %s", (username,)).fetchone()
         pet = normalize_pet_row(pet_raw)
         
@@ -7159,7 +7194,7 @@ def cbt_thought_record():
                 return jsonify({'error': f'{field_name.capitalize()} too long. Maximum {MAX_FIELD_LENGTH} characters allowed.'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             "INSERT INTO cbt_records (username, situation, thought, evidence) VALUES (?,?,?,?)",
             (username, situation, thought, evidence or '')
@@ -7187,7 +7222,7 @@ def get_cbt_records():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         records = cur.execute(
             "SELECT id, situation, thought, evidence, entry_timestamp FROM cbt_records WHERE username=? ORDER BY entry_timestamp DESC LIMIT 20",
             (username,)
@@ -7217,7 +7252,7 @@ def submit_phq9():
         
         # Check if user already submitted PHQ-9 in last 14 days
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         last_assessment = cur.execute(
             """SELECT entry_timestamp FROM clinical_scales 
                WHERE username=? AND scale_name='PHQ-9' 
@@ -7297,7 +7332,7 @@ def submit_gad7():
         
         # Check if user already submitted GAD-7 in last 14 days
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         last_assessment = cur.execute(
             """SELECT entry_timestamp FROM clinical_scales 
                WHERE username=? AND scale_name='GAD-7' 
@@ -7378,7 +7413,7 @@ def get_community_posts():
         ]
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Build query with optional category filter - pinned posts first, then by timestamp
         if category and category in VALID_CATEGORIES:
@@ -7394,9 +7429,9 @@ def get_community_posts():
                 )
                 conn.commit()
         else:
-            posts = cur.execute(
+            cur.execute(
                 "SELECT id, username, message, likes, entry_timestamp, category, is_pinned FROM community_posts ORDER BY is_pinned DESC, entry_timestamp DESC LIMIT 100"
-            ).fetchall()
+            ); posts = cur.fetchall()
 
         post_list = []
         for p in posts:
@@ -7482,7 +7517,7 @@ def get_community_channels():
         }
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         channels = []
         for cat in VALID_CATEGORIES:
@@ -7542,7 +7577,7 @@ def pin_community_post(post_id):
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Check if user is a clinician
         user = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
@@ -7593,7 +7628,7 @@ def create_community_post():
             return jsonify({'error': 'Username and message required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             "INSERT INTO community_posts (username, message, category) VALUES (?,?,?)",
             (username, message, category)
@@ -7626,7 +7661,7 @@ def react_to_post(post_id):
             return jsonify({'error': 'Invalid reaction type'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Check if user already has this reaction on this post
         existing_reaction = cur.execute(
@@ -7686,7 +7721,7 @@ def like_community_post(post_id):
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Check if already liked
         existing_like = cur.execute(
@@ -7723,7 +7758,7 @@ def delete_community_post(post_id):
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Verify post belongs to user
         post = cur.execute(
@@ -7775,7 +7810,7 @@ def create_reply(post_id):
         sanitized_message = moderation_result['filtered_text']
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute(
             "INSERT INTO community_replies (post_id, username, message) VALUES (?,?,?)",
             (post_id, username, sanitized_message)
@@ -7809,7 +7844,7 @@ def delete_reply(reply_id):
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Verify reply belongs to user
         reply = cur.execute(
@@ -7848,7 +7883,7 @@ def report_community_post(post_id):
             return jsonify({'error': 'Username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Check if post exists
         post = cur.execute(
@@ -7902,7 +7937,7 @@ def get_replies(post_id):
     """Get replies for a community post"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         replies = cur.execute(
             "SELECT id, username, message, timestamp FROM community_replies WHERE post_id=? ORDER BY timestamp ASC",
             (post_id,)
@@ -7930,7 +7965,7 @@ def get_safety_plan():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         plan = cur.execute(
             "SELECT triggers, coping_strategies, support_contacts, professional_contacts FROM safety_plans WHERE username=?",
             (username,)
@@ -7964,7 +7999,7 @@ def save_safety_plan():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         # Check if plan exists
         existing = cur.execute("SELECT username FROM safety_plans WHERE username=%s", (username,)).fetchone()
         if existing:
@@ -8000,7 +8035,7 @@ def export_csv():
         import csv
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         output = io.StringIO()
         writer = csv.writer(output)
@@ -8073,7 +8108,7 @@ def export_pdf():
         from datetime import datetime
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Create PDF in memory
         buffer = io.BytesIO()
@@ -8180,7 +8215,7 @@ def get_insights():
             return jsonify({'error': 'Username and prompt required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # SECURITY: Verify authorization
         if role == 'clinician':
@@ -8384,7 +8419,7 @@ def get_patients():
             return jsonify({'error': 'Authentication required'}), 401
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # SECURITY: Verify the clinician exists and has the clinician role
         clinician_check = cur.execute(
@@ -8474,7 +8509,7 @@ def get_patient_detail(username):
             return jsonify({'error': 'Authentication required'}), 401
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Verify user is a clinician
         clinician = cur.execute(
@@ -8607,7 +8642,7 @@ def generate_ai_summary():
 
         # Fetch patient data
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # SECURITY: Verify clinician has approved access to this patient
         approval = cur.execute(
@@ -8872,7 +8907,7 @@ def create_clinician_note():
             return jsonify({'error': note_error}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Phase 1B: Verify clinician-patient relationship via FK
         is_valid, _ = verify_clinician_patient_relationship(clinician_username, patient_username)
@@ -8907,7 +8942,7 @@ def get_clinician_notes(patient_username):
             return jsonify({'error': 'Authentication required'}), 401
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Phase 1B: Verify clinician-patient relationship via FK
         is_valid, _ = verify_clinician_patient_relationship(clinician_username, patient_username)
@@ -8942,7 +8977,7 @@ def delete_clinician_note(note_id):
             return jsonify({'error': 'Authentication required'}), 401
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Verify note belongs to clinician
         note = cur.execute(
@@ -8980,7 +9015,7 @@ def export_patient_summary():
             return jsonify({'error': 'Clinician and patient usernames required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # SECURITY: Verify clinician has approved access to this patient
         approval = cur.execute(
@@ -9173,7 +9208,7 @@ def reset_all_users():
 
         # Verify admin credentials and role
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         admin = cur.execute(
             "SELECT password, role FROM users WHERE username=?",
@@ -9256,12 +9291,12 @@ def check_mood_reminder():
             return jsonify({'message': 'Not 8pm yet, reminders not sent'}), 200
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get all active patients
-        users = cur.execute(
+        cur.execute(
             "SELECT username FROM users WHERE role='user'"
-        ).fetchall()
+        ); users = cur.fetchall()
         
         reminders_sent = 0
         
@@ -9305,7 +9340,7 @@ def check_mood_today():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         logged_today = cur.execute(
             """SELECT id, entrestamp FROM mood_logs 
@@ -9461,7 +9496,7 @@ def manage_appointments():
                 return jsonify({'error': 'Clinician or patient username required'}), 400
             
             conn = get_db_connection()
-            cur = conn.cursor()
+            cur = get_wrapped_cursor(conn)
             
             if clinician_username:
                 # Get appointments for clinician (show last 30 days and future)
@@ -9525,7 +9560,7 @@ def manage_appointments():
                 return jsonify({'error': 'Missing required fields'}), 400
             
             conn = get_db_connection()
-            cur = conn.cursor()
+            cur = get_wrapped_cursor(conn)
             cur.execute("""
                 INSERT INTO appointments (clinician_username, patient_username, appointment_date, notes, patient_response)
                 VALUES (?, ?, ?, ?, ?)
@@ -9560,7 +9595,7 @@ def cancel_appointment(appointment_id):
     """Cancel an appointment"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get appointment details before deleting
         apt = cur.execute(
@@ -9610,7 +9645,7 @@ def respond_to_appointment(appointment_id):
             return jsonify({'error': 'Response must be accepted or declined'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Verify appointment belongs to patient
         apt = cur.execute(
@@ -9666,7 +9701,7 @@ def confirm_appointment_attendance(appointment_id):
             return jsonify({'error': "status must be one of: 'attended', 'no_show', 'missed'"}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Verify appointment and clinician ownership
         apt = cur.execute(
@@ -9721,7 +9756,7 @@ def patient_profile():
             return jsonify({'error': 'Username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         if request.method == 'GET':
             # Get profile
@@ -9812,7 +9847,7 @@ def get_analytics_dashboard():
             return jsonify({'error': 'Clinician username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get clinician's APPROVED patients from patient_approvals table
         patients = cur.execute("""
@@ -9961,7 +9996,7 @@ def get_active_patients():
             return jsonify({'error': 'Clinician username required'}), 400
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get clinician's approved patients
         patients = cur.execute("""
@@ -10042,7 +10077,7 @@ def get_patient_analytics(username):
             return jsonify({'error': 'Authentication required'}), 401
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Verify user is a clinician
         clinician = cur.execute(
@@ -10180,7 +10215,7 @@ def generate_clinical_report():
             return jsonify({'error': 'Missing required fields'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # SECURITY: Verify clinician has approved access to this patient
         approval = cur.execute(
@@ -10356,7 +10391,7 @@ def search_patients():
             return jsonify({'error': 'Clinician username required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # SECURITY: Base query uses patient_approvals table to ensure proper authorization
         # Only return patients that the clinician has APPROVED access to
@@ -10385,7 +10420,7 @@ def search_patients():
 
         query += " ORDER BY alert_count DESC, last_active DESC"
 
-        patients = cur.execute(query, params).fetchall()
+        cur.execute(query, params); patients = cur.fetchall()
         conn.close()
         
         results = []
@@ -10423,7 +10458,7 @@ def get_home_data():
             return jsonify({'error': 'Authentication required'}), 401
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Get last login
         user = cur.execute("SELECT last_login FROM users WHERE username=%s", (username,)).fetchone()
@@ -10490,7 +10525,7 @@ def submit_feedback():
             return jsonify({'error': 'Message too long (max 5000 characters)'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Get user role
         user = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
@@ -10506,7 +10541,7 @@ def submit_feedback():
 
         # Send notification to all developers
         try:
-            developers = cur.execute("SELECT username FROM users WHERE role='developer'").fetchall()
+            cur.execute("SELECT username FROM users WHERE role='developer'"); developers = cur.fetchall()
             emoji = {'bug': '🐛', 'feature': '⭐', 'improvement': '📈', 'other': '💬'}.get(category, '📝')
             message_preview = message[:50] + '...' if len(message) > 50 else message
             
@@ -10538,7 +10573,7 @@ def get_user_feedback():
             return jsonify({'error': 'Authentication required'}), 401
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         feedback = cur.execute(
             "SELECT id, category, message, status, created_at FROM feedback WHERE username=? ORDER BY created_at DESC LIMIT 50",
@@ -10575,7 +10610,7 @@ def complete_daily_task():
             return jsonify({'error': f'Invalid task type. Must be one of: {", ".join(valid_tasks)}'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         today = datetime.now().strftime('%Y-%m-%d')
 
         # Check if already completed today
@@ -10688,7 +10723,7 @@ def get_daily_streak():
             return jsonify({'error': 'Authentication required'}), 401
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         streak = cur.execute(
             "SELECT current_streak, longest_streak, last_complete_date, total_bonus_coins, total_bonus_xp FROM daily_streaks WHERE username=?",
@@ -10724,7 +10759,7 @@ def mark_daily_task_complete(username, task_type):
     """Helper function to mark a daily task as complete (called from other endpoints)"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         today = datetime.now().strftime('%Y-%m-%d')
 
         # Use INSERT OR REPLACE to handle duplicates
@@ -10800,7 +10835,7 @@ def save_cbt_tool_entry():
             return jsonify({'error': 'tool_type is required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Check if entry exists for this user and tool
         existing = cur.execute(
@@ -10859,7 +10894,7 @@ def load_cbt_tool_entry():
             return jsonify({'error': 'tool_type is required'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         row = cur.execute('''
             SELECT id, data, mood_rating, notes, created_at, updated_at
@@ -10900,7 +10935,7 @@ def get_cbt_tool_history():
         limit = int(request.args.get('limit', 20))
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         if tool_type:
             rows = cur.execute('''
@@ -10969,7 +11004,7 @@ def send_message():
         
         # Check recipient exists
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         recipient_user = cur.execute('SELECT username, role FROM users WHERE username=%s', (recipient,)).fetchone()
         
         if not recipient_user:
@@ -11050,7 +11085,7 @@ def get_inbox():
         offset = (page - 1) * limit
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get conversations (unique senders/recipients, excluding deleted messages)
         if unread_only:
@@ -11153,7 +11188,7 @@ def get_conversation(recipient_username):
             limit = 50
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Get conversation messages (both directions, ordered chronologically)
         rows = cur.execute('''
@@ -11217,7 +11252,7 @@ def mark_message_read(message_id):
             return jsonify({'error': 'Authentication required'}), 401
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Check message exists and user is recipient
         message = cur.execute('''
@@ -11261,7 +11296,7 @@ def get_sent_messages():
             return jsonify({'error': 'Authentication required'}), 401
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Get sent messages (messages where user is sender)
         messages = cur.execute('''
@@ -11303,7 +11338,7 @@ def get_all_feedback():
             return jsonify({'error': 'Authentication required'}), 401
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Check if user is developer
         user_role = cur.execute('SELECT role FROM users WHERE username=%s', (username,)).fetchone()
@@ -11312,12 +11347,12 @@ def get_all_feedback():
             return jsonify({'error': 'Only developers can view all feedback'}), 403
 
         # Get all feedback
-        feedback = cur.execute('''
+        cur.execute('''
             SELECT id, username, role, category, message, status, created_at 
             FROM feedback 
             ORDER BY created_at DESC 
             LIMIT 500
-        ''').fetchall()
+        '''); feedback = cur.fetchall()
 
         conn.close()
 
@@ -11359,7 +11394,7 @@ def update_feedback_status(feedback_id):
             return jsonify({'error': f'Invalid status. Valid options: {", ".join(valid_statuses)}'}), 400
 
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
 
         # Check if user is developer
         user_role = cur.execute('SELECT role FROM users WHERE username=%s', (username,)).fetchone()
@@ -11423,7 +11458,7 @@ def delete_message(message_id):
             return jsonify({'error': 'Authentication required'}), 401
         
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         
         # Check message exists and user is sender or recipient
         message = cur.execute('''
@@ -11482,7 +11517,7 @@ def test_database_connection():
     """Test database connection on startup"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = get_wrapped_cursor(conn)
         cur.execute("SELECT 1")
         cur.fetchone()
         conn.close()
