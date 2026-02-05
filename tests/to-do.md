@@ -2,6 +2,10 @@
 
 **Last Updated**: Feb 4, 2026 | **Next Review**: Feb 11, 2026
 
+## My additions
+
+
+1. what is redis for?
 ---
 
 ## MY ADDITIONS 

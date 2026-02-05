@@ -107,7 +107,7 @@ def normalize_pet_row(pet_row):
 from secrets_manager import SecretsManager
 from audit import log_event
 import fhir_export
-from training_data_manager import TRAINING_DB_PATH
+# NOTE: No longer importing TRAINING_DB_PATH (using PostgreSQL only)
 
 # Import password hashing libraries with fallbacks (same logic as main.py)
 try:
@@ -2015,23 +2015,8 @@ def check_rate_limit(limit_type: str = 'default'):
     return decorator
 
 # Database path - use volume on Railway, local otherwise
-def get_db_path():
-    """Get database path - use Railway volume if available"""
-    if os.path.exists('/app/data'):
-        # Railway volume mounted
-        return '/app/data/therapist_app.db'
-    return 'therapist_app.db'
-
-def get_pet_db_path():
-    """Get pet game database path - use Railway volume if available"""
-    if os.path.exists('/app/data'):
-        return '/app/data/pet_game.db'
-    return 'pet_game.db'
-
-DB_PATH = get_db_path()
-PET_DB_PATH = get_pet_db_path()
-
 # Database connection helper for PostgreSQL
+# NOTE: Using PostgreSQL exclusively - no local SQLite databases
 def get_db_connection(timeout=30.0):
     """Create a connection to PostgreSQL database
     
@@ -2357,6 +2342,12 @@ def init_db():
             cursor.execute("CREATE TABLE IF NOT EXISTS ai_memory (username TEXT PRIMARY KEY, memory_summary TEXT, last_updated TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, sender_username TEXT NOT NULL, recipient_username TEXT NOT NULL, subject TEXT, content TEXT NOT NULL, is_read INTEGER DEFAULT 0, read_at TIMESTAMP, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP, is_deleted_by_sender INTEGER DEFAULT 0, is_deleted_by_recipient INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             
+            # Developer dashboard tables
+            cursor.execute("CREATE TABLE IF NOT EXISTS developer_test_runs (id SERIAL PRIMARY KEY, username TEXT, test_output TEXT, exit_code INTEGER, passed_count INTEGER DEFAULT 0, failed_count INTEGER DEFAULT 0, error_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS dev_terminal_logs (id SERIAL PRIMARY KEY, username TEXT, command TEXT, output TEXT, exit_code INTEGER, duration_ms INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS dev_ai_chats (id SERIAL PRIMARY KEY, username TEXT, session_id TEXT, role TEXT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS dev_messages (id SERIAL PRIMARY KEY, from_username TEXT, to_username TEXT, message TEXT, message_type TEXT DEFAULT 'message', read INTEGER DEFAULT 0, parent_message_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            
             conn.commit()
             print("✓ Critical database tables created")
         
@@ -2601,6 +2592,11 @@ def index():
 def admin_wipe_page():
     """Serve admin database wipe page"""
     return render_template('admin-wipe.html')
+
+@app.route('/api/developer/dashboard')
+def developer_dashboard():
+    """Serve developer dashboard"""
+    return render_template('developer-dashboard.html')
 
 @app.route('/api/debug/analytics/<clinician>', methods=['GET'])
 def debug_analytics(clinician):
@@ -4056,9 +4052,12 @@ def developer_stats():
         stats['total_mood_logs'] = cur.execute("SELECT COUNT(*) FROM mood_logs").fetchone()[0]
         stats['total_assessments'] = cur.execute("SELECT COUNT(*) FROM clinical_scales").fetchone()[0]
 
-        # Database size
-        db_size = os.path.getsize(DB_PATH) / (1024 * 1024)  # MB
-        stats['database_size_mb'] = round(db_size, 2)
+        # Get PostgreSQL database size in MB
+        try:
+            db_size_result = cur.execute("SELECT pg_database_size(current_database()) / (1024 * 1024.0)").fetchone()
+            stats['database_size_mb'] = round(db_size_result[0], 2) if db_size_result else 0
+        except Exception:
+            stats['database_size_mb'] = 0
 
         conn.close()
 
@@ -9359,9 +9358,10 @@ def check_mood_today():
         return handle_exception(e, request.endpoint or 'unknown')
 
 # === TRAINING DATA MANAGEMENT (GDPR-COMPLIANT) ===
+# NOTE: Using PostgreSQL only - no local SQLite database for training data
 from training_data_manager import TrainingDataManager
 
-training_manager = TrainingDataManager(DB_PATH)
+training_manager = TrainingDataManager()
 
 @app.route('/api/training/consent', methods=['POST'])
 def set_training_consent():
@@ -11502,6 +11502,365 @@ def delete_message(message_id):
     except Exception as e:
         return handle_exception(e, 'delete_message')
 
+
+# ================== DEVELOPER DASHBOARD: TEST INTEGRATION ENDPOINTS ==================
+
+@app.route('/api/developer/tests/run', methods=['POST'])
+def run_tests():
+    """Execute pytest test suite and return results"""
+    try:
+        # Verify developer role
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        user_role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        
+        if not user_role or user_role[0] != 'developer':
+            conn.close()
+            return jsonify({'error': 'Developer role required'}), 403
+        
+        # Run pytest
+        import subprocess
+        result = subprocess.run(
+            ['.venv/bin/python', '-m', 'pytest', '-v', 'tests/', '--tb=short'],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=os.getcwd()
+        )
+        
+        # Parse output
+        output = result.stdout + result.stderr
+        exit_code = result.returncode
+        
+        # Count passed/failed
+        passed = output.count(' PASSED')
+        failed = output.count(' FAILED')
+        errors = output.count(' ERROR')
+        
+        # Store result
+        cur.execute("""
+            INSERT INTO developer_test_runs (username, test_output, exit_code, passed_count, failed_count, error_count)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (username, output[:50000], exit_code, passed, failed, errors))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': exit_code == 0,
+            'output': output,
+            'exit_code': exit_code,
+            'passed': passed,
+            'failed': failed,
+            'errors': errors,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Test suite timed out (120s limit)'}), 408
+    except Exception as e:
+        return handle_exception(e, 'run_tests')
+
+@app.route('/api/developer/tests/results', methods=['GET'])
+def get_test_results():
+    """Get recent test results"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        user_role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not user_role or user_role[0] != 'developer':
+            conn.close()
+            return jsonify({'error': 'Developer role required'}), 403
+        
+        # Get last 10 test runs
+        results = cur.execute("""
+            SELECT id, username, passed_count, failed_count, error_count, exit_code, created_at
+            FROM developer_test_runs
+            ORDER BY created_at DESC
+            LIMIT 10
+        """).fetchall()
+        
+        conn.close()
+        
+        return jsonify({
+            'test_runs': [
+                {
+                    'id': r[0],
+                    'username': r[1],
+                    'passed': r[2],
+                    'failed': r[3],
+                    'errors': r[4],
+                    'success': r[5] == 0,
+                    'timestamp': r[6]
+                }
+                for r in results
+            ]
+        }), 200
+        
+    except Exception as e:
+        return handle_exception(e, 'get_test_results')
+
+@app.route('/api/developer/performance/run', methods=['POST'])
+def run_performance_tests():
+    """Run performance tests on critical endpoints"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        user_role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not user_role or user_role[0] != 'developer':
+            conn.close()
+            return jsonify({'error': 'Developer role required'}), 403
+        
+        import time
+        import requests
+        
+        endpoints = [
+            ('/api/health', 'GET'),
+            ('/api/auth/login', 'POST'),
+            ('/api/developer/stats', 'GET'),
+        ]
+        
+        results = []
+        for endpoint, method in endpoints:
+            try:
+                start = time.time()
+                if method == 'GET':
+                    r = requests.get(f'http://localhost:5000{endpoint}', timeout=5)
+                else:
+                    r = requests.post(f'http://localhost:5000{endpoint}', json={}, timeout=5)
+                duration_ms = int((time.time() - start) * 1000)
+                
+                results.append({
+                    'endpoint': endpoint,
+                    'method': method,
+                    'status': r.status_code,
+                    'duration_ms': duration_ms,
+                    'success': r.status_code < 500
+                })
+            except Exception as e:
+                results.append({
+                    'endpoint': endpoint,
+                    'method': method,
+                    'error': str(e),
+                    'success': False
+                })
+        
+        conn.close()
+        
+        return jsonify({
+            'performance_tests': results,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        return handle_exception(e, 'run_performance_tests')
+
+@app.route('/api/developer/monitoring/status', methods=['GET'])
+def get_monitoring_status():
+    """Get system health and monitoring status"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        user_role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not user_role or user_role[0] != 'developer':
+            conn.close()
+            return jsonify({'error': 'Developer role required'}), 403
+        
+        # Get database stats
+        user_count = cur.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        patient_count = cur.execute("SELECT COUNT(*) FROM users WHERE role='user'").fetchone()[0]
+        clinician_count = cur.execute("SELECT COUNT(*) FROM users WHERE role='clinician'").fetchone()[0]
+        
+        # Get recent activity
+        recent_logins = cur.execute("""
+            SELECT COUNT(*) FROM users 
+            WHERE last_login > datetime('now', '-24 hours')
+        """).fetchone()[0]
+        
+        # Get alerts
+        high_risk_count = cur.execute("""
+            SELECT COUNT(*) FROM alerts WHERE status='open' OR status IS NULL
+        """).fetchone()[0]
+        
+        # Database health
+        try:
+            cur.execute("SELECT 1")
+            db_healthy = True
+            db_msg = "Connected"
+        except:
+            db_healthy = False
+            db_msg = "Connection failed"
+        
+        conn.close()
+        
+        return jsonify({
+            'database': {
+                'healthy': db_healthy,
+                'message': db_msg,
+                'total_users': user_count,
+                'patients': patient_count,
+                'clinicians': clinician_count
+            },
+            'activity': {
+                'logins_24h': recent_logins,
+                'high_risk_alerts': high_risk_count
+            },
+            'api': {
+                'status': 'operational',
+                'routes': len(app.url_map._rules)
+            },
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        return handle_exception(e, 'get_monitoring_status')
+
+@app.route('/api/developer/backups/list', methods=['GET'])
+def list_backups():
+    """List available database backups"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        user_role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not user_role or user_role[0] != 'developer':
+            conn.close()
+            return jsonify({'error': 'Developer role required'}), 403
+        
+        conn.close()
+        
+        # List backups from backups/ directory
+        import os
+        backup_dir = 'backups'
+        backups = []
+        
+        if os.path.exists(backup_dir):
+            for filename in sorted(os.listdir(backup_dir), reverse=True):
+                filepath = os.path.join(backup_dir, filename)
+                if os.path.isfile(filepath):
+                    size = os.path.getsize(filepath)
+                    mtime = os.path.getmtime(filepath)
+                    backups.append({
+                        'filename': filename,
+                        'size_bytes': size,
+                        'size_mb': round(size / 1024 / 1024, 2),
+                        'created': datetime.fromtimestamp(mtime).isoformat()
+                    })
+        
+        return jsonify({
+            'backups': backups,
+            'total': len(backups),
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        return handle_exception(e, 'list_backups')
+
+@app.route('/api/developer/test-data/generate', methods=['POST'])
+def generate_test_data():
+    """Generate realistic test data for development/testing"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        data = request.json
+        num_patients = data.get('num_patients', 5)
+        num_clinicians = data.get('num_clinicians', 2)
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        user_role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not user_role or user_role[0] != 'developer':
+            conn.close()
+            return jsonify({'error': 'Developer role required'}), 403
+        
+        created = {
+            'patients': 0,
+            'clinicians': 0,
+            'mood_logs': 0,
+            'messages': 0
+        }
+        
+        try:
+            # Create clinicians
+            for i in range(num_clinicians):
+                clinician_username = f'clinician_test_{i}_{datetime.now().timestamp()}'
+                hashed_pw = hash_password('TestPass123!@#')
+                hashed_pin = hash_pin('1234')
+                
+                cur.execute("""
+                    INSERT INTO users (username, password, pin, role, full_name, email, phone, last_login, country, area)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (clinician_username, hashed_pw, hashed_pin, 'clinician', f'Test Clinician {i}', 
+                      f'clinician{i}@test.local', f'555-000{i}', datetime.now(), 'UK', 'London'))
+                created['clinicians'] += 1
+            
+            # Create patients
+            for i in range(num_patients):
+                patient_username = f'patient_test_{i}_{datetime.now().timestamp()}'
+                hashed_pw = hash_password('TestPass123!@#')
+                hashed_pin = hash_pin('1234')
+                
+                cur.execute("""
+                    INSERT INTO users (username, password, pin, role, full_name, email, phone, last_login, conditions, country, area, dob)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (patient_username, hashed_pw, hashed_pin, 'user', f'Test Patient {i}',
+                      f'patient{i}@test.local', f'555-100{i}', datetime.now(), 'Anxiety, Depression',
+                      'UK', 'Manchester', '1990-01-01'))
+                
+                # Add some mood logs
+                for j in range(5):
+                    cur.execute("""
+                        INSERT INTO mood_logs (username, mood_val, sleep_val, meds, notes, entry_timestamp)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (patient_username, 5 + (j % 5), 6 + (j % 4), 'Test meds', f'Test mood entry {j}', 
+                          datetime.now() - timedelta(days=j)))
+                    created['mood_logs'] += 1
+                
+                created['patients'] += 1
+            
+            conn.commit()
+            
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            return jsonify({'error': f'Test data generation failed: {str(e)}'}), 500
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Test data generated successfully',
+            'created': created,
+            'timestamp': datetime.now().isoformat()
+        }), 201
+        
+    except Exception as e:
+        return handle_exception(e, 'generate_test_data')
 
 @app.errorhandler(404)
 def not_found(e):

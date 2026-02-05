@@ -11,86 +11,30 @@ GDPR Compliance Features:
 - Right to deletion
 - Data minimization
 - Audit trail
+
+NOTE: Now using PostgreSQL instead of SQLite for consistency
 """
 
-import sqlite3
 import hashlib
 import json
 import re
 from datetime import datetime
 import os
 
-# Training database path - separate from production
-TRAINING_DB_PATH = "ai_training_data.db"
+# Training database path - DEPRECATED (using PostgreSQL now)
+# TRAINING_DB_PATH = "ai_training_data.db"
 
 
 class TrainingDataManager:
-    """Manages GDPR-compliant training data collection"""
+    """Manages GDPR-compliant training data collection
     
-    def __init__(self, production_db_path="therapist_app.db"):
-        self.prod_db = production_db_path
-        self.training_db = TRAINING_DB_PATH
-        self._init_training_database()
+    NOTE: Constructor now accepts no arguments (PostgreSQL used automatically)
+    """
     
-    def _init_training_database(self):
-        """Initialize training database with anonymized schema"""
-        conn = sqlite3.connect(self.training_db)
-        cur = conn.cursor()
-        
-        # Consent tracking
-        cur.execute('''CREATE TABLE IF NOT EXISTS data_consent
-                      (user_hash TEXT PRIMARY KEY,
-                       consent_given INTEGER DEFAULT 0,
-                       consent_date DATETIME,
-                       consent_withdrawn INTEGER DEFAULT 0,
-                       withdrawal_date DATETIME)''')
-        
-        # Anonymized chat sessions
-        cur.execute('''CREATE TABLE IF NOT EXISTS training_chats
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       session_hash TEXT,
-                       user_hash TEXT,
-                       message_role TEXT,
-                       message_content TEXT,
-                       timestamp DATETIME,
-                       mood_context INTEGER,
-                       assessment_severity TEXT,
-                       FOREIGN KEY (user_hash) REFERENCES data_consent(user_hash))''')
-        
-        # Anonymized therapy patterns
-        cur.execute('''CREATE TABLE IF NOT EXISTS training_patterns
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       user_hash TEXT,
-                       pattern_type TEXT,
-                       pattern_data TEXT,
-                       effectiveness_score REAL,
-                       timestamp DATETIME,
-                       FOREIGN KEY (user_hash) REFERENCES data_consent(user_hash))''')
-        
-        # Anonymized outcomes
-        cur.execute('''CREATE TABLE IF NOT EXISTS training_outcomes
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       user_hash TEXT,
-                       baseline_phq9 INTEGER,
-                       baseline_gad7 INTEGER,
-                       followup_phq9 INTEGER,
-                       followup_gad7 INTEGER,
-                       days_between INTEGER,
-                       interventions_used TEXT,
-                       improvement_score REAL,
-                       timestamp DATETIME,
-                       FOREIGN KEY (user_hash) REFERENCES data_consent(user_hash))''')
-        
-        # Audit trail for GDPR compliance
-        cur.execute('''CREATE TABLE IF NOT EXISTS training_audit
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       user_hash TEXT,
-                       action TEXT,
-                       details TEXT,
-                       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-        
-        conn.commit()
-        conn.close()
+    def __init__(self, production_db_path=None):
+        # Deprecated: production_db_path argument is ignored
+        # All operations now use PostgreSQL via get_db_connection()
+        pass
     
     def anonymize_username(self, username):
         """Create irreversible hash of username for anonymization"""

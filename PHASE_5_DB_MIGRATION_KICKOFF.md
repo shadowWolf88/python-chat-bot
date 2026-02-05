@@ -34,11 +34,10 @@ This phase transitions the Healing Space application from SQLite to PostgreSQL, 
 
 ```bash
 # 1. Create fresh backups
-mkdir -p backups/pre_migration_$(date +%Y%m%d)
+mkdir -p backups/pre_migration_$(date +%Y%d)
 cp therapist_app.db backups/pre_migration_$(date +%Y%m%d)/
 cp legacy_desktop/pet_game.db backups/pre_migration_$(date +%Y%m%d)/
-cp ai_training_data.db backups/pre_migration_$(date +%Y%m%d)/
-
+cp ai_training_data.db backups/pre_migration_$(
 # 2. Export schema for each database
 sqlite3 therapist_app.db .schema > schema_therapist_app.sql
 sqlite3 legacy_desktop/pet_game.db .schema > schema_pet_game.sql
