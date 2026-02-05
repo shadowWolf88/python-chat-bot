@@ -2275,7 +2275,7 @@ def decrypt_text(encrypted: str) -> str:
         return encrypted
 
 def init_db():
-    """Initialize database - create tables if they don't exist"""
+    """Initialize database - create critical tables if they don't exist"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -2290,29 +2290,40 @@ def init_db():
         table_exists = cursor.fetchone()[0]
         
         if not table_exists:
-            # Load and execute schema
-            print("Creating database schema...")
-            schema_file = '/home/computer001/Documents/python chat bot/schema_therapist_app_postgres.sql'
+            # Create minimal required tables
+            print("Creating critical database tables...")
             
-            if os.path.exists(schema_file):
-                with open(schema_file, 'r') as f:
-                    schema_sql = f.read()
-                
-                # Split and execute each CREATE TABLE statement
-                statements = [s.strip() + ';' for s in schema_sql.split(';') if s.strip()]
-                
-                for statement in statements:
-                    try:
-                        cursor.execute(statement)
-                    except Exception as e:
-                        # Table might already exist, skip
-                        if 'already exists' not in str(e):
-                            print(f"Warning creating table: {e}")
-                
-                conn.commit()
-                print("✓ Database schema created successfully")
-            else:
-                print(f"Warning: Schema file not found at {schema_file}")
+            # Users table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users 
+                (username TEXT PRIMARY KEY, password TEXT, pin TEXT, last_login TIMESTAMP, 
+                 full_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user', 
+                 clinician_id TEXT, disclaimer_accepted INTEGER DEFAULT 0, email TEXT, phone TEXT, 
+                 reset_token TEXT, reset_token_expiry TIMESTAMP, country TEXT, area TEXT, 
+                 postcode TEXT, nhs_number TEXT, professional_id TEXT)
+            """)
+            
+            # Other critical tables
+            cursor.execute("CREATE TABLE IF NOT EXISTS sessions (session_id TEXT PRIMARY KEY, username TEXT, title TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS chat_history (session_id TEXT, sender TEXT, message TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, chat_session_id INTEGER)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS chat_sessions (id SERIAL PRIMARY KEY, username TEXT, session_name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_active INTEGER DEFAULT 0)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS mood_logs (id SERIAL PRIMARY KEY, username TEXT, mood_val INTEGER, sleep_val INTEGER, meds TEXT, notes TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS clinical_scales (id SERIAL PRIMARY KEY, username TEXT, scale_name TEXT, score INTEGER, severity TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS appointments (id SERIAL PRIMARY KEY, clinician_username TEXT, patient_username TEXT, appointment_date TIMESTAMP, appointment_type TEXT DEFAULT 'consultation', notes TEXT, pdf_generated INTEGER DEFAULT 0, pdf_path TEXT, notification_sent INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, patient_acknowledged INTEGER DEFAULT 0, patient_response TEXT, patient_response_date TIMESTAMP, attendance_status TEXT DEFAULT 'scheduled', attendance_confirmed_by TEXT, attendance_confirmed_at TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS patient_approvals (id SERIAL PRIMARY KEY, patient_username TEXT, clinician_username TEXT, status TEXT DEFAULT 'pending', request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, approval_date TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, recipient_username TEXT, message TEXT, notification_type TEXT, read INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS alerts (id SERIAL PRIMARY KEY, username TEXT, alert_type TEXT, details TEXT, status TEXT DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS audit_logs (id SERIAL PRIMARY KEY, username TEXT, actor TEXT, action TEXT, details TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS cbt_records (id SERIAL PRIMARY KEY, username TEXT, situation TEXT, thought TEXT, evidence TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS gratitude_logs (id SERIAL PRIMARY KEY, username TEXT, entry TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS verification_codes (id SERIAL PRIMARY KEY, identifier TEXT, code TEXT, method TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMP, verified INTEGER DEFAULT 0)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS safety_plans (username TEXT PRIMARY KEY, triggers TEXT, coping TEXT, contacts TEXT)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS ai_memory (username TEXT PRIMARY KEY, memory_summary TEXT, last_updated TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, sender_username TEXT NOT NULL, recipient_username TEXT NOT NULL, subject TEXT, content TEXT NOT NULL, is_read INTEGER DEFAULT 0, read_at TIMESTAMP, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP, is_deleted_by_sender INTEGER DEFAULT 0, is_deleted_by_recipient INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            
+            conn.commit()
+            print("✓ Critical database tables created")
         
         # Verify the database is accessible
         cursor.execute("SELECT 1")
