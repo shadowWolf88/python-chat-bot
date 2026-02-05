@@ -2885,6 +2885,12 @@ def init_db():
             cursor.execute("CREATE TABLE IF NOT EXISTS ai_memory (username TEXT PRIMARY KEY, memory_summary TEXT, last_updated TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, sender_username TEXT NOT NULL, recipient_username TEXT NOT NULL, subject TEXT, content TEXT NOT NULL, is_read INTEGER DEFAULT 0, read_at TIMESTAMP, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP, is_deleted_by_sender INTEGER DEFAULT 0, is_deleted_by_recipient INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             
+            # Community tables
+            cursor.execute("CREATE TABLE IF NOT EXISTS community_posts (id SERIAL PRIMARY KEY, username TEXT NOT NULL, message TEXT NOT NULL, category TEXT DEFAULT 'general', likes INTEGER DEFAULT 0, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_pinned INTEGER DEFAULT 0, FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS community_likes (id SERIAL PRIMARY KEY, post_id INTEGER NOT NULL, username TEXT NOT NULL, reaction_type TEXT DEFAULT 'like', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(post_id) REFERENCES community_posts(id) ON DELETE CASCADE, FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS community_replies (id SERIAL PRIMARY KEY, post_id INTEGER NOT NULL, username TEXT NOT NULL, message TEXT NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(post_id) REFERENCES community_posts(id) ON DELETE CASCADE, FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS community_channel_reads (id SERIAL PRIMARY KEY, username TEXT NOT NULL, channel TEXT NOT NULL, last_read TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE)")
+            
             # Developer dashboard tables
             cursor.execute("CREATE TABLE IF NOT EXISTS developer_test_runs (id SERIAL PRIMARY KEY, username TEXT, test_output TEXT, exit_code INTEGER, passed_count INTEGER DEFAULT 0, failed_count INTEGER DEFAULT 0, error_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS dev_terminal_logs (id SERIAL PRIMARY KEY, username TEXT, command TEXT, output TEXT, exit_code INTEGER, duration_ms INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
@@ -8030,9 +8036,9 @@ def get_community_posts():
                 )
                 conn.commit()
         else:
-            cur.execute(
+            posts = cur.execute(
                 "SELECT id, username, message, likes, entry_timestamp, category, is_pinned FROM community_posts ORDER BY is_pinned DESC, entry_timestamp DESC LIMIT 100"
-            ); posts = cur.fetchall()
+            ).fetchall()
 
         post_list = []
         for p in posts:

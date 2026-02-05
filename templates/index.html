@@ -10261,6 +10261,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
                 if (response.ok && data.posts && data.posts.length > 0) {
                     postsArea.innerHTML = data.posts.map(post => renderDiscordPost(post)).join('');
+                    // Auto-scroll to bottom to show newest post
+                    setTimeout(() => {
+                        postsArea.scrollTop = postsArea.scrollHeight;
+                    }, 0);
                 } else {
                     const info = CHANNEL_INFO[channelId] || { name: channelId };
                     postsArea.innerHTML = `
@@ -10478,7 +10482,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
                 if (response.ok) {
                     document.getElementById('communityMessage').value = '';
-                    loadChannelPosts(currentChannel, false);
+                    // Add small delay to ensure post is committed to database before fetching
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    await loadChannelPosts(currentChannel, false);
                 } else {
                     const data = await response.json();
                     alert(data.error || 'Error posting message');

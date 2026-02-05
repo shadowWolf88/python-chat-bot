@@ -19,7 +19,7 @@ FIXES_NEEDED = {
         # Replace .lastrowid with RETURNING id
         (r'(\w+)\s*=\s*cur\.lastrowid', r'\1 = cur.fetchone()[0] if cur.rowcount == 1 else None'),
     ],
-    'training_data_manager.py': [
+    'training_data_manager.py': [''
         # Replace sqlite3 connections with psycopg2
         (r'import sqlite3', r'import psycopg2'),
         (r'sqlite3\.connect\([^)]+\)', r'psycopg2.connect(os.getenv("DATABASE_URL"))'),
