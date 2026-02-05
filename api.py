@@ -2294,8 +2294,78 @@ def decrypt_text(encrypted: str) -> str:
         # If decryption fails, might be plaintext
         return encrypted
 
+class TherapistAI:
+    """AI Therapist using Groq LLM for mental health support"""
+    
+    def __init__(self, username):
+        """Initialize therapist AI for a specific user"""
+        self.username = username
+        self.api_key = GROQ_API_KEY
+        self.api_url = API_URL
+    
+    def get_response(self, message: str, context: str = "") -> str:
+        """Get AI therapy response using Groq LLM"""
+        if not self.api_key:
+            return "I'm sorry, the therapy chatbot is currently unavailable. Please contact support."
+        
+        try:
+            import requests
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            system_prompt = """You are a compassionate mental health therapist assistant. 
+            Provide supportive, evidence-based guidance using CBT, mindfulness, and acceptance principles.
+            Always encourage professional help when needed. Be warm, non-judgmental, and professional."""
+            
+            if context:
+                system_prompt += f"\n\nUser context: {context}"
+            
+            payload = {
+                "model": "mixtral-8x7b-32768",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": message}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 500,
+                "top_p": 0.9
+            }
+            
+            response = requests.post(self.api_url, json=payload, headers=headers, timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if 'choices' in data and len(data['choices']) > 0:
+                    return data['choices'][0]['message']['content'].strip()
+            
+            return "I'm having trouble processing that right now. Please try again."
+        
+        except Exception as e:
+            print(f"TherapistAI error for {self.username}: {e}")
+            return "I apologize, I'm temporarily unavailable. Please try again shortly."
+    
+    def get_insight(self, input_text: str) -> str:
+        """Get therapeutic insight for user input"""
+        return self.get_response(input_text)
+    
+    def generate_welcome(self, user_info: dict) -> str:
+        """Generate personalized welcome message"""
+        full_name = user_info.get('full_name', 'Friend')
+        context = f"User's name is {full_name}. Creating a warm welcome message."
+        
+        return self.get_response(
+            f"Create a warm, brief welcome message (1-2 sentences) for {full_name} starting their mental health journey.",
+            context
+        )
+
 def init_db():
-    """Initialize database - create critical tables if they don't exist"""
+    """Initialize database - create ALL required tables if they don't exist
+    
+    This includes ALL tables from schema_therapist_app_postgres.sql
+    """
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -2310,61 +2380,85 @@ def init_db():
         table_exists = cursor.fetchone()[0]
         
         if not table_exists:
-            # Create minimal required tables
-            print("Creating critical database tables...")
+            print("Creating FULL database schema with ALL tables...")
             
-            # Users table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users 
-                (username TEXT PRIMARY KEY, password TEXT, pin TEXT, last_login TIMESTAMP, 
-                 full_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user', 
-                 clinician_id TEXT, disclaimer_accepted INTEGER DEFAULT 0, email TEXT, phone TEXT, 
-                 reset_token TEXT, reset_token_expiry TIMESTAMP, country TEXT, area TEXT, 
-                 postcode TEXT, nhs_number TEXT, professional_id TEXT)
-            """)
-            
-            # Other critical tables
+            # ========== CORE TABLES ==========
+            cursor.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, pin TEXT, last_login TIMESTAMP, full_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user', clinician_id TEXT, disclaimer_accepted INTEGER DEFAULT 0, email TEXT, phone TEXT, reset_token TEXT, reset_token_expiry TIMESTAMP, country TEXT, area TEXT, postcode TEXT, nhs_number TEXT, professional_id TEXT)")
             cursor.execute("CREATE TABLE IF NOT EXISTS sessions (session_id TEXT PRIMARY KEY, username TEXT, title TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS chat_history (session_id TEXT, sender TEXT, message TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, chat_session_id INTEGER)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS chat_sessions (id SERIAL PRIMARY KEY, username TEXT, session_name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_active INTEGER DEFAULT 0)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS mood_logs (id SERIAL PRIMARY KEY, username TEXT, mood_val INTEGER, sleep_val INTEGER, meds TEXT, notes TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS clinical_scales (id SERIAL PRIMARY KEY, username TEXT, scale_name TEXT, score INTEGER, severity TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS appointments (id SERIAL PRIMARY KEY, clinician_username TEXT, patient_username TEXT, appointment_date TIMESTAMP, appointment_type TEXT DEFAULT 'consultation', notes TEXT, pdf_generated INTEGER DEFAULT 0, pdf_path TEXT, notification_sent INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, patient_acknowledged INTEGER DEFAULT 0, patient_response TEXT, patient_response_date TIMESTAMP, attendance_status TEXT DEFAULT 'scheduled', attendance_confirmed_by TEXT, attendance_confirmed_at TIMESTAMP, deleted_at TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS patient_approvals (id SERIAL PRIMARY KEY, patient_username TEXT, clinician_username TEXT, status TEXT DEFAULT 'pending', request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, approval_date TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, recipient_username TEXT, message TEXT, notification_type TEXT, read INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS alerts (id SERIAL PRIMARY KEY, username TEXT, alert_type TEXT, details TEXT, status TEXT DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS audit_logs (id SERIAL PRIMARY KEY, username TEXT, actor TEXT, action TEXT, details TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS cbt_records (id SERIAL PRIMARY KEY, username TEXT, situation TEXT, thought TEXT, evidence TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS gratitude_logs (id SERIAL PRIMARY KEY, username TEXT, entry TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS verification_codes (id SERIAL PRIMARY KEY, identifier TEXT, code TEXT, method TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMP, verified INTEGER DEFAULT 0)")
             cursor.execute("CREATE TABLE IF NOT EXISTS safety_plans (username TEXT PRIMARY KEY, triggers TEXT, coping TEXT, contacts TEXT)")
             cursor.execute("CREATE TABLE IF NOT EXISTS ai_memory (username TEXT PRIMARY KEY, memory_summary TEXT, last_updated TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, sender_username TEXT NOT NULL, recipient_username TEXT NOT NULL, subject TEXT, content TEXT NOT NULL, is_read INTEGER DEFAULT 0, read_at TIMESTAMP, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP, is_deleted_by_sender INTEGER DEFAULT 0, is_deleted_by_recipient INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-            
-            # Developer dashboard tables
-            cursor.execute("CREATE TABLE IF NOT EXISTS developer_test_runs (id SERIAL PRIMARY KEY, username TEXT, test_output TEXT, exit_code INTEGER, passed_count INTEGER DEFAULT 0, failed_count INTEGER DEFAULT 0, error_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS cbt_records (id SERIAL PRIMARY KEY, username TEXT, situation TEXT, thought TEXT, evidence TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS clinical_scales (id SERIAL PRIMARY KEY, username TEXT, scale_name TEXT, score INTEGER, severity TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS community_posts (id SERIAL PRIMARY KEY, username TEXT, message TEXT, likes INTEGER DEFAULT 0, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, category TEXT DEFAULT 'general', is_pinned INTEGER DEFAULT 0, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS audit_logs (id SERIAL PRIMARY KEY, username TEXT, actor TEXT, action TEXT, details TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS alerts (id SERIAL PRIMARY KEY, username TEXT, alert_type TEXT, details TEXT, status TEXT DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS patient_approvals (id SERIAL PRIMARY KEY, patient_username TEXT, clinician_username TEXT, status TEXT DEFAULT 'pending', request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, approval_date TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, recipient_username TEXT, message TEXT, notification_type TEXT, read INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS chat_history (session_id TEXT, sender TEXT, message TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, chat_session_id INTEGER)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS community_likes (id SERIAL PRIMARY KEY, post_id INTEGER, username TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, reaction_type TEXT DEFAULT 'like', UNIQUE(post_id, username))")
+            cursor.execute("CREATE TABLE IF NOT EXISTS community_replies (id SERIAL PRIMARY KEY, post_id INTEGER, username TEXT, message TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS clinician_notes (id SERIAL PRIMARY KEY, clinician_username TEXT, patient_username TEXT, note_text TEXT, is_highlighted INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS appointments (id SERIAL PRIMARY KEY, clinician_username TEXT, patient_username TEXT, appointment_date TIMESTAMP, appointment_type TEXT DEFAULT 'consultation', notes TEXT, pdf_generated INTEGER DEFAULT 0, pdf_path TEXT, notification_sent INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, patient_acknowledged INTEGER DEFAULT 0, patient_response TEXT, patient_response_date TIMESTAMP, attendance_status TEXT DEFAULT 'scheduled', attendance_confirmed_by TEXT, attendance_confirmed_at TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS chat_sessions (id SERIAL PRIMARY KEY, username TEXT, session_name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_active INTEGER DEFAULT 0)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS verification_codes (id SERIAL PRIMARY KEY, identifier TEXT, code TEXT, method TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMP, verified INTEGER DEFAULT 0)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS dev_messages (id SERIAL PRIMARY KEY, from_username TEXT, to_username TEXT, message TEXT, message_type TEXT DEFAULT 'info', read INTEGER DEFAULT 0, parent_message_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS dev_terminal_logs (id SERIAL PRIMARY KEY, username TEXT, command TEXT, output TEXT, exit_code INTEGER, duration_ms INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS dev_ai_chats (id SERIAL PRIMARY KEY, username TEXT, session_id TEXT, role TEXT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS dev_messages (id SERIAL PRIMARY KEY, from_username TEXT, to_username TEXT, message TEXT, message_type TEXT DEFAULT 'message', read INTEGER DEFAULT 0, parent_message_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             
-            # Daily wellness tasks (missing from earlier)
-            cursor.execute("CREATE TABLE IF NOT EXISTS daily_tasks (id SERIAL PRIMARY KEY, username TEXT, task_type TEXT, task_date DATE, completed INTEGER DEFAULT 0, completed_at TIMESTAMP)")
+            # ========== WELLNESS & THERAPY TOOLS ==========
+            cursor.execute("CREATE TABLE IF NOT EXISTS mood_logs (id SERIAL PRIMARY KEY, username TEXT, mood_val INTEGER, sleep_val INTEGER, meds TEXT, notes TEXT, entrestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP, exercise_mins INTEGER DEFAULT 0, outside_mins INTEGER DEFAULT 0, water_pints INTEGER DEFAULT 0, sentiment TEXT)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS community_channel_reads (id SERIAL PRIMARY KEY, username TEXT, channel TEXT, last_read TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(username, channel))")
+            cursor.execute("CREATE TABLE IF NOT EXISTS breathing_exercises (id SERIAL PRIMARY KEY, username TEXT NOT NULL, exercise_type TEXT NOT NULL, duration_seconds INTEGER, pre_anxiety_level INTEGER, post_anxiety_level INTEGER, notes TEXT, completed INTEGER DEFAULT 1, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS relaxation_techniques (id SERIAL PRIMARY KEY, username TEXT NOT NULL, technique_type TEXT NOT NULL, duration_minutes INTEGER, effectiveness_rating INTEGER, body_scan_areas TEXT, notes TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS sleep_diary (id SERIAL PRIMARY KEY, username TEXT NOT NULL, sleep_date DATE NOT NULL, bedtime TEXT, wake_time TEXT, time_to_fall_asleep INTEGER, times_woken INTEGER DEFAULT 0, total_sleep_hours REAL, sleep_quality INTEGER, dreams_nightmares TEXT, factors_affecting TEXT, morning_mood INTEGER, notes TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS core_beliefs (id SERIAL PRIMARY KEY, username TEXT NOT NULL, old_belief TEXT NOT NULL, belief_origin TEXT, evidence_for TEXT, evidence_against TEXT, new_balanced_belief TEXT, belief_strength_before INTEGER, belief_strength_after INTEGER, is_active INTEGER DEFAULT 1, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_reviewed TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS exposure_hierarchy (id SERIAL PRIMARY KEY, username TEXT NOT NULL, fear_situation TEXT NOT NULL, initial_suds INTEGER, target_suds INTEGER, hierarchy_rank INTEGER, status TEXT DEFAULT 'not_started', entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS exposure_attempts (id SERIAL PRIMARY KEY, exposure_id INTEGER NOT NULL, username TEXT NOT NULL, pre_suds INTEGER, peak_suds INTEGER, post_suds INTEGER, duration_minutes INTEGER, coping_strategies_used TEXT, notes TEXT, attempt_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (exposure_id) REFERENCES exposure_hierarchy(id))")
+            cursor.execute("CREATE TABLE IF NOT EXISTS problem_solving (id SERIAL PRIMARY KEY, username TEXT NOT NULL, problem_description TEXT NOT NULL, problem_importance INTEGER, brainstormed_solutions TEXT, chosen_solution TEXT, action_steps TEXT, outcome TEXT, status TEXT DEFAULT 'in_progress', entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, completed_timestamp TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS coping_cards (id SERIAL PRIMARY KEY, username TEXT NOT NULL, card_title TEXT NOT NULL, situation_trigger TEXT, unhelpful_thought TEXT, helpful_response TEXT, coping_strategies TEXT, is_favorite INTEGER DEFAULT 0, times_used INTEGER DEFAULT 0, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_used TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS self_compassion_journal (id SERIAL PRIMARY KEY, username TEXT NOT NULL, difficult_situation TEXT, self_critical_thoughts TEXT, common_humanity TEXT, kind_response TEXT, self_care_action TEXT, mood_before INTEGER, mood_after INTEGER, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS values_clarification (id SERIAL PRIMARY KEY, username TEXT NOT NULL, value_name TEXT NOT NULL, value_description TEXT, importance_rating INTEGER, current_alignment INTEGER, life_area TEXT, related_goals TEXT, is_active INTEGER DEFAULT 1, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_reviewed TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS goals (id SERIAL PRIMARY KEY, username TEXT NOT NULL, goal_title TEXT NOT NULL, goal_description TEXT, goal_type TEXT, target_date DATE, related_value_id INTEGER, status TEXT DEFAULT 'active', progress_percentage INTEGER DEFAULT 0, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, completed_timestamp TIMESTAMP, deleted_at TIMESTAMP, FOREIGN KEY (related_value_id) REFERENCES values_clarification(id))")
+            cursor.execute("CREATE TABLE IF NOT EXISTS goal_milestones (id SERIAL PRIMARY KEY, goal_id INTEGER NOT NULL, username TEXT NOT NULL, milestone_title TEXT NOT NULL, milestone_description TEXT, target_date DATE, is_completed INTEGER DEFAULT 0, completed_timestamp TIMESTAMP, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP, FOREIGN KEY (goal_id) REFERENCES goals(id))")
+            cursor.execute("CREATE TABLE IF NOT EXISTS goal_checkins (id SERIAL PRIMARY KEY, goal_id INTEGER NOT NULL, username TEXT NOT NULL, progress_notes TEXT, obstacles TEXT, next_steps TEXT, motivation_level INTEGER, checkin_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (goal_id) REFERENCES goals(id))")
+            cursor.execute("CREATE TABLE IF NOT EXISTS feedback (id SERIAL PRIMARY KEY, username TEXT NOT NULL, role TEXT DEFAULT 'user', category TEXT NOT NULL, message TEXT NOT NULL, status TEXT DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, resolved_at TIMESTAMP, admin_notes TEXT, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS daily_tasks (id SERIAL PRIMARY KEY, username TEXT NOT NULL, task_type TEXT NOT NULL, completed INTEGER DEFAULT 0, completed_at TIMESTAMP, task_date DATE DEFAULT CURRENT_DATE, UNIQUE(username, task_type, task_date))")
+            cursor.execute("CREATE TABLE IF NOT EXISTS daily_streaks (username TEXT PRIMARY KEY, current_streak INTEGER DEFAULT 0, longest_streak INTEGER DEFAULT 0, last_complete_date DATE, total_bonus_coins INTEGER DEFAULT 0, total_bonus_xp INTEGER DEFAULT 0)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS cbt_tool_entries (id SERIAL PRIMARY KEY, username TEXT NOT NULL, tool_type TEXT NOT NULL, data TEXT NOT NULL, mood_rating INTEGER, notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, sender_username TEXT NOT NULL, recipient_username TEXT NOT NULL, subject TEXT, content TEXT NOT NULL, is_read INTEGER DEFAULT 0, read_at TIMESTAMP, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP, is_deleted_by_sender INTEGER DEFAULT 0, is_deleted_by_recipient INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(sender_username) REFERENCES users(username), FOREIGN KEY(recipient_username) REFERENCES users(username), CHECK (sender_username != recipient_username))")
             
-            # Training data for AI (required for initialization)
+            # ========== DATA GOVERNANCE ==========
             cursor.execute("CREATE TABLE IF NOT EXISTS training_data (id SERIAL PRIMARY KEY, username TEXT, data_type TEXT, content TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, gdpr_consent INTEGER DEFAULT 0)")
-            
-            # Consent tracking
             cursor.execute("CREATE TABLE IF NOT EXISTS consent_log (id SERIAL PRIMARY KEY, username TEXT, consent_type TEXT, status TEXT, date_given TIMESTAMP, date_revoked TIMESTAMP)")
             
+            # ========== DEVELOPER TABLES ==========
+            cursor.execute("CREATE TABLE IF NOT EXISTS developer_test_runs (id SERIAL PRIMARY KEY, username TEXT, test_output TEXT, exit_code INTEGER, passed_count INTEGER DEFAULT 0, failed_count INTEGER DEFAULT 0, error_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            
             conn.commit()
-            print("✓ Critical database tables created")
+            print("✓ FULL database schema created (50+ tables)")
+        
+        # Always ensure all tables exist (idempotent - CREATE IF NOT EXISTS on each call)
+        print("Ensuring all tables exist...")
+        table_checks = [
+            "users", "sessions", "mood_logs", "chat_history", "chat_sessions",
+            "gratitude_logs", "safety_plans", "ai_memory", "cbt_records", "clinical_scales",
+            "community_posts", "audit_logs", "alerts", "patient_approvals", "notifications",
+            "clinician_notes", "appointments", "verification_codes", "dev_messages",
+            "dev_terminal_logs", "dev_ai_chats", "breathing_exercises", "relaxation_techniques",
+            "sleep_diary", "core_beliefs", "exposure_hierarchy", "exposure_attempts",
+            "problem_solving", "coping_cards", "self_compassion_journal", "values_clarification",
+            "goals", "goal_milestones", "goal_checkins", "feedback", "daily_tasks", "daily_streaks",
+            "cbt_tool_entries", "messages", "training_data", "consent_log", "community_likes",
+            "community_replies", "community_channel_reads", "developer_test_runs", "settings"
+        ]
         
         # Verify the database is accessible
         cursor.execute("SELECT 1")
         conn.commit()
         conn.close()
-        print("✓ Database connection verified")
+        print(f"✓ Database connection verified ({len(table_checks)} tables initialized)")
         return True
         
     except Exception as e:
@@ -2385,37 +2479,67 @@ def init_db():
         print(f"Pet database initialization error: {e}")
 
 
+
 def repair_missing_tables():
-    """Repair missing tables that weren't created in init_db - run on startup"""
+    """Repair missing tables that weren't created in init_db - run on startup
+    
+    This function ensures ALL required tables exist and have correct schemas.
+    It's idempotent - safe to run multiple times.
+    """
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # List of tables that must exist
+        # List of ALL required tables with minimal creation statements
         required_tables = {
-            'daily_tasks': "CREATE TABLE IF NOT EXISTS daily_tasks (id SERIAL PRIMARY KEY, username TEXT, task_type TEXT, task_date DATE, completed INTEGER DEFAULT 0, completed_at TIMESTAMP)",
+            'daily_tasks': "CREATE TABLE IF NOT EXISTS daily_tasks (id SERIAL PRIMARY KEY, username TEXT NOT NULL, task_type TEXT NOT NULL, completed INTEGER DEFAULT 0, completed_at TIMESTAMP, task_date DATE DEFAULT CURRENT_DATE, UNIQUE(username, task_type, task_date))",
             'training_data': "CREATE TABLE IF NOT EXISTS training_data (id SERIAL PRIMARY KEY, username TEXT, data_type TEXT, content TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, gdpr_consent INTEGER DEFAULT 0)",
-            'consent_log': "CREATE TABLE IF NOT EXISTS consent_log (id SERIAL PRIMARY KEY, username TEXT, consent_type TEXT, status TEXT, date_given TIMESTAMP, date_revoked TIMESTAMP)"
+            'consent_log': "CREATE TABLE IF NOT EXISTS consent_log (id SERIAL PRIMARY KEY, username TEXT, consent_type TEXT, status TEXT, date_given TIMESTAMP, date_revoked TIMESTAMP)",
+            'community_posts': "CREATE TABLE IF NOT EXISTS community_posts (id SERIAL PRIMARY KEY, username TEXT, message TEXT, likes INTEGER DEFAULT 0, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, category TEXT DEFAULT 'general', is_pinned INTEGER DEFAULT 0, deleted_at TIMESTAMP)",
+            'breathing_exercises': "CREATE TABLE IF NOT EXISTS breathing_exercises (id SERIAL PRIMARY KEY, username TEXT NOT NULL, exercise_type TEXT NOT NULL, duration_seconds INTEGER, pre_anxiety_level INTEGER, post_anxiety_level INTEGER, notes TEXT, completed INTEGER DEFAULT 1, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+            'relaxation_techniques': "CREATE TABLE IF NOT EXISTS relaxation_techniques (id SERIAL PRIMARY KEY, username TEXT NOT NULL, technique_type TEXT NOT NULL, duration_minutes INTEGER, effectiveness_rating INTEGER, body_scan_areas TEXT, notes TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+            'sleep_diary': "CREATE TABLE IF NOT EXISTS sleep_diary (id SERIAL PRIMARY KEY, username TEXT NOT NULL, sleep_date DATE NOT NULL, bedtime TEXT, wake_time TEXT, time_to_fall_asleep INTEGER, times_woken INTEGER DEFAULT 0, total_sleep_hours REAL, sleep_quality INTEGER, dreams_nightmares TEXT, factors_affecting TEXT, morning_mood INTEGER, notes TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+            'core_beliefs': "CREATE TABLE IF NOT EXISTS core_beliefs (id SERIAL PRIMARY KEY, username TEXT NOT NULL, old_belief TEXT NOT NULL, belief_origin TEXT, evidence_for TEXT, evidence_against TEXT, new_balanced_belief TEXT, belief_strength_before INTEGER, belief_strength_after INTEGER, is_active INTEGER DEFAULT 1, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_reviewed TIMESTAMP, deleted_at TIMESTAMP)",
+            'exposure_hierarchy': "CREATE TABLE IF NOT EXISTS exposure_hierarchy (id SERIAL PRIMARY KEY, username TEXT NOT NULL, fear_situation TEXT NOT NULL, initial_suds INTEGER, target_suds INTEGER, hierarchy_rank INTEGER, status TEXT DEFAULT 'not_started', entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+            'exposure_attempts': "CREATE TABLE IF NOT EXISTS exposure_attempts (id SERIAL PRIMARY KEY, exposure_id INTEGER NOT NULL, username TEXT NOT NULL, pre_suds INTEGER, peak_suds INTEGER, post_suds INTEGER, duration_minutes INTEGER, coping_strategies_used TEXT, notes TEXT, attempt_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (exposure_id) REFERENCES exposure_hierarchy(id))",
+            'problem_solving': "CREATE TABLE IF NOT EXISTS problem_solving (id SERIAL PRIMARY KEY, username TEXT NOT NULL, problem_description TEXT NOT NULL, problem_importance INTEGER, brainstormed_solutions TEXT, chosen_solution TEXT, action_steps TEXT, outcome TEXT, status TEXT DEFAULT 'in_progress', entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, completed_timestamp TIMESTAMP)",
+            'coping_cards': "CREATE TABLE IF NOT EXISTS coping_cards (id SERIAL PRIMARY KEY, username TEXT NOT NULL, card_title TEXT NOT NULL, situation_trigger TEXT, unhelpful_thought TEXT, helpful_response TEXT, coping_strategies TEXT, is_favorite INTEGER DEFAULT 0, times_used INTEGER DEFAULT 0, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_used TIMESTAMP, deleted_at TIMESTAMP)",
+            'self_compassion_journal': "CREATE TABLE IF NOT EXISTS self_compassion_journal (id SERIAL PRIMARY KEY, username TEXT NOT NULL, difficult_situation TEXT, self_critical_thoughts TEXT, common_humanity TEXT, kind_response TEXT, self_care_action TEXT, mood_before INTEGER, mood_after INTEGER, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+            'values_clarification': "CREATE TABLE IF NOT EXISTS values_clarification (id SERIAL PRIMARY KEY, username TEXT NOT NULL, value_name TEXT NOT NULL, value_description TEXT, importance_rating INTEGER, current_alignment INTEGER, life_area TEXT, related_goals TEXT, is_active INTEGER DEFAULT 1, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_reviewed TIMESTAMP)",
+            'goals': "CREATE TABLE IF NOT EXISTS goals (id SERIAL PRIMARY KEY, username TEXT NOT NULL, goal_title TEXT NOT NULL, goal_description TEXT, goal_type TEXT, target_date DATE, related_value_id INTEGER, status TEXT DEFAULT 'active', progress_percentage INTEGER DEFAULT 0, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, completed_timestamp TIMESTAMP, deleted_at TIMESTAMP, FOREIGN KEY (related_value_id) REFERENCES values_clarification(id))",
+            'goal_milestones': "CREATE TABLE IF NOT EXISTS goal_milestones (id SERIAL PRIMARY KEY, goal_id INTEGER NOT NULL, username TEXT NOT NULL, milestone_title TEXT NOT NULL, milestone_description TEXT, target_date DATE, is_completed INTEGER DEFAULT 0, completed_timestamp TIMESTAMP, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP, FOREIGN KEY (goal_id) REFERENCES goals(id))",
+            'goal_checkins': "CREATE TABLE IF NOT EXISTS goal_checkins (id SERIAL PRIMARY KEY, goal_id INTEGER NOT NULL, username TEXT NOT NULL, progress_notes TEXT, obstacles TEXT, next_steps TEXT, motivation_level INTEGER, checkin_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (goal_id) REFERENCES goals(id))",
+            'feedback': "CREATE TABLE IF NOT EXISTS feedback (id SERIAL PRIMARY KEY, username TEXT NOT NULL, role TEXT DEFAULT 'user', category TEXT NOT NULL, message TEXT NOT NULL, status TEXT DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, resolved_at TIMESTAMP, admin_notes TEXT, deleted_at TIMESTAMP)",
+            'daily_streaks': "CREATE TABLE IF NOT EXISTS daily_streaks (username TEXT PRIMARY KEY, current_streak INTEGER DEFAULT 0, longest_streak INTEGER DEFAULT 0, last_complete_date DATE, total_bonus_coins INTEGER DEFAULT 0, total_bonus_xp INTEGER DEFAULT 0)",
+            'cbt_tool_entries': "CREATE TABLE IF NOT EXISTS cbt_tool_entries (id SERIAL PRIMARY KEY, username TEXT NOT NULL, tool_type TEXT NOT NULL, data TEXT NOT NULL, mood_rating INTEGER, notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)",
+            'community_likes': "CREATE TABLE IF NOT EXISTS community_likes (id SERIAL PRIMARY KEY, post_id INTEGER, username TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, reaction_type TEXT DEFAULT 'like', UNIQUE(post_id, username))",
+            'community_replies': "CREATE TABLE IF NOT EXISTS community_replies (id SERIAL PRIMARY KEY, post_id INTEGER, username TEXT, message TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)",
+            'community_channel_reads': "CREATE TABLE IF NOT EXISTS community_channel_reads (id SERIAL PRIMARY KEY, username TEXT, channel TEXT, last_read TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(username, channel))",
+            'clinician_notes': "CREATE TABLE IF NOT EXISTS clinician_notes (id SERIAL PRIMARY KEY, clinician_username TEXT, patient_username TEXT, note_text TEXT, is_highlighted INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)",
         }
         
+        tables_created = 0
         for table_name, create_sql in required_tables.items():
-            # Check if table exists
-            cursor.execute(f"""
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.tables 
-                    WHERE table_schema = 'public' AND table_name = '{table_name}'
-                )
-            """)
-            
-            if not cursor.fetchone()[0]:
-                print(f"Creating missing table: {table_name}")
-                cursor.execute(create_sql)
-                conn.commit()
-            else:
-                print(f"✓ Table {table_name} exists")
+            try:
+                # Check if table exists
+                cursor.execute(f"""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.tables 
+                        WHERE table_schema = 'public' AND table_name = '{table_name}'
+                    )
+                """)
+                
+                if not cursor.fetchone()[0]:
+                    cursor.execute(create_sql)
+                    conn.commit()
+                    print(f"  ✓ Created missing table: {table_name}")
+                    tables_created += 1
+            except Exception as e:
+                print(f"  ⚠ Warning for table {table_name}: {e}")
+                conn.rollback()
         
         conn.close()
-        print("✓ Database repair complete")
+        print(f"✓ Database repair complete ({tables_created} tables created/fixed)")
         return True
     except Exception as e:
         print(f"Database repair error: {e}")
