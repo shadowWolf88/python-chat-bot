@@ -6730,7 +6730,7 @@ def trigger_background_training():
 
 @app.route('/api/pet/create', methods=['POST'])
 def pet_create():
-    """Create new pet"""
+    """Create new pet - handles both creation and updates via upsert"""
     try:
         data = request.json
         username = data.get('username')
@@ -6750,12 +6750,25 @@ def pet_create():
         conn = get_pet_db_connection()
         cur = get_wrapped_cursor(conn)
         
-        # Delete only THIS user's pet, not all pets
-        cur.execute("DELETE FROM pet WHERE username = %s", (username,))
+        # Use PostgreSQL INSERT ... ON CONFLICT for safe upsert (no race condition)
         cur.execute("""
             INSERT INTO pet (username, name, species, gender, hunger, happiness, energy, hygiene, 
                            coins, xp, stage, adventure_end, last_updated, hat)
             VALUES (%s, %s, %s, %s, 70, 70, 70, 80, 0, 0, 'Baby', 0, %s, 'None')
+            ON CONFLICT(username) DO UPDATE SET
+                name = EXCLUDED.name,
+                species = EXCLUDED.species,
+                gender = EXCLUDED.gender,
+                hunger = 70,
+                happiness = 70,
+                energy = 70,
+                hygiene = 80,
+                coins = 0,
+                xp = 0,
+                stage = 'Baby',
+                adventure_end = 0,
+                last_updated = EXCLUDED.last_updated,
+                hat = 'None'
         """, (username, name, species, gender, datetime.now().timestamp()))
         conn.commit()
         conn.close()
