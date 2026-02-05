@@ -2921,7 +2921,7 @@
         /* Chat Window Style Wellness Ritual */
         .wellness-chat-card {
             border: 2px solid var(--primary-color);
-            background: linear-gradient(135deg, rgba(99, 179, 237, 0.08) 0%, rgba(156, 39, 176, 0.08) 100%);
+            background: var(--bg-color);
             border-radius: 12px;
             overflow: hidden;
             display: flex;
@@ -2940,12 +2940,14 @@
             margin: 0;
             font-size: 1.1em;
             font-weight: 600;
+            color: white;
         }
 
         .wellness-chat-header p {
             margin: 5px 0 0 0;
             font-size: 0.9em;
             opacity: 0.9;
+            color: white;
         }
 
         .wellness-close-btn {
@@ -2973,9 +2975,11 @@
             padding: 15px 20px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
             min-height: 250px;
             max-height: 350px;
+            background: var(--bg-color);
+            color: var(--text-color);
         }
 
         .wellness-chat-messages::-webkit-scrollbar {
@@ -2983,7 +2987,7 @@
         }
 
         .wellness-chat-messages::-webkit-scrollbar-track {
-            background: transparent;
+            background: var(--bg-secondary);
         }
 
         .wellness-chat-messages::-webkit-scrollbar-thumb {
@@ -2994,7 +2998,7 @@
         .wellness-message {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             animation: slideIn 0.3s ease-out;
         }
 
@@ -3012,11 +3016,13 @@
             border-radius: 12px;
             word-wrap: break-word;
             line-height: 1.4;
+            font-size: 0.95em;
         }
 
         .wellness-message.ai .wellness-bubble {
             background: var(--bg-secondary);
             color: var(--text-color);
+            border: 1px solid var(--border-color);
             border-bottom-left-radius: 4px;
         }
 
@@ -3035,7 +3041,8 @@
         .wellness-option-btn {
             padding: 10px 14px;
             border: 2px solid var(--border-color);
-            background: white;
+            background: var(--bg-color);
+            color: var(--text-color);
             border-radius: 8px;
             cursor: pointer;
             text-align: left;
@@ -3043,13 +3050,9 @@
             font-size: 0.95em;
         }
 
-        [data-theme="dark"] .wellness-option-btn {
-            background: var(--bg-secondary);
-        }
-
         .wellness-option-btn:hover {
             border-color: var(--primary-color);
-            background: rgba(99, 179, 237, 0.1);
+            background: var(--bg-secondary);
         }
 
         .wellness-option-btn.selected {
@@ -3068,16 +3071,12 @@
         .mood-button {
             padding: 10px 6px;
             border: 2px solid var(--border-color);
-            background: white;
+            background: var(--bg-color);
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
             font-size: 1.4em;
             line-height: 1;
-        }
-
-        [data-theme="dark"] .mood-button {
-            background: var(--bg-secondary);
         }
 
         .mood-button:hover {
@@ -3099,6 +3098,8 @@
             font-size: 0.95em;
             font-family: inherit;
             transition: all 0.2s;
+            background: var(--bg-color);
+            color: var(--text-color);
         }
 
         .wellness-text-input:focus {
@@ -3107,14 +3108,10 @@
             box-shadow: 0 0 8px rgba(99, 179, 237, 0.2);
         }
 
-        [data-theme="dark"] .wellness-text-input {
-            background: var(--bg-secondary);
-            color: var(--text-color);
-        }
-
         .wellness-input-area {
             display: flex;
             gap: 8px;
+            padding: 0 20px 20px 20px;
             border-top: 1px solid var(--border-color);
             background: var(--bg-color);
         }
@@ -3122,10 +3119,20 @@
         .wellness-input-area button {
             font-size: 0.9em;
             padding: 10px 12px;
+            color: white;
         }
 
         .wellness-already-logged {
             animation: slideIn 0.3s ease-out;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px;
+            color: var(--text-color);
+        }
+
+        .wellness-already-logged p {
+            color: var(--text-color);
         }
 
         @keyframes slideIn {
@@ -14209,17 +14216,18 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             timeOfDay: '',
             startTime: Date.now(),
             skipped: [],
+            conversationHistory: [], // Track AI/user messages for context
             steps: [
-                { id: 'mood', title: 'How is your mood?', emoji: '😊' },
-                { id: 'mood_context', title: 'What\'s affecting your mood?', emoji: '🤔' },
-                { id: 'sleep', title: 'How was your sleep?', emoji: '😴' },
-                { id: 'hydration', title: 'How\'s your hydration?', emoji: '💧' },
-                { id: 'exercise', title: 'Any movement today?', emoji: '🏃' },
-                { id: 'social', title: 'Social connections?', emoji: '👥' },
-                { id: 'medication', title: 'Did you take your meds?', emoji: '💊' },
-                { id: 'energy', title: 'What\'s your energy level?', emoji: '⚡' },
-                { id: 'homework', title: 'CBT homework progress?', emoji: '📝' },
-                { id: 'wrap_up', title: 'That\'s it!', emoji: '✨' }
+                { id: 'greeting_name', title: 'What should I call you?', emoji: '👋', type: 'text' },
+                { id: 'mood', title: 'How are you feeling today?', emoji: '😊', type: 'text' },
+                { id: 'sleep', title: 'How did you sleep last night?', emoji: '😴', type: 'options' },
+                { id: 'hydration', title: 'How\'s your hydration today?', emoji: '💧', type: 'number' },
+                { id: 'exercise', title: 'Any movement or exercise today?', emoji: '🏃', type: 'options' },
+                { id: 'social', title: 'How\'s your social connection today?', emoji: '👥', type: 'options' },
+                { id: 'medication', title: 'Have you taken your medication?', emoji: '💊', type: 'options' },
+                { id: 'energy', title: 'What\'s your energy level right now?', emoji: '⚡', type: 'options' },
+                { id: 'homework', title: 'Any progress on your CBT homework?', emoji: '📝', type: 'options' },
+                { id: 'wrap_up', title: 'Session complete!', emoji: '✨', type: 'summary' }
             ]
         };
 
@@ -14265,19 +14273,18 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     return;
                 }
 
-                // Get time-aware greeting
-                const greeting = updateWellnessTimeOfDay();
-                document.getElementById('wellnessGreeting').textContent = 'How are you really doing today?';
                 document.getElementById('wellnessAlreadyLogged').style.display = 'none';
                 document.querySelector('.wellness-input-area').style.display = 'flex';
                 
-                // Initialize wellness ritual
+                // Clear conversation and initialize
+                document.getElementById('wellnessConversation').innerHTML = '';
                 wellnessRitualState.currentStep = 0;
                 wellnessRitualState.data = {};
                 wellnessRitualState.skipped = [];
                 wellnessRitualState.startTime = Date.now();
+                wellnessRitualState.conversationHistory = [];
 
-                // Show wellness chat
+                // Start the conversation
                 showWellnessStep();
                 
             } catch (error) {
@@ -14297,12 +14304,70 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             message.appendChild(bubble);
             messagesDiv.appendChild(message);
             
+            // Track for AI context
+            wellnessRitualState.conversationHistory.push({
+                speaker: isUser ? 'user' : 'ai',
+                text: text,
+                timestamp: new Date().toISOString()
+            });
+            
             // Auto scroll to bottom
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
+        function addWellnessOptions(optionsArray, callback) {
+            const messagesDiv = document.getElementById('wellnessConversation');
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'wellness-options';
+            
+            optionsArray.forEach(option => {
+                const btn = document.createElement('button');
+                btn.className = 'wellness-option-btn';
+                btn.textContent = option.label;
+                btn.onclick = () => {
+                    addWellnessMessage(option.label, true);
+                    callback(option.value || option.label);
+                };
+                optionsDiv.appendChild(btn);
+            });
+            messagesDiv.appendChild(optionsDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addWellnessTextInput(placeholder, callback) {
+            const messagesDiv = document.getElementById('wellnessConversation');
+            const inputDiv = document.createElement('div');
+            inputDiv.style.display = 'flex';
+            inputDiv.style.gap = '8px';
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = placeholder;
+            input.className = 'wellness-text-input';
+            
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-primary';
+            btn.textContent = '→';
+            btn.onclick = () => {
+                if (input.value.trim()) {
+                    addWellnessMessage(input.value, true);
+                    callback(input.value);
+                }
+            };
+            
+            input.onkeypress = (e) => {
+                if (e.key === 'Enter') btn.onclick();
+            };
+            
+            inputDiv.appendChild(input);
+            inputDiv.appendChild(btn);
+            messagesDiv.appendChild(inputDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            input.focus();
+        }
+
         function toggleWellnessChat() {
-            const container = document.getElementById('wellnessRitualContainer');
             const messagesDiv = document.getElementById('wellnessConversation');
             const inputArea = document.querySelector('.wellness-input-area');
             
@@ -14319,27 +14384,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const step = wellnessRitualState.steps[wellnessRitualState.currentStep];
             if (!step) return;
 
-            // Should we skip this step?
-            if (shouldSkipWellnessStep(step.id)) {
-                wellnessRitualState.skipped.push(step.id);
-                wellnessRitualState.currentStep++;
-                if (wellnessRitualState.currentStep < wellnessRitualState.steps.length) {
-                    showWellnessStep();
-                    return;
-                } else {
-                    showWellnessWrapUp();
-                    return;
-                }
-            }
-
-            const conversation = document.getElementById('wellnessConversation');
-            
-            // Clear and show AI message
-            const aiMessage = `${step.emoji} ${step.title}`;
-            addWellnessMessage(aiMessage, false);
-
-            // Render step-specific content inline
-            renderWellnessStepContent(step.id, conversation);
+            const question = `${step.emoji} ${step.title}`;
+            addWellnessMessage(question, false);
 
             // Update progress
             updateWellnessProgress();
@@ -14351,30 +14397,109 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             
             prevBtn.style.display = wellnessRitualState.currentStep > 0 ? 'inline-block' : 'none';
             submitBtn.style.display = 'none';
-            nextBtn.style.display = 'inline-block';
+            nextBtn.style.display = 'none';
+            
+            // Render step-specific content
+            renderWellnessStepContent(step.id);
         }
 
-        function shouldSkipWellnessStep(stepId) {
-            // Skip sleep in afternoon/evening
-            if (stepId === 'sleep' && (wellnessRitualState.timeOfDay === 'afternoon' || wellnessRitualState.timeOfDay === 'evening')) {
-                return true;
-            }
-            // Skip medication if no meds data (can check later with API)
-            // For now, always ask
-            return false;
-        }
-
-        function renderWellnessStepContent(stepId, container) {
+        function renderWellnessStepContent(stepId) {
             switch(stepId) {
-                case 'mood':
-                    renderMoodStep(container);
+                case 'greeting_name':
+                    addWellnessTextInput('What should I call you? (your preferred name)', (value) => {
+                        wellnessRitualState.data.preferred_name = value;
+                        setTimeout(() => nextWellnessStep(), 600);
+                    });
                     break;
-                case 'mood_context':
-                    renderMoodContextStep(container);
+                case 'mood':
+                    addWellnessTextInput('Describe how you\'re feeling today...', (value) => {
+                        wellnessRitualState.data.mood_narrative = value;
+                        // Extract mood number (1-10) if present
+                        const match = value.match(/(\d+)/);
+                        if (match) {
+                            wellnessRitualState.data.mood = parseInt(match[1]);
+                        }
+                        setTimeout(() => nextWellnessStep(), 600);
+                    });
                     break;
                 case 'sleep':
-                    renderSleepStep(container);
+                    addWellnessOptions([
+                        { label: '😴 Excellent sleep', value: 9 },
+                        { label: '🙂 Good sleep', value: 7 },
+                        { label: '😐 OK sleep', value: 5 },
+                        { label: '😟 Poor sleep', value: 3 },
+                        { label: '😢 Very poor/no sleep', value: 1 }
+                    ], (value) => {
+                        wellnessRitualState.data.sleep_quality = value;
+                        setTimeout(() => nextWellnessStep(), 600);
+                    });
                     break;
+                case 'hydration':
+                    addWellnessTextInput('How many cups of water today? (or: low/medium/high)', (value) => {
+                        const num = parseInt(value);
+                        wellnessRitualState.data.total_hydration_cups = isNaN(num) ? 0 : num;
+                        wellnessRitualState.data.hydration_narrative = value;
+                        setTimeout(() => nextWellnessStep(), 600);
+                    });
+                    break;
+                case 'exercise':
+                    addWellnessOptions([
+                        { label: '🏃 Vigorous exercise (45+ min)', value: 'vigorous' },
+                        { label: '🚶 Moderate exercise (20-45 min)', value: 'moderate' },
+                        { label: '🚶‍♂️ Light movement (walk, stretch)', value: 'light' },
+                        { label: '😴 No movement yet', value: 'none' }
+                    ], (value) => {
+                        wellnessRitualState.data.exercise_type = value;
+                        setTimeout(() => nextWellnessStep(), 600);
+                    });
+                    break;
+                case 'social':
+                    addWellnessOptions([
+                        { label: '👥 Strong connection (in-person time)', value: 'strong' },
+                        { label: '💬 Good contact (calls, texts)', value: 'good' },
+                        { label: '📱 Some interaction', value: 'some' },
+                        { label: '😔 Minimal or no contact', value: 'minimal' }
+                    ], (value) => {
+                        wellnessRitualState.data.social_contact = value;
+                        setTimeout(() => nextWellnessStep(), 600);
+                    });
+                    break;
+                case 'medication':
+                    addWellnessOptions([
+                        { label: '✅ Yes, took my medication', value: true },
+                        { label: '⏳ Missed it', value: false }
+                    ], (value) => {
+                        wellnessRitualState.data.medication_taken = value;
+                        setTimeout(() => nextWellnessStep(), 600);
+                    });
+                    break;
+                case 'energy':
+                    addWellnessOptions([
+                        { label: '⚡ Energized & capable', value: 9 },
+                        { label: '🙂 Good energy', value: 7 },
+                        { label: '😐 OK', value: 5 },
+                        { label: '😟 Low energy', value: 3 },
+                        { label: '😴 Exhausted', value: 1 }
+                    ], (value) => {
+                        wellnessRitualState.data.energy_level = value;
+                        setTimeout(() => nextWellnessStep(), 600);
+                    });
+                    break;
+                case 'homework':
+                    addWellnessOptions([
+                        { label: '✅ Completed my homework', value: true },
+                        { label: '⏳ Still working on it', value: false },
+                        { label: '🤔 Don\'t have homework this week', value: null }
+                    ], (value) => {
+                        wellnessRitualState.data.homework_completed = value;
+                        setTimeout(() => nextWellnessStep(), 600);
+                    });
+                    break;
+                case 'wrap_up':
+                    showWellnessWrapUp();
+                    break;
+            }
+        }
                 case 'hydration':
                     renderHydrationStep(container);
                     break;
@@ -14399,243 +14524,6 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
 
-        function renderMoodStep(container) {
-            const messagesDiv = document.getElementById('wellnessConversation');
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'wellness-options';
-            
-            const emojis = ['😢 Very sad', '😟 Sad', '😐 Neutral', '🙂 Good', '😄 Great'];
-            emojis.forEach((label, i) => {
-                const btn = document.createElement('button');
-                btn.className = 'wellness-option-btn';
-                btn.textContent = label;
-                btn.onclick = () => {
-                    wellnessRitualState.data.mood = i + 1;
-                    addWellnessMessage(label, true);
-                    setTimeout(() => nextWellnessStep(), 800);
-                };
-                optionsDiv.appendChild(btn);
-            });
-            messagesDiv.appendChild(optionsDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function renderMoodContextStep(container) {
-            const messagesDiv = document.getElementById('wellnessConversation');
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'wellness-options';
-            
-            const contexts = ['Work/Study stress', 'Relationship issues', 'Physical health', 'Personal achievement', 'No specific cause'];
-            contexts.forEach(context => {
-                const btn = document.createElement('button');
-                btn.className = 'wellness-option-btn';
-                btn.textContent = context;
-                btn.onclick = () => {
-                    wellnessRitualState.data.mood_context = context;
-                    addWellnessMessage(context, true);
-                    setTimeout(() => nextWellnessStep(), 800);
-                };
-                optionsDiv.appendChild(btn);
-            });
-            messagesDiv.appendChild(optionsDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function renderSleepStep(container) {
-            const messagesDiv = document.getElementById('wellnessConversation');
-            const div = document.createElement('div');
-            div.style.display = 'flex';
-            div.style.gap = '8px';
-            div.style.alignItems = 'center';
-            
-            const input = document.createElement('input');
-            input.type = 'range';
-            input.min = '1';
-            input.max = '10';
-            input.value = '5';
-            input.style.flex = '1';
-            
-            const valueSpan = document.createElement('span');
-            valueSpan.textContent = '5';
-            valueSpan.style.minWidth = '30px';
-            valueSpan.style.color = 'var(--primary-color)';
-            valueSpan.style.fontWeight = 'bold';
-            
-            input.oninput = () => {
-                valueSpan.textContent = input.value;
-            };
-            
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
-            btn.textContent = 'Set';
-            btn.onclick = () => {
-                wellnessRitualState.data.sleep_quality = input.value;
-                addWellnessMessage(`Sleep quality: ${input.value}/10`, true);
-                setTimeout(() => nextWellnessStep(), 800);
-            };
-            
-            div.appendChild(input);
-            div.appendChild(valueSpan);
-            div.appendChild(btn);
-            messagesDiv.appendChild(div);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function renderHydrationStep(container) {
-            const messagesDiv = document.getElementById('wellnessConversation');
-            const div = document.createElement('div');
-            div.style.display = 'flex';
-            div.style.gap = '8px';
-            
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.min = '0';
-            input.max = '20';
-            input.placeholder = 'cups';
-            input.className = 'wellness-text-input';
-            input.style.flex = '1';
-            
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
-            btn.textContent = 'Set';
-            btn.onclick = () => {
-                wellnessRitualState.data.total_hydration_cups = input.value || 0;
-                addWellnessMessage(`${input.value} cups of water`, true);
-                setTimeout(() => nextWellnessStep(), 800);
-            };
-            
-            div.appendChild(input);
-            div.appendChild(btn);
-            messagesDiv.appendChild(div);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function renderExerciseStep(container) {
-            const messagesDiv = document.getElementById('wellnessConversation');
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'wellness-options';
-            
-            const exercises = ['No movement yet', 'Light walk (10-20 min)', 'Moderate exercise (20-45 min)', 'Vigorous exercise (45+ min)', 'Multiple sessions'];
-            exercises.forEach(exercise => {
-                const btn = document.createElement('button');
-                btn.className = 'wellness-option-btn';
-                btn.textContent = exercise;
-                btn.onclick = () => {
-                    wellnessRitualState.data.exercise_type = exercise;
-                    addWellnessMessage(exercise, true);
-                    setTimeout(() => nextWellnessStep(), 800);
-                };
-                optionsDiv.appendChild(btn);
-            });
-            messagesDiv.appendChild(optionsDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function renderSocialStep(container) {
-            const messagesDiv = document.getElementById('wellnessConversation');
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'wellness-options';
-            
-            const socials = ['No contact', 'Minimal contact', 'Some interaction', 'Good social time', 'Strong connection'];
-            socials.forEach(social => {
-                const btn = document.createElement('button');
-                btn.className = 'wellness-option-btn';
-                btn.textContent = social;
-                btn.onclick = () => {
-                    wellnessRitualState.data.social_contact = social;
-                    addWellnessMessage(social, true);
-                    setTimeout(() => nextWellnessStep(), 800);
-                };
-                optionsDiv.appendChild(btn);
-            });
-            messagesDiv.appendChild(optionsDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function renderMedicationStep(container) {
-            const messagesDiv = document.getElementById('wellnessConversation');
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'wellness-options';
-            
-            const medOptions = ['✅ Yes, I took my medication', '❌ No, I didn\'t take it'];
-            medOptions.forEach((label, i) => {
-                const btn = document.createElement('button');
-                btn.className = 'wellness-option-btn';
-                btn.textContent = label;
-                btn.onclick = () => {
-                    wellnessRitualState.data.medication_taken = (i === 0);
-                    addWellnessMessage(label, true);
-                    setTimeout(() => nextWellnessStep(), 800);
-                };
-                optionsDiv.appendChild(btn);
-            });
-            messagesDiv.appendChild(optionsDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function renderEnergyStep(container) {
-            const messagesDiv = document.getElementById('wellnessConversation');
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'wellness-options';
-            
-            const labels = ['😴 Exhausted', '😑 Low', '😐 OK', '🙂 Good', '⚡ Energized'];
-            labels.forEach((label, i) => {
-                const btn = document.createElement('button');
-                btn.className = 'wellness-option-btn';
-                btn.textContent = label;
-                btn.onclick = () => {
-                    wellnessRitualState.data.energy_level = i + 1;
-                    addWellnessMessage(label, true);
-                    setTimeout(() => nextWellnessStep(), 800);
-                };
-                optionsDiv.appendChild(btn);
-            });
-            messagesDiv.appendChild(optionsDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function renderHomeworkStep(container) {
-            const messagesDiv = document.getElementById('wellnessConversation');
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'wellness-options';
-            
-            const hwOptions = ['✅ Yes, completed my homework', '⏳ Didn\'t complete it yet'];
-            hwOptions.forEach((label, i) => {
-                const btn = document.createElement('button');
-                btn.className = 'wellness-option-btn';
-                btn.textContent = label;
-                btn.onclick = () => {
-                    wellnessRitualState.data.homework_completed = (i === 0);
-                    addWellnessMessage(label, true);
-                    setTimeout(() => nextWellnessStep(), 800);
-                };
-                optionsDiv.appendChild(btn);
-            });
-            messagesDiv.appendChild(optionsDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function renderWrapUpStep(container) {
-            const messagesDiv = document.getElementById('wellnessConversation');
-            const message = 'Thank you for checking in with me today! 💙 I have a complete picture of how you\'re doing. Keep up the great self-awareness!';
-            addWellnessMessage(message, false);
-        }
-
-        function showWellnessWrapUp() {
-            // Session complete
-            wellnessRitualState.data.session_duration_seconds = Math.floor((Date.now() - wellnessRitualState.startTime) / 1000);
-            
-            document.getElementById('wellnessProgressText').textContent = 'Complete! ✨';
-            document.getElementById('wellnessProgressBar').style.width = '100%';
-            
-            const nextBtn = document.getElementById('wellnessNextBtn');
-            const submitBtn = document.getElementById('wellnessSubmitBtn');
-            nextBtn.style.display = 'none';
-            submitBtn.style.display = 'block';
-            
-            showWellnessStep();
-        }
-
         function updateWellnessProgress() {
             const total = wellnessRitualState.steps.length;
             const current = wellnessRitualState.currentStep + 1;
@@ -14657,41 +14545,91 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         function previousWellnessStep() {
             if (wellnessRitualState.currentStep > 0) {
                 wellnessRitualState.currentStep--;
+                // Clear and re-render
+                document.getElementById('wellnessConversation').innerHTML = '';
                 showWellnessStep();
             }
         }
 
         function skipWellnessStep() {
-            wellnessRitualState.skipped.push(wellnessRitualState.steps[wellnessRitualState.currentStep].id);
             nextWellnessStep();
+        }
+
+        function showWellnessWrapUp() {
+            // Session complete
+            wellnessRitualState.data.session_duration_seconds = Math.floor((Date.now() - wellnessRitualState.startTime) / 1000);
+            
+            document.getElementById('wellnessProgressText').textContent = 'Complete! ✨';
+            document.getElementById('wellnessProgressBar').style.width = '100%';
+            
+            const messagesDiv = document.getElementById('wellnessConversation');
+            const preferredName = wellnessRitualState.data.preferred_name || 'friend';
+            
+            // Get personalized thank you message
+            const gratitudeMessages = [
+                `That was wonderful, ${preferredName}. Thank you for being so honest with me today. 💙`,
+                `Thank you for checking in, ${preferredName}. I can see you're really taking care of yourself. 💙`,
+                `I appreciate you taking the time today, ${preferredName}. This helps me understand you better. 💙`,
+                `That's really insightful, ${preferredName}. Thank you for sharing. 💙`
+            ];
+            
+            const message = gratitudeMessages[Math.floor(Math.random() * gratitudeMessages.length)];
+            addWellnessMessage(message, false);
+            
+            // Add action items or encouragement
+            let encouragement = '';
+            if (wellnessRitualState.data.sleep_quality && wellnessRitualState.data.sleep_quality < 5) {
+                encouragement += 'Let\'s focus on sleep tonight—even 10 minutes earlier can help. ';
+            }
+            if (wellnessRitualState.data.total_hydration_cups && wellnessRitualState.data.total_hydration_cups < 3) {
+                encouragement += 'Don\'t forget to drink more water today! ';
+            }
+            if (wellnessRitualState.data.exercise_type === 'none') {
+                encouragement += 'Even a 5-minute walk would help boost your mood. ';
+            }
+            
+            if (encouragement) {
+                setTimeout(() => addWellnessMessage(encouragement, false), 1200);
+            }
+            
+            // Final wrap-up
+            setTimeout(() => {
+                addWellnessMessage('Come back tomorrow to check in again. I\'ll be here. 🌟', false);
+            }, encouragement ? 2400 : 1200);
+            
+            // Show submit button
+            const submitBtn = document.getElementById('wellnessSubmitBtn');
+            submitBtn.style.display = 'inline-block';
         }
 
         async function submitWellnessRitual() {
             try {
-                // Prepare payload
+                // Prepare payload - map all captured data
                 const payload = {
                     mood: wellnessRitualState.data.mood || null,
-                    mood_descriptor: '',
-                    mood_context: wellnessRitualState.data.mood_context || '',
+                    mood_descriptor: wellnessRitualState.data.mood_narrative || '',
+                    mood_context: wellnessRitualState.data.mood_narrative || '',
                     sleep_quality: wellnessRitualState.data.sleep_quality || null,
-                    sleep_notes: wellnessRitualState.data.sleep_notes || '',
-                    hydration_level: wellnessRitualState.data.hydration_level || '',
+                    sleep_notes: '',
+                    hydration_level: wellnessRitualState.data.hydration_narrative || '',
                     total_hydration_cups: parseInt(wellnessRitualState.data.total_hydration_cups) || 0,
                     exercise_type: wellnessRitualState.data.exercise_type || '',
                     exercise_duration: 0,
                     outdoor_time_minutes: 0,
                     social_contact: wellnessRitualState.data.social_contact || '',
-                    medication_taken: wellnessRitualState.data.medication_taken || false,
-                    medication_reason_if_missed: wellnessRitualState.data.medication_reason_if_missed || '',
+                    medication_taken: wellnessRitualState.data.medication_taken !== false,
+                    medication_reason_if_missed: '',
                     caffeine_intake_time: '',
                     energy_level: wellnessRitualState.data.energy_level || null,
-                    capacity_index: wellnessRitualState.data.capacity_index || null,
+                    capacity_index: wellnessRitualState.data.energy_level || null,
                     weekly_goal_progress: 0,
-                    homework_completed: wellnessRitualState.data.homework_completed || false,
-                    homework_blockers: wellnessRitualState.data.homework_blockers || '',
-                    emotional_narrative: '',
-                    time_of_day_category: wellnessRitualState.timeOfDay,
-                    session_duration_seconds: wellnessRitualState.data.session_duration_seconds || 0
+                    homework_completed: wellnessRitualState.data.homework_completed === true,
+                    homework_blockers: '',
+                    emotional_narrative: wellnessRitualState.data.mood_narrative || '',
+                    preferred_name: wellnessRitualState.data.preferred_name || '',
+                    time_of_day_category: getTimeOfDay(),
+                    session_duration_seconds: wellnessRitualState.data.session_duration_seconds || 0,
+                    conversation_history: wellnessRitualState.conversationHistory
                 };
 
                 const response = await fetch('/api/wellness/log', {
@@ -14708,16 +14646,18 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
                 const result = await response.json();
                 
-                // Show success message and close modal
-                alert('✅ Your wellness ritual has been saved!');
-                document.getElementById('wellnessRitualModal').style.display = 'none';
+                // Show success message and re-initialize
+                await new Promise(r => setTimeout(r, 1000));
+                addWellnessMessage('✅ All saved! See you tomorrow, ' + (wellnessRitualState.data.preferred_name || 'friend') + '.', false);
                 
                 // Reset for next time
-                wellnessRitualState = { ...wellnessRitualState, currentStep: 0, data: {}, skipped: [] };
+                setTimeout(() => {
+                    initializeWellnessRitual();
+                }, 2000);
                 
             } catch (error) {
                 console.error('Error submitting wellness ritual:', error);
-                alert('❌ Error: ' + error.message);
+                addWellnessMessage('❌ Error saving. Please try again.', false);
             }
         }
 
