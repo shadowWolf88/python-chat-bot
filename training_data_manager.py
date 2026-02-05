@@ -99,7 +99,7 @@ class TrainingDataManager:
         # Audit trail
         cur.execute(
             '''INSERT INTO training_audit (user_hash, action, details)
-               VALUES (%s, ?, %s)''',
+               VALUES (%s, %s, %s)''',
             (user_hash, action, f'User consent status changed to: {consent}')
         )
         
@@ -181,7 +181,7 @@ class TrainingDataManager:
                 '''INSERT INTO training_chats 
                    (session_hash, user_hash, message_role, message_content, 
                     timestamp, mood_context, assessment_severity)
-                   VALUES (%s, ?, ?, ?, ?, ?, %s)''',
+                   VALUES (%s, %s, %s, %s, %s, %s, %s)''',
                 (session_hash, user_hash, sender, anonymized_message, 
                  timestamp, mood[0] if mood else None, 
                  assessment[0] if assessment else None)
@@ -190,7 +190,7 @@ class TrainingDataManager:
         # Audit
         train_cur.execute(
             '''INSERT INTO training_audit (user_hash, action, details)
-               VALUES (%s, ?, %s)''',
+               VALUES (%s, %s, %s)''',
             (user_hash, 'data_exported', f'Exported {len(chats)} chat messages')
         )
         
@@ -241,7 +241,7 @@ class TrainingDataManager:
             train_cur.execute(
                 '''INSERT INTO training_patterns 
                    (user_hash, pattern_type, pattern_data, timestamp)
-                   VALUES (%s, ?, ?, %s)''',
+                   VALUES (%s, %s, %s, %s)''',
                 (user_hash, 'cbt', json.dumps(pattern_data), cbt[3])
             )
         
@@ -254,7 +254,7 @@ class TrainingDataManager:
             train_cur.execute(
                 '''INSERT INTO training_patterns 
                    (user_hash, pattern_type, pattern_data, timestamp)
-                   VALUES (%s, ?, ?, %s)''',
+                   VALUES (%s, %s, %s, %s)''',
                 (user_hash, 'gratitude', json.dumps(pattern_data), grat[1])
             )
         
@@ -304,7 +304,7 @@ class TrainingDataManager:
                     '''INSERT INTO training_outcomes 
                        (user_hash, baseline_phq9, followup_phq9, 
                         days_between, improvement_score, timestamp)
-                       VALUES (%s, ?, ?, ?, ?, %s)''',
+                       VALUES (%s, %s, %s, %s, %s, %s)''',
                     (user_hash, baseline_phq9, followup_phq9, 
                      days_between, improvement, datetime.now())
                 )
@@ -320,7 +320,7 @@ class TrainingDataManager:
                     '''INSERT INTO training_outcomes 
                        (user_hash, baseline_gad7, followup_gad7, 
                         days_between, improvement_score, timestamp)
-                       VALUES (%s, ?, ?, ?, ?, %s)''',
+                       VALUES (%s, %s, %s, %s, %s, %s)''',
                     (user_hash, baseline_gad7, followup_gad7, 
                      days_between, improvement, datetime.now())
                 )
@@ -347,7 +347,7 @@ class TrainingDataManager:
         # Audit
         cur.execute(
             '''INSERT INTO training_audit (user_hash, action, details)
-               VALUES (%s, ?, %s)''',
+               VALUES (%s, %s, %s)''',
             (user_hash, 'data_deleted', 'User exercised right to deletion')
         )
         
