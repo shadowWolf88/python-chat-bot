@@ -4092,7 +4092,7 @@ def list_all_users():
             params.append(role_filter)
 
         if search:
-            query += " AND username LIKE ?"
+            query += " AND username LIKE %s"
             params.append(f'%{search}%')
 
         query += " ORDER BY last_login DESC"
@@ -7903,7 +7903,7 @@ def report_community_post(post_id):
 
         # Check if already reported by this user
         existing_report = cur.execute(
-            "SELECT id FROM alerts WHERE alert_type='post_report' AND details LIKE ? AND details LIKE ?",
+            "SELECT id FROM alerts WHERE alert_type='post_report' AND details LIKE %s AND details LIKE %s",
             (f'%post_id:{post_id}%', f'%reporter:{reporter_username}%')
         ).fetchone()
 
@@ -8696,13 +8696,13 @@ def generate_ai_summary():
         # Get recent therapy chat messages (sample themes)
         # Fix: Accept any session_id for this user (not just _session)
         chat_messages = cur.execute(
-            "SELECT message FROM chat_history WHERE session_id LIKE ? AND sender='user' ORDER BY timestamp DESC LIMIT 10",
+            "SELECT message FROM chat_history WHERE session_id LIKE %s AND sender='user' ORDER BY timestamp DESC LIMIT 10",
             (f"{username}_%",)
         ).fetchall() or []
 
         # Count total therapy sessions
         therapy_sessions_row = cur.execute(
-            "SELECT COUNT(DISTINCT session_id) FROM chat_history WHERE session_id LIKE ?",
+            "SELECT COUNT(DISTINCT session_id) FROM chat_history WHERE session_id LIKE %s",
             (f"{username}_%",)
         ).fetchone()
         therapy_sessions = therapy_sessions_row[0] if therapy_sessions_row and len(therapy_sessions_row) > 0 else 0
