@@ -2123,12 +2123,6 @@ class TherapistAI:
                 "content": user_message
             })
             
-            # Validate messages before sending
-            for msg in messages:
-                if not msg.get('content') or not isinstance(msg.get('content'), str):
-                    print(f"WARNING: Invalid message in history: {msg}")
-                    msg['content'] = str(msg.get('content', ''))  # Convert to string
-
             # Call Groq API
             response = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
@@ -2137,19 +2131,19 @@ class TherapistAI:
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "mixtral-8x7b-32768",
+                    "model": "llama-3.3-70b-versatile",
                     "messages": messages,
                     "max_tokens": 1024,
                     "temperature": 0.7
                 },
                 timeout=30
             )
-
-            if response.status_code != 200:
-                error_detail = response.text if response.text else "No error detail"
-                print(f"Groq API error {response.status_code}: {error_detail}")
-                raise RuntimeError(f"Groq API error: {response.status_code} - {error_detail[:200]}")
             
+            if response.status_code != 200:
+                error_detail = response.text[:200] if response.text else "No error detail"
+                print(f"Groq API error {response.status_code}: {error_detail}")
+                raise RuntimeError(f"Groq API error: {response.status_code} - {error_detail}")
+
             result = response.json()
             if 'choices' not in result or len(result['choices']) == 0:
                 raise RuntimeError("No response from Groq API")
@@ -10671,7 +10665,7 @@ def get_home_data():
 
         # Get pet info for quick display
         pet_conn = get_pet_db_connection()
-        pet_cur = pet_conn.cursor()
+        pet_cur = get_wrapped_cursor(pet_conn)
         pet = pet_cur.execute("SELECT name, coins, xp, stage FROM pet WHERE username=%s", (username,)).fetchone()
         pet_conn.close()
 
@@ -10888,10 +10882,10 @@ def award_daily_completion_bonus(username, cursor, today):
         # Award pet bonus (50 coins, 100 XP, +10 happiness)
         try:
             pet_conn = get_pet_db_connection()
-            pet_cur = pet_conn.cursor()
+            pet_cur = get_wrapped_cursor(pet_conn)
             pet_cur.execute('''
-                UPDATE pet SET coins=coins+50, xp=xp+100, happiness=MIN(100, happiness+10)
-                WHERE id = %s
+                UPDATE pet SET coins=coins+50, xp=xp+100, happiness=LEAST(100, happiness+10)
+                WHERE username = %s
             ''', (username,))
             pet_conn.commit()
             pet_conn.close()
