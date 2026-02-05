@@ -2053,6 +2053,29 @@ def ensure_pet_table():
     finally:
         conn.close()
 
+def normalize_pet_row(pet_row):
+    """Convert pet row values to proper types - matches pet table schema"""
+    if not pet_row:
+        return None
+    # pet schema: id, username, name, species, gender, hunger, happiness, energy, hygiene, coins, xp, stage, adventure_end, last_updated, hat
+    return (
+        int(pet_row[0]),      # id
+        pet_row[1],           # username (text)
+        pet_row[2],           # name (text)
+        pet_row[3],           # species (text)
+        pet_row[4],           # gender (text)
+        int(pet_row[5]),      # hunger (int)
+        int(pet_row[6]),      # happiness (int)
+        int(pet_row[7]),      # energy (int)
+        int(pet_row[8]),      # hygiene (int)
+        int(pet_row[9]),      # coins (int)
+        int(pet_row[10]),     # xp (int)
+        pet_row[11],          # stage (text)
+        float(pet_row[12]) if pet_row[12] else 0.0,  # adventure_end (real)
+        float(pet_row[13]) if pet_row[13] else time.time(),  # last_updated (real)
+        pet_row[14]           # hat (text)
+    )
+
 # Load secrets
 secrets_manager = SecretsManager(debug=DEBUG)
 # Support both GROQ_API_KEY and GROQ_API variable names for compatibility
