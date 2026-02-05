@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-# Force rebuild: v2026.02.04-FORCE-5affdc6
+# Force rebuild: v2026.02.05-database-connected-FORCE-5affdc6
 
 [deploy]
 startCommand = "gunicorn api:app"
