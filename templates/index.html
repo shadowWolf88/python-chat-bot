@@ -3079,6 +3079,7 @@
             max-height: 350px;
             background: var(--bg-color);
             color: var(--text-color);
+            position: relative;
         }
 
         .wellness-chat-messages::-webkit-scrollbar {
@@ -3098,7 +3099,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            animation: slideIn 0.3s ease-out;
+            animation: slideInRight 0.4s ease-out;
         }
 
         .wellness-message.ai {
@@ -3232,6 +3233,28 @@
 
         .wellness-already-logged p {
             color: var(--text-color);
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOutLeft {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
         }
 
         @keyframes slideIn {
@@ -14725,11 +14748,33 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const step = wellnessRitualState.steps[wellnessRitualState.currentStep];
             if (!step) return;
 
-            const question = `${step.emoji} ${step.title}`;
-            addWellnessMessage(question, false);
-
-            // Update progress
-            updateWellnessProgress();
+            const messagesDiv = document.getElementById('wellnessConversation');
+            
+            // Fade out current content if not first step
+            if (wellnessRitualState.currentStep > 0) {
+                messagesDiv.style.opacity = '0';
+                messagesDiv.style.transition = 'opacity 0.2s ease-out';
+                
+                setTimeout(() => {
+                    // Clear and reset
+                    messagesDiv.innerHTML = '';
+                    messagesDiv.style.opacity = '1';
+                    messagesDiv.style.transition = 'opacity 0.3s ease-in';
+                    
+                    // Show new content
+                    const question = `${step.emoji} ${step.title}`;
+                    addWellnessMessage(question, false);
+                    updateWellnessProgress();
+                    renderWellnessStepContent(step.id);
+                }, 200);
+            } else {
+                // First step - just render
+                messagesDiv.innerHTML = '';
+                const question = `${step.emoji} ${step.title}`;
+                addWellnessMessage(question, false);
+                updateWellnessProgress();
+                renderWellnessStepContent(step.id);
+            }
             
             // Show/hide buttons
             const prevBtn = document.getElementById('wellnessPrevBtn');
@@ -14739,9 +14784,6 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             prevBtn.style.display = wellnessRitualState.currentStep > 0 ? 'inline-block' : 'none';
             submitBtn.style.display = 'none';
             nextBtn.style.display = 'none';
-            
-            // Render step-specific content
-            renderWellnessStepContent(step.id);
         }
 
         function renderWellnessStepContent(stepId) {
