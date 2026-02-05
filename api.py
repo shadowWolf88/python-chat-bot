@@ -2060,7 +2060,8 @@ def get_db_connection(timeout=30.0):
 
 # Load secrets
 secrets_manager = SecretsManager(debug=DEBUG)
-GROQ_API_KEY = secrets_manager.get_secret("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
+# Support both GROQ_API_KEY and GROQ_API variable names for compatibility
+GROQ_API_KEY = secrets_manager.get_secret("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ_API")
 API_URL = os.environ.get("API_URL", "https://api.groq.com/openai/v1/chat/completions")
 PIN_SALT = secrets_manager.get_secret("PIN_SALT") or os.environ.get("PIN_SALT") or 'dev_fallback_salt'
 
