@@ -2720,7 +2720,24 @@ def admin_wipe_page():
 
 @app.route('/api/developer/dashboard')
 def developer_dashboard():
-    """Serve developer dashboard"""
+    """Serve developer dashboard - PROTECTED (developer role only)"""
+    # Check authentication
+    username = get_authenticated_username()
+    if not username:
+        return redirect('/login.html')
+
+    # Verify user is a developer
+    conn = get_db_connection()
+    cur = get_wrapped_cursor(conn)
+    user_role = cur.execute(
+        "SELECT role FROM users WHERE username = %s",
+        (username,)
+    ).fetchone()
+    conn.close()
+
+    if not user_role or user_role[0] != 'developer':
+        return jsonify({'error': 'Developer role required'}), 403
+
     return render_template('developer-dashboard.html')
 
 @app.route('/api/debug/analytics/<clinician>', methods=['GET'])
