@@ -2663,11 +2663,11 @@ def debug_analytics(clinician):
                 SELECT COUNT(DISTINCT username) FROM (
                     SELECT username FROM mood_logs 
                     WHERE username IN ({placeholders}) 
-                    AND datetime(entrestamp) > datetime('now', '-7 days')
+                    AND entrestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
                     UNION
                     SELECT sender as username FROM chat_history 
                     WHERE sender IN ({placeholders}) 
-                    AND datetime(timestamp) > datetime('now', '-7 days')
+                    AND timestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
                 )
             """, patient_usernames + patient_usernames).fetchone()[0]
             debug_info['active_patients'] = active
@@ -2889,7 +2889,7 @@ def register():
             
             # Check if verification exists and is valid
             verified = cur.execute(
-                "SELECT id FROM verification_codes WHERE identifier = %s AND verified=1 AND datetime(expires_at) > CURRENT_TIMESTAMP",
+                "SELECT id FROM verification_codes WHERE identifier = %s AND verified=1 AND expires_at > CURRENT_TIMESTAMP",
                 (verified_identifier,)
             ).fetchone()
             
@@ -4940,7 +4940,7 @@ def export_chat_history():
             history = cur.execute(
                 """SELECT sender, message, timestamp FROM chat_history 
                    WHERE chat_session_id=%s 
-                   AND datetime(timestamp) BETWEEN datetime(%s) AND datetime(%s)
+                   AND timestamp BETWEEN datetime(%s) AND datetime(%s)
                    ORDER BY timestamp ASC""",
                 (chat_session_id, from_datetime.isoformat(), to_datetime.isoformat())
             ).fetchall()
@@ -4949,7 +4949,7 @@ def export_chat_history():
             history = cur.execute(
                 """SELECT sender, message, timestamp FROM chat_history 
                    WHERE session_id=%s 
-                   AND datetime(timestamp) BETWEEN datetime(%s) AND datetime(%s)
+                   AND timestamp BETWEEN datetime(%s) AND datetime(%s)
                    ORDER BY timestamp ASC""",
                 (f"{username}_session", from_datetime.isoformat(), to_datetime.isoformat())
             ).fetchall()
@@ -5224,7 +5224,7 @@ def get_therapy_greeting():
         
         # Check if they logged mood today
         logged_today = cur.execute(
-            "SELECT mood_val FROM mood_logs WHERE username = %s AND date(entrestamp) = date('now', 'localtime')",
+            "SELECT mood_val FROM mood_logs WHERE username = %s AND DATE(entrestamp) = CURRENT_DATE",
             (username,)
         ).fetchone()
         
@@ -5401,7 +5401,7 @@ def log_mood():
         # Check if user already logged mood today
         existing_today = cur.execute(
             """SELECT id FROM mood_logs 
-               WHERE username = %s AND date(entrestamp) = date('now', 'localtime')""",
+               WHERE username = %s AND DATE(entrestamp) = CURRENT_DATE""",
             (username,)
         ).fetchone()
         
@@ -8263,10 +8263,10 @@ def get_insights():
         mood_query = "SELECT mood_val, sleep_val, entrestamp, notes FROM mood_logs WHERE username = %s"
         params = [username]
         if from_date:
-            mood_query += " AND date(entrestamp) >= date(%s)"
+            mood_query += " AND DATE(entrestamp) >= date(%s)"
             params.append(from_date)
         if to_date:
-            mood_query += " AND date(entrestamp) <= date(%s)"
+            mood_query += " AND DATE(entrestamp) <= date(%s)"
             params.append(to_date)
         mood_query += " ORDER BY entrestamp DESC"
         moods = cur.execute(mood_query, tuple(params)).fetchall()
@@ -8275,10 +8275,10 @@ def get_insights():
         chat_query = "SELECT sender, message, timestamp FROM chat_history WHERE session_id = %s"
         chat_params = [f"{username}_session"]
         if from_date:
-            chat_query += " AND date(timestamp) >= date(%s)"
+            chat_query += " AND DATE(timestamp) >= date(%s)"
             chat_params.append(from_date)
         if to_date:
-            chat_query += " AND date(timestamp) <= date(%s)"
+            chat_query += " AND DATE(timestamp) <= date(%s)"
             chat_params.append(to_date)
         chat_query += " ORDER BY timestamp DESC"
         chat_history = cur.execute(chat_query, tuple(chat_params)).fetchall()
@@ -8287,10 +8287,10 @@ def get_insights():
         grat_query = "SELECT entry, entry_timestamp FROM gratitude_logs WHERE username = %s"
         grat_params = [username]
         if from_date:
-            grat_query += " AND date(entry_timestamp) >= date(%s)"
+            grat_query += " AND DATE(entry_timestamp) >= date(%s)"
             grat_params.append(from_date)
         if to_date:
-            grat_query += " AND date(entry_timestamp) <= date(%s)"
+            grat_query += " AND DATE(entry_timestamp) <= date(%s)"
             grat_params.append(to_date)
         grat_query += " ORDER BY entry_timestamp DESC"
         gratitudes = cur.execute(grat_query, tuple(grat_params)).fetchall()
@@ -8299,10 +8299,10 @@ def get_insights():
         cbt_query = "SELECT situation, thought, evidence, entry_timestamp FROM cbt_records WHERE username = %s"
         cbt_params = [username]
         if from_date:
-            cbt_query += " AND date(entry_timestamp) >= date(%s)"
+            cbt_query += " AND DATE(entry_timestamp) >= date(%s)"
             cbt_params.append(from_date)
         if to_date:
-            cbt_query += " AND date(entry_timestamp) <= date(%s)"
+            cbt_query += " AND DATE(entry_timestamp) <= date(%s)"
             cbt_params.append(to_date)
         cbt_query += " ORDER BY entry_timestamp DESC"
         cbt = cur.execute(cbt_query, tuple(cbt_params)).fetchall()
@@ -8443,13 +8443,13 @@ def get_patients():
                 (SELECT AVG(mood_val)
                  FROM mood_logs ml
                  WHERE ml.username = u.username
-                   AND ml.entrestamp > datetime('now', '-7 days')
+                   AND ml.entrestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
                 ) as avg_mood_7d,
                 -- 7-day alert count (correlated subquery)
                 (SELECT COUNT(*)
                  FROM alerts a
                  WHERE a.username = u.username
-                   AND a.created_at > datetime('now', '-7 days')
+                   AND a.created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
                 ) as alert_count_7d,
                 -- Latest assessment info (using nested subqueries)
                 (SELECT scale_name FROM clinical_scales cs
@@ -9305,7 +9305,7 @@ def check_mood_reminder():
             # Check if user logged mood today
             logged_today = cur.execute(
                 """SELECT id FROM mood_logs 
-                   WHERE username = %s AND date(entrestamp) = date('now', 'localtime')""",
+                   WHERE username = %s AND DATE(entrestamp) = CURRENT_DATE""",
                 (username,)
             ).fetchone()
             
@@ -9343,7 +9343,7 @@ def check_mood_today():
         
         logged_today = cur.execute(
             """SELECT id, entrestamp FROM mood_logs 
-               WHERE username = %s AND date(entrestamp) = date('now', 'localtime')""",
+               WHERE username = %s AND DATE(entrestamp) = CURRENT_DATE""",
             (username,)
         ).fetchone()
         
@@ -9505,7 +9505,7 @@ def manage_appointments():
                            pdf_generated, notification_sent, created_at, patient_acknowledged,
                            patient_response, patient_response_date, attendance_status, attendance_confirmed_by, attendance_confirmed_at
                     FROM appointments 
-                    WHERE clinician_username = %s AND appointment_date >= datetime('now', '-30 days')
+                    WHERE clinician_username = %s AND appointment_date >= CURRENT_TIMESTAMP - INTERVAL '30 days'
                     ORDER BY appointment_date DESC
                 """, (clinician_username,)).fetchall()
             else:
@@ -9515,7 +9515,7 @@ def manage_appointments():
                            pdf_generated, notification_sent, created_at, patient_acknowledged,
                            patient_response, patient_response_date, attendance_status, attendance_confirmed_by, attendance_confirmed_at
                     FROM appointments 
-                    WHERE patient_username = %s AND appointment_date >= datetime('now', '-7 days')
+                    WHERE patient_username = %s AND appointment_date >= CURRENT_TIMESTAMP - INTERVAL '7 days'
                     ORDER BY appointment_date ASC
                 """, (patient_username,)).fetchall()
             
@@ -9878,15 +9878,15 @@ def get_analytics_dashboard():
             SELECT COUNT(DISTINCT username) FROM (
                 SELECT username FROM users
                 WHERE username IN ({placeholders})
-                AND datetime(last_login) > datetime('now', '-7 days')
+                AND last_login > CURRENT_TIMESTAMP - INTERVAL '7 days'
                 UNION
                 SELECT username FROM mood_logs 
                 WHERE username IN ({placeholders}) 
-                AND datetime(entrestamp) > datetime('now', '-7 days')
+                AND entrestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
                 UNION
                 SELECT sender as username FROM chat_history 
                 WHERE sender IN ({placeholders}) 
-                AND datetime(timestamp) > datetime('now', '-7 days')
+                AND timestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
             )
         """, patient_usernames + patient_usernames + patient_usernames).fetchone()[0]
         
@@ -9902,7 +9902,7 @@ def get_analytics_dashboard():
             SELECT DATE(entrestamp) as date, AVG(mood_val) as avg_mood, COUNT(*) as count
             FROM mood_logs
             WHERE username IN ({placeholders})
-            AND datetime(entrestamp) > datetime('now', '-30 days')
+            AND entrestamp > CURRENT_TIMESTAMP - INTERVAL '30 days'
             GROUP BY DATE(entrestamp)
             ORDER BY date
         """, patient_usernames).fetchall()
@@ -9911,7 +9911,7 @@ def get_analytics_dashboard():
         engagement = cur.execute(f"""
             SELECT username, 
                    (SELECT COUNT(*) FROM mood_logs ml WHERE ml.username = u.username 
-                    AND datetime(ml.entrestamp) > datetime('now', '-7 days')) as mood_count,
+                    AND datetime(ml.entrestamp) > CURRENT_TIMESTAMP - INTERVAL '7 days') as mood_count,
                    (SELECT MAX(entrestamp) FROM mood_logs ml WHERE ml.username = u.username) as last_active
             FROM users u
             WHERE u.username IN ({placeholders})
@@ -10043,7 +10043,7 @@ def get_active_patients():
                 
                 # Check if active in last 7 days
                 seven_days_ago = cur.execute(
-                    "SELECT datetime('now', '-7 days')"
+                    "SELECT CURRENT_TIMESTAMP - INTERVAL '7 days'"
                 ).fetchone()[0]
                 
                 if last_activity_time > seven_days_ago:
@@ -10100,7 +10100,7 @@ def get_patient_analytics(username):
             SELECT DATE(entrestamp) as date, mood_val, notes
             FROM mood_logs
             WHERE username = %s
-            AND datetime(entrestamp) > datetime('now', '-90 days')
+            AND entrestamp > datetime('now', '-90 days')
             ORDER BY date
         """, (username,)).fetchall()
         
@@ -10134,8 +10134,8 @@ def get_patient_analytics(username):
         upcoming = cur.execute("""
             SELECT id, clinician_username, appointment_date, appointment_type, notes, attendance_status, attendance_confirmed_by, attendance_confirmed_at
             FROM appointments
-            WHERE patient_username = %s AND datetime(appointment_date) >= CURRENT_TIMESTAMP
-            ORDER BY datetime(appointment_date) ASC
+            WHERE patient_username = %s AND appointment_date >= CURRENT_TIMESTAMP
+            ORDER BY appointment_date ASC
             LIMIT 10
         """, (username,)).fetchall()
 
@@ -10143,8 +10143,8 @@ def get_patient_analytics(username):
         recent_past = cur.execute("""
             SELECT id, clinician_username, appointment_date, appointment_type, notes, attendance_status, attendance_confirmed_by, attendance_confirmed_at
             FROM appointments
-            WHERE patient_username = %s AND datetime(appointment_date) < CURRENT_TIMESTAMP AND datetime(appointment_date) >= datetime('now', '-7 days')
-            ORDER BY datetime(appointment_date) DESC
+            WHERE patient_username = %s AND appointment_date < CURRENT_TIMESTAMP AND appointment_date >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+            ORDER BY appointment_date DESC
             LIMIT 10
         """, (username,)).fetchall()
         
@@ -10268,7 +10268,7 @@ def generate_clinical_report():
         mood_avg = cur.execute("""
             SELECT AVG(mood_val) FROM mood_logs
             WHERE username = %s
-            AND datetime(entrestamp) > datetime('now', '-30 days')
+            AND entrestamp > CURRENT_TIMESTAMP - INTERVAL '30 days'
         """, (username,)).fetchone()[0]
         
         conn.close()
@@ -10416,7 +10416,7 @@ def search_patients():
         if filter_type == 'high_risk':
             query += " AND (SELECT COUNT(*) FROM alerts WHERE username=u.username AND (status IS NULL OR status != 'resolved')) > 0"
         elif filter_type == 'inactive':
-            query += " AND ((SELECT MAX(created_at) FROM sessions WHERE username=u.username) < datetime('now', '-7 days') OR (SELECT MAX(created_at) FROM sessions WHERE username=u.username) IS NULL)"
+            query += " AND ((SELECT MAX(created_at) FROM sessions WHERE username=u.username) < CURRENT_TIMESTAMP - INTERVAL '7 days' OR (SELECT MAX(created_at) FROM sessions WHERE username=u.username) IS NULL)"
 
         query += " ORDER BY alert_count DESC, last_active DESC"
 
