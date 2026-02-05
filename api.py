@@ -8049,26 +8049,38 @@ def get_community_posts():
             'sleep', 'motivation', 'general', 'celebration', 'question'
         ]
 
+        print(f"[DEBUG] Getting posts: category={category}, username={username}")
+
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
 
         # Build query with optional category filter - pinned posts first, then by timestamp
         if category and category in VALID_CATEGORIES:
+            print(f"[DEBUG] Filtering by category: {category}")
             posts = cur.execute(
                 "SELECT id, username, message, likes, entry_timestamp, category, is_pinned FROM community_posts WHERE category = %s ORDER BY is_pinned DESC, entry_timestamp DESC LIMIT 100",
                 (category,)
             ).fetchall()
+            print(f"[DEBUG] Found {len(posts)} posts in category {category}")
+            
             # Mark channel as read for this user
             if username:
-                cur.execute(
-                    "INSERT INTO community_channel_reads (username, channel, last_read) VALUES (%s, %s, CURRENT_TIMESTAMP)",
-                    (username, category)
-                )
-                conn.commit()
+                try:
+                    cur.execute(
+                        "INSERT INTO community_channel_reads (username, channel, last_read) VALUES (%s, %s, CURRENT_TIMESTAMP) ON CONFLICT (username, channel) DO UPDATE SET last_read = CURRENT_TIMESTAMP",
+                        (username, category)
+                    )
+                    conn.commit()
+                    print(f"[DEBUG] Marked channel {category} as read for {username}")
+                except Exception as read_error:
+                    print(f"[DEBUG] Could not mark channel read (non-critical): {read_error}")
+                    conn.rollback()
         else:
+            print(f"[DEBUG] Getting all posts (no category filter)")
             posts = cur.execute(
                 "SELECT id, username, message, likes, entry_timestamp, category, is_pinned FROM community_posts ORDER BY is_pinned DESC, entry_timestamp DESC LIMIT 100"
             ).fetchall()
+            print(f"[DEBUG] Found {len(posts)} total posts")
 
         post_list = []
         for p in posts:
@@ -8120,8 +8132,12 @@ def get_community_posts():
             })
 
         conn.close()
+        print(f"[DEBUG] Returning {len(post_list)} posts to client")
         return jsonify({'posts': post_list, 'categories': VALID_CATEGORIES}), 200
     except Exception as e:
+        print(f"[DEBUG] Error getting posts: {e}")
+        import traceback
+        traceback.print_exc()
         return handle_exception(e, request.endpoint or 'unknown')
 
 @app.route('/api/community/channels', methods=['GET'])
@@ -8267,32 +8283,35 @@ def create_community_post():
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
         
-        # Log for debugging
-        print(f"[DEBUG] Creating post: username={username}, category={category}, msg_len={len(message)}")
+        try:
+            print(f"[DEBUG] Creating post: username={username}, category={category}, msg_len={len(message)}")
+            
+            cur.execute(
+                "INSERT INTO community_posts (username, message, category) VALUES (%s,%s,%s)",
+                (username, message, category)
+            )
+            conn.commit()
+            print(f"[DEBUG] Post inserted and committed")
+            
+        except Exception as db_error:
+            conn.rollback()
+            print(f"[DEBUG] Database error: {db_error}")
+            raise db_error
+        finally:
+            conn.close()
         
-        cur.execute(
-            "INSERT INTO community_posts (username, message, category) VALUES (%s,%s,%s)",
-            (username, message, category)
-        )
-        conn.commit()
+        # AUTO-UPDATE AI MEMORY (call after connection is closed)
+        try:
+            update_ai_memory(username)
+        except Exception as ai_error:
+            print(f"[DEBUG] AI memory error (non-critical): {ai_error}")
         
-        # Get the inserted post ID
-        result = cur.execute(
-            "SELECT id FROM community_posts WHERE username = %s AND message = %s AND category = %s ORDER BY entry_timestamp DESC LIMIT 1",
-            (username, message, category)
-        ).fetchone()
+        return jsonify({'success': True, 'message': 'Post created successfully'}), 201
         
-        conn.close()
-        
-        # AUTO-UPDATE AI MEMORY
-        update_ai_memory(username)
-        
-        post_id = result[0] if result else None
-        print(f"[DEBUG] Post created with ID: {post_id}")
-        
-        return jsonify({'success': True, 'post_id': post_id}), 201
     except Exception as e:
         print(f"[DEBUG] Error creating post: {e}")
+        import traceback
+        traceback.print_exc()
         return handle_exception(e, request.endpoint or 'unknown')
 
 @app.route('/api/community/post/<int:post_id>/react', methods=['POST'])
