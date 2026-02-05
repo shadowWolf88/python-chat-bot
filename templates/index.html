@@ -5792,13 +5792,57 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         }
 
         function toggleDarkMode() {
-            const toggle = document.getElementById('darkModeToggle');
-            if (toggle.checked) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-            } else {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const isDark = currentTheme === 'dark';
+            
+            // Toggle the theme
+            if (isDark) {
                 document.documentElement.removeAttribute('data-theme');
                 localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+            
+            // Sync both toggles
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            const authDarkModeToggle = document.getElementById('authDarkModeToggle');
+            
+            const newTheme = document.documentElement.getAttribute('data-theme');
+            const isNowDark = newTheme === 'dark';
+            
+            if (darkModeToggle) {
+                darkModeToggle.checked = isNowDark;
+            }
+            if (authDarkModeToggle) {
+                authDarkModeToggle.checked = isNowDark;
+            }
+        }
+        
+        // Initialize theme and set toggle state correctly
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            // Determine if should be dark
+            const shouldBeDark = savedTheme === 'dark' || (!savedTheme && systemPrefersDark);
+            
+            // Apply theme to document
+            if (shouldBeDark) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+            
+            // Set all toggle switches to correct state
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            const authDarkModeToggle = document.getElementById('authDarkModeToggle');
+            
+            if (darkModeToggle) {
+                darkModeToggle.checked = shouldBeDark;
+            }
+            if (authDarkModeToggle) {
+                authDarkModeToggle.checked = shouldBeDark;
             }
         }
 
@@ -13136,6 +13180,9 @@ ${reportText}
         // Initialize and restore session on page load
         window.addEventListener('DOMContentLoaded', async function() {
             console.log('python-chat-bot Complete Edition initialized');
+            
+            // Initialize theme and set toggle state
+            initializeTheme();
             
             // Ensure authScreen is visible by default
             document.getElementById('authScreen').style.display = 'flex';
