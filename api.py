@@ -2275,25 +2275,60 @@ def decrypt_text(encrypted: str) -> str:
         return encrypted
 
 def init_db():
-    """Initialize database - tables should already exist in PostgreSQL from migration"""
+    """Initialize database - create tables if they don't exist"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # PostgreSQL: Just verify the database is accessible
-        # Tables are already created from migration (Step 3)
-        cursor.execute("SELECT 1")
+        # Check if users table exists
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables 
+                WHERE table_name = 'users'
+            )
+        """)
+        table_exists = cursor.fetchone()[0]
         
+        if not table_exists:
+            # Load and execute schema
+            print("Creating database schema...")
+            schema_file = '/home/computer001/Documents/python chat bot/schema_therapist_app_postgres.sql'
+            
+            if os.path.exists(schema_file):
+                with open(schema_file, 'r') as f:
+                    schema_sql = f.read()
+                
+                # Split and execute each CREATE TABLE statement
+                statements = [s.strip() + ';' for s in schema_sql.split(';') if s.strip()]
+                
+                for statement in statements:
+                    try:
+                        cursor.execute(statement)
+                    except Exception as e:
+                        # Table might already exist, skip
+                        if 'already exists' not in str(e):
+                            print(f"Warning creating table: {e}")
+                
+                conn.commit()
+                print("✓ Database schema created successfully")
+            else:
+                print(f"Warning: Schema file not found at {schema_file}")
+        
+        # Verify the database is accessible
+        cursor.execute("SELECT 1")
         conn.commit()
         conn.close()
         print("✓ Database connection verified")
         return True
         
-    except psycopg2.Error as e:
+    except Exception as e:
         print(f"Database initialization error: {e}")
         if conn:
-            conn.rollback()
-            conn.close()
+            try:
+                conn.rollback()
+                conn.close()
+            except:
+                pass
         return False
     
     # Initialize pet database
