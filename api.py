@@ -2123,6 +2123,12 @@ class TherapistAI:
                 "content": user_message
             })
             
+            # Validate messages before sending
+            for msg in messages:
+                if not msg.get('content') or not isinstance(msg.get('content'), str):
+                    print(f"WARNING: Invalid message in history: {msg}")
+                    msg['content'] = str(msg.get('content', ''))  # Convert to string
+
             # Call Groq API
             response = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
@@ -2138,9 +2144,11 @@ class TherapistAI:
                 },
                 timeout=30
             )
-            
+
             if response.status_code != 200:
-                raise RuntimeError(f"Groq API error: {response.status_code}")
+                error_detail = response.text if response.text else "No error detail"
+                print(f"Groq API error {response.status_code}: {error_detail}")
+                raise RuntimeError(f"Groq API error: {response.status_code} - {error_detail[:200]}")
             
             result = response.json()
             if 'choices' not in result or len(result['choices']) == 0:
@@ -4681,9 +4689,13 @@ def update_ai_memory(username):
 
         memory_summary = "; ".join(memory_parts) if memory_parts else "New user, no activity yet"
         
-        # Update or insert memory
+        # Update or insert memory (PostgreSQL upsert)
         cur.execute(
-            "INSERT INTO ai_memory (username, memory_summary, last_updated) VALUES (%s,%s,%s)",
+            """INSERT INTO ai_memory (username, memory_summary, last_updated)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (username)
+               DO UPDATE SET memory_summary = EXCLUDED.memory_summary,
+                            last_updated = EXCLUDED.last_updated""",
             (username, memory_summary, datetime.now())
         )
         conn.commit()
