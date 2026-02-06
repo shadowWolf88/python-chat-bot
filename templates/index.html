@@ -3192,14 +3192,15 @@
 
         .wellness-text-input {
             width: 100%;
-            padding: 10px 12px;
+            padding: 14px 16px;
             border: 2px solid var(--border-color);
             border-radius: 8px;
-            font-size: 0.95em;
+            font-size: 1.1em;
             font-family: inherit;
             transition: all 0.2s;
             background: var(--bg-color);
             color: var(--text-color);
+            min-height: 44px;
         }
 
         .wellness-text-input:focus {
@@ -3442,6 +3443,11 @@
                 <div class="form-group">
                     <label>Username *</label>
                     <input type="text" id="regUsername" placeholder="Choose username" required>
+                </div>
+                <div class="form-group">
+                    <label>Preferred Name (What we'll call you) *</label>
+                    <input type="text" id="regPreferredName" placeholder="e.g., Sarah, Rick" required>
+                    <small style="color: var(--text-secondary); display: block; margin-top: 5px;">This is how the AI will address you</small>
                 </div>
                 <div class="form-group">
                     <label>Password *</label>
@@ -8724,6 +8730,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         
         async function register() {
             const fullName = document.getElementById('regFullName').value.trim();
+            const preferredName = document.getElementById('regPreferredName').value.trim();
             const dob = document.getElementById('regDOB').value;
             const conditions = document.getElementById('regConditions').value.trim();
             const area = document.getElementById('regArea').value.trim();
@@ -8741,6 +8748,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             
             if (!fullName) {
                 showAuthMessage('Please enter your full name', 'error');
+                return;
+            }
+            
+            if (!preferredName) {
+                showAuthMessage('Please enter your preferred name (what we\'ll call you)', 'error');
                 return;
             }
             
@@ -8815,6 +8827,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 email,
                 phone,
                 full_name: fullName,
+                preferred_name: preferredName,
                 dob: dob,
                 conditions: conditions,
                 clinician_id: clinician_id || undefined,
@@ -8838,6 +8851,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         email: data.email,
                         phone: data.phone,
                         full_name: data.full_name,
+                        preferred_name: data.preferred_name,
                         dob: data.dob,
                         conditions: data.conditions,
                         clinician_id: data.clinician_id,
@@ -9434,10 +9448,21 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const startTime = Date.now();
 
             try {
+                // Prepare request body with optional wellness data
+                const requestBody = {
+                    username: currentUser,
+                    message: message
+                };
+                
+                // Include wellness data if available (recently completed check-in)
+                if (wellnessRitualState && wellnessRitualState.data && Object.keys(wellnessRitualState.data).length > 0) {
+                    requestBody.wellness_data = wellnessRitualState.data;
+                }
+                
                 const response = await fetch('/api/therapy/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: currentUser, message })
+                    body: JSON.stringify(requestBody)
                 });
 
                 const data = await response.json();
@@ -14393,7 +14418,6 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             skipped: [],
             conversationHistory: [], // Track AI/user messages for context
             steps: [
-                { id: 'greeting_name', title: 'What should I call you?', emoji: '👋', type: 'text' },
                 { id: 'mood', title: 'How are you feeling today?', emoji: '😊', type: 'text' },
                 { id: 'sleep', title: 'How did you sleep last night?', emoji: '😴', type: 'options' },
                 { id: 'hydration', title: 'How\'s your hydration today?', emoji: '💧', type: 'number' },
@@ -14429,6 +14453,18 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         async function initializeWellnessRitual() {
             try {
+                // Fetch user's preferred name from profile
+                const preferredNameResponse = await fetch('/api/user/preferred-name', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (preferredNameResponse.ok) {
+                    const preferredNameData = await preferredNameResponse.json();
+                    wellnessRitualState.data.preferred_name = preferredNameData.preferred_name;
+                }
+                
                 // Check if already logged today
                 const todayResponse = await fetch('/api/wellness/today', {
                     method: 'GET',
@@ -14462,7 +14498,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 conversationDiv.innerHTML = '';
                 
                 wellnessRitualState.currentStep = 0;
-                wellnessRitualState.data = {};
+                // data already has preferred_name, keep it
                 wellnessRitualState.skipped = [];
                 wellnessRitualState.startTime = Date.now();
                 wellnessRitualState.conversationHistory = [];
@@ -14788,12 +14824,6 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         function renderWellnessStepContent(stepId) {
             switch(stepId) {
-                case 'greeting_name':
-                    addWellnessTextInput('What should I call you? (your preferred name)', (value) => {
-                        wellnessRitualState.data.preferred_name = value;
-                        setTimeout(() => nextWellnessStep(), 600);
-                    });
-                    break;
                 case 'mood':
                     addWellnessScaleInput('Tell me more about how you\'re feeling...', (response) => {
                         wellnessRitualState.data.mood = response.scale;

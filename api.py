@@ -2091,7 +2091,7 @@ class TherapistAI:
         if not self.groq_key:
             raise RuntimeError("GROQ_API_KEY not configured")
     
-    def get_response(self, user_message, history=None):
+    def get_response(self, user_message, history=None, wellness_data=None):
         """Get AI therapy response using Groq API"""
         if not self.groq_key:
             raise RuntimeError("AI service not initialized")
@@ -2102,10 +2102,44 @@ class TherapistAI:
             # Build conversation history for context
             messages = []
             
-            # Add system message for therapy context
+            # Build system message with optional wellness context
+            system_content = "You are a compassionate AI therapy assistant. Provide supportive, empathetic responses. Focus on understanding emotions and providing coping strategies. Never provide medical advice."
+            
+            # Add wellness context if available
+            if wellness_data and isinstance(wellness_data, dict):
+                wellness_context = []
+                
+                # Build a readable wellness summary from the data provided
+                if wellness_data.get('mood'):
+                    mood_labels = {1: 'very low', 2: 'low', 3: 'neutral', 4: 'good', 5: 'excellent'}
+                    wellness_context.append(f"- Current mood: {mood_labels.get(wellness_data.get('mood'), 'not specified')}")
+                
+                if wellness_data.get('sleep_quality'):
+                    sleep_labels = {1: 'very poor', 3: 'okay', 5: 'okay', 7: 'good', 9: 'excellent'}
+                    wellness_context.append(f"- Sleep quality: {sleep_labels.get(wellness_data.get('sleep_quality'), 'not specified')}")
+                
+                if wellness_data.get('sleep_hours'):
+                    wellness_context.append(f"- Slept {wellness_data.get('sleep_hours')} hours")
+                
+                if wellness_data.get('exercise_type'):
+                    wellness_context.append(f"- Exercise: {wellness_data.get('exercise_type')}")
+                
+                if wellness_data.get('social_contact'):
+                    wellness_context.append(f"- Social connection: {wellness_data.get('social_contact')}")
+                
+                if wellness_data.get('hydration_pints'):
+                    wellness_context.append(f"- Water intake: {wellness_data.get('hydration_pints')} pints")
+                
+                if wellness_data.get('mood_narrative'):
+                    wellness_context.append(f"- What's on their mind: {wellness_data.get('mood_narrative')}")
+                
+                if wellness_context:
+                    system_content += f"\n\nUser's recent wellness check-in:\n" + "\n".join(wellness_context)
+                    system_content += "\n\nReference this information naturally in your response to show you're aware of their wellbeing and to provide more personalized support."
+            
             messages.append({
                 "role": "system",
-                "content": "You are a compassionate AI therapy assistant. Provide supportive, empathetic responses. Focus on understanding emotions and providing coping strategies. Never provide medical advice."
+                "content": system_content
             })
             
             # Add conversation history
@@ -2860,7 +2894,7 @@ def init_db():
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users 
                 (username TEXT PRIMARY KEY, password TEXT, pin TEXT, last_login TIMESTAMP, 
-                 full_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user', 
+                 full_name TEXT, preferred_name TEXT, dob TEXT, conditions TEXT, role TEXT DEFAULT 'user', 
                  clinician_id TEXT, disclaimer_accepted INTEGER DEFAULT 0, email TEXT, phone TEXT, 
                  reset_token TEXT, reset_token_expiry TIMESTAMP, country TEXT, area TEXT, 
                  postcode TEXT, nhs_number TEXT, professional_id TEXT)
@@ -2904,6 +2938,23 @@ def init_db():
             
             conn.commit()
             print("✓ Critical database tables created")
+        
+        # Apply migrations for existing databases
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'users' AND column_name = 'preferred_name'
+            )
+        """)
+        if not cursor.fetchone()[0]:
+            try:
+                print("Migrating: Adding preferred_name column to users table...")
+                cursor.execute("ALTER TABLE users ADD COLUMN preferred_name TEXT")
+                conn.commit()
+                print("✓ Migration: preferred_name column added")
+            except Exception as e:
+                print(f"Migration note: preferred_name column may already exist or migration skipped: {e}")
+                conn.rollback()
         
         # Verify the database is accessible
         cursor.execute("SELECT 1")
@@ -3444,6 +3495,7 @@ def register():
         email = data.get('email')
         phone = data.get('phone')
         full_name = data.get('full_name')
+        preferred_name = data.get('preferred_name')  # NEW: Get preferred name
         dob = data.get('dob')
         verified_identifier = data.get('verified_identifier')  # The email or phone that was verified
         
@@ -3534,8 +3586,8 @@ def register():
         hashed_pin = hash_pin(pin)
         
         # Create user with full profile information
-        cur.execute("INSERT INTO users (username, password, pin, email, phone, full_name, dob, conditions, last_login, role, country, area, postcode, nhs_number, clinician_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                   (username, hashed_password, hashed_pin, email, phone, full_name, dob, conditions, datetime.now(), 'user', country, area, postcode, nhs_number, clinician_id))
+        cur.execute("INSERT INTO users (username, password, pin, email, phone, full_name, preferred_name, dob, conditions, last_login, role, country, area, postcode, nhs_number, clinician_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                   (username, hashed_password, hashed_pin, email, phone, full_name, preferred_name, dob, conditions, datetime.now(), 'user', country, area, postcode, nhs_number, clinician_id))
         
         # Only create approval request if clinician is provided
         if clinician_id:
@@ -5255,6 +5307,7 @@ def therapy_chat():
         data = request.json
         username = data.get('username')
         message = data.get('message')
+        wellness_data = data.get('wellness_data', {})  # NEW: Optional wellness context
         
         if not username or not message:
             return jsonify({'error': 'Username and message required'}), 400
@@ -5329,7 +5382,7 @@ def therapy_chat():
         
         # Get AI response using existing logic
         try:
-            response = ai.get_response(message, history[::-1])
+            response = ai.get_response(message, history[::-1], wellness_data)
         except Exception as resp_error:
             log_event(username, 'error', 'ai_response_error', str(resp_error))
             print(f"AI response error: {resp_error}")
@@ -13135,6 +13188,37 @@ print(f"✅ PIN_SALT configured: {bool(PIN_SALT)}", flush=True)
 # ============================================================================
 # WELLNESS RITUAL ENDPOINTS
 # ============================================================================
+
+@app.route('/api/user/preferred-name', methods=['GET'])
+def get_preferred_name():
+    """Get the user's preferred name from their profile"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        result = cur.execute(
+            "SELECT preferred_name FROM users WHERE username = %s",
+            (username,)
+        ).fetchone()
+        
+        conn.close()
+        
+        if not result:
+            return jsonify({'error': 'User not found'}), 404
+        
+        preferred_name = result[0] if result[0] else 'friend'
+        
+        return jsonify({
+            'success': True,
+            'preferred_name': preferred_name
+        }), 200
+        
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
 
 @app.route('/api/wellness/log', methods=['POST'])
 def create_wellness_log():
