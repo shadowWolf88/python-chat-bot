@@ -10,7 +10,7 @@ import json
 import hashlib
 import socket
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import sys
 import secrets
 import smtplib
@@ -2091,52 +2091,113 @@ class TherapistAI:
         if not self.groq_key:
             raise RuntimeError("GROQ_API_KEY not configured")
     
-    def get_response(self, user_message, history=None, wellness_data=None):
-        """Get AI therapy response using Groq API"""
+    def get_response(self, user_message, history=None, wellness_data=None, memory_context=None):
+        """Get AI therapy response using Groq API with memory context."""
         if not self.groq_key:
             raise RuntimeError("AI service not initialized")
-        
+
         try:
             import requests
-            
+
             # Build conversation history for context
             messages = []
-            
-            # Build system message with optional wellness context
+
+            # Build system message with memory + wellness context
             system_content = "You are a compassionate AI therapy assistant. Provide supportive, empathetic responses. Focus on understanding emotions and providing coping strategies. Never provide medical advice."
-            
+
+            # Inject AI memory context if available
+            if memory_context and isinstance(memory_context, dict):
+                memory_parts = []
+
+                conv_count = memory_context.get('conversation_count', 0)
+                if conv_count > 0:
+                    memory_parts.append(f"\n=== YOUR MEMORY OF THIS PERSON ===")
+                    memory_parts.append(f"This is conversation #{conv_count + 1} with this person.")
+
+                # Personal context
+                personal = memory_context.get('personal_context', {})
+                if personal:
+                    memory_parts.append(f"\nABOUT THEM:")
+                    if personal.get('preferred_name'):
+                        memory_parts.append(f"- Name: {personal['preferred_name']}")
+                    if personal.get('key_stressors'):
+                        memory_parts.append(f"- Key stressors: {', '.join(personal['key_stressors'])}")
+                    if personal.get('work'):
+                        memory_parts.append(f"- Work: {personal['work']}")
+                    if personal.get('family'):
+                        memory_parts.append(f"- Family: {', '.join(personal['family'])}")
+
+                # Medical context
+                medical = memory_context.get('medical', {})
+                if medical:
+                    if medical.get('diagnosis'):
+                        memory_parts.append(f"- Diagnoses: {', '.join(medical['diagnosis'])}")
+                    if medical.get('clinician'):
+                        memory_parts.append(f"- Clinician: {medical['clinician']}")
+
+                # Recent events
+                recent_events = memory_context.get('recent_events', [])
+                if recent_events:
+                    memory_parts.append(f"\nRECENT CONTEXT (last 7 days):")
+                    for event in recent_events[:5]:
+                        etype = event.get('type', '')
+                        edata = event.get('data', {})
+                        if etype == 'therapy_message':
+                            themes = edata.get('themes', [])
+                            if themes:
+                                memory_parts.append(f"- Discussed: {', '.join(themes)}")
+                        elif etype == 'wellness_log':
+                            memory_parts.append(f"- Completed wellness check-in")
+                        elif etype == 'mood_spike':
+                            memory_parts.append(f"- Mood drop detected")
+
+                # Active flags / alerts
+                active_flags = memory_context.get('active_flags', [])
+                if active_flags:
+                    memory_parts.append(f"\nIMPORTANT ALERTS:")
+                    for flag in active_flags:
+                        memory_parts.append(f"- {flag.get('flag_type', 'unknown')}: severity {flag.get('severity', '?')}, seen {flag.get('occurrences', 1)} time(s)")
+
+                # Engagement status
+                engagement = memory_context.get('engagement_status', 'unknown')
+                if engagement and engagement != 'unknown':
+                    memory_parts.append(f"\nEngagement: {engagement}")
+
+                if memory_parts:
+                    system_content += "\n" + "\n".join(memory_parts)
+                    system_content += "\n\nINSTRUCTIONS: Reference previous conversations naturally. Notice patterns. Celebrate progress. Acknowledge recurring struggles. Never say 'I'm a new conversation' or 'I don't remember'. Show continuity and that you truly know this person."
+
             # Add wellness context if available
             if wellness_data and isinstance(wellness_data, dict):
                 wellness_context = []
-                
-                # Build a readable wellness summary from the data provided
+
                 if wellness_data.get('mood'):
                     mood_labels = {1: 'very low', 2: 'low', 3: 'neutral', 4: 'good', 5: 'excellent'}
                     wellness_context.append(f"- Current mood: {mood_labels.get(wellness_data.get('mood'), 'not specified')}")
-                
+
                 if wellness_data.get('sleep_quality'):
                     sleep_labels = {1: 'very poor', 3: 'okay', 5: 'okay', 7: 'good', 9: 'excellent'}
                     wellness_context.append(f"- Sleep quality: {sleep_labels.get(wellness_data.get('sleep_quality'), 'not specified')}")
-                
+
                 if wellness_data.get('sleep_hours'):
                     wellness_context.append(f"- Slept {wellness_data.get('sleep_hours')} hours")
-                
+
                 if wellness_data.get('exercise_type'):
                     wellness_context.append(f"- Exercise: {wellness_data.get('exercise_type')}")
-                
+
                 if wellness_data.get('social_contact'):
                     wellness_context.append(f"- Social connection: {wellness_data.get('social_contact')}")
-                
+
                 if wellness_data.get('hydration_pints'):
                     wellness_context.append(f"- Water intake: {wellness_data.get('hydration_pints')} pints")
-                
+
                 if wellness_data.get('mood_narrative'):
                     wellness_context.append(f"- What's on their mind: {wellness_data.get('mood_narrative')}")
-                
+
                 if wellness_context:
                     system_content += f"\n\nUser's recent wellness check-in:\n" + "\n".join(wellness_context)
                     system_content += "\n\nReference this information naturally in your response to show you're aware of their wellbeing and to provide more personalized support."
-            
+
             messages.append({
                 "role": "system",
                 "content": system_content
@@ -2935,7 +2996,101 @@ def init_db():
             cursor.execute("CREATE TABLE IF NOT EXISTS dev_terminal_logs (id SERIAL PRIMARY KEY, username TEXT, command TEXT, output TEXT, exit_code INTEGER, duration_ms INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS dev_ai_chats (id SERIAL PRIMARY KEY, username TEXT, session_id TEXT, role TEXT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS dev_messages (id SERIAL PRIMARY KEY, from_username TEXT, to_username TEXT, message TEXT, message_type TEXT DEFAULT 'message', read INTEGER DEFAULT 0, parent_message_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-            
+
+            # AI Memory System tables
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS ai_memory_core (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL UNIQUE,
+                    memory_version INT DEFAULT 1,
+                    memory_data JSONB NOT NULL DEFAULT '{}',
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ai_memory_core_username ON ai_memory_core(username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ai_memory_core_updated ON ai_memory_core(last_updated)")
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS ai_activity_log (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    activity_type VARCHAR(100) NOT NULL,
+                    activity_detail VARCHAR(500),
+                    activity_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    session_id VARCHAR(255),
+                    app_state VARCHAR(100),
+                    metadata JSONB,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_username ON ai_activity_log(username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_timestamp ON ai_activity_log(activity_timestamp)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_session ON ai_activity_log(session_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_type ON ai_activity_log(activity_type)")
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS ai_memory_events (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    event_type VARCHAR(100) NOT NULL,
+                    event_data JSONB NOT NULL,
+                    event_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    severity VARCHAR(20) DEFAULT 'normal',
+                    tags JSONB,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_memory_events_username ON ai_memory_events(username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_memory_events_timestamp ON ai_memory_events(event_timestamp)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_memory_events_severity ON ai_memory_events(severity)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_memory_events_type ON ai_memory_events(event_type)")
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS ai_memory_flags (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    flag_type VARCHAR(100) NOT NULL,
+                    flag_status VARCHAR(50) DEFAULT 'active',
+                    first_occurrence TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_occurrence TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    occurrences_count INT DEFAULT 1,
+                    severity_level INT DEFAULT 1,
+                    clinician_notified BOOLEAN DEFAULT FALSE,
+                    clinician_notified_at TIMESTAMP,
+                    flag_metadata JSONB,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_flags_username ON ai_memory_flags(username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_flags_type ON ai_memory_flags(flag_type)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_flags_status ON ai_memory_flags(flag_status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_flags_severity ON ai_memory_flags(severity_level)")
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS clinician_summaries (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    clinician_username VARCHAR(255) NOT NULL,
+                    month_start_date DATE NOT NULL,
+                    month_end_date DATE NOT NULL,
+                    summary_data JSONB NOT NULL,
+                    key_patterns JSONB,
+                    risk_flags JSONB,
+                    achievements JSONB,
+                    recommended_discussion_points JSONB,
+                    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    viewed_at TIMESTAMP,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE,
+                    FOREIGN KEY (clinician_username) REFERENCES users(username) ON DELETE CASCADE,
+                    UNIQUE(username, clinician_username, month_start_date)
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_summaries_username ON clinician_summaries(username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_summaries_clinician ON clinician_summaries(clinician_username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_summaries_month ON clinician_summaries(month_start_date)")
+
             conn.commit()
             print("✓ Critical database tables created")
         
@@ -2956,6 +3111,166 @@ def init_db():
                 print(f"Migration note: preferred_name column may already exist or migration skipped: {e}")
                 conn.rollback()
         
+        # Ensure wellness_logs table exists (may be missing on older databases)
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'wellness_logs'
+                )
+            """)
+            if not cursor.fetchone()[0]:
+                print("Migrating: Creating wellness_logs table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS wellness_logs (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        mood INTEGER, mood_descriptor TEXT, mood_context TEXT,
+                        sleep_quality INTEGER, sleep_notes TEXT,
+                        hydration_level TEXT, total_hydration_cups INTEGER,
+                        exercise_type TEXT, exercise_duration INTEGER,
+                        outdoor_time_minutes INTEGER, social_contact TEXT,
+                        medication_taken BOOLEAN, medication_reason_if_missed TEXT,
+                        caffeine_intake_time TEXT, energy_level INTEGER,
+                        capacity_index INTEGER, weekly_goal_progress INTEGER,
+                        homework_completed BOOLEAN, homework_blockers TEXT,
+                        emotional_narrative TEXT, ai_reflection TEXT,
+                        time_of_day_category TEXT, session_duration_seconds INTEGER
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_wellness_username_timestamp ON wellness_logs(username, timestamp DESC)")
+                conn.commit()
+                print("✓ Migration: wellness_logs table created")
+        except Exception as e:
+            print(f"Migration note (wellness_logs): {e}")
+            conn.rollback()
+
+        # Ensure patient_medications table exists
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'patient_medications'
+                )
+            """)
+            if not cursor.fetchone()[0]:
+                print("Migrating: Creating patient_medications table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS patient_medications (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                        medication_name TEXT NOT NULL, dosage TEXT, frequency TEXT,
+                        time_of_day TEXT, prescribed_date DATE, notes TEXT,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                conn.commit()
+                print("✓ Migration: patient_medications table created")
+        except Exception as e:
+            print(f"Migration note (patient_medications): {e}")
+            conn.rollback()
+
+        # Ensure AI memory system tables exist (for existing databases)
+        for table_sql, table_name, indexes in [
+            ("""CREATE TABLE IF NOT EXISTS ai_memory_core (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL UNIQUE,
+                    memory_version INT DEFAULT 1,
+                    memory_data JSONB NOT NULL DEFAULT '{}',
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                )""",
+             'ai_memory_core',
+             ["CREATE INDEX IF NOT EXISTS idx_ai_memory_core_username ON ai_memory_core(username)",
+              "CREATE INDEX IF NOT EXISTS idx_ai_memory_core_updated ON ai_memory_core(last_updated)"]),
+            ("""CREATE TABLE IF NOT EXISTS ai_activity_log (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    activity_type VARCHAR(100) NOT NULL,
+                    activity_detail VARCHAR(500),
+                    activity_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    session_id VARCHAR(255),
+                    app_state VARCHAR(100),
+                    metadata JSONB,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                )""",
+             'ai_activity_log',
+             ["CREATE INDEX IF NOT EXISTS idx_activity_username ON ai_activity_log(username)",
+              "CREATE INDEX IF NOT EXISTS idx_activity_timestamp ON ai_activity_log(activity_timestamp)",
+              "CREATE INDEX IF NOT EXISTS idx_activity_session ON ai_activity_log(session_id)",
+              "CREATE INDEX IF NOT EXISTS idx_activity_type ON ai_activity_log(activity_type)"]),
+            ("""CREATE TABLE IF NOT EXISTS ai_memory_events (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    event_type VARCHAR(100) NOT NULL,
+                    event_data JSONB NOT NULL,
+                    event_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    severity VARCHAR(20) DEFAULT 'normal',
+                    tags JSONB,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                )""",
+             'ai_memory_events',
+             ["CREATE INDEX IF NOT EXISTS idx_memory_events_username ON ai_memory_events(username)",
+              "CREATE INDEX IF NOT EXISTS idx_memory_events_timestamp ON ai_memory_events(event_timestamp)",
+              "CREATE INDEX IF NOT EXISTS idx_memory_events_severity ON ai_memory_events(severity)",
+              "CREATE INDEX IF NOT EXISTS idx_memory_events_type ON ai_memory_events(event_type)"]),
+            ("""CREATE TABLE IF NOT EXISTS ai_memory_flags (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    flag_type VARCHAR(100) NOT NULL,
+                    flag_status VARCHAR(50) DEFAULT 'active',
+                    first_occurrence TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_occurrence TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    occurrences_count INT DEFAULT 1,
+                    severity_level INT DEFAULT 1,
+                    clinician_notified BOOLEAN DEFAULT FALSE,
+                    clinician_notified_at TIMESTAMP,
+                    flag_metadata JSONB,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                )""",
+             'ai_memory_flags',
+             ["CREATE INDEX IF NOT EXISTS idx_flags_username ON ai_memory_flags(username)",
+              "CREATE INDEX IF NOT EXISTS idx_flags_type ON ai_memory_flags(flag_type)",
+              "CREATE INDEX IF NOT EXISTS idx_flags_status ON ai_memory_flags(flag_status)",
+              "CREATE INDEX IF NOT EXISTS idx_flags_severity ON ai_memory_flags(severity_level)"]),
+            ("""CREATE TABLE IF NOT EXISTS clinician_summaries (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    clinician_username VARCHAR(255) NOT NULL,
+                    month_start_date DATE NOT NULL,
+                    month_end_date DATE NOT NULL,
+                    summary_data JSONB NOT NULL,
+                    key_patterns JSONB,
+                    risk_flags JSONB,
+                    achievements JSONB,
+                    recommended_discussion_points JSONB,
+                    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    viewed_at TIMESTAMP,
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE,
+                    FOREIGN KEY (clinician_username) REFERENCES users(username) ON DELETE CASCADE,
+                    UNIQUE(username, clinician_username, month_start_date)
+                )""",
+             'clinician_summaries',
+             ["CREATE INDEX IF NOT EXISTS idx_summaries_username ON clinician_summaries(username)",
+              "CREATE INDEX IF NOT EXISTS idx_summaries_clinician ON clinician_summaries(clinician_username)",
+              "CREATE INDEX IF NOT EXISTS idx_summaries_month ON clinician_summaries(month_start_date)"])
+        ]:
+            try:
+                cursor.execute(f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}')")
+                if not cursor.fetchone()[0]:
+                    print(f"Migrating: Creating {table_name} table...")
+                    cursor.execute(table_sql)
+                    for idx_sql in indexes:
+                        cursor.execute(idx_sql)
+                    conn.commit()
+                    print(f"✓ Migration: {table_name} table created")
+            except Exception as e:
+                print(f"Migration note ({table_name}): {e}")
+                conn.rollback()
+
         # Verify the database is accessible
         cursor.execute("SELECT 1")
         conn.commit()
@@ -5377,12 +5692,19 @@ def therapy_chat():
         except Exception as mem_error:
             print(f"Memory fetch error: {mem_error}")
             memory = None
-        
-        conn.close()
-        
-        # Get AI response using existing logic
+
+        # Get enhanced AI memory context from ai_memory_core system
+        ai_memory_context = None
         try:
-            response = ai.get_response(message, history[::-1], wellness_data)
+            ai_memory_context = get_user_ai_memory(cur, username)
+        except Exception as mem_ctx_error:
+            print(f"AI memory context fetch error (non-critical): {mem_ctx_error}")
+
+        conn.close()
+
+        # Get AI response with memory context
+        try:
+            response = ai.get_response(message, history[::-1], wellness_data, memory_context=ai_memory_context)
         except Exception as resp_error:
             log_event(username, 'error', 'ai_response_error', str(resp_error))
             print(f"AI response error: {resp_error}")
@@ -5421,7 +5743,13 @@ def therapy_chat():
             "UPDATE chat_sessions SET last_active= %s WHERE id = %s",
             (datetime.now(), chat_session_id)
         )
-        
+
+        # Log therapy interaction to AI memory system
+        try:
+            log_therapy_interaction_to_memory(conn, cur, username, message, response)
+        except Exception as mem_log_error:
+            print(f"Memory logging error (non-critical): {mem_log_error}")
+
         conn.commit()
         conn.close()
         
@@ -13475,6 +13803,707 @@ def get_current_homework():
         
     except Exception as e:
         return handle_exception(e, request.endpoint or 'homework/current')
+
+
+# ============================================================================
+# AI MEMORY SYSTEM - Helper Functions & API Endpoints
+# ============================================================================
+
+def update_or_create_flag(conn, cur, username, flag_type, severity_level, metadata=None):
+    """Create or update an AI memory flag for a user."""
+    try:
+        existing = cur.execute(
+            "SELECT id, occurrences_count FROM ai_memory_flags WHERE username = %s AND flag_type = %s AND flag_status = 'active'",
+            (username, flag_type)
+        ).fetchone()
+
+        if existing:
+            cur.execute("""
+                UPDATE ai_memory_flags
+                SET last_occurrence = CURRENT_TIMESTAMP,
+                    occurrences_count = occurrences_count + 1,
+                    severity_level = GREATEST(severity_level, %s),
+                    flag_metadata = %s
+                WHERE id = %s
+            """, (severity_level, json.dumps(metadata or {}), existing[0]))
+        else:
+            cur.execute("""
+                INSERT INTO ai_memory_flags
+                (username, flag_type, severity_level, first_occurrence, last_occurrence, flag_metadata)
+                VALUES (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, %s)
+            """, (username, flag_type, severity_level, json.dumps(metadata or {})))
+    except Exception as e:
+        print(f"Error updating flag {flag_type} for {username}: {e}")
+
+
+def check_event_for_flags(event_type, event_data):
+    """Analyze event for concerning patterns. Returns [(flag_type, severity_level), ...]"""
+    flags = []
+
+    if event_type == 'therapy_message':
+        message = event_data.get('message', '').lower()
+        suicide_words = ['suicide', 'kill myself', 'end it all', 'want to die', 'better off dead']
+        harm_words = ['self harm', 'cut myself', 'hurt myself', 'cutting myself']
+        substance_words = ['cocaine', 'heroin', 'meth', 'overdose on drugs']
+
+        if any(word in message for word in suicide_words):
+            flags.append(('suicide_risk', 4))
+        if any(word in message for word in harm_words):
+            flags.append(('self_harm', 4))
+        if any(word in message for word in substance_words):
+            flags.append(('substance_mention', 3))
+
+    if event_type == 'engagement_analysis':
+        if event_data.get('engagement_trend') == 'declining':
+            flags.append(('engagement_drop', 2))
+
+    if event_type == 'app_usage':
+        if event_data.get('time_of_use') == 'late_night_unusual':
+            flags.append(('unusual_usage', 2))
+
+    return flags
+
+
+def update_memory_core(conn, cur, username, event_type, event_data):
+    """Update the core memory JSON with latest information."""
+    try:
+        result = cur.execute(
+            "SELECT memory_data, memory_version FROM ai_memory_core WHERE username = %s",
+            (username,)
+        ).fetchone()
+
+        if not result:
+            initial_memory = {
+                "personal_context": {},
+                "medical": {},
+                "conversation_count": 0,
+                "wellness_completion_rate": 0,
+                "last_activity": datetime.now().isoformat(),
+                "engagement_status": "active",
+                "high_risk_flags": False
+            }
+            cur.execute(
+                "INSERT INTO ai_memory_core (username, memory_data, memory_version) VALUES (%s, %s, %s)",
+                (username, json.dumps(initial_memory), 1)
+            )
+            memory_data = initial_memory
+            memory_version = 1
+        else:
+            memory_data = result[0] if isinstance(result[0], dict) else json.loads(result[0])
+            memory_version = result[1]
+
+        if event_type == 'therapy_message':
+            memory_data['conversation_count'] = memory_data.get('conversation_count', 0) + 1
+            memory_data['last_activity'] = datetime.now().isoformat()
+        elif event_type == 'wellness_log':
+            try:
+                total_logs = cur.execute(
+                    "SELECT COUNT(*) FROM wellness_logs WHERE username = %s",
+                    (username,)
+                ).fetchone()[0]
+                memory_data['wellness_entries_total'] = total_logs
+            except:
+                pass
+        elif event_type == 'mood_spike':
+            memory_data['last_mood_spike'] = datetime.now().isoformat()
+
+        try:
+            critical_flags = cur.execute(
+                "SELECT COUNT(*) FROM ai_memory_flags WHERE username = %s AND severity_level >= 4 AND flag_status = 'active'",
+                (username,)
+            ).fetchone()[0]
+            memory_data['high_risk_flags'] = critical_flags > 0
+        except:
+            pass
+
+        memory_data['last_updated'] = datetime.now().isoformat()
+        memory_version += 1
+
+        cur.execute(
+            "UPDATE ai_memory_core SET memory_data = %s, memory_version = %s, last_updated = CURRENT_TIMESTAMP WHERE username = %s",
+            (json.dumps(memory_data), memory_version, username)
+        )
+
+        return True
+    except Exception as e:
+        print(f"Error updating memory core: {e}")
+        return False
+
+
+def get_user_ai_memory(cur, username):
+    """Get AI memory for context injection into TherapistAI."""
+    try:
+        result = cur.execute(
+            "SELECT memory_data FROM ai_memory_core WHERE username = %s",
+            (username,)
+        ).fetchone()
+        if result:
+            return result[0] if isinstance(result[0], dict) else json.loads(result[0])
+        return {}
+    except:
+        return {}
+
+
+def analyze_message_themes(message):
+    """Extract themes from a therapy message."""
+    themes = []
+    theme_keywords = {
+        'work_stress': ['work', 'job', 'boss', 'deadline', 'office', 'career', 'colleague'],
+        'family': ['family', 'mum', 'mom', 'dad', 'sister', 'brother', 'parent', 'child', 'kids'],
+        'relationship': ['partner', 'boyfriend', 'girlfriend', 'husband', 'wife', 'relationship', 'dating'],
+        'sleep': ['sleep', 'insomnia', 'nightmare', 'tired', 'exhausted', 'rest'],
+        'anxiety': ['anxious', 'anxiety', 'worried', 'panic', 'nervous', 'fear'],
+        'depression': ['depressed', 'hopeless', 'sad', 'empty', 'numb', 'worthless'],
+        'social': ['lonely', 'alone', 'isolated', 'friends', 'social'],
+        'health': ['health', 'pain', 'sick', 'medication', 'doctor', 'hospital'],
+        'finance': ['money', 'financial', 'debt', 'rent', 'bills', 'afford'],
+        'self_esteem': ['confidence', 'ugly', 'stupid', 'failure', 'not good enough']
+    }
+
+    message_lower = message.lower()
+    for theme, keywords in theme_keywords.items():
+        if any(kw in message_lower for kw in keywords):
+            themes.append(theme)
+
+    return themes
+
+
+def analyze_message_severity(message):
+    """Analyze message for concerning language. Returns severity score 0-10."""
+    severity = 0
+    concerning_words = {
+        'suicide': 10, 'kill myself': 10, 'want to die': 10, 'end it all': 9,
+        'kill': 8, 'death': 7, 'hopeless': 6, 'worthless': 6,
+        'nothing matters': 8, 'everyone hates': 7, 'alone': 5,
+        'self harm': 9, 'cut myself': 9, 'hurt myself': 8,
+        'overdose': 9, 'better off dead': 10
+    }
+
+    message_lower = message.lower()
+    for word, value in concerning_words.items():
+        if word in message_lower:
+            severity = max(severity, value)
+
+    return severity
+
+
+def log_therapy_interaction_to_memory(conn, cur, username, user_message, ai_response):
+    """Log therapy interaction to ai_memory_events and update memory core."""
+    try:
+        themes = analyze_message_themes(user_message)
+        severity = analyze_message_severity(user_message)
+
+        event_data = {
+            "message_preview": user_message[:200],
+            "length": len(user_message),
+            "word_count": len(user_message.split()),
+            "themes": themes,
+            "severity_score": severity,
+            "response_length": len(ai_response),
+            "timestamp": datetime.now().isoformat()
+        }
+
+        severity_label = 'critical' if severity >= 8 else 'warning' if severity >= 5 else 'normal'
+
+        cur.execute("""
+            INSERT INTO ai_memory_events (username, event_type, event_data, severity, tags)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (username, 'therapy_message', json.dumps(event_data), severity_label, json.dumps(themes)))
+
+        # Check for flags
+        flags_to_check = check_event_for_flags('therapy_message', {'message': user_message})
+        for flag_type, flag_severity in flags_to_check:
+            update_or_create_flag(conn, cur, username, flag_type, flag_severity,
+                                  {'trigger_preview': user_message[:100]})
+
+        # Update memory core
+        update_memory_core(conn, cur, username, 'therapy_message', event_data)
+
+    except Exception as e:
+        print(f"Error logging therapy interaction to memory: {e}")
+
+
+def fetch_user_memory(username):
+    """Fetch complete AI memory for a user (used by TherapistAI)."""
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Core memory
+        memory_result = cur.execute(
+            "SELECT memory_data FROM ai_memory_core WHERE username = %s",
+            (username,)
+        ).fetchone()
+        core_memory = (memory_result[0] if isinstance(memory_result[0], dict) else json.loads(memory_result[0])) if memory_result else {}
+
+        # Recent events (last 7 days)
+        recent_events = cur.execute("""
+            SELECT event_type, event_data, event_timestamp
+            FROM ai_memory_events
+            WHERE username = %s AND event_timestamp >= NOW() - INTERVAL '7 days'
+            ORDER BY event_timestamp DESC LIMIT 20
+        """, (username,)).fetchall()
+
+        # Active flags
+        active_flags = cur.execute("""
+            SELECT flag_type, severity_level, occurrences_count, last_occurrence
+            FROM ai_memory_flags
+            WHERE username = %s AND flag_status = 'active'
+            ORDER BY severity_level DESC
+        """, (username,)).fetchall()
+
+        # Conversation count
+        try:
+            conversation_count = cur.execute(
+                "SELECT COUNT(*) FROM chat_history WHERE session_id = %s",
+                (f"{username}_session",)
+            ).fetchone()[0]
+        except:
+            conversation_count = 0
+
+        # Recent activity summary (24h)
+        try:
+            recent_activities = cur.execute("""
+                SELECT activity_type, COUNT(*) as count, MAX(activity_timestamp) as last_activity
+                FROM ai_activity_log
+                WHERE username = %s AND activity_timestamp >= NOW() - INTERVAL '24 hours'
+                GROUP BY activity_type
+            """, (username,)).fetchall()
+        except:
+            recent_activities = []
+
+        conn.close()
+
+        return {
+            "personal_context": core_memory.get("personal_context", {}),
+            "medical": core_memory.get("medical", {}),
+            "conversation_count": conversation_count,
+            "recent_events": [
+                {
+                    "type": e[0],
+                    "data": e[1] if isinstance(e[1], dict) else json.loads(e[1]),
+                    "timestamp": e[2].isoformat() if e[2] else None
+                }
+                for e in recent_events
+            ],
+            "active_flags": [
+                {
+                    "flag_type": f[0],
+                    "severity": f[1],
+                    "occurrences": f[2],
+                    "last_occurrence": f[3].isoformat() if f[3] else None
+                }
+                for f in active_flags
+            ],
+            "recent_activities": {
+                a[0]: {"count": a[1], "last_activity": a[2].isoformat() if a[2] else None}
+                for a in recent_activities
+            },
+            "engagement_status": core_memory.get("engagement_status", "unknown"),
+            "last_activity": core_memory.get("last_activity", None),
+            "high_risk_flags": core_memory.get("high_risk_flags", False)
+        }
+    except Exception as e:
+        print(f"Error fetching user memory: {e}")
+        return {}
+
+
+# --- AI Memory System API Endpoints ---
+
+@app.route('/api/activity/log', methods=['POST'])
+def log_activity_endpoint():
+    """Receive batch of user activities from frontend and store them."""
+    try:
+        authenticated_user = get_authenticated_username()
+        if not authenticated_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        activities = data.get('activities', [])
+        if not activities or not isinstance(activities, list):
+            return jsonify({'error': 'Activities must be a non-empty list'}), 400
+
+        # Cap batch size to prevent abuse
+        activities = activities[:50]
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        logged_count = 0
+        for activity in activities:
+            activity_type = activity.get('activity_type')
+            if not activity_type or len(activity_type) > 100:
+                continue
+
+            activity_detail = str(activity.get('activity_detail', ''))[:500]
+            session_id = str(activity.get('session_id', ''))[:255]
+            app_state = str(activity.get('app_state', ''))[:100]
+            metadata = activity.get('metadata', {})
+            if not isinstance(metadata, dict):
+                metadata = {}
+
+            cur.execute("""
+                INSERT INTO ai_activity_log
+                (username, activity_type, activity_detail, session_id, app_state, metadata)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (authenticated_user, activity_type, activity_detail, session_id, app_state, json.dumps(metadata)))
+            logged_count += 1
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'activities_logged': logged_count}), 200
+
+    except Exception as e:
+        print(f"Activity logging error: {e}")
+        return jsonify({'error': 'Failed to log activities'}), 500
+
+
+@app.route('/api/ai/memory/update', methods=['POST'])
+def update_ai_memory_endpoint():
+    """Update AI memory core after significant interactions."""
+    try:
+        authenticated_user = get_authenticated_username()
+        if not authenticated_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        event_type = data.get('event_type')
+        event_data = data.get('event_data', {})
+        severity = data.get('severity', 'normal')
+        tags = data.get('tags', [])
+
+        if not event_type:
+            return jsonify({'error': 'event_type required'}), 400
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Log the event
+        cur.execute("""
+            INSERT INTO ai_memory_events
+            (username, event_type, event_data, severity, tags)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (authenticated_user, event_type, json.dumps(event_data), severity, json.dumps(tags)))
+
+        # Check for flags
+        flags_to_check = check_event_for_flags(event_type, event_data)
+        for flag_type, flag_severity in flags_to_check:
+            update_or_create_flag(conn, cur, authenticated_user, flag_type, flag_severity)
+
+        # Update memory core
+        memory_updated = update_memory_core(conn, cur, authenticated_user, event_type, event_data)
+
+        conn.commit()
+
+        memory = cur.execute(
+            "SELECT memory_version FROM ai_memory_core WHERE username = %s",
+            (authenticated_user,)
+        ).fetchone()
+        memory_version = memory[0] if memory else 1
+
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'memory_updated': memory_updated,
+            'version': memory_version
+        }), 200
+
+    except Exception as e:
+        print(f"Memory update error: {e}")
+        return jsonify({'error': 'Failed to update memory'}), 500
+
+
+@app.route('/api/ai/memory', methods=['GET'])
+def get_ai_memory_endpoint():
+    """Return formatted memory for AI system prompt injection."""
+    try:
+        authenticated_user = get_authenticated_username()
+        if not authenticated_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        memory = fetch_user_memory(authenticated_user)
+        return jsonify(memory), 200
+
+    except Exception as e:
+        print(f"Memory retrieval error: {e}")
+        return jsonify({'error': 'Failed to retrieve memory'}), 500
+
+
+@app.route('/api/ai/patterns/detect', methods=['POST'])
+def detect_patterns_endpoint():
+    """Nightly batch job: analyze activities and detect patterns for all active users."""
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        active_users = cur.execute("""
+            SELECT DISTINCT username FROM ai_activity_log
+            WHERE activity_timestamp >= NOW() - INTERVAL '24 hours'
+        """).fetchall()
+
+        users_analyzed = 0
+
+        for user_tuple in active_users:
+            username = user_tuple[0]
+
+            # Engagement patterns
+            try:
+                last_7 = cur.execute("""
+                    SELECT COUNT(DISTINCT DATE(activity_timestamp))
+                    FROM ai_activity_log WHERE username = %s
+                    AND activity_timestamp >= NOW() - INTERVAL '7 days'
+                """, (username,)).fetchone()[0]
+
+                prev_7 = cur.execute("""
+                    SELECT COUNT(DISTINCT DATE(activity_timestamp))
+                    FROM ai_activity_log WHERE username = %s
+                    AND activity_timestamp >= NOW() - INTERVAL '14 days'
+                    AND activity_timestamp < NOW() - INTERVAL '7 days'
+                """, (username,)).fetchone()[0]
+
+                if prev_7 > 0 and last_7 < prev_7 * 0.6:
+                    update_or_create_flag(conn, cur, username, 'engagement_drop', 2,
+                                          {'previous_days': prev_7, 'current_days': last_7})
+            except Exception as e:
+                print(f"Engagement pattern error for {username}: {e}")
+
+            # Usage time anomalies
+            try:
+                typical_time = cur.execute("""
+                    SELECT EXTRACT(HOUR FROM activity_timestamp) as hour, COUNT(*) as freq
+                    FROM ai_activity_log WHERE username = %s
+                    AND activity_timestamp >= NOW() - INTERVAL '30 days'
+                    GROUP BY EXTRACT(HOUR FROM activity_timestamp)
+                    ORDER BY freq DESC LIMIT 1
+                """, (username,)).fetchone()
+
+                if typical_time:
+                    typical_hour = int(typical_time[0])
+                    today_hours = cur.execute("""
+                        SELECT DISTINCT EXTRACT(HOUR FROM activity_timestamp) as hour
+                        FROM ai_activity_log WHERE username = %s
+                        AND DATE(activity_timestamp) = CURRENT_DATE
+                    """, (username,)).fetchall()
+
+                    for h in today_hours:
+                        hour = int(h[0])
+                        if hour < 5 and typical_hour >= 10:
+                            update_or_create_flag(conn, cur, username, 'unusual_usage', 2,
+                                                  {'typical_hour': typical_hour, 'current_hour': hour})
+            except Exception as e:
+                print(f"Usage anomaly error for {username}: {e}")
+
+            # Escalation patterns in chat
+            try:
+                messages = cur.execute("""
+                    SELECT message FROM chat_history
+                    WHERE session_id = %s AND sender = 'user'
+                    AND timestamp >= NOW() - INTERVAL '7 days'
+                    ORDER BY timestamp DESC LIMIT 20
+                """, (f"{username}_session",)).fetchall()
+
+                if len(messages) >= 3:
+                    recent_sev = analyze_message_severity(messages[0][0])
+                    older_sev = analyze_message_severity(messages[-1][0])
+                    if recent_sev > 0 and recent_sev > older_sev * 1.5:
+                        update_or_create_flag(conn, cur, username, 'crisis_pattern', 3,
+                                              {'recent_severity': recent_sev, 'older_severity': older_sev})
+            except Exception as e:
+                print(f"Escalation pattern error for {username}: {e}")
+
+            users_analyzed += 1
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'users_analyzed': users_analyzed
+        }), 200
+
+    except Exception as e:
+        print(f"Pattern detection error: {e}")
+        return jsonify({'error': 'Failed to detect patterns'}), 500
+
+
+@app.route('/api/clinician/summaries/generate', methods=['POST'])
+def generate_clinician_summaries_endpoint():
+    """Generate monthly summaries for all approved clinician-patient relationships."""
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        approvals = cur.execute("""
+            SELECT patient_username, clinician_username
+            FROM patient_approvals WHERE status = 'approved'
+        """).fetchall()
+
+        today = date.today()
+        month_start = date(today.year, today.month, 1)
+        if today.month == 12:
+            month_end = date(today.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            month_end = date(today.year, today.month + 1, 1) - timedelta(days=1)
+
+        summaries_generated = 0
+
+        for patient, clinician in approvals:
+            try:
+                # Wellness metrics
+                wellness_data = cur.execute("""
+                    SELECT AVG(mood) as avg_mood, COUNT(*) as total,
+                           AVG(sleep_quality) as avg_sleep,
+                           COUNT(DISTINCT DATE(timestamp)) as days_logged
+                    FROM wellness_logs WHERE username = %s
+                    AND timestamp >= %s AND timestamp < %s + INTERVAL '1 day'
+                """, (patient, month_start, month_end)).fetchone()
+
+                # Therapy activity
+                therapy_count = cur.execute("""
+                    SELECT COUNT(*) FROM chat_history
+                    WHERE session_id = %s AND timestamp >= %s
+                    AND timestamp < %s + INTERVAL '1 day'
+                """, (f"{patient}_session", month_start, month_end)).fetchone()[0]
+
+                # Mood logs
+                mood_data = cur.execute("""
+                    SELECT AVG(mood_val), COUNT(*)
+                    FROM mood_logs WHERE username = %s
+                    AND entry_timestamp >= %s AND entry_timestamp < %s + INTERVAL '1 day'
+                    AND deleted_at IS NULL
+                """, (patient, month_start, month_end)).fetchone()
+
+                # Active flags
+                flags = cur.execute("""
+                    SELECT flag_type, severity_level, occurrences_count
+                    FROM ai_memory_flags WHERE username = %s AND flag_status = 'active'
+                """, (patient,)).fetchall()
+
+                days_in_month = (month_end - month_start).days + 1
+
+                summary_data = {
+                    "wellness_metrics": {
+                        "average_mood": float(wellness_data[0]) if wellness_data and wellness_data[0] else None,
+                        "total_entries": wellness_data[1] if wellness_data else 0,
+                        "average_sleep": float(wellness_data[2]) if wellness_data and wellness_data[2] else None,
+                        "days_logged": wellness_data[3] if wellness_data else 0,
+                        "completion_rate": round((wellness_data[3] / days_in_month) * 100, 1) if wellness_data and wellness_data[3] else 0
+                    },
+                    "mood_logs": {
+                        "average_mood": float(mood_data[0]) if mood_data and mood_data[0] else None,
+                        "total_entries": mood_data[1] if mood_data else 0
+                    },
+                    "therapy_activity": {
+                        "total_messages": therapy_count,
+                        "average_per_week": round(therapy_count / max(1, days_in_month / 7), 1),
+                        "engagement_level": "high" if therapy_count > 16 else "medium" if therapy_count > 8 else "low"
+                    },
+                    "active_concerns": [
+                        {"flag": f[0], "severity": f[1], "occurrences": f[2]}
+                        for f in flags
+                    ]
+                }
+
+                cur.execute("""
+                    INSERT INTO clinician_summaries
+                    (username, clinician_username, month_start_date, month_end_date, summary_data)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (username, clinician_username, month_start_date)
+                    DO UPDATE SET summary_data = EXCLUDED.summary_data, generated_at = CURRENT_TIMESTAMP
+                """, (patient, clinician, month_start, month_end, json.dumps(summary_data)))
+
+                summaries_generated += 1
+            except Exception as e:
+                print(f"Error generating summary for {patient}: {e}")
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'summaries_generated': summaries_generated,
+            'month': month_start.strftime('%B %Y')
+        }), 200
+
+    except Exception as e:
+        print(f"Summary generation error: {e}")
+        return jsonify({'error': 'Failed to generate summaries'}), 500
+
+
+@app.route('/api/clinician/summaries', methods=['GET'])
+def get_clinician_summaries_endpoint():
+    """Return monthly summaries for all patients approved with this clinician."""
+    try:
+        authenticated_user = get_authenticated_username()
+        if not authenticated_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        user_role = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (authenticated_user,)
+        ).fetchone()
+
+        if not user_role or user_role[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Only clinicians can view summaries'}), 403
+
+        # Get approved patients
+        patients = cur.execute("""
+            SELECT patient_username FROM patient_approvals
+            WHERE clinician_username = %s AND status = 'approved'
+        """, (authenticated_user,)).fetchall()
+
+        summaries = []
+        today = date.today()
+        month_start = date(today.year, today.month, 1)
+
+        for patient_tuple in patients:
+            patient_username = patient_tuple[0]
+
+            # Try current month first, then last month
+            summary = cur.execute("""
+                SELECT summary_data, generated_at FROM clinician_summaries
+                WHERE username = %s AND clinician_username = %s
+                AND month_start_date = %s LIMIT 1
+            """, (patient_username, authenticated_user, month_start)).fetchone()
+
+            if not summary:
+                # Try last month
+                if today.month == 1:
+                    last_month_start = date(today.year - 1, 12, 1)
+                else:
+                    last_month_start = date(today.year, today.month - 1, 1)
+                summary = cur.execute("""
+                    SELECT summary_data, generated_at FROM clinician_summaries
+                    WHERE username = %s AND clinician_username = %s
+                    AND month_start_date = %s LIMIT 1
+                """, (patient_username, authenticated_user, last_month_start)).fetchone()
+
+            if summary:
+                summaries.append({
+                    'patient': patient_username,
+                    'summary': summary[0] if isinstance(summary[0], dict) else json.loads(summary[0]),
+                    'generated_at': summary[1].isoformat() if summary[1] else None
+                })
+
+        conn.close()
+
+        return jsonify({'success': True, 'summaries': summaries}), 200
+
+    except Exception as e:
+        print(f"Summary retrieval error: {e}")
+        return jsonify({'error': 'Failed to retrieve summaries'}), 500
 
 
 # Print app summary

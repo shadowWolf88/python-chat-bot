@@ -8500,6 +8500,12 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             document.getElementById('authScreen').style.display = 'none';
             document.getElementById('appScreen').style.display = 'block';
 
+            // Initialize AI activity logger
+            try {
+                if (activityLogger) { activityLogger.destroy(); }
+                activityLogger = new ActivityLogger();
+            } catch(e) { console.warn('Activity logger init error:', e); }
+
             // Store clinician name and update therapy chat title
             currentClinicianName = data.clinician_name || null;
             updateTherapyChatTitle();
@@ -9320,6 +9326,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
+                // Log logout to activity logger
+                try {
+                    if (activityLogger) { activityLogger.destroy(); activityLogger = null; }
+                } catch(e) {}
+
                 // Clear all session data
                 localStorage.removeItem('healingSpaceSession');
                 sessionStorage.removeItem('healingSpaceSession');
@@ -9350,9 +9361,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         function switchTab(tabName, buttonEl) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            
+
             document.getElementById(tabName + 'Tab').classList.add('active');
             if (buttonEl) buttonEl.classList.add('active');
+
+            // Log tab change to activity logger
+            try {
+                document.dispatchEvent(new CustomEvent('tabchange', { detail: { tabName: tabName } }));
+            } catch(e) {}
 
             // Always reload Home tab data for patients
             if (tabName === 'home' && currentUserRole !== 'clinician' && currentUserRole !== 'developer') {
@@ -9452,6 +9468,13 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const message = input.value.trim();
 
             if (!message) return;
+
+            // Log message send to activity logger (metadata only, not content)
+            try {
+                if (activityLogger) {
+                    activityLogger.logActivity('message_sent', 'length:' + message.length, 'therapy');
+                }
+            } catch(e) {}
 
             addMessage(message, 'user', null, new Date().toISOString());
             input.value = '';
@@ -15250,7 +15273,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
                 const result = await response.json();
                 console.log('Wellness saved successfully:', result);
-                
+
+                // Log wellness completion to activity logger
+                try {
+                    if (activityLogger) {
+                        activityLogger.logActivity('wellness_saved', 'mood:' + (wellnessRitualState.data.mood || '?'), 'wellness');
+                    }
+                } catch(e) {}
+
                 // Show success message
                 await new Promise(r => setTimeout(r, 1000));
                 addWellnessMessage('✅ All saved! See you tomorrow, ' + (wellnessRitualState.data.preferred_name || 'friend') + '.', false);
@@ -15273,5 +15303,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
     </script>
     <!-- UX Enhancement System -->
     <script src="/static/js/ux-enhancements.js"></script>
+    <!-- AI Memory System - Activity Logger -->
+    <script src="/static/js/activity-logger.js"></script>
 </body>
 </html>
