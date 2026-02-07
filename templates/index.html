@@ -4944,7 +4944,7 @@
             </div>
             
             <!-- Shop Modal -->
-            <div id="shopModal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 10000;">
+            <div id="shopModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 10000;">
                 <div style="background: white; padding: 30px; border-radius: 20px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
                     <h3>🛍️ Wellness Shop</h3>
                     <div style="text-align: center; margin-bottom: 20px; font-size: 18px; font-weight: bold;">
@@ -4956,7 +4956,7 @@
             </div>
             
             <!-- Declutter Modal -->
-            <div id="declutterModal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 10000;">
+            <div id="declutterModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 10000;">
                 <div style="background: white; padding: 30px; border-radius: 20px; max-width: 500px; width: 90%;">
                     <h3>🧹 Declutter The Mind</h3>
                     <p style="color: #666; margin-bottom: 20px;">Throw away 3 worries to clean the room:</p>
@@ -4992,12 +4992,12 @@
                     </div>
                 </div>
                 
-                <div id="assessmentModal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 10000;">
+                <div id="assessmentModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 10000;">
                     <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
                         <h3 id="assessmentTitle"></h3>
                         <div id="assessmentQuestions"></div>
-                        <button class="btn" onclick="submitAssessment()">Submit</button>
-                        <button class="btn btn-secondary" onclick="closeAssessment()">Cancel</button>
+                        <button class="btn" onclick="submitAssessment()" style="width: auto;">Submit</button>
+                        <button class="btn btn-secondary" onclick="closeAssessment()" style="width: auto; margin-left: 10px;">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -5097,7 +5097,7 @@
                 </div>
 
                 <!-- Inbox Subtab -->
-                <div id="messagesInboxTab" class="message-subtab-content" style="display: block;">
+                <div id="messagesInboxTabPatient" class="message-subtab-content" style="display: block;">
                     <div class="card">
                         <h4>Inbox</h4>
                         <div id="messagesInboxContainer" style="max-height: 600px; overflow-y: auto;">
@@ -5107,7 +5107,7 @@
                 </div>
 
                 <!-- Sent Subtab -->
-                <div id="messagesSentTab" class="message-subtab-content" style="display: none;">
+                <div id="messagesSentTabPatient" class="message-subtab-content" style="display: none;">
                     <div class="card">
                         <h4>Sent Messages</h4>
                         <div id="messagesSentContainer" style="max-height: 600px; overflow-y: auto;">
@@ -5117,23 +5117,23 @@
                 </div>
 
                 <!-- New Message Subtab -->
-                <div id="messagesNewTab" class="message-subtab-content" style="display: none;">
+                <div id="messagesNewTabPatient" class="message-subtab-content" style="display: none;">
                     <div class="card">
                         <h4>Send New Message</h4>
                         <div class="form-group">
                             <label>To (Username)</label>
-                            <input type="text" id="messageRecipient" class="themed-input" placeholder="Enter recipient username">
+                            <input type="text" id="messageRecipientPatient" class="themed-input" placeholder="Enter recipient username">
                         </div>
                         <div class="form-group">
                             <label>Subject</label>
-                            <input type="text" id="messageSubject" class="themed-input" placeholder="Message subject (optional)">
+                            <input type="text" id="messageSubjectPatient" class="themed-input" placeholder="Message subject (optional)">
                         </div>
                         <div class="form-group">
                             <label>Message</label>
-                            <textarea id="messageContent" class="themed-textarea" rows="8" placeholder="Type your message here..."></textarea>
+                            <textarea id="messageContentPatient" class="themed-textarea" rows="8" placeholder="Type your message here..."></textarea>
                         </div>
-                        <button class="btn" onclick="sendNewMessage()" style="background: #667eea;">📨 Send Message</button>
-                        <p id="messageSendStatus" style="margin-top: 10px; display: none;"></p>
+                        <button class="btn" onclick="sendNewMessage()" style="background: #667eea; width: auto;">📨 Send Message</button>
+                        <p id="messageSendStatusPatient" style="margin-top: 10px; display: none;"></p>
                     </div>
                 </div>
             </div>
@@ -5493,37 +5493,37 @@
                             </div>
 
                             <!-- Inbox Tab -->
-                            <div id="messagesInboxTab" class="message-subtab-content">
-                                <div id="messagesInboxContainer">
+                            <div id="clinMessagesInboxTab" class="message-subtab-content">
+                                <div id="clinMessagesInboxContainer">
                                     <p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>
                                 </div>
                             </div>
 
                             <!-- Sent Tab -->
-                            <div id="messagesSentTab" class="message-subtab-content" style="display: none;">
-                                <div id="messagesSentContainer">
+                            <div id="clinMessagesSentTab" class="message-subtab-content" style="display: none;">
+                                <div id="clinMessagesSentContainer">
                                     <p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>
                                 </div>
                             </div>
 
                             <!-- New Message Tab -->
-                            <div id="messagesNewTab" class="message-subtab-content" style="display: none;">
+                            <div id="clinMessagesNewTab" class="message-subtab-content" style="display: none;">
                                 <div style="max-width: 600px;">
                                     <div style="margin-bottom: 15px;">
                                         <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #333;">Recipient</label>
-                                        <input type="text" id="messageRecipient" placeholder="Enter patient username..."
+                                        <input type="text" id="clinMessageRecipient" placeholder="Enter patient username..."
                                             style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
                                     </div>
 
                                     <div style="margin-bottom: 15px;">
                                         <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #333;">Subject</label>
-                                        <input type="text" id="messageSubject" placeholder="Message subject (optional)..."
+                                        <input type="text" id="clinMessageSubject" placeholder="Message subject (optional)..."
                                             style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
                                     </div>
 
                                     <div style="margin-bottom: 15px;">
                                         <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #333;">Message</label>
-                                        <textarea id="messageContent" rows="6" placeholder="Type your message..."
+                                        <textarea id="clinMessageContent" rows="6" placeholder="Type your message..."
                                             style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; resize: vertical;"></textarea>
                                     </div>
 
@@ -10494,12 +10494,12 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         
         function openShop() {
             const shopModal = document.getElementById('shopModal');
-            shopModal.classList.remove('hidden');
+            shopModal.style.display = 'flex';
             loadShopItems();
         }
         
         function closeShop() {
-            document.getElementById('shopModal').classList.add('hidden');
+            document.getElementById('shopModal').style.display = 'none';
         }
         
         async function loadShopItems() {
@@ -10517,7 +10517,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             <div style="font-weight: bold; font-size: 16px;">${item.name}</div>
                             <div style="font-size: 13px; color: #666;">${item.description}</div>
                         </div>
-                        <button class="btn" onclick="buyItem('${item.id}')" style="padding: 8px 16px; ${currentCoins < item.cost ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                        <button class="btn" onclick="buyItem('${item.id}')" style="padding: 8px 16px; width: auto; ${currentCoins < item.cost ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
                             🪙 ${item.cost}
                         </button>
                     </div>
@@ -10554,14 +10554,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         }
         
         function openDeclutter() {
-            document.getElementById('declutterModal').classList.remove('hidden');
+            document.getElementById('declutterModal').style.display = 'flex';
             document.getElementById('worry1').value = '';
             document.getElementById('worry2').value = '';
             document.getElementById('worry3').value = '';
         }
         
         function closeDeclutter() {
-            document.getElementById('declutterModal').classList.add('hidden');
+            document.getElementById('declutterModal').style.display = 'none';
         }
         
         async function submitDeclutter() {
@@ -10718,7 +10718,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     </div>
                 </div>
             `).join('');
-            document.getElementById('assessmentModal').classList.remove('hidden');
+            document.getElementById('assessmentModal').style.display = 'flex';
         }
         
         function setScore(index, value) {
@@ -10757,7 +10757,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         }
         
         function closeAssessment() {
-            document.getElementById('assessmentModal').classList.add('hidden');
+            document.getElementById('assessmentModal').style.display = 'none';
             assessmentScores = [];
             currentAssessment = null;
         }
