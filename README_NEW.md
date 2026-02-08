@@ -12,12 +12,12 @@
 
 | I'm a... | I should read... | Time |
 |----------|------------------|------|
-| **Patient** | [Patient Getting Started](./docs/0-START-HERE/Getting-Started.md) | 5 min |
-| **Clinician** | [Clinician Guide](./docs/1-USER-GUIDES/Clinician-Guide.md) | 20 min |
-| **NHS** | [NHS Readiness Checklist](./docs/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md) | 30 min |
-| **Researcher** | [University Readiness Checklist](./docs/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md) | 30 min |
-| **Developer** | [Developer Setup](./docs/6-DEVELOPMENT/Developer-Setup.md) | 10 min |
-| **DevOps** | [Railway Deployment](./docs/5-DEPLOYMENT/Railway-Deployment.md) | 15 min |
+| **Patient** | [Patient Getting Started](./docs_new/0-START-HERE/Getting-Started.md) | 5 min |
+| **Clinician** | [Clinician Guide](./docs_new/1-USER-GUIDES/Clinician-Guide.md) | 20 min |
+| **NHS** | [NHS Readiness Checklist](./docs_new/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md) | 30 min |
+| **Researcher** | [University Readiness Checklist](./docs_new/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md) | 30 min |
+| **Developer** | [Developer Setup](./docs_new/6-DEVELOPMENT/Developer-Setup.md) | 10 min |
+| **DevOps** | [Railway Deployment](./docs_new/5-DEPLOYMENT/Railway-Deployment.md) | 15 min |
 
 ---
 
@@ -39,10 +39,10 @@ python3 api.py
 # Visit http://localhost:5000
 ```
 
-**Full setup:** [Developer Setup](./docs/6-DEVELOPMENT/Developer-Setup.md)
+**Full setup:** [Developer Setup](./docs_new/6-DEVELOPMENT/Developer-Setup.md)
 
 ### Deploy to Production (5 min)
-See: [Railway Deployment](./docs/5-DEPLOYMENT/Railway-Deployment.md)
+See: [Railway Deployment](./docs_new/5-DEPLOYMENT/Railway-Deployment.md)
 
 ---
 
@@ -78,18 +78,18 @@ See: [Railway Deployment](./docs/5-DEPLOYMENT/Railway-Deployment.md)
 
 **Complete documentation with 150+ pages:**
 
-👉 **[START HERE → Complete Documentation Index](./docs/INDEX.md)**
+👉 **[START HERE → Complete Documentation Index](./docs_new/INDEX.md)**
 
 Or jump directly to:
-- [What is Healing Space?](./docs/0-START-HERE/What-is-Healing-Space.md) - Overview
-- [Patient Guide](./docs/1-USER-GUIDES/Patient-Guide.md) - How to use it
-- [Clinician Guide](./docs/1-USER-GUIDES/Clinician-Guide.md) - Dashboard, patients, alerts
-- [NHS Compliance](./docs/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md) - 8 requirements ✅
-- [University Trials](./docs/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md) - 10 requirements ✅
-- [Developer Guide](./docs/6-DEVELOPMENT/Developer-Setup.md) - Start coding
-- [Architecture](./docs/4-TECHNICAL/Architecture-Overview.md) - How it works
-- [Security](./docs/8-SECURITY/Security-Overview.md) - Defense in depth
-- [Roadmap](./docs/9-ROADMAP/Priority-Roadmap.md) - What's next
+- [What is Healing Space?](./docs_new/0-START-HERE/What-is-Healing-Space.md) - Overview
+- [Patient Guide](./docs_new/1-USER-GUIDES/Patient-Guide.md) - How to use it
+- [Clinician Guide](./docs_new/1-USER-GUIDES/Clinician-Guide.md) - Dashboard, patients, alerts
+- [NHS Compliance](./docs_new/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md) - 8 requirements ✅
+- [University Trials](./docs_new/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md) - 10 requirements ✅
+- [Developer Guide](./docs_new/6-DEVELOPMENT/Developer-Setup.md) - Start coding
+- [Architecture](./docs_new/4-TECHNICAL/Architecture-Overview.md) - How it works
+- [Security](./docs_new/8-SECURITY/Security-Overview.md) - Defense in depth
+- [Roadmap](./docs_new/9-ROADMAP/Priority-Roadmap.md) - What's next
 
 ---
 
@@ -134,7 +134,7 @@ Or jump directly to:
 - Crisis keywords monitored
 - Clinician alerts within 1 minute
 
-**Read more:** [Security Overview](./docs/8-SECURITY/Security-Overview.md) | [Data Protection](./docs/2-NHS-COMPLIANCE/Data-Protection-Impact-Assessment.md)
+**Read more:** [Security Overview](./docs_new/8-SECURITY/Security-Overview.md) | [Data Protection](./docs_new/2-NHS-COMPLIANCE/Data-Protection-Impact-Assessment.md)
 
 ---
 
@@ -179,22 +179,22 @@ Or jump directly to:
 ## 🚀 Getting Started
 
 ### For Patients
-→ [Patient Getting Started](./docs/0-START-HERE/Getting-Started.md)
+→ [Patient Getting Started](./docs_new/0-START-HERE/Getting-Started.md)
 
 ### For Clinicians
-→ [Clinician Guide](./docs/1-USER-GUIDES/Clinician-Guide.md)
+→ [Clinician Guide](./docs_new/1-USER-GUIDES/Clinician-Guide.md)
 
 ### For NHS Deploying
-→ [NHS Readiness Checklist](./docs/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md)
+→ [NHS Readiness Checklist](./docs_new/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md)
 
 ### For Researchers
-→ [University Readiness Checklist](./docs/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md)
+→ [University Readiness Checklist](./docs_new/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md)
 
 ### For Developers
-→ [Developer Setup](./docs/6-DEVELOPMENT/Developer-Setup.md)
+→ [Developer Setup](./docs_new/6-DEVELOPMENT/Developer-Setup.md)
 
 ### For Operations
-→ [Railway Deployment](./docs/5-DEPLOYMENT/Railway-Deployment.md)
+→ [Railway Deployment](./docs_new/5-DEPLOYMENT/Railway-Deployment.md)
 
 ---
 
@@ -241,7 +241,7 @@ Or jump directly to:
 - 3.3 Ethics Approval
 - ... (5 more compliance items)
 
-**Full details:** [Priority Roadmap](./docs/9-ROADMAP/Priority-Roadmap.md)
+**Full details:** [Priority Roadmap](./docs_new/9-ROADMAP/Priority-Roadmap.md)
 
 ---
 
@@ -266,7 +266,7 @@ docs_new/
 
 ## 🤝 Contributing
 
-Want to contribute? See [Contributing Guide](./docs/6-DEVELOPMENT/Contributing-Guide.md)
+Want to contribute? See [Contributing Guide](./docs_new/6-DEVELOPMENT/Contributing-Guide.md)
 
 **Ways to help:**
 - 🐛 Report bugs
@@ -280,16 +280,16 @@ Want to contribute? See [Contributing Guide](./docs/6-DEVELOPMENT/Contributing-G
 
 ## 📞 Support
 
-- **Questions?** See [FAQ](./docs/1-USER-GUIDES/FAQ.md)
-- **Having issues?** See [Troubleshooting](./docs/1-USER-GUIDES/Troubleshooting.md)
-- **Security issue?** See [Vulnerability Disclosure](./docs/8-SECURITY/Vulnerability-Disclosure.md)
-- **Want to deploy?** See [Deployment Guide](./docs/5-DEPLOYMENT/)
+- **Questions?** See [FAQ](./docs_new/1-USER-GUIDES/FAQ.md)
+- **Having issues?** See [Troubleshooting](./docs_new/1-USER-GUIDES/Troubleshooting.md)
+- **Security issue?** See [Vulnerability Disclosure](./docs_new/8-SECURITY/Vulnerability-Disclosure.md)
+- **Want to deploy?** See [Deployment Guide](./docs_new/5-DEPLOYMENT/)
 
 ---
 
 ## 📄 License
 
-This project is open source. See [License Info](./docs/10-REFERENCE/License-Info.md)
+This project is open source. See [License Info](./docs_new/10-REFERENCE/License-Info.md)
 
 ---
 
@@ -297,7 +297,7 @@ This project is open source. See [License Info](./docs/10-REFERENCE/License-Info
 
 Built by a team of clinicians, engineers, and researchers passionate about making mental health care more accessible.
 
-See: [Credits](./docs/10-REFERENCE/Credits.md)
+See: [Credits](./docs_new/10-REFERENCE/Credits.md)
 
 ---
 
@@ -324,7 +324,7 @@ See: [Credits](./docs/10-REFERENCE/Credits.md)
 
 ---
 
-**👉 [START HERE → Complete Documentation](./docs/INDEX.md)**
+**👉 [START HERE → Complete Documentation](./docs_new/INDEX.md)**
 
 Last Updated: February 8, 2026  
 Version: 2.0 (PostgreSQL)  
