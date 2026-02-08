@@ -1,154 +1,319 @@
 """
 Shared pytest fixtures and configuration for Healing Space tests.
-Provides common test client setup, database fixtures, and test data factories.
+Provides Flask test client, mock database, authenticated sessions,
+and test data factories for all user roles.
 
-Configuration: Uses PostgreSQL by default for API tests. 
-Set DB_TYPE=sqlite to use SQLite for legacy desktop tests.
+Usage:
+    pytest tests/                    # Run all tests
+    pytest tests/backend/            # Backend unit tests only
+    pytest tests/integration/        # Integration tests only
+    pytest tests/e2e/                # End-to-end journey tests
+    pytest -x --tb=short             # Stop on first failure
+    pytest --cov=api --cov-report=html  # With coverage
 """
 
 import os
 import sys
-import sqlite3
+import json
 import pytest
-from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch, PropertyMock
+from datetime import datetime, timezone, timedelta
 
 # Ensure project root is on sys.path
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-# Configure for PostgreSQL testing by default
-os.environ.setdefault('DEBUG', '1')
-os.environ.setdefault('DB_HOST', 'localhost')
-os.environ.setdefault('DB_PORT', '5432')
-os.environ.setdefault('DB_NAME', 'healing_space_test')
-os.environ.setdefault('DB_NAME_PET', 'healing_space_pet_test')
-os.environ.setdefault('DB_NAME_TRAINING', 'healing_space_training_test')
-os.environ.setdefault('DB_USER', 'healing_space')
-os.environ.setdefault('DB_PASSWORD', 'healing_space_dev_pass')
-os.environ.setdefault('PIN_SALT', 'test_pin_salt_12345')
-os.environ.setdefault('GROQ_API_KEY', 'test_key')
-os.environ.setdefault('SECRET_KEY', 'test_secret_key_do_not_use_in_production')
+# Configure environment for testing BEFORE importing api
+os.environ['DEBUG'] = '1'
+os.environ['TESTING'] = '1'
+os.environ['DB_HOST'] = 'localhost'
+os.environ['DB_PORT'] = '5432'
+os.environ['DB_NAME'] = 'healing_space_test'
+os.environ['DB_USER'] = 'healing_space'
+os.environ['DB_PASSWORD'] = 'healing_space_dev_pass'
+os.environ['PIN_SALT'] = 'test_pin_salt_12345'
+os.environ['SECRET_KEY'] = 'test_secret_key_do_not_use_in_production'
+
+try:
+    from cryptography.fernet import Fernet
+    os.environ.setdefault('ENCRYPTION_KEY', Fernet.generate_key().decode())
+except Exception:
+    os.environ.setdefault('ENCRYPTION_KEY', 'dGVzdGtleQ==')
+
+os.environ.setdefault('GROQ_API_KEY', 'test_groq_key_not_real')
 
 import api
 
 
-@pytest.fixture
-def tmp_db(tmp_path):
-    """Create a temporary database for test isolation."""
-    db_path = str(tmp_path / "test_app.db")
-    # Set environment variable and API path
-    os.environ['DATABASE_URL'] = f"sqlite:///{db_path}"
-    api.DB_PATH = db_path
-    
-    # Initialize database schema
-    api.init_db()
-    
-    yield db_path
-    
-    # Cleanup
-    if os.path.exists(db_path):
-        os.remove(db_path)
+# ==================== MOCK DATABASE HELPERS ====================
+
+class MockCursor:
+    """Mock database cursor that returns configurable results."""
+
+    def __init__(self, results=None):
+        self._results = results or []
+        self._result_index = 0
+        self.lastrowid = 1
+        self.rowcount = 1
+        self.description = None
+
+    def execute(self, query, params=None):
+        self._last_query = query
+        self._last_params = params
+        return self
+
+    def fetchone(self):
+        if self._results and self._result_index < len(self._results):
+            result = self._results[self._result_index]
+            self._result_index += 1
+            return result
+        return None
+
+    def fetchall(self):
+        results = self._results[self._result_index:]
+        self._result_index = len(self._results)
+        return results
+
+    def close(self):
+        pass
 
 
+class MockConnection:
+    """Mock database connection."""
+
+    def __init__(self, cursor=None):
+        self._cursor = cursor or MockCursor()
+
+    def cursor(self):
+        return self._cursor
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
+
+
+def make_mock_db(query_results=None):
+    """
+    Create a mock get_db_connection that returns predictable results.
+
+    Args:
+        query_results: list of tuples to return from fetchone/fetchall,
+                       or a dict mapping query substrings to results.
+    """
+    if isinstance(query_results, dict):
+        cursor = MockCursor()
+        original_execute = cursor.execute
+
+        def smart_execute(query, params=None):
+            original_execute(query, params)
+            for key, value in query_results.items():
+                if key.lower() in query.lower():
+                    cursor._results = value if isinstance(value, list) else [value]
+                    cursor._result_index = 0
+                    return cursor
+            cursor._results = []
+            cursor._result_index = 0
+            return cursor
+
+        cursor.execute = smart_execute
+    else:
+        cursor = MockCursor(query_results or [])
+
+    conn = MockConnection(cursor)
+
+    def mock_get_db():
+        return conn
+
+    def mock_get_cursor(conn):
+        return cursor
+
+    return mock_get_db, mock_get_cursor, conn, cursor
+
+
+# ==================== FLASK TEST CLIENT ====================
+
 @pytest.fixture
-def client(monkeypatch):
-    """Create Flask test client with PostgreSQL database."""
-    # Enable debug mode for tests and set secret key for sessions
+def app():
+    """Create Flask application for testing."""
     api.app.config['TESTING'] = True
     api.app.config['SECRET_KEY'] = 'test-secret-key-for-sessions'
-    
-    with api.app.test_client() as test_client:
+    api.app.config['WTF_CSRF_ENABLED'] = False
+    return api.app
+
+
+@pytest.fixture
+def client(app):
+    """Create Flask test client."""
+    with app.test_client() as test_client:
         yield test_client
 
 
-@pytest.fixture
-def test_patient(tmp_db):
-    """Create a test patient user in the database."""
-    conn = sqlite3.connect(tmp_db)
-    cur = conn.cursor()
-    
-    # Use same password hashing as api.py
-    from hashlib import pbkdf2_hmac
-    hashed = pbkdf2_hmac('sha256', b'testpass', b'salt', 100000).hex()
-    
-    cur.execute(
-        "INSERT INTO users (username, password, role, full_name) "
-        "VALUES (?, ?, ?, ?)",
-        ('test_patient', hashed, 'user', 'Test Patient')
-    )
-    conn.commit()
-    conn.close()
-    
-    return {'username': 'test_patient', 'password': 'testpass', 'role': 'user'}
-
+# ==================== AUTHENTICATED SESSION FIXTURES ====================
 
 @pytest.fixture
-def test_clinician(tmp_db):
-    """Create a test clinician user in the database."""
-    conn = sqlite3.connect(tmp_db)
-    cur = conn.cursor()
-    
-    from hashlib import pbkdf2_hmac
-    hashed = pbkdf2_hmac('sha256', b'testpass', b'salt', 100000).hex()
-    
-    cur.execute(
-        "INSERT INTO users (username, password, role, full_name) "
-        "VALUES (?, ?, ?, ?)",
-        ('test_clinician', hashed, 'clinician', 'Dr. Test')
-    )
-    conn.commit()
-    conn.close()
-    
-    return {'username': 'test_clinician', 'password': 'testpass', 'role': 'clinician'}
-
-
-@pytest.fixture
-def test_developer(tmp_db):
-    """Create a test developer user in the database."""
-    conn = sqlite3.connect(tmp_db)
-    cur = conn.cursor()
-    
-    from hashlib import pbkdf2_hmac
-    hashed = pbkdf2_hmac('sha256', b'testpass', b'salt', 100000).hex()
-    
-    cur.execute(
-        "INSERT INTO users (username, password, role, full_name) "
-        "VALUES (?, ?, ?, ?)",
-        ('test_dev', hashed, 'developer', 'Dev User')
-    )
-    conn.commit()
-    conn.close()
-    
-    return {'username': 'test_dev', 'password': 'testpass', 'role': 'developer'}
-
-
-@pytest.fixture
-def authenticated_patient(client, test_patient):
-    """Create authenticated patient session and return client with session."""
-    # In Flask test client, we can set session directly
+def auth_patient(client):
+    """Flask test client with authenticated patient session.
+    Returns (client, user_info_dict).
+    Mocks get_authenticated_username to return 'test_patient'.
+    """
     with client.session_transaction() as sess:
-        sess['username'] = test_patient['username']
-        sess['role'] = test_patient['role']
-    
-    return client, test_patient
+        sess['username'] = 'test_patient'
+        sess['role'] = 'user'
+
+    with patch.object(api, 'get_authenticated_username', return_value='test_patient'):
+        yield client, {
+            'username': 'test_patient',
+            'role': 'user',
+            'full_name': 'Test Patient',
+            'email': 'patient@test.com'
+        }
 
 
 @pytest.fixture
-def authenticated_clinician(client, test_clinician):
-    """Create authenticated clinician session and return client with session."""
+def auth_clinician(client):
+    """Flask test client with authenticated clinician session."""
     with client.session_transaction() as sess:
-        sess['username'] = test_clinician['username']
-        sess['role'] = test_clinician['role']
-    
-    return client, test_clinician
+        sess['username'] = 'test_clinician'
+        sess['role'] = 'clinician'
+
+    with patch.object(api, 'get_authenticated_username', return_value='test_clinician'):
+        yield client, {
+            'username': 'test_clinician',
+            'role': 'clinician',
+            'full_name': 'Dr. Test Clinician',
+            'email': 'clinician@test.com'
+        }
 
 
 @pytest.fixture
-def authenticated_developer(client, test_developer):
-    """Create authenticated developer session and return client with session."""
+def auth_developer(client):
+    """Flask test client with authenticated developer session."""
     with client.session_transaction() as sess:
-        sess['username'] = test_developer['username']
-        sess['role'] = test_developer['role']
-    
-    return client, test_developer
+        sess['username'] = 'test_developer'
+        sess['role'] = 'developer'
+
+    with patch.object(api, 'get_authenticated_username', return_value='test_developer'):
+        yield client, {
+            'username': 'test_developer',
+            'role': 'developer',
+            'full_name': 'Dev User',
+            'email': 'dev@test.com'
+        }
+
+
+@pytest.fixture
+def unauth_client(client):
+    """Flask test client with NO authentication (anonymous)."""
+    with patch.object(api, 'get_authenticated_username', return_value=None):
+        yield client
+
+
+# ==================== MOCK DB FIXTURE ====================
+
+@pytest.fixture
+def mock_db():
+    """
+    Fixture that patches get_db_connection and get_wrapped_cursor.
+
+    Usage:
+        def test_something(auth_patient, mock_db):
+            mock_db({'SELECT role': ('clinician',)})
+            client, user = auth_patient
+            resp = client.get('/api/some-endpoint')
+    """
+    patches = []
+
+    def setup(query_results=None):
+        mock_get_db, mock_get_cursor, conn, cursor = make_mock_db(query_results)
+        p1 = patch.object(api, 'get_db_connection', side_effect=mock_get_db)
+        p2 = patch.object(api, 'get_wrapped_cursor', side_effect=mock_get_cursor)
+        patches.append(p1.start())
+        patches.append(p2.start())
+        return conn, cursor
+
+    yield setup
+
+    for p in patches:
+        try:
+            patch.stopall()
+        except Exception:
+            pass
+
+
+# ==================== TEST DATA FACTORIES ====================
+
+def make_user_row(username='test_patient', role='user', full_name='Test Patient',
+                  email='patient@test.com', clinician_id=None):
+    """Create a user row tuple matching SELECT * FROM users."""
+    return (username, 'hashed_password', 'hashed_pin', datetime.now(),
+            full_name, '1990-01-01', 'anxiety', role, clinician_id, 1,
+            email, '07700000000', None, None, 'UK', 'London', 'SW1A 1AA', '', '')
+
+
+def make_mood_row(mood=7, anxiety=3, sleep=8, username='test_patient'):
+    """Create a mood_logs row tuple."""
+    return (1, username, mood, anxiety, sleep, '', datetime.now(), None)
+
+
+def make_message_row(msg_id=1, sender='test_patient', recipient='test_clinician',
+                     subject='Test', content='Hello', is_read=0):
+    """Create a messages row tuple."""
+    return (msg_id, sender, recipient, subject, content, is_read,
+            None, datetime.now(), None, 0, 0, datetime.now())
+
+
+def make_appointment_row(appt_id=1, clinician='test_clinician', patient='test_patient'):
+    """Create an appointments row tuple."""
+    return (appt_id, clinician, patient, datetime.now() + timedelta(days=1),
+            'consultation', '', 0, None, 0, datetime.now(), 0, None, None,
+            'scheduled', None, None, None)
+
+
+def make_community_post_row(post_id=1, username='test_patient', message='Hello community'):
+    """Create a community_posts row tuple."""
+    return (post_id, username, message, 0, datetime.now(), 'general', 0, None)
+
+
+def make_notification_row(notif_id=1, recipient='test_patient', message='New notification'):
+    """Create a notifications row tuple."""
+    return (notif_id, recipient, message, 'info', 0, datetime.now())
+
+
+def make_chat_session_row(session_id=1, username='test_patient', name='Session 1'):
+    """Create a chat_sessions row tuple."""
+    return (session_id, username, name, datetime.now(), datetime.now(), 1)
+
+
+def make_pet_row(username='test_patient', pet_name='Buddy', happiness=80, energy=70):
+    """Create a virtual pet row tuple."""
+    return (username, pet_name, 'dog', 5, happiness, energy, 90, 50, 100, 0,
+            datetime.now(), datetime.now())
+
+
+# ==================== PYTEST CONFIGURATION ====================
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line("markers", "backend: Backend unit tests")
+    config.addinivalue_line("markers", "integration: Integration tests")
+    config.addinivalue_line("markers", "e2e: End-to-end journey tests")
+    config.addinivalue_line("markers", "security: Security-focused tests")
+    config.addinivalue_line("markers", "clinical: Clinical safety tests")
+    config.addinivalue_line("markers", "slow: Tests that are slow to run")
+
+
+def pytest_collection_modifyitems(config, items):
+    """Auto-mark tests based on their location."""
+    for item in items:
+        if "/backend/" in str(item.fspath):
+            item.add_marker(pytest.mark.backend)
+        elif "/integration/" in str(item.fspath):
+            item.add_marker(pytest.mark.integration)
+        elif "/e2e/" in str(item.fspath):
+            item.add_marker(pytest.mark.e2e)
