@@ -340,6 +340,87 @@ class InputValidator:
             min_length=InputValidator.MIN_USERNAME_LENGTH,
             field_name="Username"
         )
+    
+    @staticmethod
+    def validate_email(email):
+        """Validate email format (RFC 5322 simplified pattern)"""
+        if not email or not isinstance(email, str):
+            return None, "Email is required and must be a string"
+        
+        email = email.strip().lower()
+        
+        # Check length
+        if len(email) > InputValidator.MAX_EMAIL_LENGTH:
+            return None, f"Email cannot exceed {InputValidator.MAX_EMAIL_LENGTH} characters"
+        
+        # Simplified email validation pattern
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            return None, "Email format is invalid"
+        
+        return email, None
+    
+    @staticmethod
+    def validate_phone(phone):
+        """Validate phone number (basic format: digits and common separators)"""
+        if not phone or not isinstance(phone, str):
+            return None, "Phone number is required and must be a string"
+        
+        phone = str(phone).strip()
+        
+        # Check length (max 20 chars includes formatting)
+        if len(phone) > 20:
+            return None, "Phone number is too long"
+        
+        # Allow digits, +, -, (, ), space
+        import re
+        if not re.match(r'^[\d\+\-\(\)\s]+$', phone):
+            return None, "Phone number contains invalid characters"
+        
+        # Must have at least 10 digits
+        digits_only = re.sub(r'\D', '', phone)
+        if len(digits_only) < 10:
+            return None, "Phone number must have at least 10 digits"
+        
+        return phone, None
+    
+    @staticmethod
+    def validate_exercise_minutes(minutes):
+        """Validate exercise duration in minutes (0-1440, where 1440 = 24 hours)"""
+        val, error = InputValidator.validate_integer(
+            minutes,
+            min_val=0,
+            max_val=1440,
+            field_name="Exercise minutes"
+        )
+        if error:
+            return None, error
+        return val, None
+    
+    @staticmethod
+    def validate_water_intake(pints):
+        """Validate water intake in pints (0-20 pints)"""
+        try:
+            val = float(pints)
+            if val < 0 or val > 20:
+                return None, "Water intake must be between 0 and 20 pints"
+            return val, None
+        except (ValueError, TypeError):
+            return None, "Water intake must be a number"
+    
+    @staticmethod
+    def validate_outside_time(minutes):
+        """Validate time spent outside in minutes (0-1440)"""
+        val, error = InputValidator.validate_integer(
+            minutes,
+            min_val=0,
+            max_val=1440,
+            field_name="Outside time (minutes)"
+        )
+        if error:
+            return None, error
+        return val, None
 
 # ================== PHASE 2B: CSRF PROTECTION ==================
 
@@ -4643,6 +4724,18 @@ def register():
         if not username or not password or not pin or not email or not phone:
             return jsonify({'error': 'All fields are required'}), 400
         
+        # INPUT VALIDATION (TIER 1.4): Validate email format
+        email_clean, email_error = InputValidator.validate_email(email)
+        if email_error:
+            return jsonify({'error': email_error}), 400
+        email = email_clean
+        
+        # INPUT VALIDATION (TIER 1.4): Validate phone format
+        phone_clean, phone_error = InputValidator.validate_phone(phone)
+        if phone_error:
+            return jsonify({'error': phone_error}), 400
+        phone = phone_clean
+        
         # Check if email or phone was verified (if 2FA is enabled)
         if os.getenv('REQUIRE_2FA_SIGNUP', '0') == '1':
             if not verified_identifier:
@@ -4993,6 +5086,14 @@ def forgot_password():
             print("❌ Missing username or email")
             return jsonify({'error': 'Username and email required'}), 400
         
+        # INPUT VALIDATION (TIER 1.4): Validate email format
+        email_clean, email_error = InputValidator.validate_email(email)
+        if email_error:
+            print(f"❌ Email validation failed: {email_error}")
+            # Don't reveal validation details for security (return generic message)
+            return jsonify({'success': True, 'message': 'If account exists, reset link sent'}), 200
+        email = email_clean
+        
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
         
@@ -5299,6 +5400,18 @@ def clinician_register():
         
         if not username or not password or not pin or not email or not phone:
             return jsonify({'error': 'All fields are required'}), 400
+        
+        # INPUT VALIDATION (TIER 1.4): Validate email format
+        email_clean, email_error = InputValidator.validate_email(email)
+        if email_error:
+            return jsonify({'error': email_error}), 400
+        email = email_clean
+        
+        # INPUT VALIDATION (TIER 1.4): Validate phone format
+        phone_clean, phone_error = InputValidator.validate_phone(phone)
+        if phone_error:
+            return jsonify({'error': phone_error}), 400
+        phone = phone_clean
         
         if not country or not area:
             return jsonify({'error': 'Country and area are required'}), 400
@@ -7318,29 +7431,20 @@ def log_mood():
         else:
             sleep_val = 0
 
-        # Validate exercise_mins (non-negative, max 1440 minutes = 24 hours)
-        try:
-            exercise_mins = int(exercise_mins) if exercise_mins else 0
-            if exercise_mins < 0 or exercise_mins > 1440:
-                return jsonify({'error': 'exercise_mins must be between 0 and 1440'}), 400
-        except (ValueError, TypeError):
-            exercise_mins = 0
+        # TIER 1.4: Validate exercise_mins using InputValidator
+        exercise_mins, exercise_error = InputValidator.validate_exercise_minutes(exercise_mins)
+        if exercise_error:
+            return jsonify({'error': exercise_error}), 400
 
-        # Validate outside_mins (non-negative, max 1440 minutes)
-        try:
-            outside_mins = int(outside_mins) if outside_mins else 0
-            if outside_mins < 0 or outside_mins > 1440:
-                return jsonify({'error': 'outside_mins must be between 0 and 1440'}), 400
-        except (ValueError, TypeError):
-            outside_mins = 0
+        # TIER 1.4: Validate outside_mins using InputValidator
+        outside_mins, outside_error = InputValidator.validate_outside_time(outside_mins)
+        if outside_error:
+            return jsonify({'error': outside_error}), 400
 
-        # Validate water_pints (non-negative, max 20 pints)
-        try:
-            water_pints = float(water_pints) if water_pints else 0
-            if water_pints < 0 or water_pints > 20:
-                return jsonify({'error': 'water_pints must be between 0 and 20'}), 400
-        except (ValueError, TypeError):
-            water_pints = 0
+        # TIER 1.4: Validate water_pints using InputValidator
+        water_pints, water_error = InputValidator.validate_water_intake(water_pints)
+        if water_error:
+            return jsonify({'error': water_error}), 400
 
         # Sanitize and limit notes length (prevent XSS and oversized input)
         if notes:
