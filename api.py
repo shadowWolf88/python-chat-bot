@@ -16672,11 +16672,16 @@ def startup_security_checks():
 
 
 # Run startup checks before first request
-@app.before_first_request
+# Note: @app.before_first_request is deprecated in Flask 2.2+
+# Instead, we run this during app initialization below
+@app.before_request
 def before_first_request():
     """Initialize database and run security checks on first request"""
-    startup_security_checks()
-    init_db()
+    # Only run once per app startup
+    if not hasattr(app, '_tier0_initialized'):
+        startup_security_checks()
+        init_db()
+        app._tier0_initialized = True
 
 
 # Print app summary
