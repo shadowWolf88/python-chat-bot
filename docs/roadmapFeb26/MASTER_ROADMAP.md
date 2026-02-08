@@ -117,11 +117,32 @@ When starting TIER 1 implementation, please:
   - Dual-level protection against distributed attacks
 - **Verification**: ✅ Syntax valid, 11 decorators applied, commit: 0953f14
 
-### 1.4 Input Validation Consistency
-- **File**: api.py (InputValidator class exists at line 181 but rarely used)
-- **Missing on**: Mood values (no range check), sleep values, exercise minutes, email format, phone numbers
-- **Fix**: Apply InputValidator to ALL endpoints; add type/range validation for clinical data
-- **Effort**: 8 hours
+### 1.4 Input Validation Consistency ✅ COMPLETE
+- **File**: api.py lines 334-412, 4722-4763, 5084-5103, 5399-5423, 7437-7448
+- **Status**: ✅ COMPLETE (Feb 8, 2026)
+- **Changes Made**:
+  - Enhanced InputValidator class with 5 new validation methods
+  - Added: `validate_email()` - RFC 5322 format validation
+  - Added: `validate_phone()` - Phone number format and digit count validation
+  - Added: `validate_exercise_minutes()` - Range validation 0-1440 minutes
+  - Added: `validate_water_intake()` - Range validation 0-20 pints
+  - Added: `validate_outside_time()` - Range validation 0-1440 minutes
+  - Applied validation to /api/auth/register (email, phone)
+  - Applied validation to /api/auth/forgot-password (email)
+  - Applied validation to /api/auth/clinician/register (email, phone)
+  - Refactored /api/therapy/log-mood to use InputValidator methods
+- **Coverage**:
+  - Email format: RFC 5322 simplified pattern
+  - Phone format: Digits + formatting chars, min 10 digits
+  - Numeric ranges: Properly bounded 0-X with appropriate maximums
+  - Type checking: All validators return (value, error) tuple
+- **Impact**:
+  - Prevents invalid email/phone from being stored
+  - Prevents enumeration attacks on password reset
+  - Consistent validation patterns across all endpoints
+  - Type safety on numeric fields (prevents overflow)
+  - Early rejection prevents downstream processing errors
+- **Verification**: ✅ Syntax valid, 5 new validators, 4 endpoints enhanced, commit: 46a02ed
 
 ### 1.5 Session Management Hardening
 - **File**: api.py:147-165
