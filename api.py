@@ -203,6 +203,14 @@ limiter = Limiter(
     strategy="fixed-window"
 )
 
+# Register CBT Tools Blueprint (TIER 0.5 - PostgreSQL migration)
+try:
+    from cbt_tools import cbt_tools_bp, init_cbt_tools_schema
+    app.register_blueprint(cbt_tools_bp)
+    print("✅ CBT Tools blueprint registered (PostgreSQL backend)")
+except ImportError as e:
+    print(f"⚠️  Warning: CBT Tools not available: {e}")
+
 # Initialize with same settings as main app
 DEBUG = os.environ.get('DEBUG', '').lower() in ('1', 'true', 'yes')
 
@@ -3765,6 +3773,16 @@ def init_db():
             except:
                 pass
         return False
+    
+    # Initialize CBT Tools database (TIER 0.5 - PostgreSQL migration)
+    try:
+        if 'init_cbt_tools_schema' in globals():
+            init_cbt_tools_schema()
+            print("✓ CBT Tools database schema initialized")
+        else:
+            print("⚠️  CBT Tools schema initialization skipped (cbt_tools not imported)")
+    except Exception as e:
+        print(f"CBT Tools initialization error: {e}")
     
     # Initialize pet database
     try:
