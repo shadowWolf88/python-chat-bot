@@ -37,18 +37,24 @@
 ---
 
 ### ✅ 1.5 Session Management (6 hrs)
-**File**: `api.py` lines 147-165  
+**File**: `api.py` lines 147-165, 2032-2072, 5000-5002, 5083-5137  
 **Impact**: Prevents session hijacking, reduces exposure window  
-**Status**: [ ] Not Started | [ ] In Progress | [ ] Testing | [ ] Done  
+**Status**: [x] Not Started | [x] In Progress | [x] Testing | [x] Done  
 **Branch**: `security/tier1-1.5`  
-**Commit SHA**: _________  
+**Commit SHA**: `041b2ce`  
 **Notes**:
-- [ ] Session lifetime reduced 30→7 days
-- [ ] Session rotation on login implemented
-- [ ] Inactivity timeout (30 min) added
-- [ ] Sessions invalidated on password change
-- [ ] Timeout tests added
-- [ ] Tests pass
+- [x] Session lifetime reduced 30→7 days (line 165)
+- [x] Session rotation on login implemented (clear + recreate, line 5000)
+- [x] Inactivity timeout (30 min) added via middleware (new check_session_inactivity)
+- [x] Sessions invalidated on password change (DELETE queries in change_password endpoint)
+- [x] Login/last activity timestamps added (lines 5000-5002)
+- [x] Password change endpoint created with full validation (lines 5083-5137)
+- [x] CSRF protection on password change endpoint
+- [x] Comprehensive tests added: 20/20 passing
+- [x] Tests pass: pytest tests/test_tier1_session_hardening.py -v -m security
+
+**Completed**: Feb 9, 2026, 9:45 AM  
+**Time Spent**: 3.5 hours (under estimate of 6 hrs)
 
 **Time Spent This Phase**: ___ / 12 hours
 

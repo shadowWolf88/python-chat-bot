@@ -8,12 +8,12 @@
 
 **TIER 0**: ✅ **100% COMPLETE** - All 8 critical security fixes implemented and tested (Feb 8, 2026)
 
-**TIER 1.5-1.10**: 🟡 **IMPLEMENTATION PACKAGE READY** - 6 security hardening items with complete documentation:
-- 📚 8 comprehensive guide documents created
-- 📋 Full technical specifications ready
-- 🎯 Optimized sequence: 1.10→1.7→1.5→1.9→1.6→1.8
-- ⏰ Timeline: Feb 9-15 (40 hours, 6-7 days)
-- 📍 Entry point: **TIER_1_5_TO_1_10_START_HERE.md**
+**TIER 1.5-1.10**: � **IN PROGRESS** - Currently implementing 1.6 & 1.7 (Error Handling & Access Control):
+- ✅ **1.5 Session Management** (COMPLETE Feb 9 - 3.5 hrs, commit 041b2ce)
+- 🔄 **1.6 Error Handling & Debug Cleanup** (IN PROGRESS - 10 hrs)
+- 🔄 **1.7 Access Control Fix** (IN PROGRESS - 4 hrs)
+- ⏳ **1.10, 1.9, 1.8** (Queued)
+- ⏰ Remaining Timeline: Feb 9-15 (~28 hours)
 
 **See**: [TIER_1_5_TO_1_10_IMPLEMENTATION_PLAN.md](../../TIER_1_5_TO_1_10_IMPLEMENTATION_PLAN.md) for full technical details
 
@@ -159,23 +159,23 @@ When starting TIER 1 implementation, please:
   - Early rejection prevents downstream processing errors
 - **Verification**: ✅ Syntax valid, 5 new validators, 4 endpoints enhanced, commit: 46a02ed
 
-### 1.5 Session Management Hardening
+### 1.5 Session Management Hardening ✅
 - **File**: api.py:147-165
 - **Issues**: 30-day session lifetime (too long for health data), no session rotation on login, no concurrent session controls, no inactivity timeout
 - **Fix**: Reduce to 7 days max; rotate session ID on login; add 30-min inactivity timeout; invalidate sessions on password change
-- **Effort**: 6 hours
+- **Status**: ✅ COMPLETE (Feb 9, 2026) - Commit 041b2ce - 3.5 hours (20/20 tests passing)
 
-### 1.6 Error Handling & Debug Cleanup
+### 1.6 Error Handling & Debug Cleanup 🔄
 - **Files**: api.py (100+ bare `except Exception: pass`), audit.py, secrets_manager.py
 - **Risk**: Silent failures hide bugs and security issues; debug print statements expose usernames/params in logs
 - **Fix**: Replace bare exceptions with specific handlers; remove debug prints; add structured logging (Python logging module)
-- **Effort**: 10 hours
+- **Status**: 🔄 IN PROGRESS - (10 hours) - See detailed implementation below
 
-### 1.7 Broken Access Control on Professional Endpoints
+### 1.7 Broken Access Control on Professional Endpoints 🔄
 - **File**: api.py:10189-10221
 - **Risk**: `/api/professional/ai-summary` takes `clinician_username` from request body (forgeable)
 - **Fix**: Always derive clinician identity from session; never trust request body for identity
-- **Effort**: 4 hours
+- **Status**: 🔄 IN PROGRESS - (4 hours) - See detailed implementation below
 
 ### 1.8 XSS via innerHTML (138 Instances in Frontend)
 - **File**: templates/index.html

@@ -17,12 +17,31 @@ import smtplib
 import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import logging
+import logging.handlers
+
+# ===== TIER 1.6: Configure Structured Logging =====
+DEBUG = os.getenv('DEBUG', '').lower() in ('1', 'true', 'yes')
+logging.basicConfig(
+    level=logging.DEBUG if DEBUG else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.handlers.RotatingFileHandler(
+            'healing_space.log',
+            maxBytes=10485760,  # 10MB
+            backupCount=10
+        ) if not DEBUG else logging.StreamHandler(sys.stdout)
+    ]
+)
+app_logger = logging.getLogger(__name__)
+app_logger.info(f"Application starting - DEBUG={DEBUG}")
 
 # Import C-SSRS Assessment Module
 try:
     from c_ssrs_assessment import CSSRSAssessment, SafetyPlan
-except ImportError:
-    print("⚠️  Warning: c_ssrs_assessment module not found. C-SSRS endpoints will be disabled.")
+except ImportError as e:
+    app_logger.warning(f"c_ssrs_assessment module not found. C-SSRS endpoints will be disabled: {e}")
     CSSRSAssessment = None
     SafetyPlan = None
 
@@ -30,8 +49,8 @@ except ImportError:
 try:
     from safety_monitor import analyze_chat_message
     HAS_SAFETY_MONITOR = True
-except ImportError:
-    print("⚠️  Warning: safety_monitor module not found. Real-time risk detection disabled.")
+except ImportError as e:
+    app_logger.warning(f"safety_monitor module not found. Real-time risk detection disabled: {e}")
     HAS_SAFETY_MONITOR = False
     analyze_chat_message = None
 
@@ -66,7 +85,7 @@ def ensure_pet_table():
             """)
         conn.commit()
     except psycopg2.Error as e:
-        print(f"Error ensuring pet table: {e}")
+        app_logger.error(f"Error ensuring pet table: {e}", exc_info=True)
         conn.rollback()
     finally:
         conn.close()
@@ -110,7 +129,7 @@ def get_pet_db_connection():
             )
         return conn
     except psycopg2.Error as e:
-        print(f"Failed to connect to PostgreSQL pet database: {e}")
+        app_logger.error(f"Failed to connect to PostgreSQL pet database: {e}", exc_info=True)
         raise
 
 def normalize_pet_row(pet_row):
@@ -174,11 +193,7 @@ if not SECRET_KEY:
         )
     else:
         # Development: warn but allow ephemeral key
-        print("=" * 70)
-        print("WARNING: SECRET_KEY not set in DEBUG mode")
-        print("Using ephemeral key - sessions will NOT persist across restarts")
-        print("To fix: export SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')")
-        print("=" * 70)
+        app_logger.warning("SECRET_KEY not set in DEBUG mode. Using ephemeral key - sessions will NOT persist across restarts")
         SECRET_KEY = secrets.token_hex(32)
 
 # Validate key is strong enough (32+ bytes = 64+ hex chars)
@@ -207,12 +222,11 @@ limiter = Limiter(
 try:
     from cbt_tools import cbt_tools_bp, init_cbt_tools_schema
     app.register_blueprint(cbt_tools_bp)
-    print("✅ CBT Tools blueprint registered (PostgreSQL backend)")
+    app_logger.info("CBT Tools blueprint registered (PostgreSQL backend)")
 except ImportError as e:
-    print(f"⚠️  Warning: CBT Tools not available: {e}")
+    app_logger.warning(f"CBT Tools not available: {e}")
 
 # Initialize with same settings as main app
-DEBUG = os.environ.get('DEBUG', '').lower() in ('1', 'true', 'yes')
 
 # ================== PHASE 2A: INPUT VALIDATION ==================
 
@@ -1815,22 +1829,6 @@ def summarize_relaxation_techniques(username, limit=3):
         return None
 
 # Note: Duplicate imports and ensure_pet_table removed (already defined at top of file)
-
-# Import password hashing libraries with fallbacks (same logic as main.py)
-try:
-    from argon2 import PasswordHasher
-    _ph = PasswordHasher()
-    HAS_ARGON2 = True
-except Exception:
-    _ph = None
-    HAS_ARGON2 = False
-
-try:
-    import bcrypt
-    HAS_BCRYPT = True
-except Exception:
-    bcrypt = None
-    HAS_BCRYPT = False
 
 # ==================== CORS CONFIGURATION ====================
 # Note: Flask app already initialized at top of file (line 58)
@@ -10928,26 +10926,35 @@ def get_patient_detail(username):
 
 @app.route('/api/professional/ai-summary', methods=['POST'])
 def generate_ai_summary():
-    """Generate AI clinical summary for a patient"""
+    """TIER 1.7: Generate AI clinical summary for a patient - clinician identity from session only"""
     try:
-        data = request.json
-        username = data.get('username')
-        clinician_username = data.get('clinician_username')
-
-        # Log incoming request for debugging
-        print(f"[AI SUMMARY] Request: username={username}, clinician_username={clinician_username}")
-
-        if not username:
-            print("[AI SUMMARY] Error: Username required")
-            return jsonify({'error': 'Username required'}), 400
-
+        # TIER 1.7 FIX: Get clinician identity from session, NEVER from request body
+        clinician_username = session.get('username')
         if not clinician_username:
-            print("[AI SUMMARY] Error: Clinician username required")
-            return jsonify({'error': 'Clinician username required'}), 400
-
-        # Fetch patient data
+            app_logger.warning("AI summary attempt without authentication")
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Verify clinician role
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
+        clinician = cur.execute(
+            "SELECT role FROM users WHERE username=%s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not clinician or clinician[0] not in ['clinician', 'admin']:
+            conn.close()
+            app_logger.warning(f"Access control violation: {clinician_username} attempted professional endpoint without clinician role")
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Now get the patient username from request (this is OK - we're accessing clinician's patient list)
+        data = request.json or {}
+        username = data.get('username')
+        
+        if not username:
+            conn.close()
+            app_logger.warning(f"AI summary request missing patient username from {clinician_username}")
+            return jsonify({'error': 'Patient username required'}), 400
 
         # SECURITY: Verify clinician has approved access to this patient
         approval = cur.execute(
@@ -10957,7 +10964,7 @@ def generate_ai_summary():
 
         if not approval:
             conn.close()
-            print(f"[AI SUMMARY] Error: Unauthorized access attempt by {clinician_username} for {username}")
+            app_logger.warning(f"Access denied: clinician {clinician_username} attempted unauthorized access to patient {username}")
             return jsonify({'error': 'Unauthorized: You do not have access to this patient'}), 403
 
         # Get profile info
@@ -10965,7 +10972,7 @@ def generate_ai_summary():
             "SELECT full_name, conditions FROM users WHERE username = %s",
             (username,)
         ).fetchone()
-        print(f"[AI SUMMARY] Profile: {profile}")
+        app_logger.debug(f"AI summary for patient {username}: profile retrieved")
 
         # Get join date from first mood log (users table doesn't have created_at)
         join_date = None
@@ -10981,7 +10988,8 @@ def generate_ai_summary():
             try:
                 join_dt = datetime.strptime(join_date, "%Y-%m-%d %H:%M:%S") if ":" in join_date else datetime.strptime(join_date, "%Y-%m-%d")
                 days_since_join = max(1, (datetime.now() - join_dt).days)
-            except Exception:
+            except Exception as e:
+                app_logger.debug(f"Date parsing error for patient {username}: {e}")
                 days_since_join = 30
         # Get moods and alerts since join (or 30 days, whichever is less)
         moods = cur.execute(
@@ -11032,8 +11040,7 @@ def generate_ai_summary():
         ).fetchall() or []
 
         conn.close()
-        # Log all intermediate results for debugging
-        print(f"[AI SUMMARY] moods: {len(moods)}, alerts: {len(alerts)}, scales: {len(scales)}, chat_messages: {len(chat_messages)}, therapy_sessions: {therapy_sessions}, gratitude: {len(gratitude)}, cbt_records: {len(cbt_records)}, clinician_notes: {len(clinician_notes)}")
+        app_logger.debug(f"AI summary data gathered: moods={len(moods)}, alerts={len(alerts)}, scales={len(scales)}, sessions={therapy_sessions}")
         
         # Build context for AI
         patient_name = profile[0] if profile and len(profile) > 0 and profile[0] else username
@@ -11145,15 +11152,17 @@ Be thorough, evidence-based, and clinically specific. Reference the actual data 
                     ai_response = response.json()
                     summary = ai_response['choices'][0]['message']['content']
                     
+                    log_event(clinician_username, 'professional', 'ai_summary_generated', f'patient={username}')
                     return jsonify({
                         'success': True,
                         'summary': summary
                     }), 200
                 else:
+                    app_logger.warning(f"Groq API error {response.status_code}")
                     # Fallback to basic summary
                     pass
             except Exception as e:
-                print(f"AI summary error: {e}")
+                app_logger.error(f"AI summary error: {e}", exc_info=True)
                 # Fallback to basic summary
                 pass
         
@@ -11175,16 +11184,19 @@ Be thorough, evidence-based, and clinically specific. Reference the actual data 
     RECOMMENDATIONS:
     {"URGENT: Schedule immediate clinical assessment due to safety concerns." if alert_count > 3 else "Continue monitoring mood patterns and sleep quality." if avg_mood < 5 else "Maintain current treatment plan."} Consider formal assessment if not completed recently."""
 
+        log_event(clinician_username, 'professional', 'ai_summary_generated_fallback', f'patient={username}')
         return jsonify({
             'success': True,
             'summary': summary,
             'fallback': True
         }), 200
         
+    except psycopg2.Error as e:
+        app_logger.error(f"Database error in AI summary: {e}", exc_info=True)
+        return jsonify({'error': 'Database operation failed'}), 500
     except Exception as e:
-        import traceback
-        print(f"AI SUMMARY ERROR: {str(e)}")
-        traceback.print_exc()
+        app_logger.error(f"Unexpected error in AI summary: {e}", exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500
         return handle_exception(e, request.endpoint or 'unknown')
 
 # ===== CLINICIAN NOTES & PDF EXPORT =====
