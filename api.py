@@ -2324,8 +2324,6 @@ def get_db_connection(timeout=30.0):
     """
     pool_instance = _get_db_pool()
     conn = pool_instance.getconn()
-    # Add metadata for debugging
-    conn._is_pooled = True
     return conn
 
 
@@ -4336,12 +4334,12 @@ def init_db():
         
     except Exception as e:
         print(f"Database initialization error: {e}")
-        if conn:
-            try:
+        try:
+            if 'conn' in locals() and conn:
                 conn.rollback()
                 conn.close()
-            except:
-                pass
+        except:
+            pass
         return False
     
     # Initialize CBT Tools database (TIER 0.5 - PostgreSQL migration)
