@@ -6102,6 +6102,9 @@
                     <button class="dev-subtab-btn" onclick="switchDevTab('users', this)">
                         👥 Users
                     </button>
+                    <button class="dev-subtab-btn" onclick="switchDevTab('qa', this)">
+                        🧪 QA Tests
+                    </button>
                 </div>
 
                 <!-- Terminal Subtab -->
@@ -6287,6 +6290,98 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         <div id="usersList" style="max-height: 500px; overflow-y: auto;">
                             <p style="color: #999;">Loading users...</p>
                         </div>
+                    </div>
+                </div>
+
+                <!-- QA Tests Subtab -->
+                <div id="devQaTab" class="dev-subtab-content" style="display: none;">
+                    <div class="card" style="background: var(--bg-card); color: var(--text-primary);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h4>🧪 QA Test Runner</h4>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn" onclick="runQATests('all')" id="qa-btn-all">Run All Tests</button>
+                                <button class="btn btn-secondary" onclick="runQATests('backend')" id="qa-btn-backend">Backend</button>
+                                <button class="btn btn-secondary" onclick="runQATests('e2e')" id="qa-btn-e2e">E2E</button>
+                                <button class="btn btn-secondary" onclick="runQATests('security')" id="qa-btn-security">Security</button>
+                            </div>
+                        </div>
+
+                        <!-- Stats Cards -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;" id="qaStatsGrid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="qaTotalTests">-</div>
+                                <div class="stat-label">Total</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" style="color: #27ae60;" id="qaPassed">-</div>
+                                <div class="stat-label">Passed</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" style="color: #e74c3c;" id="qaFailed">-</div>
+                                <div class="stat-label">Failed</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" style="color: #f39c12;" id="qaSkipped">-</div>
+                                <div class="stat-label">Skipped</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="qaDuration">-</div>
+                                <div class="stat-label">Duration</div>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div style="margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #888; margin-bottom: 4px;">
+                                <span id="qaPassRate">Pass rate: -</span>
+                                <span id="qaLastRun">Last run: Never</span>
+                            </div>
+                            <div style="background: #333; border-radius: 8px; height: 10px; overflow: hidden;">
+                                <div id="qaProgressBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #27ae60, #2ecc71); border-radius: 8px; transition: width 0.5s ease;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Test Output -->
+                        <div style="margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <strong>Test Output</strong>
+                                <button class="btn btn-secondary" onclick="clearQAOutput()" style="padding: 4px 10px; font-size: 12px;">Clear</button>
+                            </div>
+                            <div id="qaTestOutput" style="background: #1e1e1e; color: #00ff00; font-family: 'Courier New', monospace; padding: 16px; border-radius: 8px; height: 400px; overflow-y: auto; white-space: pre-wrap; font-size: 13px;">Ready to run tests. Click a button above to start.</div>
+                        </div>
+
+                        <!-- Feature Coverage Checklist -->
+                        <details style="margin-top: 16px;">
+                            <summary style="cursor: pointer; font-weight: 600; padding: 8px 0;">Feature Coverage Checklist (26 areas)</summary>
+                            <div style="padding: 12px 0; columns: 2; column-gap: 20px; font-size: 13px;">
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Authentication & Sessions</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Input Validation & CSRF</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Mood Logging & History</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Wellness Logging & Summary</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Gratitude Logging</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Therapy Chat & AI</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Chat History & Sessions</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Chat Export (txt/json/csv)</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> CBT Thought Records</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Clinical Scales (PHQ-9/GAD-7)</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Safety & C-SSRS</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Risk Assessment & Alerts</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Community Forum</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Internal Messaging</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Notifications</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Appointments</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Virtual Pet System</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Wins Board</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> AI Memory System</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Clinician Dashboard</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Developer Dashboard</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> FHIR Export</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Security Patterns</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> E2E Patient Journey</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> E2E Clinician Journey</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> E2E Developer Journey</div>
+                            </div>
+                        </details>
                     </div>
                 </div>
             </div>
@@ -14356,6 +14451,8 @@ ${reportText}
                 loadSystemStats();
             } else if (subtabName === 'users') {
                 loadUsersList();
+            } else if (subtabName === 'qa') {
+                // QA tab - no auto-load needed
             }
         }
 
@@ -14417,6 +14514,110 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
     onkeypress="if(event.key==='Enter') executeTerminalCommand()"
     autofocus>`;
             document.getElementById('terminalCommand').focus();
+        }
+
+        // ========== QA TEST RUNNER FUNCTIONS ==========
+        let qaRunning = false;
+
+        async function runQATests(scope) {
+            if (qaRunning) return;
+            qaRunning = true;
+
+            const btns = ['qa-btn-all', 'qa-btn-backend', 'qa-btn-e2e', 'qa-btn-security'];
+            btns.forEach(id => { const b = document.getElementById(id); if (b) b.disabled = true; });
+
+            const output = document.getElementById('qaTestOutput');
+            const cmdMap = {
+                'all': 'python -m pytest tests/ -v --tb=short',
+                'backend': 'python -m pytest tests/backend/ -v --tb=short',
+                'e2e': 'python -m pytest tests/e2e/ -v --tb=short',
+                'security': 'python -m pytest tests/backend/test_auth.py tests/backend/test_security.py tests/backend/test_safety.py -v --tb=short'
+            };
+
+            output.innerHTML = `<span style="color: #3498db;">Running ${scope} tests...</span>\n\n`;
+
+            try {
+                const resp = await fetch('/api/developer/terminal/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        username: currentUser,
+                        command: cmdMap[scope] || cmdMap['all']
+                    })
+                });
+
+                const data = await resp.json();
+
+                if (data.error) {
+                    output.innerHTML += `<span style="color: #e74c3c;">Error: ${data.error}</span>`;
+                    qaRunning = false;
+                    btns.forEach(id => { const b = document.getElementById(id); if (b) b.disabled = false; });
+                    return;
+                }
+
+                const raw = data.output || '';
+                output.innerHTML = colorizeTestOutput(raw);
+                parseTestResults(raw);
+                document.getElementById('qaLastRun').textContent = 'Last run: ' + new Date().toLocaleTimeString();
+
+            } catch (err) {
+                output.innerHTML += `<span style="color: #e74c3c;">Network error: ${err.message}</span>`;
+            }
+
+            qaRunning = false;
+            btns.forEach(id => { const b = document.getElementById(id); if (b) b.disabled = false; });
+        }
+
+        function colorizeTestOutput(raw) {
+            return raw
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/(PASSED)/g, '<span style="color: #27ae60;">$1</span>')
+                .replace(/(FAILED)/g, '<span style="color: #e74c3c;">$1</span>')
+                .replace(/(SKIPPED)/g, '<span style="color: #f39c12;">$1</span>')
+                .replace(/(ERROR)/g, '<span style="color: #e74c3c;">$1</span>')
+                .replace(/(={3,}.*={3,})/g, '<span style="color: #3498db;">$1</span>')
+                .replace(/(_{3,}.*_{3,})/g, '<span style="color: #3498db;">$1</span>');
+        }
+
+        function parseTestResults(raw) {
+            // Parse pytest summary line like "X passed, Y failed, Z skipped in Ns"
+            const summaryMatch = raw.match(/(\d+)\s+passed/);
+            const failMatch = raw.match(/(\d+)\s+failed/);
+            const skipMatch = raw.match(/(\d+)\s+skipped/);
+            const durationMatch = raw.match(/in\s+([\d.]+)s/);
+
+            const passed = summaryMatch ? parseInt(summaryMatch[1]) : 0;
+            const failed = failMatch ? parseInt(failMatch[1]) : 0;
+            const skipped = skipMatch ? parseInt(skipMatch[1]) : 0;
+            const total = passed + failed + skipped;
+            const duration = durationMatch ? durationMatch[1] + 's' : '-';
+
+            document.getElementById('qaTotalTests').textContent = total || '-';
+            document.getElementById('qaPassed').textContent = passed || '-';
+            document.getElementById('qaFailed').textContent = failed || '-';
+            document.getElementById('qaSkipped').textContent = skipped || '-';
+            document.getElementById('qaDuration').textContent = duration;
+
+            const pct = total > 0 ? ((passed / total) * 100).toFixed(1) : 0;
+            document.getElementById('qaPassRate').textContent = `Pass rate: ${pct}%`;
+
+            const bar = document.getElementById('qaProgressBar');
+            bar.style.width = pct + '%';
+            bar.style.background = pct >= 90 ? 'linear-gradient(90deg, #27ae60, #2ecc71)'
+                                 : pct >= 70 ? 'linear-gradient(90deg, #f39c12, #e67e22)'
+                                 : 'linear-gradient(90deg, #e74c3c, #c0392b)';
+        }
+
+        function clearQAOutput() {
+            document.getElementById('qaTestOutput').innerHTML = 'Ready to run tests. Click a button above to start.';
+            document.getElementById('qaTotalTests').textContent = '-';
+            document.getElementById('qaPassed').textContent = '-';
+            document.getElementById('qaFailed').textContent = '-';
+            document.getElementById('qaSkipped').textContent = '-';
+            document.getElementById('qaDuration').textContent = '-';
+            document.getElementById('qaPassRate').textContent = 'Pass rate: -';
+            document.getElementById('qaProgressBar').style.width = '0%';
         }
 
         // AI Assistant Functions
