@@ -3,7 +3,9 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from functools import wraps
+from contextlib import contextmanager
 import psycopg2
+from psycopg2 import pool
 from psycopg2.extras import RealDictCursor, execute_batch
 import os
 import json
@@ -19,6 +21,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import logging
 import logging.handlers
+import threading
 
 # ===== TIER 1.6: Configure Structured Logging =====
 DEBUG = os.getenv('DEBUG', '').lower() in ('1', 'true', 'yes')
@@ -177,6 +180,86 @@ except Exception:
     bcrypt = None
     HAS_BCRYPT = False
 
+# ===== TIER 1.9: Database Connection Pooling =====
+# Thread-safe connection pool to prevent connection exhaustion under load
+_db_pool = None
+_db_pool_lock = threading.Lock()
+
+def _get_db_pool():
+    """Get or create thread-safe database connection pool (TIER 1.9)"""
+    global _db_pool
+    if _db_pool is None:
+        with _db_pool_lock:
+            if _db_pool is None:
+                # Resolve database credentials
+                database_url = os.environ.get('DATABASE_URL')
+                
+                if database_url:
+                    # Railway: CONNECTION POOLING via PgBouncer in DATABASE_URL
+                    # psycopg2.pool works with individual connection params, so parse URL
+                    try:
+                        from urllib.parse import urlparse
+                        parsed = urlparse(database_url)
+                        db_host = parsed.hostname
+                        db_port = parsed.port or 5432
+                        db_name = parsed.path.lstrip('/')
+                        db_user = parsed.username
+                        db_password = parsed.password
+                    except Exception as e:
+                        app_logger.error(f"Failed to parse DATABASE_URL: {e}")
+                        raise
+                else:
+                    # Individual env vars
+                    db_host = os.environ.get('DB_HOST')
+                    db_port = int(os.environ.get('DB_PORT', '5432'))
+                    db_name = os.environ.get('DB_NAME')
+                    db_user = os.environ.get('DB_USER')
+                    db_password = os.environ.get('DB_PASSWORD')
+                    
+                    if not all([db_host, db_name, db_user, db_password]):
+                        raise RuntimeError(
+                            "CRITICAL: Database credentials incomplete. "
+                            "Required: DATABASE_URL or (DB_HOST, DB_NAME, DB_USER, DB_PASSWORD)"
+                        )
+                
+                # Create thread-safe connection pool
+                # minconn=2: Keep 2 connections always ready
+                # maxconn=20: Maximum 20 connections (typical for Flask app)
+                _db_pool = pool.ThreadedConnectionPool(
+                    minconn=2,
+                    maxconn=20,
+                    host=db_host,
+                    port=db_port,
+                    database=db_name,
+                    user=db_user,
+                    password=db_password,
+                    connect_timeout=30
+                )
+                app_logger.info("TIER 1.9: Database connection pool created (min=2, max=20)")
+    
+    return _db_pool
+
+@contextmanager
+def get_db_connection_pooled():
+    """Context manager for database connections from pool (TIER 1.9)
+    
+    Usage:
+        with get_db_connection_pooled() as conn:
+            cur = get_wrapped_cursor(conn)
+            cur.execute(...)
+    
+    Connection automatically returned to pool on exit.
+    """
+    pool_instance = _get_db_pool()
+    conn = pool_instance.getconn()
+    try:
+        yield conn
+    except Exception as e:
+        app_logger.error(f"Error during pooled database operation: {e}", exc_info=True)
+        raise
+    finally:
+        pool_instance.putconn(conn)
+
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
 # Configure Flask session support for secure authentication (Phase 1A)
@@ -217,6 +300,19 @@ limiter = Limiter(
     storage_uri="memory://",
     strategy="fixed-window"
 )
+
+# ===== TIER 1.9: Connection Pool Cleanup Hook =====
+# Return pooled connections to the pool after request completes
+@app.teardown_appcontext
+def teardown_db_pool(exc=None):
+    """Return any pooled connection to the pool (TIER 1.9)"""
+    if hasattr(g, '_db_conn_pool'):
+        pool_instance = _get_db_pool()
+        try:
+            pool_instance.putconn(g._db_conn_pool)
+            app_logger.debug("Connection returned to pool")
+        except Exception as e:
+            app_logger.error(f"Failed to return connection to pool: {e}")
 
 # Register CBT Tools Blueprint (TIER 0.5 - PostgreSQL migration)
 try:
@@ -2206,46 +2302,31 @@ def check_rate_limit(limit_type: str = 'default'):
 # Database connection helper for PostgreSQL
 # NOTE: Using PostgreSQL exclusively - no local SQLite databases
 def get_db_connection(timeout=30.0):
-    """Create a connection to PostgreSQL database
+    """Get a connection from the connection pool (TIER 1.9 - Pooled Connection)
     
-    SECURITY: All credentials MUST come from environment variables.
-    No hardcoded fallbacks are allowed.
+    IMPORTANT: This returns a pooled connection that MUST be closed to return to pool.
+    Always use in a try/finally block:
     
-    Supports both:
-    1. DATABASE_URL (Railway): postgresql://user:pass@host:port/db
-    2. Individual env vars: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+        conn = get_db_connection()
+        try:
+            # ... use connection ...
+        finally:
+            conn.close()  # Returns to pool, not actually closed
+    
+    Or better yet, use the context manager:
+    
+        with get_db_connection_pooled() as conn:
+            # ... use connection ...
+            # Automatically returned to pool on exit
+    
+    SECURITY: All credentials from environment variables.
+    Supports DATABASE_URL (Railway) or individual env vars.
     """
-    try:
-        # Check for Railway DATABASE_URL first
-        database_url = os.environ.get('DATABASE_URL')
-        if database_url:
-            conn = psycopg2.connect(database_url)
-        else:
-            # Require all individual vars to be set - FAIL CLOSED
-            host = os.environ.get('DB_HOST')
-            port = os.environ.get('DB_PORT', '5432')
-            database = os.environ.get('DB_NAME')
-            user = os.environ.get('DB_USER')
-            password = os.environ.get('DB_PASSWORD')
-            
-            if not all([host, database, user, password]):
-                raise RuntimeError(
-                    "CRITICAL: Database credentials incomplete. "
-                    "Required env vars: DB_HOST, DB_NAME, DB_USER, DB_PASSWORD. "
-                    "Or provide DATABASE_URL for Railway."
-                )
-            
-            conn = psycopg2.connect(
-                host=host,
-                port=port,
-                database=database,
-                user=user,
-                password=password
-            )
-        return conn
-    except psycopg2.Error as e:
-        print(f"Failed to connect to PostgreSQL database: {e}")
-        raise
+    pool_instance = _get_db_pool()
+    conn = pool_instance.getconn()
+    # Add metadata for debugging
+    conn._is_pooled = True
+    return conn
 
 
 class PostgreSQLCursorWrapper:
