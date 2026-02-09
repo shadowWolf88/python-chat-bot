@@ -2,7 +2,7 @@
 
 **A mental health companion combining evidence-based therapy with AI support.**
 
-> **Version**: 2.0 (PostgreSQL) | **Status**: ✅ Production-Ready | **Last Updated**: February 8, 2026
+> **Version**: 2.0 (PostgreSQL) | **Status**: ✅ TIER 0 Complete | 🟡 TIER 1.5-1.10 In Progress | **Last Updated**: February 9, 2026
 
 ---
 

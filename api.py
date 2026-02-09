@@ -192,7 +192,7 @@ app.config['SECRET_KEY'] = SECRET_KEY
 app.config['SESSION_COOKIE_SECURE'] = not os.getenv('DEBUG', '').lower() in ('1', 'true', 'yes')  # HTTPS in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # 30-day session for remember me functionality
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)  # TIER 1.5: Reduced from 30 to 7 days (max session lifetime)
 
 # Initialize rate limiter (Phase 1D)
 limiter = Limiter(
@@ -2051,6 +2051,33 @@ def csrf_protect():
     if not csrf_token or not validate_csrf_token(csrf_token):
         log_event('system', 'security', 'csrf_validation_failed', f'Endpoint: {request.endpoint}, IP: {request.remote_addr}')
         return jsonify({'error': 'CSRF token missing or invalid', 'code': 'CSRF_FAILED'}), 403
+
+@app.before_request
+def check_session_inactivity():
+    """TIER 1.5: Invalidate session after 30 minutes of inactivity"""
+    # Only check authenticated sessions
+    if 'username' not in session:
+        return
+    
+    last_activity = session.get('last_activity')
+    if last_activity:
+        try:
+            last_activity_time = datetime.fromisoformat(last_activity)
+            inactivity_timeout = timedelta(minutes=30)
+            
+            if datetime.utcnow() - last_activity_time > inactivity_timeout:
+                # Session expired due to inactivity
+                username = session.get('username')
+                session.clear()
+                log_event(username or 'unknown', 'security', 'session_expired_inactivity', 'Session invalidated after 30 min inactivity')
+                return jsonify({'error': 'Session expired due to inactivity. Please log in again.', 'code': 'SESSION_EXPIRED'}), 401
+        except (ValueError, TypeError):
+            # Invalid timestamp, clear session
+            session.clear()
+            return jsonify({'error': 'Invalid session. Please log in again.'}), 401
+    
+    # Update last activity timestamp on each request
+    session['last_activity'] = datetime.utcnow().isoformat()
 
 @app.route('/api/csrf-token', methods=['GET'])
 def get_csrf_token():
@@ -5013,12 +5040,14 @@ def login():
         
         log_event(username, 'api', 'user_login', 'Login via API with 2FA')
         
-        # Set session after successful authentication (Phase 1A - SECURE)
+        # TIER 1.5: Session hardening - rotation on login
+        session.clear()  # Clear old session (rotation)
         session.permanent = True
         session['username'] = username
         session['role'] = role
         session['clinician_id'] = clinician_id
-        session['login_time'] = datetime.now().isoformat()
+        session['login_time'] = datetime.utcnow().isoformat()
+        session['last_activity'] = datetime.utcnow().isoformat()  # TIER 1.5: Track inactivity
         
         # PHASE 2B: Generate CSRF token on successful login
         csrf_token = CSRFProtection.generate_csrf_token(username)
@@ -5051,6 +5080,80 @@ def logout():
         return jsonify({'success': True, 'message': 'Logged out successfully'}), 200
     except Exception as e:
         return handle_exception(e, 'logout')
+
+@CSRFProtection.require_csrf
+@app.route('/api/auth/change-password', methods=['POST'])
+def change_password():
+    """TIER 1.5: Change password for authenticated user and invalidate all sessions"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        data = request.json or {}
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+        
+        # Validate input
+        if not all([current_password, new_password, confirm_password]):
+            return jsonify({'error': 'Current password, new password, and confirmation required'}), 400
+        
+        if new_password != confirm_password:
+            return jsonify({'error': 'New password and confirmation do not match'}), 400
+        
+        # Validate new password strength
+        is_valid, error_msg = validate_password_strength(new_password)
+        if not is_valid:
+            return jsonify({'error': error_msg}), 400
+        
+        # Get current password hash
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        user = cur.execute(
+            "SELECT password FROM users WHERE username=%s",
+            (username,)
+        ).fetchone()
+        
+        if not user:
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Verify current password
+        if not verify_password(user[0], current_password):
+            conn.close()
+            log_event(username, 'security', 'invalid_current_password', 'Wrong current password entered')
+            return jsonify({'error': 'Current password is incorrect'}), 401
+        
+        # Hash new password
+        new_password_hash = hash_password(new_password)
+        
+        # Update password
+        cur.execute(
+            "UPDATE users SET password=%s WHERE username=%s",
+            (new_password_hash, username)
+        )
+        
+        # TIER 1.5: Invalidate all existing sessions for this user (force re-login on other devices)
+        cur.execute("DELETE FROM sessions WHERE username=%s", (username,))
+        cur.execute("DELETE FROM chat_sessions WHERE username=%s", (username,))
+        
+        conn.commit()
+        conn.close()
+        
+        # Clear current session
+        session.clear()
+        
+        log_event(username, 'security', 'password_changed_all_sessions_invalidated', 'Password changed, all sessions invalidated')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Password changed successfully. All sessions invalidated. Please log in with your new password.'
+        }), 200
+        
+    except Exception as e:
+        return handle_exception(e, 'change_password')
+
 
 def verify_clinician_patient_relationship(clinician_username, patient_username):
     """Phase 1B: Verify clinician is assigned to patient (FK validation).
