@@ -13,6 +13,9 @@ import sys
 from unittest.mock import patch, MagicMock
 import secrets
 
+# Project root for portable file paths
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
 
 class TestTier110AnonymizationSalt:
     """TIER 1.10: Anonymization Salt Security"""
@@ -103,7 +106,7 @@ class TestTier110AnonymizationSalt:
     
     def test_no_hardcoded_salt_in_source(self):
         """Verify no hardcoded default salt in source code"""
-        with open('/home/computer001/Documents/python chat bot/training_data_manager.py', 'r') as f:
+        with open(os.path.join(ROOT, 'training_data_manager.py'), 'r') as f:
             content = f.read()
             # Should NOT contain the old hardcoded default
             assert "default_salt_change_in_production" not in content, \
@@ -113,7 +116,7 @@ class TestTier110AnonymizationSalt:
     
     def test_env_example_documents_salt(self):
         """Verify .env.example documents ANONYMIZATION_SALT requirement"""
-        with open('/home/computer001/Documents/python chat bot/.env.example', 'r') as f:
+        with open(os.path.join(ROOT, '.env.example'), 'r') as f:
             content = f.read()
             assert 'ANONYMIZATION_SALT' in content, ".env.example should document ANONYMIZATION_SALT"
             assert 'TIER 1.10' in content or 'anonymization salt' in content.lower(), \

@@ -7,9 +7,13 @@ Tests for:
 
 import pytest
 import logging
+import os
 import sys
 from unittest.mock import patch, MagicMock
 from io import StringIO
+
+# Project root for portable file paths
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
 class TestTier16ErrorHandling:
@@ -40,7 +44,7 @@ class TestTier16ErrorHandling:
     
     def test_no_hardcoded_print_in_imports(self):
         """Verify no debug print statements in import sections"""
-        with open('/home/computer001/Documents/python chat bot/api.py', 'r') as f:
+        with open(os.path.join(ROOT, 'api.py'), 'r') as f:
             content = f.read()
             # Check that import sections don't have print() calls for warnings
             # Allow print only for app startup info
@@ -56,7 +60,7 @@ class TestTier16ErrorHandling:
     
     def test_database_errors_logged(self):
         """Verify psycopg2.Error is logged, not silently caught"""
-        with open('/home/computer001/Documents/python chat bot/api.py', 'r') as f:
+        with open(os.path.join(ROOT, 'api.py'), 'r') as f:
             content = f.read()
             # Check that except psycopg2.Error blocks have logging
             assert 'app_logger.error' in content, "psycopg2 errors not being logged"
@@ -65,7 +69,7 @@ class TestTier16ErrorHandling:
     
     def test_no_bare_except_in_critical_sections(self):
         """Verify bare 'except:' is not used for critical operations"""
-        with open('/home/computer001/Documents/python chat bot/api.py', 'r') as f:
+        with open(os.path.join(ROOT, 'api.py'), 'r') as f:
             lines = f.readlines()
             for i, line in enumerate(lines, 1):
                 if re.match(r'^\s*except:\s*$', line):
@@ -91,7 +95,7 @@ class TestTier17AccessControl:
     
     def test_ai_summary_uses_session_identity(self):
         """Verify /api/professional/ai-summary gets identity from session, not request.json"""
-        with open('/home/computer001/Documents/python chat bot/api.py', 'r') as f:
+        with open(os.path.join(ROOT, 'api.py'), 'r') as f:
             content = f.read()
             # Find the ai-summary endpoint
             ai_summary_match = re.search(
@@ -133,7 +137,7 @@ class TestTier17AccessControl:
     
     def test_no_username_from_request_body_in_professional(self):
         """Verify professional endpoints don't trust username from request body"""
-        with open('/home/computer001/Documents/python chat bot/api.py', 'r') as f:
+        with open(os.path.join(ROOT, 'api.py'), 'r') as f:
             content = f.read()
             # Find all professional endpoint definitions
             professional_section = re.findall(
@@ -158,7 +162,7 @@ class TestTier17AccessControl:
     
     def test_clinician_role_verification(self):
         """Verify professional endpoints check for clinician/admin role"""
-        with open('/home/computer001/Documents/python chat bot/api.py', 'r') as f:
+        with open(os.path.join(ROOT, 'api.py'), 'r') as f:
             content = f.read()
             # Find professional endpoints
             professional_endpoints = re.findall(
@@ -181,7 +185,7 @@ class TestTier17AccessControl:
     
     def test_logging_for_access_control(self):
         """Verify professional endpoints use logging for audit trail"""
-        with open('/home/computer001/Documents/python chat bot/api.py', 'r') as f:
+        with open(os.path.join(ROOT, 'api.py'), 'r') as f:
             content = f.read()
             # Check that professional endpoints use either log_event OR app_logger
             professional_section = re.findall(
