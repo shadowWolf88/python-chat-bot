@@ -3755,6 +3755,9 @@ def init_db():
             cursor.execute("CREATE TABLE IF NOT EXISTS patient_medications (id SERIAL PRIMARY KEY, username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE, medication_name TEXT NOT NULL, dosage TEXT, frequency TEXT, time_of_day TEXT, prescribed_date DATE, notes TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             
             # Developer dashboard tables
+            # Training data consent table (used by training_data_manager.py)
+            cursor.execute("CREATE TABLE IF NOT EXISTS data_consent (user_hash TEXT PRIMARY KEY, consent_given INTEGER DEFAULT 0, consent_date TIMESTAMP, consent_withdrawn INTEGER DEFAULT 0, withdrawal_date TIMESTAMP)")
+
             cursor.execute("CREATE TABLE IF NOT EXISTS developer_test_runs (id SERIAL PRIMARY KEY, username TEXT, test_output TEXT, exit_code INTEGER, passed_count INTEGER DEFAULT 0, failed_count INTEGER DEFAULT 0, error_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS dev_terminal_logs (id SERIAL PRIMARY KEY, username TEXT, command TEXT, output TEXT, exit_code INTEGER, duration_ms INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS dev_ai_chats (id SERIAL PRIMARY KEY, username TEXT, session_id TEXT, role TEXT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
@@ -15049,10 +15052,11 @@ def run_tests():
             conn.close()
             return jsonify({'error': 'Developer role required'}), 403
         
-        # Run pytest
+        # Run pytest - use sys.executable to find the correct Python in any environment
         import subprocess
+        import sys as _sys
         result = subprocess.run(
-            ['.venv/bin/python', '-m', 'pytest', '-v', 'tests/', '--tb=short'],
+            [_sys.executable, '-m', 'pytest', '-v', 'tests/', '--tb=short'],
             capture_output=True,
             text=True,
             timeout=120,
