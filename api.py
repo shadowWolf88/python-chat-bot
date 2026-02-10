@@ -15090,15 +15090,20 @@ def run_tests():
         failed = output.count(' FAILED')
         errors = output.count(' ERROR')
 
-        # Get a FRESH connection to store results (old one would be stale after subprocess)
-        conn2 = get_db_connection()
-        cur2 = get_wrapped_cursor(conn2)
-        cur2.execute("""
-            INSERT INTO developer_test_runs (username, test_output, exit_code, passed_count, failed_count, error_count)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (username, output[:50000], exit_code, passed, failed, errors))
-        conn2.commit()
-        conn2.close()
+        # Save results to database (non-blocking - return output even if save fails)
+        saved = False
+        try:
+            conn2 = get_db_connection()
+            cur2 = get_wrapped_cursor(conn2)
+            cur2.execute("""
+                INSERT INTO developer_test_runs (username, test_output, exit_code, passed_count, failed_count, error_count)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (username, output[:50000], exit_code, passed, failed, errors))
+            conn2.commit()
+            conn2.close()
+            saved = True
+        except Exception as save_err:
+            print(f"[WARNING] Failed to save test results to database: {save_err}")
 
         return jsonify({
             'success': exit_code == 0,
@@ -15107,6 +15112,7 @@ def run_tests():
             'passed': passed,
             'failed': failed,
             'errors': errors,
+            'saved': saved,
             'timestamp': datetime.now().isoformat()
         }), 200
 
