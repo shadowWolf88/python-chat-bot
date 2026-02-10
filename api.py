@@ -3874,6 +3874,12 @@ def init_db():
             conn.commit()
             print("✓ Critical database tables created")
         
+        # Ensure tables added after initial deployment exist
+        cursor.execute("CREATE TABLE IF NOT EXISTS data_consent (user_hash TEXT PRIMARY KEY, consent_given INTEGER DEFAULT 0, consent_date TIMESTAMP, consent_withdrawn INTEGER DEFAULT 0, withdrawal_date TIMESTAMP)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS developer_test_runs (id SERIAL PRIMARY KEY, username TEXT, test_output TEXT, exit_code INTEGER, passed_count INTEGER DEFAULT 0, failed_count INTEGER DEFAULT 0, error_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS dev_ai_chats (id SERIAL PRIMARY KEY, username TEXT, session_id TEXT, role TEXT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        conn.commit()
+
         # Apply migrations for existing databases
         cursor.execute("""
             SELECT EXISTS (
