@@ -307,7 +307,7 @@ limiter = Limiter(
 def teardown_db_pool(exc=None):
     """Return any pooled connection to the pool (TIER 1.9)"""
     db = g.pop('_db_conn_pool', None)
-    if db is not None:
+    if db is not None and not db.closed:
         try:
             pool_instance = _get_db_pool()
             pool_instance.putconn(db)
@@ -2333,20 +2333,21 @@ def get_db_connection(timeout=30.0):
     """
     pool_instance = _get_db_pool()
     conn = pool_instance.getconn()
-    
+
     # Try to store in g for cleanup if inside request context
     try:
-        if hasattr(g, '_db_conn_pool') and g._db_conn_pool:
-            # Return existing connection for this request
+        existing = getattr(g, '_db_conn_pool', None)
+        if existing is not None and not existing.closed:
+            # Return existing open connection for this request
             pool_instance.putconn(conn)
-            return g._db_conn_pool
+            return existing
         # Store new connection for cleanup at end of request
         g._db_conn_pool = conn
     except RuntimeError:
         # Outside request context (testing, init_db, etc) - just return conn
         # Caller must explicitly close() to return to pool
         pass
-    
+
     return conn
 
 
