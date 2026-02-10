@@ -111,21 +111,20 @@ class TestDatabaseOperations:
             cur = conn.cursor()
             
             # Test INSERT with RETURNING
+            test_username = 'testuser_' + str(os.getpid())
             cur.execute(
-                "INSERT INTO users (username, password_hash, email) "
-                "VALUES (%s, %s, %s) RETURNING id",
-                ('testuser_' + str(os.getpid()), 'hash123', 'test@example.com')
+                "INSERT INTO users (username, password, email) "
+                "VALUES (%s, %s, %s) RETURNING username",
+                (test_username, 'hash123', 'test@example.com')
             )
             conn.commit()
-            
+
             result = cur.fetchone()
             assert result is not None
-            user_id = result[0]
-            assert isinstance(user_id, int)
-            assert user_id > 0
-            
+            assert result[0] == test_username
+
             # Clean up
-            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            cur.execute("DELETE FROM users WHERE username = %s", (test_username,))
             conn.commit()
             
         finally:
@@ -139,27 +138,28 @@ class TestDatabaseOperations:
             cur = conn.cursor()
             
             # Create a test user
+            test_username = 'update_test_' + str(os.getpid())
             cur.execute(
-                "INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING id",
-                ('update_test_' + str(os.getpid()), 'hash123')
+                "INSERT INTO users (username, password) VALUES (%s, %s) RETURNING username",
+                (test_username, 'hash123')
             )
             conn.commit()
-            user_id = cur.fetchone()[0]
-            
+            cur.fetchone()
+
             # Update the user
             cur.execute(
-                "UPDATE users SET email = %s WHERE id = %s",
-                ('newemail@test.com', user_id)
+                "UPDATE users SET email = %s WHERE username = %s",
+                ('newemail@test.com', test_username)
             )
             conn.commit()
-            
+
             # Verify update
-            cur.execute("SELECT email FROM users WHERE id = %s", (user_id,))
+            cur.execute("SELECT email FROM users WHERE username = %s", (test_username,))
             email = cur.fetchone()[0]
             assert email == 'newemail@test.com'
-            
+
             # Clean up
-            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            cur.execute("DELETE FROM users WHERE username = %s", (test_username,))
             conn.commit()
             
         finally:
@@ -173,21 +173,20 @@ class TestDatabaseOperations:
             cur = conn.cursor()
             
             # Start transaction
+            test_username = 'rollback_test_' + str(os.getpid())
             cur.execute(
-                "INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING id",
-                ('rollback_test_' + str(os.getpid()), 'hash123')
+                "INSERT INTO users (username, password) VALUES (%s, %s) RETURNING username",
+                (test_username, 'hash123')
             )
-            initial_id = cur.fetchone()[0]
-            
+            cur.fetchone()
+
             # Rollback (don't commit)
             conn.rollback()
-            
+
             # Verify the insert didn't persist
-            cur.execute("SELECT id FROM users WHERE id = %s", (initial_id,))
+            cur.execute("SELECT username FROM users WHERE username = %s", (test_username,))
             result = cur.fetchone()
-            # Note: In PostgreSQL, after rollback the ID was still generated but not persisted
-            # So we verify the table still exists and queries work
-            assert True  # If we got here, rollback worked
+            assert result is None  # Rollback should have discarded the insert
             
         finally:
             cur.close()
@@ -217,21 +216,20 @@ class TestCurrentTimestamp:
             cur = conn.cursor()
             
             # Insert with CURRENT_TIMESTAMP
+            test_username = 'timestamp_test_' + str(os.getpid())
             cur.execute(
-                "INSERT INTO users (username, password_hash, created_at) "
-                "VALUES (%s, %s, CURRENT_TIMESTAMP) RETURNING id, created_at",
-                ('timestamp_test_' + str(os.getpid()), 'hash123')
+                "INSERT INTO users (username, password, last_login) "
+                "VALUES (%s, %s, CURRENT_TIMESTAMP) RETURNING username, last_login",
+                (test_username, 'hash123')
             )
             conn.commit()
-            
+
             result = cur.fetchone()
             assert result is not None
-            user_id = result[0]
-            created_at = result[1]
-            assert created_at is not None
-            
+            assert result[1] is not None  # last_login timestamp should be set
+
             # Clean up
-            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            cur.execute("DELETE FROM users WHERE username = %s", (test_username,))
             conn.commit()
             
         finally:
