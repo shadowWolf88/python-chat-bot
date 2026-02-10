@@ -6466,7 +6466,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         <div style="margin-bottom: 16px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                 <strong>Test Output</strong>
-                                <button class="btn btn-secondary" onclick="clearQAOutput()" style="padding: 4px 10px; font-size: 12px;">Clear</button>
+                                <div style="display: flex; gap: 6px;">
+                                    <button class="btn btn-secondary" onclick="copyQAOutput()" style="padding: 4px 10px; font-size: 12px;">Copy</button>
+                                    <button class="btn btn-secondary" onclick="clearQAOutput()" style="padding: 4px 10px; font-size: 12px;">Clear</button>
+                                </div>
                             </div>
                             <div id="qaTestOutput" style="background: #1e1e1e; color: #00ff00; font-family: 'Courier New', monospace; padding: 16px; border-radius: 8px; height: 400px; overflow-y: auto; white-space: pre-wrap; font-size: 13px;">Ready to run tests. Click a button above to start.</div>
                         </div>
@@ -14728,6 +14731,26 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             bar.style.background = pct >= 90 ? 'linear-gradient(90deg, #27ae60, #2ecc71)'
                                  : pct >= 70 ? 'linear-gradient(90deg, #f39c12, #e67e22)'
                                  : 'linear-gradient(90deg, #e74c3c, #c0392b)';
+        }
+
+        function copyQAOutput() {
+            const output = document.getElementById('qaTestOutput').innerText;
+            navigator.clipboard.writeText(output).then(() => {
+                if (typeof showToast === 'function') {
+                    showToast('Test output copied to clipboard', 'success');
+                }
+            }).catch(() => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = output;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                if (typeof showToast === 'function') {
+                    showToast('Test output copied to clipboard', 'success');
+                }
+            });
         }
 
         function clearQAOutput() {
