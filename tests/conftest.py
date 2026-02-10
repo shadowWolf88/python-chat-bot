@@ -162,6 +162,7 @@ def auth_patient(client):
     """Flask test client with authenticated patient session.
     Returns (client, user_info_dict).
     Mocks get_authenticated_username to return 'test_patient'.
+    CSRF validation is skipped in TESTING mode (see api.py).
     """
     with client.session_transaction() as sess:
         sess['username'] = 'test_patient'
@@ -286,6 +287,18 @@ def test_developer():
 def authenticated_patient(auth_patient):
     """Alias for auth_patient for backward compatibility."""
     return auth_patient
+
+
+@pytest.fixture
+def authenticated_clinician(auth_clinician):
+    """Alias for auth_clinician for backward compatibility."""
+    return auth_clinician
+
+
+@pytest.fixture
+def authenticated_developer(auth_developer):
+    """Alias for auth_developer for backward compatibility."""
+    return auth_developer
 
 
 # ==================== DATABASE FIXTURES ====================
