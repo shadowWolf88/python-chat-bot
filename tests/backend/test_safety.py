@@ -639,8 +639,7 @@ class TestAcknowledgeRiskAlert:
         with patch.object(api, 'get_db_connection', return_value=mock_conn), \
              patch.object(api, 'get_wrapped_cursor', return_value=mock_cursor), \
              patch.object(api, 'log_event'):
-            resp = client.patch('/api/risk/alert/1/acknowledge',
-                                content_type='application/json')
+            resp = client.patch('/api/risk/alert/1/acknowledge', json={})
             data = resp.get_json()
 
             assert resp.status_code == 200
@@ -654,8 +653,7 @@ class TestAcknowledgeRiskAlert:
 
         with patch.object(api, 'get_db_connection', return_value=mock_conn), \
              patch.object(api, 'get_wrapped_cursor', return_value=mock_cursor):
-            resp = client.patch('/api/risk/alert/1/acknowledge',
-                                content_type='application/json')
+            resp = client.patch('/api/risk/alert/1/acknowledge', json={})
             assert resp.status_code == 400
 
     def test_acknowledge_nonexistent_alert(self, auth_clinician):
@@ -666,8 +664,7 @@ class TestAcknowledgeRiskAlert:
 
         with patch.object(api, 'get_db_connection', return_value=mock_conn), \
              patch.object(api, 'get_wrapped_cursor', return_value=mock_cursor):
-            resp = client.patch('/api/risk/alert/999/acknowledge',
-                                content_type='application/json')
+            resp = client.patch('/api/risk/alert/999/acknowledge', json={})
             assert resp.status_code == 404
 
 
@@ -729,15 +726,13 @@ class TestRiskDashboard:
         """Clinician gets risk dashboard with patient summary."""
         client, user = auth_clinician
         mock_conn, mock_cursor = _mock_db()
-        # 1) role lookup
-        # 2) patient list
-        # 3-N) per-patient risk lookups (fetchone returns None = no assessment)
-        mock_cursor.fetchone.side_effect = [('clinician',)] + [None] * 10
+        # 1) role lookup → ('clinician',)
+        # 2-3) per-patient risk lookups → None (no assessment)
+        # 4) unreviewed count → (0,) (fetchone()[0] used)
+        mock_cursor.fetchone.side_effect = [('clinician',), None, None, (0,)] + [None] * 6
         mock_cursor.fetchall.side_effect = [
             # patient_approvals query
             [('patient1', 'Patient One'), ('patient2', 'Patient Two')],
-            # unreviewed alerts
-            [],
             # recent alerts
             [],
         ]

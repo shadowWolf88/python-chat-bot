@@ -6,7 +6,7 @@ Covers:
   - POST /api/cbt/thought-record
   - GET  /api/cbt/records
   - GET  /api/cbt/summary
-  - GET  /api/cbt/tool-history
+  - GET  /api/cbt-tools/history
   - POST /api/clinical/phq9
   - POST /api/clinical/gad7
 """
@@ -172,10 +172,10 @@ class TestCBTSummary:
         assert resp.status_code == 400
 
 
-# ==================== CBT TOOL HISTORY (GET /api/cbt/tool-history) ====================
+# ==================== CBT TOOL HISTORY (GET /api/cbt-tools/history) ====================
 
 class TestCBTToolHistory:
-    """Tests for GET /api/cbt/tool-history"""
+    """Tests for GET /api/cbt-tools/history"""
 
     def test_get_tool_history_success(self, auth_patient, mock_db):
         """Returns CBT tool entries for authenticated user."""
@@ -186,7 +186,7 @@ class TestCBTToolHistory:
         ])
         client, _ = auth_patient
 
-        resp = client.get('/api/cbt/tool-history')
+        resp = client.get('/api/cbt-tools/history')
         data = resp.get_json()
 
         assert resp.status_code == 200
@@ -195,7 +195,7 @@ class TestCBTToolHistory:
 
     def test_get_tool_history_unauthenticated(self, unauth_client, mock_db):
         """Unauthenticated request returns 401."""
-        resp = unauth_client.get('/api/cbt/tool-history')
+        resp = unauth_client.get('/api/cbt-tools/history')
         assert resp.status_code == 401
 
     def test_get_tool_history_with_filter(self, auth_patient, mock_db):
@@ -206,7 +206,7 @@ class TestCBTToolHistory:
         ])
         client, _ = auth_patient
 
-        resp = client.get('/api/cbt/tool-history?tool_type=breathing')
+        resp = client.get('/api/cbt-tools/history?tool_type=breathing')
         data = resp.get_json()
 
         assert resp.status_code == 200

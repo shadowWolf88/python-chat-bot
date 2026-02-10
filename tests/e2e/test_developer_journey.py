@@ -47,7 +47,7 @@ class TestDeveloperJourney:
              patch.object(api, 'hash_password', return_value='hashed'), \
              patch.object(api, 'hash_pin', return_value='hashed_pin'), \
              patch.object(api, 'validate_password_strength', return_value=(True, None)):
-            resp = dev_client.post('/api/developer/register', json={
+            resp = dev_client.post('/api/auth/developer/register', json={
                 'username': 'new_dev',
                 'password': 'DevP@ss123!',
                 'pin': '5678',

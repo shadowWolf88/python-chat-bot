@@ -188,7 +188,7 @@ class TestChatSessions:
         """Returns list of chat sessions for user."""
         now = datetime.now().isoformat()
         conn, cursor = mock_db({
-            'SELECT COUNT': [(1,)],
+            'SELECT COUNT(*) FROM chat_sessions': [(1,)],
             'SELECT id, session_name': [
                 (1, 'Main Chat', now, now, 1, 5),
             ],
@@ -210,7 +210,7 @@ class TestChatSessions:
         """If no sessions exist, a default 'Main Chat' session is created."""
         now = datetime.now().isoformat()
         conn, cursor = mock_db({
-            'SELECT COUNT': [(0,)],
+            'SELECT COUNT(*) FROM chat_sessions': [(0,)],
             'INSERT INTO chat_sessions': [],
             'SELECT id, session_name': [
                 (1, 'Main Chat', now, now, 1, 0),

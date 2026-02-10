@@ -32,10 +32,11 @@ class TestFHIRExport:
             'entry': [],
         })
 
-        with patch.object(api, 'fhir_export') as mock_fhir, \
+        mock_fhir = MagicMock()
+        mock_fhir.export_patient_fhir.return_value = mock_bundle
+        mock_fhir.ENCRYPTION_KEY = None
+        with patch('api.fhir_export', mock_fhir, create=True), \
              patch.object(api, 'log_event'):
-            mock_fhir.export_patient_fhir.return_value = mock_bundle
-            mock_fhir.ENCRYPTION_KEY = None
             resp = client.get('/api/export/fhir?username=test_patient')
 
         data = resp.get_json()

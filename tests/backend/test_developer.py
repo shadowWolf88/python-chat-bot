@@ -2,7 +2,7 @@
 Tests for Developer Dashboard and Developer-only endpoints.
 
 Covers:
-  - POST /api/developer/register
+  - POST /api/auth/developer/register
   - POST /api/developer/terminal/execute
   - POST /api/developer/ai/chat
   - GET  /api/developer/stats
@@ -21,7 +21,7 @@ from tests.conftest import make_mock_db
 # ==================== DEVELOPER REGISTRATION ====================
 
 class TestDeveloperRegister:
-    """Tests for POST /api/developer/register"""
+    """Tests for POST /api/auth/developer/register"""
 
     def test_register_developer_success(self, client, mock_db):
         """Valid registration with correct key returns 201."""
@@ -35,7 +35,7 @@ class TestDeveloperRegister:
              patch.object(api, 'hash_password', return_value='hashed_pw'), \
              patch.object(api, 'hash_pin', return_value='hashed_pin'), \
              patch.object(api, 'validate_password_strength', return_value=(True, None)):
-            resp = client.post('/api/developer/register', json={
+            resp = client.post('/api/auth/developer/register', json={
                 'username': 'dev_user',
                 'password': 'StrongP@ss123!',
                 'pin': '1234',
@@ -49,7 +49,7 @@ class TestDeveloperRegister:
     def test_register_developer_wrong_key(self, client, mock_db):
         """Wrong registration key returns 403."""
         with patch.dict(os.environ, {'DEVELOPER_REGISTRATION_KEY': 'secret123'}):
-            resp = client.post('/api/developer/register', json={
+            resp = client.post('/api/auth/developer/register', json={
                 'username': 'dev_user',
                 'password': 'StrongP@ss123!',
                 'pin': '1234',
@@ -65,7 +65,7 @@ class TestDeveloperRegister:
         })
 
         with patch.dict(os.environ, {'DEVELOPER_REGISTRATION_KEY': 'secret123'}):
-            resp = client.post('/api/developer/register', json={
+            resp = client.post('/api/auth/developer/register', json={
                 'username': 'dev_user',
                 'password': 'StrongP@ss123!',
                 'pin': '1234',
@@ -83,7 +83,7 @@ class TestDeveloperRegister:
         with patch.dict(os.environ, {'DEVELOPER_REGISTRATION_KEY': 'secret123'}), \
              patch.object(api, 'validate_password_strength',
                           return_value=(False, 'Password too weak')):
-            resp = client.post('/api/developer/register', json={
+            resp = client.post('/api/auth/developer/register', json={
                 'username': 'dev_user',
                 'password': '123',
                 'pin': '1234',

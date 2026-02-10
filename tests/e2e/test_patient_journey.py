@@ -71,7 +71,7 @@ class TestPatientJourney:
         with patch.object(api, 'get_db_connection', side_effect=mock_get_db), \
              patch.object(api, 'get_wrapped_cursor', side_effect=mock_get_cursor), \
              patch.object(api, 'verify_password', return_value=True), \
-             patch.object(api, 'verify_pin', return_value=True), \
+             patch.object(api, 'check_pin', return_value=True), \
              patch.object(api, 'log_event'):
             resp = e2e_client.post('/api/auth/login', json={
                 'username': 'test_patient',

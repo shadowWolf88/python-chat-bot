@@ -35,7 +35,7 @@ class TestChatExport:
         })
 
         assert resp.status_code == 200
-        assert resp.content_type == 'text/plain'
+        assert 'text/plain' in resp.content_type
         assert 'attachment' in resp.headers.get('Content-Disposition', '')
 
     def test_export_json_success(self, client, mock_db):

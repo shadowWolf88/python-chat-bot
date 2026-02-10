@@ -127,17 +127,22 @@ class TestAiSummary:
 
     def test_ai_summary_missing_username(self, auth_clinician, mock_db):
         client, user = auth_clinician
-        mock_db()
+        mock_db({
+            'SELECT role FROM users': ('clinician',),
+        })
         resp = client.post('/api/professional/ai-summary',
                            json={'clinician_username': 'test_clinician'},
                            content_type='application/json')
         assert resp.status_code == 400
 
     def test_ai_summary_missing_clinician(self, auth_clinician, mock_db):
+        """Endpoint gets clinician from session, so this tests missing patient username."""
         client, user = auth_clinician
-        mock_db()
+        mock_db({
+            'SELECT role FROM users': ('clinician',),
+        })
         resp = client.post('/api/professional/ai-summary',
-                           json={'username': 'test_patient'},
+                           json={},
                            content_type='application/json')
         assert resp.status_code == 400
 
@@ -155,6 +160,7 @@ class TestAiSummary:
         """When AI API is unavailable, fallback summary is returned."""
         client, user = auth_clinician
         conn, cursor = mock_db({
+            'SELECT role FROM users': ('clinician',),
             'SELECT status FROM patient_approvals': ('approved',),
             'SELECT full_name, conditions': ('Test Patient', 'anxiety'),
             'SELECT entrestamp FROM mood_logs': None,
