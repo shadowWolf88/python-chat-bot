@@ -2,7 +2,41 @@
 
 **A mental health companion combining evidence-based therapy with AI support.**
 
-> **Version**: 2.0 (PostgreSQL) | **Status**: ✅ TIER 0 Complete | 🟡 TIER 1.5-1.10 In Progress | **Last Updated**: February 9, 2026
+> **Version**: 2.0 (PostgreSQL) | **Status**: ✅ TIER 0 Complete | ✅ TIER 1 Complete | **Last Updated**: February 10, 2026
+
+---
+
+## ⚠️ IMPORTANT: NHS Trials & Copyright Notice
+
+**This repository is CONFIDENTIAL and NOT OPEN SOURCE.**
+
+### NHS Clinical Trials
+Healing Space UK is currently in **active clinical trials with the NHS**. This application is:
+- 🏥 **For NHS trials only** - Restricted to authorized trial participants and clinicians
+- 🔒 **Not for public use** - Unauthorized access is prohibited
+- 📋 **Research-grade software** - Under active development and clinical evaluation
+- ✅ **APPROVED FOR TRIALS** - Ethics approval obtained, clinical safety case validated
+
+**Unauthorized access or use of this system may violate:**
+- Computer Misuse Act 1990
+- Data Protection Act 2018 / GDPR
+- NHS Confidentiality Code
+- Research Ethics Committee approvals
+
+### Intellectual Property & License
+```
+© 2024-2026 Healing Space UK Contributors
+All rights reserved. No license to use, copy, modify, or distribute.
+
+This software and documentation are confidential and proprietary.
+Unauthorized copying, modification, or distribution is strictly prohibited.
+```
+
+**If you are:**
+- ✅ An **NHS clinician** on the trials - You have authorized access. See your NHS IT department for credentials.
+- ✅ An **NHS patient** in the trials - Visit [healing-space.org.uk](https://healing-space.org.uk) with your study code.
+- ✅ An **authorized researcher** - Contact [contact info] for trial documentation.
+- ❌ **Anyone else** - You do NOT have permission to use or access this system.
 
 ---
 
@@ -21,28 +55,20 @@
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Access
 
-### Try It Online (2 min)
-Visit [healing-space.org.uk](https://healing-space.org.uk) and sign up.
+### For NHS Trial Participants
+1. Visit [healing-space.org.uk](https://healing-space.org.uk)
+2. Enter your **NHS Study Code** (provided by your clinician)
+3. Create your account and begin therapy
 
-### Run Locally (5 min)
-```bash
-git clone https://github.com/shadowWolf88/Healing-Space-UK.git
-cd "python chat bot"
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-# Edit .env with your GROQ_API_KEY
-python3 api.py
-# Visit http://localhost:5000
-```
+### For NHS Clinicians
+Contact your NHS IT department for VPN access and clinician credentials. See [Clinician Guide](./docs/1-USER-GUIDES/Clinician-Guide.md).
 
-**Full setup:** [Developer Setup](./docs/6-DEVELOPMENT/Developer-Setup.md)
+### For Authorized Developers
+**Development setup is restricted to authorized team members only.** Contact the project lead for access credentials.
 
-### Deploy to Production (5 min)
-See: [Railway Deployment](./docs/5-DEPLOYMENT/Railway-Deployment.md)
+**Full setup:** [Developer Setup](./docs/6-DEVELOPMENT/Developer-Setup.md) (restricted access)
 
 ---
 
