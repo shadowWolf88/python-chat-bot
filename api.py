@@ -16663,6 +16663,922 @@ def get_clinician_summaries_endpoint():
         return jsonify({'error': 'Failed to retrieve summaries'}), 500
 
 
+# ==================== TIER 1.1: CLINICIAN DASHBOARD ENDPOINTS ====================
+
+# CRITICAL BLOCKERS (4 endpoints)
+
+@app.route('/api/clinician/summary', methods=['GET'])
+def get_clinician_summary():
+    """Clinician dashboard overview: workload summary with key metrics.
+    
+    Returns:
+    - total_patients: Number of patients assigned
+    - critical_patients: Patients currently in crisis
+    - sessions_this_week: Therapy sessions completed this week
+    - appointments_today: Scheduled appointments for today
+    - unread_messages: Unread messages from patients
+    
+    SECURITY: Requires clinician role + session auth
+    """
+    try:
+        # AUTH CHECK
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # ROLE CHECK: Verify clinician role
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Query 1: Total patients assigned
+        total_patients = cur.execute(
+            "SELECT COUNT(*) FROM patient_approvals WHERE clinician_username = %s AND status = 'approved'",
+            (clinician_username,)
+        ).fetchone()[0]
+        
+        # Query 2: Patients in critical risk
+        critical_patients = cur.execute("""
+            SELECT COUNT(DISTINCT pa.patient_username)
+            FROM patient_approvals pa
+            INNER JOIN alerts a ON pa.patient_username = a.username
+            WHERE pa.clinician_username = %s
+            AND pa.status = 'approved'
+            AND a.alert_type IN ('critical', 'high')
+            AND a.status = 'open'
+            AND a.created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
+        """, (clinician_username,)).fetchone()[0]
+        
+        # Query 3: Sessions this week
+        sessions_this_week = cur.execute("""
+            SELECT COUNT(DISTINCT ch.session_id)
+            FROM chat_history ch
+            INNER JOIN patient_approvals pa ON ch.sender = pa.patient_username
+            WHERE pa.clinician_username = %s
+            AND ch.timestamp >= DATE_TRUNC('week', CURRENT_DATE)
+            AND ch.sender != 'assistant'
+        """, (clinician_username,)).fetchone()[0]
+        
+        # Query 4: Appointments today
+        appointments_today = cur.execute(
+            "SELECT COUNT(*) FROM appointments WHERE clinician_username = %s AND DATE(appointment_date) = CURRENT_DATE AND attendance_status = 'scheduled'",
+            (clinician_username,)
+        ).fetchone()[0]
+        
+        # Query 5: Unread messages
+        unread_messages = cur.execute(
+            "SELECT COUNT(*) FROM messages WHERE recipient_username = %s AND is_read = 0",
+            (clinician_username,)
+        ).fetchone()[0]
+        
+        conn.close()
+        
+        # LOGGING
+        log_event(clinician_username, 'clinician_dashboard', 'view_summary', '')
+        
+        return jsonify({
+            'success': True,
+            'total_patients': total_patients,
+            'critical_patients': critical_patients,
+            'sessions_this_week': sessions_this_week,
+            'appointments_today': appointments_today,
+            'unread_messages': unread_messages
+        }), 200
+        
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in get_clinician_summary: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Database operation failed'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_summary: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/patients', methods=['GET'])
+def get_clinician_patients():
+    """Get all patients assigned to clinician with key data.
+    
+    Returns array of patients with:
+    - username, first_name, last_name, email
+    - last_session: Date of last therapy session
+    - risk_level: Current risk assessment
+    - mood_7d: Average mood over last 7 days
+    
+    SECURITY: Requires clinician role + session auth
+    """
+    try:
+        # AUTH CHECK
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # ROLE CHECK
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Get all assigned patients with their data
+        patients = cur.execute("""
+            SELECT 
+                u.username,
+                u.full_name,
+                u.email,
+                (SELECT MAX(timestamp) FROM chat_history WHERE sender = u.username) as last_session,
+                (SELECT COUNT(*) FROM alerts WHERE username = u.username AND status = 'open' AND alert_type IN ('critical', 'high')) as open_alerts,
+                (SELECT AVG(mood_val) FROM mood_logs WHERE username = u.username AND entry_timestamp > CURRENT_TIMESTAMP - INTERVAL '7 days') as mood_7d
+            FROM users u
+            INNER JOIN patient_approvals pa ON u.username = pa.patient_username
+            WHERE pa.clinician_username = %s
+            AND pa.status = 'approved'
+            AND u.role = 'user'
+            ORDER BY u.full_name ASC
+        """, (clinician_username,)).fetchall()
+        
+        patient_list = []
+        for p in patients:
+            username, full_name, email, last_session, open_alerts, mood_7d = p
+            patient_list.append({
+                'username': username,
+                'name': full_name or username,
+                'email': email or '',
+                'last_session': last_session.isoformat() if last_session else None,
+                'open_alerts': open_alerts or 0,
+                'mood_7d': round(mood_7d, 1) if mood_7d else None
+            })
+        
+        conn.close()
+        
+        # LOGGING
+        log_event(clinician_username, 'clinician_dashboard', 'view_patients', f'count={len(patient_list)}')
+        
+        return jsonify({
+            'success': True,
+            'patients': patient_list,
+            'count': len(patient_list)
+        }), 200
+        
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in get_clinician_patients: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Database operation failed'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_patients: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/patient/<patient_username>', methods=['GET'])
+def get_clinician_patient_detail(patient_username):
+    """Get detailed patient profile for clinician.
+    
+    Returns:
+    - User info (name, email, phone, dob, gender)
+    - Current risk level & assessment date
+    - Session count
+    - Treatment goals
+    - Recent mood logs (last 7 days)
+    
+    SECURITY: Verify clinician is assigned to patient
+    """
+    try:
+        # AUTH CHECK
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # ROLE CHECK
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # ASSIGNMENT CHECK: Verify clinician is assigned to this patient
+        assignment_check = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, patient_username)
+        ).fetchone()
+        
+        if not assignment_check:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # Get patient info
+        patient_info = cur.execute(
+            "SELECT full_name, email, phone, dob, role FROM users WHERE username = %s",
+            (patient_username,)
+        ).fetchone()
+        
+        if not patient_info:
+            conn.close()
+            return jsonify({'error': 'Patient not found'}), 404
+        
+        full_name, email, phone, dob, role = patient_info
+        
+        # Count sessions
+        session_count = cur.execute(
+            "SELECT COUNT(DISTINCT session_id) FROM chat_history WHERE sender = %s",
+            (patient_username,)
+        ).fetchone()[0]
+        
+        # Get recent mood logs (last 7 days)
+        recent_moods = cur.execute("""
+            SELECT entry_timestamp, mood_val, notes
+            FROM mood_logs
+            WHERE username = %s
+            AND entry_timestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
+            AND deleted_at IS NULL
+            ORDER BY entry_timestamp DESC LIMIT 7
+        """, (patient_username,)).fetchall()
+        
+        # Get current risk level
+        current_risk = cur.execute("""
+            SELECT DISTINCT ON (username) username, alert_type, created_at
+            FROM alerts
+            WHERE username = %s AND status = 'open'
+            ORDER BY username, created_at DESC LIMIT 1
+        """, (patient_username,)).fetchone()
+        
+        conn.close()
+        
+        # Build response
+        response = {
+            'success': True,
+            'username': patient_username,
+            'name': full_name or patient_username,
+            'email': email or '',
+            'phone': phone or '',
+            'dob': dob or '',
+            'role': role,
+            'sessions_count': session_count,
+            'risk_level': current_risk[1] if current_risk else 'none',
+            'risk_date': current_risk[2].isoformat() if current_risk else None,
+            'recent_moods': [
+                {
+                    'date': m[0].isoformat() if m[0] else None,
+                    'mood': m[1],
+                    'notes': m[2] or ''
+                }
+                for m in recent_moods
+            ]
+        }
+        
+        # LOGGING
+        log_event(clinician_username, 'clinician_dashboard', 'view_patient_detail', f'patient={patient_username}')
+        
+        return jsonify(response), 200
+        
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in get_clinician_patient_detail: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Database operation failed'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_patient_detail: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/patient/<patient_username>/mood-logs', methods=['GET'])
+def get_clinician_patient_mood_logs(patient_username):
+    """Get patient's mood logs for clinician view.
+    
+    Query params:
+    - start_date: YYYY-MM-DD (optional, default 30 days ago)
+    - end_date: YYYY-MM-DD (optional, default today)
+    
+    Returns:
+    - logs: Array of mood entries with date, mood_val, energy_level, notes
+    - week_avg: Average mood over the period
+    - trend: Direction (improving/stable/worsening)
+    
+    SECURITY: Verify clinician is assigned to patient
+    """
+    try:
+        # AUTH CHECK
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # ROLE CHECK
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # ASSIGNMENT CHECK
+        assignment_check = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, patient_username)
+        ).fetchone()
+        
+        if not assignment_check:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # Parse date parameters (default to 30 days)
+        end_date = request.args.get('end_date', date.today().isoformat())
+        start_date = request.args.get('start_date', (date.today() - timedelta(days=30)).isoformat())
+        
+        # Get mood logs
+        logs = cur.execute("""
+            SELECT entry_timestamp, mood_val, sleep_val, notes
+            FROM mood_logs
+            WHERE username = %s
+            AND entry_timestamp::date BETWEEN %s::date AND %s::date
+            AND deleted_at IS NULL
+            ORDER BY entry_timestamp DESC
+        """, (patient_username, start_date, end_date)).fetchall()
+        
+        # Calculate week average
+        week_avg = cur.execute("""
+            SELECT AVG(mood_val)
+            FROM mood_logs
+            WHERE username = %s
+            AND entry_timestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
+            AND deleted_at IS NULL
+        """, (patient_username,)).fetchone()[0]
+        
+        # Calculate trend (compare first half vs second half)
+        mid_point = start_date  # Simplified trend calculation
+        trend = 'stable'  # Default
+        if logs and len(logs) > 2:
+            first_half = [l[1] for l in logs[:len(logs)//2]]
+            second_half = [l[1] for l in logs[len(logs)//2:]]
+            if first_half and second_half:
+                avg_first = sum(first_half) / len(first_half)
+                avg_second = sum(second_half) / len(second_half)
+                if avg_second > avg_first + 1:
+                    trend = 'improving'
+                elif avg_second < avg_first - 1:
+                    trend = 'worsening'
+        
+        conn.close()
+        
+        response = {
+            'success': True,
+            'logs': [
+                {
+                    'date': l[0].isoformat() if l[0] else None,
+                    'mood': l[1],
+                    'energy': l[2],
+                    'notes': l[3] or ''
+                }
+                for l in logs
+            ],
+            'week_avg': round(week_avg, 1) if week_avg else None,
+            'trend': trend
+        }
+        
+        # LOGGING
+        log_event(clinician_username, 'clinician_dashboard', 'view_mood_logs', f'patient={patient_username}')
+        
+        return jsonify(response), 200
+        
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in get_clinician_patient_mood_logs: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Database operation failed'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_patient_mood_logs: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+# HIGH PRIORITY ENDPOINTS (8 features)
+
+@app.route('/api/clinician/patient/<patient_username>/analytics', methods=['GET'])
+def get_clinician_patient_analytics(patient_username):
+    """Get patient analytics for charts: mood trends and activity data.
+    
+    Returns:
+    - mood_data: Array of daily mood scores (last 30 days)
+    - activity_data: Weekly activity hours
+    - risk_trend: Trend direction
+    
+    SECURITY: Verify clinician is assigned to patient
+    """
+    try:
+        # AUTH + ROLE + ASSIGNMENT CHECK
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        assignment_check = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, patient_username)
+        ).fetchone()
+        
+        if not assignment_check:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # Get mood data (last 30 days)
+        mood_data = cur.execute("""
+            SELECT DATE(entry_timestamp) as date, AVG(mood_val)::INT as mood
+            FROM mood_logs
+            WHERE username = %s
+            AND entry_timestamp > CURRENT_TIMESTAMP - INTERVAL '30 days'
+            AND deleted_at IS NULL
+            GROUP BY DATE(entry_timestamp)
+            ORDER BY DATE(entry_timestamp)
+        """, (patient_username,)).fetchall()
+        
+        # Get activity data (weekly)
+        activity_data = cur.execute("""
+            SELECT DATE_TRUNC('week', entry_timestamp)::date as week, SUM(COALESCE(exercise_duration, 0))::FLOAT as hours
+            FROM wellness_logs
+            WHERE username = %s
+            AND timestamp > CURRENT_TIMESTAMP - INTERVAL '30 days'
+            GROUP BY DATE_TRUNC('week', entry_timestamp)
+            ORDER BY week
+        """, (patient_username,)).fetchall()
+        
+        conn.close()
+        
+        response = {
+            'success': True,
+            'mood_data': [
+                {
+                    'date': str(m[0]),
+                    'mood': m[1]
+                }
+                for m in mood_data
+            ],
+            'activity_data': [
+                {
+                    'week': str(a[0]),
+                    'hours': round(a[1], 1) if a[1] else 0
+                }
+                for a in activity_data
+            ],
+            'risk_trend': 'stable'
+        }
+        
+        # LOGGING
+        log_event(clinician_username, 'clinician_dashboard', 'view_analytics', f'patient={patient_username}')
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_patient_analytics: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/patient/<patient_username>/assessments', methods=['GET'])
+def get_clinician_patient_assessments(patient_username):
+    """Get patient's clinical assessments (PHQ-9, GAD-7, etc).
+    
+    Returns:
+    - phq9: {score, interpretation, date}
+    - gad7: {score, interpretation, date}
+    
+    SECURITY: Verify clinician is assigned to patient
+    """
+    try:
+        # AUTH + ROLE + ASSIGNMENT
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        assignment_check = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, patient_username)
+        ).fetchone()
+        
+        if not assignment_check:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # Get latest assessments
+        phq9 = cur.execute("""
+            SELECT score, entry_timestamp
+            FROM clinical_scales
+            WHERE username = %s AND scale_name = 'PHQ-9'
+            ORDER BY entry_timestamp DESC LIMIT 1
+        """, (patient_username,)).fetchone()
+        
+        gad7 = cur.execute("""
+            SELECT score, entry_timestamp
+            FROM clinical_scales
+            WHERE username = %s AND scale_name = 'GAD-7'
+            ORDER BY entry_timestamp DESC LIMIT 1
+        """, (patient_username,)).fetchone()
+        
+        conn.close()
+        
+        def get_interpretation(scale_name, score):
+            """Determine interpretation based on scale and score"""
+            if scale_name == 'PHQ-9':
+                if score < 5:
+                    return 'minimal'
+                elif score < 10:
+                    return 'mild'
+                elif score < 15:
+                    return 'moderate'
+                elif score < 20:
+                    return 'moderately_severe'
+                else:
+                    return 'severe'
+            elif scale_name == 'GAD-7':
+                if score < 5:
+                    return 'minimal'
+                elif score < 10:
+                    return 'mild'
+                elif score < 15:
+                    return 'moderate'
+                else:
+                    return 'severe'
+            return 'unknown'
+        
+        response = {
+            'success': True,
+            'phq9': {
+                'score': phq9[0],
+                'interpretation': get_interpretation('PHQ-9', phq9[0]),
+                'date': phq9[1].isoformat()
+            } if phq9 else None,
+            'gad7': {
+                'score': gad7[0],
+                'interpretation': get_interpretation('GAD-7', gad7[0]),
+                'date': gad7[1].isoformat()
+            } if gad7 else None
+        }
+        
+        # LOGGING
+        log_event(clinician_username, 'clinician_dashboard', 'view_assessments', f'patient={patient_username}')
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_patient_assessments: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/patient/<patient_username>/sessions', methods=['GET'])
+def get_clinician_patient_sessions(patient_username):
+    """Get therapy session history for patient.
+    
+    Returns:
+    - sessions: Array of sessions with date, duration, notes
+    - total: Total session count
+    
+    SECURITY: Verify clinician is assigned to patient
+    """
+    try:
+        # AUTH + ROLE + ASSIGNMENT
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        assignment_check = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, patient_username)
+        ).fetchone()
+        
+        if not assignment_check:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # Get unique sessions (one per day)
+        sessions = cur.execute("""
+            SELECT DISTINCT ON (DATE(timestamp)) 
+                DATE(timestamp) as session_date,
+                COUNT(*) FILTER (WHERE sender != 'assistant') as message_count,
+                timestamp
+            FROM chat_history
+            WHERE sender = %s OR sender = 'assistant'
+            ORDER BY DATE(timestamp) DESC, timestamp DESC
+            LIMIT 50
+        """, (patient_username,)).fetchall()
+        
+        # Count total sessions
+        total_sessions = cur.execute(
+            "SELECT COUNT(DISTINCT DATE(timestamp)) FROM chat_history WHERE sender = %s",
+            (patient_username,)
+        ).fetchone()[0]
+        
+        conn.close()
+        
+        response = {
+            'success': True,
+            'sessions': [
+                {
+                    'date': str(s[0]),
+                    'messages': s[1] if s[1] else 0,
+                    'duration': 45  # Default, can be enhanced
+                }
+                for s in sessions
+            ],
+            'total': total_sessions
+        }
+        
+        # LOGGING
+        log_event(clinician_username, 'clinician_dashboard', 'view_sessions', f'patient={patient_username}')
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_patient_sessions: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/risk-alerts', methods=['GET'])
+def get_clinician_risk_alerts():
+    """Get all risk alerts for clinician's patients.
+    
+    Returns:
+    - alerts: Array with patient_name, risk_level, date, trigger
+    - total: Count of open alerts
+    
+    SECURITY: Only clinician-assigned patients
+    """
+    try:
+        # AUTH + ROLE
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Get alerts for assigned patients
+        alerts = cur.execute("""
+            SELECT 
+                u.full_name,
+                a.alert_type,
+                a.created_at,
+                a.details,
+                a.status,
+                a.id
+            FROM alerts a
+            INNER JOIN users u ON a.username = u.username
+            INNER JOIN patient_approvals pa ON a.username = pa.patient_username
+            WHERE pa.clinician_username = %s
+            AND pa.status = 'approved'
+            AND a.status = 'open'
+            ORDER BY a.created_at DESC
+            LIMIT 50
+        """, (clinician_username,)).fetchall()
+        
+        total_alerts = len(alerts)
+        
+        conn.close()
+        
+        response = {
+            'success': True,
+            'alerts': [
+                {
+                    'patient_name': a[0] or 'Unknown',
+                    'risk_level': a[1],
+                    'date': a[2].isoformat() if a[2] else None,
+                    'trigger': a[3] or '',
+                    'status': a[4],
+                    'id': a[5]
+                }
+                for a in alerts
+            ],
+            'total': total_alerts
+        }
+        
+        # LOGGING
+        log_event(clinician_username, 'clinician_dashboard', 'view_risk_alerts', f'count={total_alerts}')
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_risk_alerts: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/patient/<patient_username>/appointments', methods=['GET'])
+def get_clinician_patient_appointments(patient_username):
+    """Get appointments for patient.
+    
+    SECURITY: Verify clinician is assigned to patient
+    """
+    try:
+        # AUTH + ROLE + ASSIGNMENT
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        assignment_check = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, patient_username)
+        ).fetchone()
+        
+        if not assignment_check:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # Get appointments
+        appointments = cur.execute("""
+            SELECT id, appointment_date, appointment_type, notes, attendance_status
+            FROM appointments
+            WHERE clinician_username = %s AND patient_username = %s AND deleted_at IS NULL
+            ORDER BY appointment_date DESC
+        """, (clinician_username, patient_username)).fetchall()
+        
+        conn.close()
+        
+        response = {
+            'success': True,
+            'appointments': [
+                {
+                    'id': a[0],
+                    'date': a[1].isoformat() if a[1] else None,
+                    'type': a[2] or 'consultation',
+                    'notes': a[3] or '',
+                    'status': a[4] or 'scheduled'
+                }
+                for a in appointments
+            ]
+        }
+        
+        # LOGGING
+        log_event(clinician_username, 'clinician_dashboard', 'view_appointments', f'patient={patient_username}')
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_patient_appointments: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/message', methods=['POST'])
+def send_clinician_message():
+    """Send message from clinician to patient.
+    
+    Body: {recipient_username, message}
+    
+    SECURITY: CSRF token required, verify assignment
+    """
+    try:
+        # AUTH + ROLE
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # CSRF VALIDATION
+        token = request.headers.get('X-CSRF-Token')
+        if not token or not validate_csrf_token(token):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # INPUT VALIDATION
+        data = request.get_json() or {}
+        recipient_username = data.get('recipient_username', '').strip()
+        message_text = data.get('message', '').strip()
+        
+        if not recipient_username or not message_text:
+            conn.close()
+            return jsonify({'error': 'Recipient and message required'}), 400
+        
+        if len(message_text) > 10000:
+            conn.close()
+            return jsonify({'error': 'Message too long'}), 400
+        
+        # ASSIGNMENT CHECK: Verify clinician is assigned to patient
+        assignment_check = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, recipient_username)
+        ).fetchone()
+        
+        if not assignment_check:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # INSERT MESSAGE
+        cur.execute("""
+            INSERT INTO messages (sender_username, recipient_username, content, is_read, sent_at)
+            VALUES (%s, %s, %s, 0, CURRENT_TIMESTAMP)
+            RETURNING id, sent_at
+        """, (clinician_username, recipient_username, message_text))
+        
+        result = cur.fetchone()
+        message_id = result[0]
+        sent_at = result[1]
+        
+        conn.commit()
+        conn.close()
+        
+        # LOGGING
+        log_event(clinician_username, 'clinician_dashboard', 'send_message', f'recipient={recipient_username}')
+        
+        return jsonify({
+            'success': True,
+            'message_id': message_id,
+            'timestamp': sent_at.isoformat() if sent_at else None
+        }), 201
+        
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in send_clinician_message: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Failed to send message'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in send_clinician_message: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
 # ==================== WINS BOARD ENDPOINTS ====================
 
 VALID_WIN_TYPES = ['had_a_laugh', 'self_care', 'kept_promise', 'tried_new', 'stood_up', 'got_outside', 'helped_someone', 'custom']
