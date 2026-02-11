@@ -13291,8 +13291,8 @@ Mental Health Clinician
 # ==================== SEARCH & FILTER ENDPOINTS ====================
 
 @app.route('/api/patients/search', methods=['GET'])
-def search_patients():
-    """Search and filter patients"""
+def search_patients_legacy():
+    """Search and filter patients (legacy endpoint)"""
     try:
         clinician = request.args.get('clinician')
         search_query = request.args.get('q', '')
