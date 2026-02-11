@@ -18358,6 +18358,546 @@ def submit_safety_plan(assessment_id):
         return handle_exception(e, 'submit_safety_plan')
 
 
+# ========== TIER 2.2: CRISIS ALERT SYSTEM ==========
+# Real-time crisis detection, multi-channel alerts, clinician acknowledgment
+
+@app.route('/api/crisis/detect', methods=['POST'])
+def detect_crisis_risk():
+    """Analyze message for crisis risk and create alert if needed (TIER 2.2)
+    
+    SECURITY: Requires authentication, validates input, logs to audit trail
+    """
+    username = session.get('username')
+    if not username:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    data = request.json or {}
+    message = data.get('message', '')
+    
+    # Validate input
+    message, error = InputValidator.validate_text(message, max_length=10000)
+    if error:
+        return jsonify({'error': error}), 400
+    
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Use SafetyMonitor to detect crisis indicators
+        risk_result = analyze_chat_message(message) if HAS_SAFETY_MONITOR else {
+            'severity': 'none',
+            'keywords': [],
+            'score': 0
+        }
+        
+        is_crisis = risk_result['severity'] in ['critical', 'high']
+        risk_score = risk_result.get('score', 0)
+        
+        if is_crisis:
+            # Get patient's clinician
+            cur.execute("""
+                SELECT clinician_id FROM users WHERE username=%s
+            """, (username,))
+            clinician = cur.fetchone()
+            clinician_id = clinician[0] if clinician else None
+            
+            # Create crisis alert
+            cur.execute("""
+                INSERT INTO risk_alerts 
+                (patient_username, clinician_username, alert_type, severity, title, details, source, ai_confidence, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                RETURNING id, created_at
+            """, (
+                username,
+                clinician_id,
+                'crisis_detected',
+                risk_result['severity'],
+                f'Crisis indicators detected in message',
+                f'Keywords: {", ".join(risk_result.get("keywords", []))}. Message: {message[:200]}',
+                'chat_analysis',
+                min(100, risk_score)  # Confidence 0-100
+            ))
+            
+            alert = cur.fetchone()
+            alert_id = alert[0] if alert else None
+            
+            conn.commit()
+            
+            # Log event
+            log_event(username, 'crisis', 'crisis_detected', 
+                     f'severity={risk_result["severity"]}, alert_id={alert_id}')
+            
+            return jsonify({
+                'success': True,
+                'is_crisis': True,
+                'severity': risk_result['severity'],
+                'alert_id': alert_id,
+                'keywords': risk_result.get('keywords', []),
+                'risk_score': risk_score,
+                'action': 'alert_sent_to_clinician'
+            }), 201
+        else:
+            return jsonify({
+                'success': True,
+                'is_crisis': False,
+                'severity': 'none',
+                'risk_score': risk_score
+            }), 200
+    
+    except Exception as e:
+        conn.rollback() if conn else None
+        return handle_exception(e, 'detect_crisis_risk')
+    finally:
+        conn.close() if conn else None
+
+
+@app.route('/api/crisis/alerts', methods=['GET'])
+def get_crisis_alerts():
+    """Get all active crisis alerts for clinician (TIER 2.2)
+    
+    SECURITY: Clinicians only, returns only alerts for their patients
+    """
+    username = session.get('username')
+    if not username:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check clinician role
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        cur.execute("SELECT role FROM users WHERE username=%s", (username,))
+        user = cur.fetchone()
+        
+        if not user or user[0] != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Get active alerts for this clinician's patients
+        cur.execute("""
+            SELECT 
+                ra.id, ra.patient_username, ra.alert_type, ra.severity, ra.title, 
+                ra.details, ra.source, ra.ai_confidence, ra.created_at,
+                ra.acknowledged, ra.acknowledged_by, ra.acknowledged_at,
+                u.full_name, u.email
+            FROM risk_alerts ra
+            JOIN users u ON ra.patient_username = u.username
+            WHERE ra.clinician_username=%s AND ra.resolved=FALSE
+            ORDER BY CASE ra.severity 
+                WHEN 'critical' THEN 1 
+                WHEN 'high' THEN 2 
+                WHEN 'moderate' THEN 3 
+                ELSE 4 
+            END, ra.created_at DESC
+            LIMIT 100
+        """, (username,))
+        
+        alerts = []
+        for row in cur.fetchall():
+            alerts.append({
+                'id': row[0],
+                'patient_username': row[1],
+                'alert_type': row[2],
+                'severity': row[3],
+                'title': row[4],
+                'details': row[5],
+                'source': row[6],
+                'confidence': row[7],
+                'created_at': row[8].isoformat() if row[8] else None,
+                'acknowledged': bool(row[9]),
+                'acknowledged_by': row[10],
+                'acknowledged_at': row[11].isoformat() if row[11] else None,
+                'patient_name': row[12],
+                'patient_email': row[13]
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'alerts': alerts,
+            'count': len(alerts)
+        }), 200
+    
+    except Exception as e:
+        conn.close() if conn else None
+        return handle_exception(e, 'get_crisis_alerts')
+
+
+@app.route('/api/crisis/alerts/<int:alert_id>/acknowledge', methods=['POST'])
+def acknowledge_crisis_alert(alert_id):
+    """Acknowledge and respond to crisis alert (TIER 2.2)
+    
+    SECURITY: Clinician only, validates CSRF token, logs action
+    """
+    username = session.get('username')
+    if not username:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Validate CSRF
+    token = request.headers.get('X-CSRF-Token')
+    if not token or not validate_csrf_token(token):
+        return jsonify({'error': 'CSRF token invalid'}), 403
+    
+    data = request.json or {}
+    action_taken = data.get('action_taken', '')
+    
+    # Validate input
+    action_taken, error = InputValidator.validate_text(action_taken, max_length=1000)
+    if error:
+        return jsonify({'error': error}), 400
+    
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Verify clinician can acknowledge this alert
+        cur.execute("""
+            SELECT patient_username, clinician_username FROM risk_alerts WHERE id=%s
+        """, (alert_id,))
+        
+        alert = cur.fetchone()
+        if not alert:
+            return jsonify({'error': 'Alert not found'}), 404
+        
+        if alert[1] != username:
+            return jsonify({'error': 'Not authorized for this alert'}), 403
+        
+        # Acknowledge alert
+        cur.execute("""
+            UPDATE risk_alerts 
+            SET acknowledged=TRUE, acknowledged_by=%s, acknowledged_at=CURRENT_TIMESTAMP, action_taken=%s
+            WHERE id=%s
+            RETURNING id
+        """, (username, action_taken, alert_id))
+        
+        result = cur.fetchone()
+        conn.commit()
+        
+        # Log event
+        log_event(username, 'crisis', 'alert_acknowledged', 
+                 f'alert_id={alert_id}, patient={alert[0]}, action={action_taken[:50]}')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Alert acknowledged',
+            'alert_id': result[0] if result else alert_id
+        }), 200
+    
+    except Exception as e:
+        conn.rollback() if conn else None
+        return handle_exception(e, 'acknowledge_crisis_alert')
+    finally:
+        conn.close() if conn else None
+
+
+@app.route('/api/crisis/alerts/<int:alert_id>/resolve', methods=['POST'])
+def resolve_crisis_alert(alert_id):
+    """Resolve crisis alert after intervention (TIER 2.2)
+    
+    SECURITY: Clinician only, validates CSRF token
+    """
+    username = session.get('username')
+    if not username:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Validate CSRF
+    token = request.headers.get('X-CSRF-Token')
+    if not token or not validate_csrf_token(token):
+        return jsonify({'error': 'CSRF token invalid'}), 403
+    
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Verify clinician owns this alert
+        cur.execute("""
+            SELECT clinician_username, patient_username FROM risk_alerts WHERE id=%s
+        """, (alert_id,))
+        
+        alert = cur.fetchone()
+        if not alert:
+            return jsonify({'error': 'Alert not found'}), 404
+        
+        if alert[0] != username:
+            return jsonify({'error': 'Not authorized to resolve this alert'}), 403
+        
+        # Resolve alert
+        cur.execute("""
+            UPDATE risk_alerts 
+            SET resolved=TRUE, resolved_at=CURRENT_TIMESTAMP
+            WHERE id=%s
+            RETURNING id
+        """, (alert_id,))
+        
+        result = cur.fetchone()
+        conn.commit()
+        
+        # Log event
+        log_event(username, 'crisis', 'alert_resolved', f'alert_id={alert_id}')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Crisis alert resolved',
+            'alert_id': result[0] if result else alert_id
+        }), 200
+    
+    except Exception as e:
+        conn.rollback() if conn else None
+        return handle_exception(e, 'resolve_crisis_alert')
+    finally:
+        conn.close() if conn else None
+
+
+@app.route('/api/crisis/contacts', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def manage_crisis_contacts():
+    """Manage emergency crisis contacts (TIER 2.2)
+    
+    SECURITY: Patient can manage own contacts, clinician can view
+    """
+    username = session.get('username')
+    if not username:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    data = request.json or {}
+    
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        if request.method == 'GET':
+            # Get all crisis contacts
+            cur.execute("""
+                SELECT id, contact_name, relationship, phone, email, is_primary, is_professional
+                FROM crisis_contacts
+                WHERE patient_username=%s
+                ORDER BY is_primary DESC, id ASC
+            """, (username,))
+            
+            contacts = []
+            for row in cur.fetchall():
+                contacts.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'relationship': row[2],
+                    'phone': row[3],
+                    'email': row[4],
+                    'is_primary': bool(row[5]),
+                    'is_professional': bool(row[6])
+                })
+            
+            return jsonify({
+                'success': True,
+                'contacts': contacts,
+                'count': len(contacts)
+            }), 200
+        
+        elif request.method == 'POST':
+            # Create new contact
+            token = request.headers.get('X-CSRF-Token')
+            if not token or not validate_csrf_token(token):
+                return jsonify({'error': 'CSRF token invalid'}), 403
+            
+            name, error = InputValidator.validate_text(data.get('name', ''), max_length=100)
+            if error:
+                return jsonify({'error': f'Name: {error}'}), 400
+            
+            relationship, error = InputValidator.validate_text(data.get('relationship', ''), max_length=50)
+            if error:
+                return jsonify({'error': f'Relationship: {error}'}), 400
+            
+            phone = data.get('phone', '')
+            email = data.get('email', '')
+            is_primary = bool(data.get('is_primary', False))
+            is_professional = bool(data.get('is_professional', False))
+            
+            cur.execute("""
+                INSERT INTO crisis_contacts 
+                (patient_username, contact_name, relationship, phone, email, is_primary, is_professional)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (username, name, relationship, phone, email, is_primary, is_professional))
+            
+            contact_id = cur.fetchone()[0]
+            conn.commit()
+            
+            log_event(username, 'crisis', 'contact_added', f'contact_id={contact_id}, name={name}')
+            
+            return jsonify({
+                'success': True,
+                'message': 'Emergency contact added',
+                'contact_id': contact_id
+            }), 201
+        
+        elif request.method == 'PUT':
+            # Update contact
+            token = request.headers.get('X-CSRF-Token')
+            if not token or not validate_csrf_token(token):
+                return jsonify({'error': 'CSRF token invalid'}), 403
+            
+            contact_id = data.get('contact_id')
+            if not contact_id:
+                return jsonify({'error': 'contact_id required'}), 400
+            
+            # Verify ownership
+            cur.execute("""
+                SELECT patient_username FROM crisis_contacts WHERE id=%s
+            """, (contact_id,))
+            
+            contact = cur.fetchone()
+            if not contact or contact[0] != username:
+                return jsonify({'error': 'Contact not found or not authorized'}), 404
+            
+            updates = []
+            params = []
+            
+            if 'name' in data:
+                name, error = InputValidator.validate_text(data['name'], max_length=100)
+                if error:
+                    return jsonify({'error': f'Name: {error}'}), 400
+                updates.append('contact_name=%s')
+                params.append(name)
+            
+            if 'phone' in data:
+                updates.append('phone=%s')
+                params.append(data['phone'])
+            
+            if 'is_primary' in data:
+                updates.append('is_primary=%s')
+                params.append(bool(data['is_primary']))
+            
+            params.append(contact_id)
+            
+            if updates:
+                cur.execute(f"""
+                    UPDATE crisis_contacts 
+                    SET {', '.join(updates)}
+                    WHERE id=%s
+                """, params)
+                conn.commit()
+                log_event(username, 'crisis', 'contact_updated', f'contact_id={contact_id}')
+            
+            return jsonify({'success': True, 'message': 'Contact updated'}), 200
+        
+        else:  # DELETE
+            token = request.headers.get('X-CSRF-Token')
+            if not token or not validate_csrf_token(token):
+                return jsonify({'error': 'CSRF token invalid'}), 403
+            
+            contact_id = data.get('contact_id')
+            
+            # Verify ownership
+            cur.execute("""
+                SELECT patient_username FROM crisis_contacts WHERE id=%s
+            """, (contact_id,))
+            
+            contact = cur.fetchone()
+            if not contact or contact[0] != username:
+                return jsonify({'error': 'Contact not found'}), 404
+            
+            cur.execute("""
+                DELETE FROM crisis_contacts WHERE id=%s
+            """, (contact_id,))
+            
+            conn.commit()
+            log_event(username, 'crisis', 'contact_deleted', f'contact_id={contact_id}')
+            
+            return jsonify({'success': True, 'message': 'Contact deleted'}), 200
+    
+    except Exception as e:
+        conn.rollback() if conn else None
+        return handle_exception(e, 'manage_crisis_contacts')
+    finally:
+        conn.close() if conn else None
+
+
+@app.route('/api/crisis/coping-strategies', methods=['GET'])
+def get_coping_strategies():
+    """Get emergency coping strategies for crisis situations (TIER 2.2)
+    
+    SECURITY: Authenticated users only, returns general strategies
+    """
+    username = session.get('username')
+    if not username:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # World-class coping strategies based on CBT/DBT/ACT principles
+    strategies = [
+        {
+            'id': 1,
+            'title': 'TIPP Technique',
+            'description': 'Temperature, Intense exercise, Paced breathing, Paired muscle relaxation',
+            'steps': [
+                'Splash cold water on your face or hold ice cubes',
+                'Do 20 minutes of intense exercise (running, dancing)',
+                'Slow breathing: 5 counts in, 5 counts out',
+                'Flex and relax muscle groups'
+            ],
+            'duration_minutes': 15,
+            'category': 'distress_tolerance'
+        },
+        {
+            'id': 2,
+            'title': 'Grounding (5-4-3-2-1 Technique)',
+            'description': 'Engage all five senses to bring yourself to the present moment',
+            'steps': [
+                'Name 5 things you can see',
+                'Name 4 things you can touch',
+                'Name 3 things you can hear',
+                'Name 2 things you can smell',
+                'Name 1 thing you can taste'
+            ],
+            'duration_minutes': 10,
+            'category': 'mindfulness'
+        },
+        {
+            'id': 3,
+            'title': 'Opposite Action',
+            'description': 'Act opposite to your current emotion',
+            'steps': [
+                'Identify your emotion (fear, anger, sadness)',
+                'Do the opposite of what the emotion makes you want to do',
+                'If afraid: approach rather than avoid',
+                'If angry: be gentle rather than aggressive',
+                'Notice how your emotion shifts'
+            ],
+            'duration_minutes': 20,
+            'category': 'emotion_regulation'
+        },
+        {
+            'id': 4,
+            'title': 'Progressive Muscle Relaxation',
+            'description': 'Release physical tension through systematic muscle relaxation',
+            'steps': [
+                'Start with your toes, tense for 5 seconds',
+                'Release and notice the relaxation',
+                'Move up through feet, legs, abdomen, chest, arms, neck, face',
+                'Take slow, deep breaths throughout'
+            ],
+            'duration_minutes': 15,
+            'category': 'relaxation'
+        },
+        {
+            'id': 5,
+            'title': 'Ice Immersion Dive',
+            'description': 'Quick physiological shift using cold water',
+            'steps': [
+                'Fill a bowl with cold water (add ice if possible)',
+                'Hold your breath and submerge your face for 15-30 seconds',
+                'This activates the parasympathetic nervous system',
+                'Repeat as needed'
+            ],
+            'duration_minutes': 5,
+            'category': 'rapid_relief'
+        }
+    ]
+    
+    return jsonify({
+        'success': True,
+        'strategies': strategies,
+        'total': len(strategies)
+    }), 200
+
+
 # ========== TIER 0 SECURITY STARTUP VALIDATIONS ==========
 
 def startup_security_checks():

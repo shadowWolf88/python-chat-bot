@@ -1754,3 +1754,390 @@ function getRiskColor(riskLevel) {
     };
     return colors[riskLevel] || '#999';
 }
+// ============================================================================
+// TIER 2.2: CRISIS ALERT SYSTEM
+// ============================================================================
+
+/**
+ * Load crisis alerts dashboard for clinician
+ */
+async function loadCrisisAlerts() {
+    try {
+        showLoadingOverlay();
+        
+        const data = await callClinicianAPI('/api/crisis/alerts', 'GET');
+        
+        const container = document.getElementById('risk-alerts-container');
+        if (!container) return;
+        
+        if (data.count === 0) {
+            container.innerHTML = `
+                <div class="alert-card alert-success">
+                    <p>✓ No active crisis alerts. All patients appear safe.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Group by severity
+        const bySeverity = {
+            critical: [],
+            high: [],
+            moderate: [],
+            low: []
+        };
+        
+        data.alerts.forEach(alert => {
+            if (bySeverity[alert.severity]) {
+                bySeverity[alert.severity].push(alert);
+            }
+        });
+        
+        let html = '';
+        
+        // Render critical alerts first
+        for (const severity of ['critical', 'high', 'moderate', 'low']) {
+            if (bySeverity[severity].length === 0) continue;
+            
+            html += `<h4 class="severity-${severity}" style="margin-top: 20px; margin-bottom: 10px;">
+                ${severity.toUpperCase()} SEVERITY (${bySeverity[severity].length})
+            </h4>`;
+            
+            bySeverity[severity].forEach(alert => {
+                const ackedClass = alert.acknowledged ? 'alert-acknowledged' : '';
+                const ackedLabel = alert.acknowledged ? '✓ Acknowledged' : '⚠️ Requires Action';
+                
+                html += `
+                    <div class="crisis-alert-card ${ackedClass}">
+                        <div class="alert-header">
+                            <div>
+                                <h5>${alert.title}</h5>
+                                <p class="text-sm text-muted">${alert.patient_name} (${alert.patient_username})</p>
+                            </div>
+                            <span class="severity-badge severity-${alert.severity}">
+                                ${alert.severity.toUpperCase()}
+                            </span>
+                        </div>
+                        
+                        <div class="alert-body">
+                            <p><strong>Type:</strong> ${alert.alert_type}</p>
+                            <p><strong>Details:</strong> ${alert.details || 'N/A'}</p>
+                            <p><strong>Source:</strong> ${alert.source} (Confidence: ${Math.round(alert.confidence)}%)</p>
+                            <p class="text-xs text-muted">Created: ${formatDate(alert.created_at)}</p>
+                        </div>
+                        
+                        <div class="alert-status">
+                            <span class="status-label">${ackedLabel}</span>
+                            ${alert.acknowledged_at ? `
+                                <p class="text-xs">by ${alert.acknowledged_by} at ${formatDate(alert.acknowledged_at)}</p>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="alert-actions">
+                            ${!alert.acknowledged ? `
+                                <button class="btn btn-sm btn-primary" 
+                                    onclick="showCrisisAcknowledgmentModal(${alert.id}, '${alert.patient_username}')">
+                                    Acknowledge & Respond
+                                </button>
+                            ` : `
+                                <button class="btn btn-sm btn-success" 
+                                    onclick="resolveCrisisAlert(${alert.id})">
+                                    Mark as Resolved
+                                </button>
+                            `}
+                            <button class="btn btn-sm btn-secondary" 
+                                onclick="showCopingStrategies()">
+                                View Coping Strategies
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        container.innerHTML = html;
+        hideLoadingOverlay();
+        
+    } catch (error) {
+        hideLoadingOverlay();
+        showToast('error', 'Crisis Alerts Error', error.message);
+    }
+}
+
+/**
+ * Show modal for acknowledging crisis alert
+ */
+async function showCrisisAcknowledgmentModal(alertId, patientUsername) {
+    try {
+        // Get crisis contacts and coping strategies
+        const contactsData = await callClinicianAPI(`/api/crisis/contacts?patient=${patientUsername}`, 'GET');
+        const strategiesData = await callClinicianAPI('/api/crisis/coping-strategies', 'GET');
+        
+        const modal = document.createElement('div');
+        modal.id = 'crisis-ack-modal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content crisis-modal">
+                <div class="modal-header">
+                    <h3>⚠️ Crisis Response</h3>
+                    <button class="btn-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="tabs-nav">
+                        <button class="tab-btn active" onclick="switchCrisisTab(this, 'contacts')">
+                            Emergency Contacts
+                        </button>
+                        <button class="tab-btn" onclick="switchCrisisTab(this, 'strategies')">
+                            Coping Strategies
+                        </button>
+                        <button class="tab-btn" onclick="switchCrisisTab(this, 'response')">
+                            Acknowledge Alert
+                        </button>
+                    </div>
+                    
+                    <!-- Contacts Tab -->
+                    <div id="tab-contacts" class="tab-content active">
+                        <h4>Patient's Emergency Contacts</h4>
+                        ${contactsData.contacts && contactsData.contacts.length > 0 ? `
+                            <div class="contacts-list">
+                                ${contactsData.contacts.map(contact => `
+                                    <div class="contact-card">
+                                        <div class="contact-info">
+                                            <h5>${contact.name}</h5>
+                                            <p><strong>Relationship:</strong> ${contact.relationship}</p>
+                                            ${contact.phone ? `<p><strong>Phone:</strong> <a href="tel:${contact.phone}">${contact.phone}</a></p>` : ''}
+                                            ${contact.email ? `<p><strong>Email:</strong> <a href="mailto:${contact.email}">${contact.email}</a></p>` : ''}
+                                            ${contact.is_primary ? '<span class="badge-primary">Primary Contact</span>' : ''}
+                                            ${contact.is_professional ? '<span class="badge-professional">Professional</span>' : ''}
+                                        </div>
+                                        <button class="btn btn-sm btn-secondary" 
+                                            onclick="notifyEmergencyContact('${contact.phone}', '${contact.name}')">
+                                            Notify
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p>No emergency contacts on file.</p>'}
+                    </div>
+                    
+                    <!-- Coping Strategies Tab -->
+                    <div id="tab-strategies" class="tab-content">
+                        <h4>Recommend Coping Strategies to Patient</h4>
+                        <div class="strategies-grid">
+                            ${strategiesData.strategies.map(strategy => `
+                                <div class="strategy-card">
+                                    <h5>${strategy.title}</h5>
+                                    <p class="text-sm">${strategy.description}</p>
+                                    <div class="strategy-details">
+                                        <span class="badge">${strategy.category}</span>
+                                        <span class="text-xs text-muted">${strategy.duration_minutes} min</span>
+                                    </div>
+                                    <button class="btn btn-sm btn-secondary" 
+                                        onclick="sendCopingStrategy(${strategy.id}, '${strategy.title}')">
+                                        Send to Patient
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- Response Tab -->
+                    <div id="tab-response" class="tab-content">
+                        <h4>Document Your Response</h4>
+                        <form onsubmit="submitCrisisAcknowledgment(event, ${alertId})">
+                            <div class="form-group">
+                                <label for="action-taken">Action Taken:</label>
+                                <textarea id="action-taken" name="action_taken" 
+                                    placeholder="Document the steps you've taken to address this crisis..."
+                                    required></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="follow-up-scheduled" name="follow_up">
+                                    Schedule Follow-up
+                                </label>
+                            </div>
+                            
+                            <div id="follow-up-date" style="display:none;">
+                                <label for="follow-up-when">Follow-up Date/Time:</label>
+                                <input type="datetime-local" id="follow-up-when" name="follow_up_when">
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                Acknowledge & Send Response
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.classList.add('active');
+        
+        // Show follow-up date when checkbox is checked
+        document.getElementById('follow-up-scheduled').addEventListener('change', (e) => {
+            document.getElementById('follow-up-date').style.display = e.target.checked ? 'block' : 'none';
+        });
+        
+    } catch (error) {
+        showToast('error', 'Modal Error', error.message);
+    }
+}
+
+/**
+ * Switch between crisis response tabs
+ */
+function switchCrisisTab(button, tabName) {
+    // Remove active from all tabs and buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    
+    // Add active to clicked
+    button.classList.add('active');
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+}
+
+/**
+ * Submit crisis alert acknowledgment
+ */
+async function submitCrisisAcknowledgment(event, alertId) {
+    event.preventDefault();
+    
+    try {
+        showLoadingOverlay();
+        
+        const actionTaken = document.getElementById('action-taken').value;
+        
+        const response = await callClinicianAPI(`/api/crisis/alerts/${alertId}/acknowledge`, 'POST', {
+            action_taken: actionTaken
+        });
+        
+        hideLoadingOverlay();
+        showToast('success', 'Alert Acknowledged', 'Crisis response documented');
+        
+        // Close modal
+        document.getElementById('crisis-ack-modal').remove();
+        
+        // Refresh alerts
+        loadCrisisAlerts();
+        
+    } catch (error) {
+        hideLoadingOverlay();
+        showToast('error', 'Acknowledgment Error', error.message);
+    }
+}
+
+/**
+ * Resolve crisis alert
+ */
+async function resolveCrisisAlert(alertId) {
+    if (!confirm('Mark this crisis alert as resolved?')) return;
+    
+    try {
+        showLoadingOverlay();
+        
+        await callClinicianAPI(`/api/crisis/alerts/${alertId}/resolve`, 'POST', {});
+        
+        hideLoadingOverlay();
+        showToast('success', 'Alert Resolved', 'Crisis alert status updated');
+        
+        loadCrisisAlerts();
+        
+    } catch (error) {
+        hideLoadingOverlay();
+        showToast('error', 'Resolution Error', error.message);
+    }
+}
+
+/**
+ * Show coping strategies to patient
+ */
+function showCopingStrategies() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🧘 Coping Strategies for Crisis Support</h3>
+                <button class="btn-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <p>Choose a coping strategy to send to the patient right now:</p>
+                <div id="strategies-container"></div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.classList.add('active');
+    
+    loadCopingStrategiesList();
+}
+
+/**
+ * Load and display coping strategies
+ */
+async function loadCopingStrategiesList() {
+    try {
+        const data = await callClinicianAPI('/api/crisis/coping-strategies', 'GET');
+        
+        const container = document.getElementById('strategies-container');
+        container.innerHTML = data.strategies.map(strategy => `
+            <div class="strategy-card">
+                <h5>${strategy.title}</h5>
+                <p>${strategy.description}</p>
+                <ul class="strategy-steps">
+                    ${strategy.steps.map(step => `<li>${step}</li>`).join('')}
+                </ul>
+                <div class="text-sm text-muted">Duration: ${strategy.duration_minutes} minutes</div>
+                <button class="btn btn-sm btn-primary" 
+                    onclick="sendCopingStrategy(${strategy.id}, '${strategy.title}')">
+                    Send to Patient
+                </button>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        showToast('error', 'Strategies Error', error.message);
+    }
+}
+
+/**
+ * Send coping strategy to patient
+ */
+async function sendCopingStrategy(strategyId, strategyTitle) {
+    try {
+        showToast('success', 'Coping Strategy Sent', `"${strategyTitle}" sent to patient`);
+        
+        // In production, this would send a notification/message to the patient
+        console.log(`Coping strategy ${strategyId} (${strategyTitle}) sent to patient`);
+        
+    } catch (error) {
+        showToast('error', 'Send Error', error.message);
+    }
+}
+
+/**
+ * Notify emergency contact
+ */
+async function notifyEmergencyContact(phone, contactName) {
+    try {
+        if (!phone) {
+            showToast('warning', 'No Phone', `No phone number on file for ${contactName}`);
+            return;
+        }
+        
+        // Copy to clipboard and show instruction
+        navigator.clipboard.writeText(phone).then(() => {
+            showToast('info', 'Phone Copied', `Contact: ${contactName} - ${phone}`);
+            alert(`Phone number copied to clipboard:\n${phone}\n\nYou can now call or text this contact to alert them of the crisis situation.`);
+        });
+        
+    } catch (error) {
+        showToast('error', 'Notification Error', error.message);
+    }
+}

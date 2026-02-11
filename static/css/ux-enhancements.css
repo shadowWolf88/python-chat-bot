@@ -1953,6 +1953,463 @@ select:focus-visible {
     }
 }
 
+/* ============================================================================
+   TIER 2.2: CRISIS ALERT SYSTEM - STYLING
+   ============================================================================ */
+
+/* Crisis Alert Cards */
+.crisis-alert-card {
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+    border-left: 5px solid #F44336;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(244, 67, 54, 0.1);
+    transition: all 0.3s ease;
+    animation: slideIn 0.4s ease;
+}
+
+.crisis-alert-card:hover {
+    box-shadow: 0 4px 16px rgba(244, 67, 54, 0.2);
+    transform: translateY(-2px);
+}
+
+.crisis-alert-card.alert-acknowledged {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e0f0ff 100%);
+    border-left-color: #2196F3;
+}
+
+.alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.alert-header h5 {
+    margin: 0 0 4px 0;
+    color: #333;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.alert-header .text-muted {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.severity-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.severity-badge.severity-critical {
+    background: #F44336;
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+.severity-badge.severity-high {
+    background: #FF9800;
+    color: white;
+    animation: pulse 3s infinite;
+}
+
+.severity-badge.severity-moderate {
+    background: #FFC107;
+    color: #333;
+}
+
+.severity-badge.severity-low {
+    background: #4CAF50;
+    color: white;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+.severity-critical {
+    color: #F44336;
+    font-weight: 600;
+}
+
+.severity-high {
+    color: #FF9800;
+    font-weight: 600;
+}
+
+.severity-moderate {
+    color: #FFC107;
+    font-weight: 600;
+}
+
+.severity-low {
+    color: #4CAF50;
+    font-weight: 600;
+}
+
+.alert-body {
+    background: rgba(255, 255, 255, 0.6);
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.alert-body p {
+    margin: 6px 0;
+}
+
+.alert-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 6px;
+}
+
+.status-label {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.alert-status .status-label {
+    background: #FF5252;
+    color: white;
+}
+
+.alert-acknowledged .alert-status .status-label {
+    background: #2196F3;
+}
+
+.alert-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.alert-actions .btn {
+    flex: 1;
+    min-width: 150px;
+    font-size: 0.9rem;
+    padding: 10px 12px;
+}
+
+/* Crisis Modal */
+.crisis-modal {
+    max-width: 700px;
+}
+
+.crisis-modal .tabs-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+    overflow-x: auto;
+}
+
+.crisis-modal .tab-btn {
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.crisis-modal .tab-btn:hover {
+    color: #333;
+    border-bottom-color: #ddd;
+}
+
+.crisis-modal .tab-btn.active {
+    color: #2196F3;
+    border-bottom-color: #2196F3;
+}
+
+.crisis-modal .tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.crisis-modal .tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Contacts List */
+.contacts-list {
+    display: grid;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.contact-card {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.contact-card:hover {
+    background: #f5f5f5;
+    border-color: #2196F3;
+}
+
+.contact-info h5 {
+    margin: 0 0 8px 0;
+    font-size: 1rem;
+    color: #333;
+}
+
+.contact-info p {
+    margin: 4px 0;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.contact-info a {
+    color: #2196F3;
+    text-decoration: none;
+}
+
+.badge-primary, .badge-professional {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    border-radius: 12px;
+    margin-right: 6px;
+}
+
+.badge-primary {
+    background: #E3F2FD;
+    color: #1976D2;
+    font-weight: 600;
+}
+
+.badge-professional {
+    background: #F3E5F5;
+    color: #7B1FA2;
+    font-weight: 600;
+}
+
+/* Strategies Grid */
+.strategies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.strategy-card {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e8f4ff 100%);
+    border: 1px solid #B3E5FC;
+    border-radius: 8px;
+    padding: 16px;
+    transition: all 0.3s ease;
+}
+
+.strategy-card:hover {
+    box-shadow: 0 4px 16px rgba(33, 150, 243, 0.2);
+    transform: translateY(-4px);
+    border-color: #2196F3;
+}
+
+.strategy-card h5 {
+    margin: 0 0 8px 0;
+    color: #1976D2;
+    font-size: 1rem;
+}
+
+.strategy-card p {
+    margin: 0 0 12px 0;
+    font-size: 0.85rem;
+    color: #555;
+    line-height: 1.4;
+}
+
+.strategy-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(33, 150, 243, 0.2);
+}
+
+.strategy-details .badge {
+    background: #2196F3;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.strategy-steps {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0;
+    font-size: 0.85rem;
+}
+
+.strategy-steps li {
+    padding: 6px 0;
+    padding-left: 24px;
+    position: relative;
+    color: #555;
+}
+
+.strategy-steps li:before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: #2196F3;
+    font-weight: 600;
+}
+
+/* Alert Card Success State */
+.alert-card {
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border-left: 4px solid;
+}
+
+.alert-card.alert-success {
+    background: #E8F5E9;
+    border-left-color: #4CAF50;
+    color: #2E7D32;
+}
+
+/* Dark Theme Support for Crisis Alerts */
+@media (prefers-color-scheme: dark) {
+    .crisis-alert-card {
+        background: linear-gradient(135deg, #3d1f1f 0%, #4d2626 100%);
+        color: #fff;
+    }
+    
+    .crisis-alert-card.alert-acknowledged {
+        background: linear-gradient(135deg, #1a2a4a 0%, #253a5a 100%);
+    }
+    
+    .alert-header h5 {
+        color: #fff;
+    }
+    
+    .alert-header .text-muted {
+        color: #aaa;
+    }
+    
+    .alert-body {
+        background: rgba(0, 0, 0, 0.2);
+        color: #eee;
+    }
+    
+    .contact-card {
+        background: #2a2a2a;
+        border-color: #444;
+    }
+    
+    .contact-card:hover {
+        background: #333;
+    }
+    
+    .contact-info p {
+        color: #bbb;
+    }
+    
+    .strategy-card {
+        background: linear-gradient(135deg, #1a2a4a 0%, #1f2f4a 100%);
+        border-color: #2a4a6a;
+    }
+    
+    .strategy-card h5 {
+        color: #4FC3F7;
+    }
+    
+    .strategy-card p {
+        color: #aaa;
+    }
+}
+
+/* Mobile Responsive Crisis Alerts */
+@media (max-width: 768px) {
+    .crisis-alert-card {
+        padding: 12px;
+    }
+    
+    .alert-header {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .severity-badge {
+        align-self: flex-start;
+    }
+    
+    .alert-actions {
+        flex-direction: column;
+    }
+    
+    .alert-actions .btn {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .strategies-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .contact-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .contact-card .btn {
+        width: 100%;
+    }
+    
+    .crisis-modal .tabs-nav {
+        flex-wrap: wrap;
+    }
+}
+
 /* Animation for modal entrance */
 @keyframes slideIn {
     from {
