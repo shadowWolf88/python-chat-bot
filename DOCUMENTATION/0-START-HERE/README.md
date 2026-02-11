@@ -2,8 +2,7 @@
 
 **A mental health companion combining evidence-based therapy with AI support.**
 
-> **Version**: 2.0 (PostgreSQL) | **Status**: ✅ TIER 0 Complete | ✅ TIER 1 Complete | **Last Updated**: February 11, 2026
-> **📚 All documentation has been consolidated into the `/DOCUMENTATION` folder - [START HERE](./DOCUMENTATION/INDEX.md)**
+> **Version**: 2.0 (PostgreSQL) | **Status**: ✅ TIER 0 Complete | ✅ TIER 1 Complete | **Last Updated**: February 10, 2026
 
 ---
 

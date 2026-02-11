@@ -2688,7 +2688,7 @@ class TherapistAI:
         if not self.groq_key:
             raise RuntimeError("GROQ_API_KEY not configured")
     
-    def get_response(self, user_message, history=None, wellness_data=None, memory_context=None, risk_context=None):
+    def get_response(self, user_message, history=None, wellness_data=None, memory_context=None, risk_context=None, suggestions=None):
         """Get AI therapy response using Groq API with memory context and risk awareness (TIER 0.7 - sanitized)."""
         if not self.groq_key:
             raise RuntimeError("AI service not initialized")
@@ -2768,6 +2768,20 @@ class TherapistAI:
                 if memory_parts:
                     system_content += "\n" + "\n".join(memory_parts)
                     system_content += "\n\nINSTRUCTIONS: Reference previous conversations naturally. Notice patterns. Celebrate progress. Acknowledge recurring struggles. Never say 'I'm a new conversation' or 'I don't remember'. Show continuity and that you truly know this person."
+
+            # Inject patient suggestions for behavioral adaptation
+            if suggestions and isinstance(suggestions, list):
+                sanitized_suggestions = []
+                for s in suggestions[:10]:
+                    sanitized = PromptInjectionSanitizer.sanitize_string(str(s), 'suggestion', 300)
+                    if sanitized:
+                        sanitized_suggestions.append(sanitized)
+                if sanitized_suggestions:
+                    system_content += "\n\n=== PATIENT FEEDBACK / SUGGESTIONS ==="
+                    system_content += "\nThis person has given you the following feedback about how they want you to communicate. Respect these preferences:"
+                    for i, suggestion in enumerate(sanitized_suggestions, 1):
+                        system_content += f"\n{i}. {suggestion}"
+                    system_content += "\n\nAdapt your communication style based on these suggestions while maintaining your therapeutic role."
 
             # Add wellness context if available (sanitized - TIER 0.7)
             if wellness_data and isinstance(wellness_data, dict):
@@ -4112,6 +4126,28 @@ def init_db():
                 print("✓ Migration: patient_wins table created")
         except Exception as e:
             print(f"Migration note (patient_wins): {e}")
+            conn.rollback()
+
+        # Ensure patient_suggestions table exists (AI Training Suggestions)
+        try:
+            cursor.execute("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'patient_suggestions')")
+            if not cursor.fetchone()[0]:
+                print("Migrating: Creating patient_suggestions table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS patient_suggestions (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                        suggestion_text TEXT NOT NULL,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_suggestions_username ON patient_suggestions(username)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_suggestions_active ON patient_suggestions(username, is_active)")
+                conn.commit()
+                print("✓ Migration: patient_suggestions table created")
+        except Exception as e:
+            print(f"Migration note (patient_suggestions): {e}")
             conn.rollback()
 
         # Ensure risk assessment tables exist (Risk Assessment System)
@@ -7094,11 +7130,22 @@ def therapy_chat():
             print(f"Risk scanning error (non-critical): {risk_err}")
             detected_risk_level = 'none'
 
+        # Fetch patient suggestions for AI behavioral adaptation
+        patient_suggestions = []
+        try:
+            sugg_rows = cur.execute(
+                "SELECT suggestion_text FROM patient_suggestions WHERE username = %s AND is_active = TRUE ORDER BY created_at DESC LIMIT 10",
+                (username,)
+            ).fetchall()
+            patient_suggestions = [r[0] for r in sugg_rows]
+        except Exception as sugg_err:
+            print(f"Suggestions fetch error (non-critical): {sugg_err}")
+
         conn.close()
 
         # Get AI response with memory context and risk awareness
         try:
-            response = ai.get_response(message, history[::-1], wellness_data, memory_context=ai_memory_context, risk_context=detected_risk_level)
+            response = ai.get_response(message, history[::-1], wellness_data, memory_context=ai_memory_context, risk_context=detected_risk_level, suggestions=patient_suggestions)
         except Exception as resp_error:
             log_event(username, 'error', 'ai_response_error', str(resp_error))
             print(f"AI response error: {resp_error}")
@@ -16816,6 +16863,141 @@ def get_wins_stats():
 
     except Exception as e:
         return handle_exception(e, request.endpoint or 'wins/stats')
+
+
+# ==================== PATIENT AI SUGGESTIONS ENDPOINTS ====================
+
+@app.route('/api/suggestions', methods=['POST'])
+@CSRFProtection.require_csrf
+@check_rate_limit('general')
+def save_suggestion():
+    """Save a patient /suggest command feedback for AI behavioral adaptation."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body required'}), 400
+
+        suggestion_text = (data.get('suggestion_text') or '').strip()
+
+        if not suggestion_text:
+            return jsonify({'error': 'Suggestion text is required'}), 400
+        if not isinstance(suggestion_text, str):
+            return jsonify({'error': 'Suggestion must be a string'}), 400
+        if len(suggestion_text) > 300:
+            return jsonify({'error': 'Suggestion must be 300 characters or fewer'}), 400
+
+        # Sanitize for prompt injection
+        sanitized = PromptInjectionSanitizer.sanitize_string(suggestion_text, 'suggestion', 300)
+        if not sanitized:
+            return jsonify({'error': 'Suggestion contains invalid content'}), 400
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Enforce max 10 active suggestions per user
+        count = cur.execute(
+            "SELECT COUNT(*) FROM patient_suggestions WHERE username = %s AND is_active = TRUE",
+            (username,)
+        ).fetchone()[0]
+
+        if count >= 10:
+            conn.close()
+            return jsonify({'error': 'Maximum 10 active suggestions. Please remove one first.'}), 400
+
+        cur.execute(
+            "INSERT INTO patient_suggestions (username, suggestion_text) VALUES (%s, %s) RETURNING id",
+            (username, sanitized)
+        )
+        suggestion_id = cur.fetchone()[0]
+        conn.commit()
+
+        log_event(username, username, 'suggestion_added', f"id={suggestion_id}")
+
+        # Log to AI memory events
+        try:
+            cur.execute("""
+                INSERT INTO ai_memory_events (username, event_type, event_data, severity)
+                VALUES (%s, 'suggestion_added', %s, 'normal')
+            """, (username, json.dumps({
+                'suggestion_text': sanitized[:100],
+                'timestamp': datetime.now().isoformat()
+            })))
+            conn.commit()
+        except Exception:
+            pass
+
+        conn.close()
+        return jsonify({'success': True, 'id': suggestion_id}), 201
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'suggestions')
+
+
+@app.route('/api/suggestions', methods=['GET'])
+def get_suggestions():
+    """Get active AI suggestions for the authenticated user."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        rows = cur.execute(
+            "SELECT id, suggestion_text, created_at FROM patient_suggestions WHERE username = %s AND is_active = TRUE ORDER BY created_at DESC",
+            (username,)
+        ).fetchall()
+
+        conn.close()
+        return jsonify({
+            'success': True,
+            'suggestions': [
+                {'id': r[0], 'text': r[1], 'created_at': str(r[2]) if r[2] else None}
+                for r in rows
+            ]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'suggestions')
+
+
+@app.route('/api/suggestions/<int:suggestion_id>', methods=['DELETE'])
+@CSRFProtection.require_csrf
+def delete_suggestion(suggestion_id):
+    """Deactivate (soft-delete) a patient AI suggestion."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Verify ownership
+        row = cur.execute(
+            "SELECT username FROM patient_suggestions WHERE id = %s AND is_active = TRUE",
+            (suggestion_id,)
+        ).fetchone()
+
+        if not row or row[0] != username:
+            conn.close()
+            return jsonify({'error': 'Suggestion not found'}), 404
+
+        cur.execute(
+            "UPDATE patient_suggestions SET is_active = FALSE WHERE id = %s",
+            (suggestion_id,)
+        )
+        conn.commit()
+
+        log_event(username, username, 'suggestion_removed', f"id={suggestion_id}")
+
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'suggestions')
 
 
 # ==================== C-SSRS ASSESSMENT ENDPOINTS ====================
