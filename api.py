@@ -17579,6 +17579,562 @@ def send_clinician_message():
         return jsonify({'error': 'Operation failed'}), 500
 
 
+# ============================================================================
+# TIER 1.1 PHASE 3: REMAINING MEDIUM/HIGH PRIORITY ENDPOINTS
+# ============================================================================
+
+@app.route('/api/clinician/patient/<patient_username>/appointments', methods=['GET'])
+def get_clinician_patient_appointments(patient_username):
+    """Get appointments for a specific patient.
+    
+    SECURITY: Auth + role + assignment required
+    """
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Role check
+        role_check = cur.execute("SELECT role FROM users WHERE username = %s", (clinician_username,)).fetchone()
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Assignment check
+        assignment = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, patient_username)
+        ).fetchone()
+        if not assignment:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # Get appointments
+        appointments = cur.execute("""
+            SELECT appointment_id, appointment_date, appointment_time, duration, status, notes
+            FROM appointments
+            WHERE clinician_username = %s AND patient_username = %s
+            ORDER BY appointment_date DESC, appointment_time DESC
+            LIMIT 50
+        """, (clinician_username, patient_username)).fetchall()
+        
+        conn.close()
+        log_event(clinician_username, 'clinician_dashboard', 'view_appointments', f'patient={patient_username}')
+        
+        return jsonify({
+            'appointments': [
+                {
+                    'appointment_id': a[0],
+                    'date': a[1].isoformat() if a[1] else None,
+                    'time': str(a[2]) if a[2] else None,
+                    'duration': a[3],
+                    'status': a[4],
+                    'notes': a[5]
+                }
+                for a in appointments
+            ],
+            'count': len(appointments)
+        }), 200
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in get_clinician_patient_appointments: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Failed to load appointments'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_patient_appointments: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/patient/<patient_username>/appointments', methods=['POST'])
+def create_clinician_appointment(patient_username):
+    """Create new appointment for patient.
+    
+    Body: {date, time, duration, notes}
+    SECURITY: Auth + role + assignment + CSRF required
+    """
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # CSRF check
+        token = request.headers.get('X-CSRF-Token')
+        if not token or not validate_csrf_token(token):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Role check
+        role_check = cur.execute("SELECT role FROM users WHERE username = %s", (clinician_username,)).fetchone()
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Assignment check
+        assignment = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, patient_username)
+        ).fetchone()
+        if not assignment:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # Input validation
+        data = request.get_json() or {}
+        appointment_date = data.get('date', '').strip()
+        appointment_time = data.get('time', '').strip()
+        duration = data.get('duration', 30)
+        notes = data.get('notes', '').strip()
+        
+        if not appointment_date:
+            conn.close()
+            return jsonify({'error': 'Appointment date required'}), 400
+        
+        if len(notes) > 1000:
+            conn.close()
+            return jsonify({'error': 'Notes too long'}), 400
+        
+        # Insert appointment
+        cur.execute("""
+            INSERT INTO appointments (clinician_username, patient_username, appointment_date, appointment_time, duration, status, notes)
+            VALUES (%s, %s, %s, %s, %s, 'scheduled', %s)
+            RETURNING appointment_id, appointment_date
+        """, (clinician_username, patient_username, appointment_date, appointment_time or None, duration, notes or None))
+        
+        result = cur.fetchone()
+        appointment_id = result[0]
+        
+        conn.commit()
+        conn.close()
+        log_event(clinician_username, 'clinician_dashboard', 'create_appointment', f'patient={patient_username}')
+        
+        return jsonify({'success': True, 'appointment_id': appointment_id}), 201
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in create_clinician_appointment: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Failed to create appointment'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in create_clinician_appointment: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/appointments/<int:appointment_id>', methods=['PUT'])
+def update_clinician_appointment(appointment_id):
+    """Update appointment (reschedule).
+    
+    Body: {date, time, duration, notes, status}
+    SECURITY: Auth + role + CSRF required
+    """
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # CSRF check
+        token = request.headers.get('X-CSRF-Token')
+        if not token or not validate_csrf_token(token):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Verify clinician owns this appointment
+        appointment = cur.execute(
+            "SELECT patient_username FROM appointments WHERE appointment_id = %s AND clinician_username = %s",
+            (appointment_id, clinician_username)
+        ).fetchone()
+        if not appointment:
+            conn.close()
+            return jsonify({'error': 'Appointment not found'}), 404
+        
+        # Input validation & update
+        data = request.get_json() or {}
+        updates = []
+        params = []
+        
+        if 'date' in data:
+            updates.append("appointment_date = %s")
+            params.append(data['date'])
+        if 'time' in data:
+            updates.append("appointment_time = %s")
+            params.append(data['time'] or None)
+        if 'duration' in data:
+            updates.append("duration = %s")
+            params.append(data['duration'])
+        if 'status' in data:
+            updates.append("status = %s")
+            params.append(data['status'])
+        if 'notes' in data:
+            updates.append("notes = %s")
+            params.append(data['notes'] or None)
+        
+        if not updates:
+            conn.close()
+            return jsonify({'error': 'No fields to update'}), 400
+        
+        params.append(appointment_id)
+        query = f"UPDATE appointments SET {', '.join(updates)} WHERE appointment_id = %s"
+        cur.execute(query, tuple(params))
+        conn.commit()
+        conn.close()
+        
+        log_event(clinician_username, 'clinician_dashboard', 'update_appointment', f'appointment_id={appointment_id}')
+        return jsonify({'success': True}), 200
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in update_clinician_appointment: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Failed to update appointment'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in update_clinician_appointment: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/appointments/<int:appointment_id>', methods=['DELETE'])
+def delete_clinician_appointment(appointment_id):
+    """Cancel/delete appointment.
+    
+    SECURITY: Auth + role + CSRF required
+    """
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # CSRF check
+        token = request.headers.get('X-CSRF-Token')
+        if not token or not validate_csrf_token(token):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Verify ownership
+        appointment = cur.execute(
+            "SELECT 1 FROM appointments WHERE appointment_id = %s AND clinician_username = %s",
+            (appointment_id, clinician_username)
+        ).fetchone()
+        if not appointment:
+            conn.close()
+            return jsonify({'error': 'Appointment not found'}), 404
+        
+        # Delete appointment
+        cur.execute("DELETE FROM appointments WHERE appointment_id = %s", (appointment_id,))
+        conn.commit()
+        conn.close()
+        
+        log_event(clinician_username, 'clinician_dashboard', 'delete_appointment', f'appointment_id={appointment_id}')
+        return jsonify({'success': True}), 200
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in delete_clinician_appointment: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Failed to delete appointment'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in delete_clinician_appointment: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/patient/<patient_username>/notes', methods=['GET'])
+def get_clinician_patient_notes(patient_username):
+    """Get clinician notes for patient.
+    
+    SECURITY: Auth + role + assignment required
+    """
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Role check
+        role_check = cur.execute("SELECT role FROM users WHERE username = %s", (clinician_username,)).fetchone()
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Assignment check
+        assignment = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, patient_username)
+        ).fetchone()
+        if not assignment:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # Get notes
+        notes = cur.execute("""
+            SELECT note_id, content, category, created_at, updated_at
+            FROM clinician_notes
+            WHERE clinician_username = %s AND patient_username = %s
+            ORDER BY updated_at DESC
+            LIMIT 100
+        """, (clinician_username, patient_username)).fetchall()
+        
+        conn.close()
+        log_event(clinician_username, 'clinician_dashboard', 'view_notes', f'patient={patient_username}')
+        
+        return jsonify({
+            'notes': [
+                {
+                    'note_id': n[0],
+                    'content': n[1],
+                    'category': n[2],
+                    'created_at': n[3].isoformat() if n[3] else None,
+                    'updated_at': n[4].isoformat() if n[4] else None
+                }
+                for n in notes
+            ],
+            'count': len(notes)
+        }), 200
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in get_clinician_patient_notes: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Failed to load notes'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_patient_notes: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/patient/<patient_username>/notes', methods=['POST'])
+def create_clinician_patient_note(patient_username):
+    """Create clinician note for patient.
+    
+    Body: {content, category}
+    SECURITY: Auth + role + assignment + CSRF required
+    """
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # CSRF check
+        token = request.headers.get('X-CSRF-Token')
+        if not token or not validate_csrf_token(token):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Role check
+        role_check = cur.execute("SELECT role FROM users WHERE username = %s", (clinician_username,)).fetchone()
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Assignment check
+        assignment = cur.execute(
+            "SELECT 1 FROM patient_approvals WHERE clinician_username = %s AND patient_username = %s AND status = 'approved'",
+            (clinician_username, patient_username)
+        ).fetchone()
+        if not assignment:
+            conn.close()
+            return jsonify({'error': 'Not assigned to this patient'}), 403
+        
+        # Input validation
+        data = request.get_json() or {}
+        content = data.get('content', '').strip()
+        category = data.get('category', 'general').strip()
+        
+        if not content:
+            conn.close()
+            return jsonify({'error': 'Note content required'}), 400
+        
+        if len(content) > 10000:
+            conn.close()
+            return jsonify({'error': 'Note too long'}), 400
+        
+        # Insert note (ensure table exists - may need to create)
+        try:
+            cur.execute("""
+                INSERT INTO clinician_notes (clinician_username, patient_username, content, category, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING note_id
+            """, (clinician_username, patient_username, content, category))
+            result = cur.fetchone()
+            note_id = result[0] if result else None
+            conn.commit()
+        except psycopg2.Error as e:
+            if 'clinician_notes' in str(e):
+                # Table doesn't exist, create it
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS clinician_notes (
+                        note_id SERIAL PRIMARY KEY,
+                        clinician_username TEXT NOT NULL,
+                        patient_username TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        category TEXT DEFAULT 'general',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (clinician_username) REFERENCES users(username),
+                        FOREIGN KEY (patient_username) REFERENCES users(username)
+                    )
+                """)
+                cur.execute("""
+                    INSERT INTO clinician_notes (clinician_username, patient_username, content, category, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    RETURNING note_id
+                """, (clinician_username, patient_username, content, category))
+                result = cur.fetchone()
+                note_id = result[0]
+                conn.commit()
+            else:
+                raise
+        
+        conn.close()
+        log_event(clinician_username, 'clinician_dashboard', 'create_note', f'patient={patient_username}')
+        
+        return jsonify({'success': True, 'note_id': note_id}), 201
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in create_clinician_patient_note: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Failed to create note'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in create_clinician_patient_note: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/settings', methods=['GET'])
+def get_clinician_settings():
+    """Get clinician settings/preferences.
+    
+    SECURITY: Auth + role required
+    """
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Role check
+        role_check = cur.execute("SELECT role FROM users WHERE username = %s", (clinician_username,)).fetchone()
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Get settings (may be empty dict if not set)
+        settings = cur.execute("""
+            SELECT default_session_duration, notification_preference, patient_list_sort
+            FROM clinician_settings
+            WHERE clinician_username = %s
+        """, (clinician_username,)).fetchone()
+        
+        conn.close()
+        
+        if not settings:
+            # Return defaults
+            return jsonify({
+                'default_session_duration': 45,
+                'notification_preference': 'email',
+                'patient_list_sort': 'name'
+            }), 200
+        
+        return jsonify({
+            'default_session_duration': settings[0] or 45,
+            'notification_preference': settings[1] or 'email',
+            'patient_list_sort': settings[2] or 'name'
+        }), 200
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in get_clinician_settings: {e}')
+        conn.close()
+        return jsonify({'error': 'Failed to load settings'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_settings: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@app.route('/api/clinician/settings', methods=['PUT'])
+def update_clinician_settings():
+    """Update clinician settings/preferences.
+    
+    Body: {default_session_duration, notification_preference, patient_list_sort}
+    SECURITY: Auth + role + CSRF required
+    """
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # CSRF check
+        token = request.headers.get('X-CSRF-Token')
+        if not token or not validate_csrf_token(token):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Role check
+        role_check = cur.execute("SELECT role FROM users WHERE username = %s", (clinician_username,)).fetchone()
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Input validation
+        data = request.get_json() or {}
+        session_duration = data.get('default_session_duration', 45)
+        notification_pref = data.get('notification_preference', 'email').strip()
+        sort_pref = data.get('patient_list_sort', 'name').strip()
+        
+        if session_duration < 15 or session_duration > 120:
+            conn.close()
+            return jsonify({'error': 'Session duration must be 15-120 minutes'}), 400
+        
+        # Upsert settings
+        try:
+            cur.execute("""
+                INSERT INTO clinician_settings (clinician_username, default_session_duration, notification_preference, patient_list_sort)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (clinician_username) DO UPDATE SET
+                    default_session_duration = EXCLUDED.default_session_duration,
+                    notification_preference = EXCLUDED.notification_preference,
+                    patient_list_sort = EXCLUDED.patient_list_sort
+            """, (clinician_username, session_duration, notification_pref, sort_pref))
+            conn.commit()
+        except psycopg2.Error as e:
+            if 'clinician_settings' in str(e):
+                # Table doesn't exist, create it
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS clinician_settings (
+                        clinician_username TEXT PRIMARY KEY,
+                        default_session_duration INT DEFAULT 45,
+                        notification_preference TEXT DEFAULT 'email',
+                        patient_list_sort TEXT DEFAULT 'name',
+                        FOREIGN KEY (clinician_username) REFERENCES users(username)
+                    )
+                """)
+                cur.execute("""
+                    INSERT INTO clinician_settings (clinician_username, default_session_duration, notification_preference, patient_list_sort)
+                    VALUES (%s, %s, %s, %s)
+                """, (clinician_username, session_duration, notification_pref, sort_pref))
+                conn.commit()
+            else:
+                raise
+        
+        conn.close()
+        log_event(clinician_username, 'clinician_dashboard', 'update_settings', 'Clinician settings updated')
+        
+        return jsonify({'success': True}), 200
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in update_clinician_settings: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Failed to update settings'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in update_clinician_settings: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
 # ==================== WINS BOARD ENDPOINTS ====================
 
 VALID_WIN_TYPES = ['had_a_laugh', 'self_care', 'kept_promise', 'tried_new', 'stood_up', 'got_outside', 'helped_someone', 'custom']
