@@ -292,8 +292,18 @@ class MessageService:
             """, (conv_id,))
             conv_details = self.cur.fetchone()
             
+            # Get the other participant(s) in this conversation
+            self.cur.execute("""
+                SELECT username FROM conversation_participants
+                WHERE conversation_id = %s AND username != %s
+                LIMIT 1
+            """, (conv_id, self.username))
+            other_user_result = self.cur.fetchone()
+            other_user = other_user_result[0] if other_user_result else 'Unknown User'
+            
             conversations.append({
                 'conversation_id': conv_id,
+                'with_user': other_user,  # ← KEY FIELD MISSING BEFORE
                 'subject': conv_details[0] if conv_details else None,
                 'type': conv_details[1] if conv_details else 'direct',
                 'last_message': latest[1][:100] if latest else None,
@@ -313,10 +323,10 @@ class MessageService:
         
         return {
             'conversations': paginated,
-            'total': total,
+            'total_conversations': total,
             'page': page,
             'page_size': limit,
-            'pages': (total + limit - 1) // limit
+            'total_pages': (total + limit - 1) // limit
         }
     
     def get_conversation_thread(self, conversation_id: int, limit: int = 50) -> Dict[str, Any]:
