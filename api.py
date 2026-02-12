@@ -64,6 +64,15 @@ except ImportError as e:
     HAS_SAFETY_MONITOR = False
     analyze_chat_message = None
 
+# Import MessageService for comprehensive messaging system
+try:
+    from message_service import MessageService
+    HAS_MESSAGE_SERVICE = True
+except ImportError as e:
+    app_logger.warning(f"message_service module not found. New messaging system disabled: {e}")
+    HAS_MESSAGE_SERVICE = False
+    MessageService = None
+
 # --- Pet Table Ensurer ---
 def ensure_pet_table():
     """Ensure the pet table exists in PostgreSQL with username support"""
@@ -4090,7 +4099,264 @@ def init_db():
             print(f"Migration note (patient_medications): {e}")
             conn.rollback()
 
-        # Ensure AI memory system tables exist (for existing databases)
+        # ============================================================================
+        # MESSAGING SYSTEM TABLES (Sprint 1: Comprehensive Messaging Overhaul)
+        # ============================================================================
+        # 8 new tables for production-grade messaging system with threading, templates,
+        # read receipts, delivery tracking, and user blocking
+        
+        # 1. Conversations table (for threading and grouping)
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'conversations'
+                )
+            """)
+            if not cursor.fetchone()[0]:
+                print("Migrating: Creating conversations table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS conversations (
+                        id SERIAL PRIMARY KEY,
+                        type VARCHAR(50) NOT NULL DEFAULT 'direct',
+                        subject VARCHAR(255),
+                        created_by VARCHAR(255) NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        last_message_at TIMESTAMP,
+                        participant_count INTEGER DEFAULT 2,
+                        is_archived BOOLEAN DEFAULT FALSE,
+                        FOREIGN KEY (created_by) REFERENCES users(username) ON DELETE CASCADE
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON conversations(created_at)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_conversations_created_by ON conversations(created_by)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_conversations_type ON conversations(type)")
+                conn.commit()
+                print("✓ Migration: conversations table created")
+        except Exception as e:
+            print(f"Migration note (conversations): {e}")
+            conn.rollback()
+
+        # 2. Update existing messages table or create enhanced version
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'messages' AND column_name = 'conversation_id'
+                )
+            """)
+            if not cursor.fetchone()[0]:
+                print("Migrating: Enhancing messages table with conversation threading...")
+                # Add new columns to messages table for threading and rich content
+                cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS conversation_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE")
+                cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_type VARCHAR(50) DEFAULT 'direct'")
+                cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS content_html TEXT")
+                cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachments JSONB")
+                cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS scheduled_for TIMESTAMP")
+                cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS delivery_status VARCHAR(50) DEFAULT 'sent'")
+                cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_archived_by_sender BOOLEAN DEFAULT FALSE")
+                cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_archived_by_recipient BOOLEAN DEFAULT FALSE")
+                cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+                # Add indexes
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_delivery_status ON messages(delivery_status)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_message_type ON messages(message_type)")
+                conn.commit()
+                print("✓ Migration: messages table enhanced with threading")
+        except Exception as e:
+            print(f"Migration note (messages enhancement): {e}")
+            conn.rollback()
+
+        # 3. Conversation participants table
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'conversation_participants'
+                )
+            """)
+            if not cursor.fetchone()[0]:
+                print("Migrating: Creating conversation_participants table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS conversation_participants (
+                        id SERIAL PRIMARY KEY,
+                        conversation_id INTEGER NOT NULL,
+                        username VARCHAR(255) NOT NULL,
+                        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        last_read_at TIMESTAMP,
+                        is_muted BOOLEAN DEFAULT FALSE,
+                        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+                        FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE,
+                        UNIQUE (conversation_id, username)
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_conversation_participants_conversation ON conversation_participants(conversation_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_conversation_participants_username ON conversation_participants(username)")
+                conn.commit()
+                print("✓ Migration: conversation_participants table created")
+        except Exception as e:
+            print(f"Migration note (conversation_participants): {e}")
+            conn.rollback()
+
+        # 4. Message receipts table (for read/delivery tracking)
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'message_receipts'
+                )
+            """)
+            if not cursor.fetchone()[0]:
+                print("Migrating: Creating message_receipts table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS message_receipts (
+                        id SERIAL PRIMARY KEY,
+                        message_id INTEGER NOT NULL,
+                        username VARCHAR(255) NOT NULL,
+                        receipt_type VARCHAR(50) NOT NULL,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+                        FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_receipts_message ON message_receipts(message_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_receipts_username ON message_receipts(username)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_receipts_type ON message_receipts(receipt_type)")
+                conn.commit()
+                print("✓ Migration: message_receipts table created")
+        except Exception as e:
+            print(f"Migration note (message_receipts): {e}")
+            conn.rollback()
+
+        # 5. Message templates table (for clinician templates)
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'message_templates'
+                )
+            """)
+            if not cursor.fetchone()[0]:
+                print("Migrating: Creating message_templates table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS message_templates (
+                        id SERIAL PRIMARY KEY,
+                        creator_username VARCHAR(255) NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        content TEXT NOT NULL,
+                        category VARCHAR(100),
+                        is_public BOOLEAN DEFAULT FALSE,
+                        usage_count INTEGER DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (creator_username) REFERENCES users(username) ON DELETE CASCADE,
+                        UNIQUE (creator_username, name)
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_templates_creator ON message_templates(creator_username)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_templates_category ON message_templates(category)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_templates_public ON message_templates(is_public)")
+                conn.commit()
+                print("✓ Migration: message_templates table created")
+        except Exception as e:
+            print(f"Migration note (message_templates): {e}")
+            conn.rollback()
+
+        # 6. Blocked users table
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'blocked_users'
+                )
+            """)
+            if not cursor.fetchone()[0]:
+                print("Migrating: Creating blocked_users table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS blocked_users (
+                        id SERIAL PRIMARY KEY,
+                        blocker_username VARCHAR(255) NOT NULL,
+                        blocked_username VARCHAR(255) NOT NULL,
+                        reason VARCHAR(255),
+                        blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (blocker_username) REFERENCES users(username) ON DELETE CASCADE,
+                        FOREIGN KEY (blocked_username) REFERENCES users(username) ON DELETE CASCADE,
+                        UNIQUE (blocker_username, blocked_username)
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_blocked_users_blocker ON blocked_users(blocker_username)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_blocked_users_blocked ON blocked_users(blocked_username)")
+                conn.commit()
+                print("✓ Migration: blocked_users table created")
+        except Exception as e:
+            print(f"Migration note (blocked_users): {e}")
+            conn.rollback()
+
+        # 7. Message notifications table
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'message_notifications'
+                )
+            """)
+            if not cursor.fetchone()[0]:
+                print("Migrating: Creating message_notifications table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS message_notifications (
+                        id SERIAL PRIMARY KEY,
+                        message_id INTEGER NOT NULL,
+                        recipient_username VARCHAR(255) NOT NULL,
+                        notification_type VARCHAR(50),
+                        sent_at TIMESTAMP,
+                        read_at TIMESTAMP,
+                        FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+                        FOREIGN KEY (recipient_username) REFERENCES users(username) ON DELETE CASCADE
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_notifications_message ON message_notifications(message_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_notifications_recipient ON message_notifications(recipient_username)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_notifications_type ON message_notifications(notification_type)")
+                conn.commit()
+                print("✓ Migration: message_notifications table created")
+        except Exception as e:
+            print(f"Migration note (message_notifications): {e}")
+            conn.rollback()
+
+        # 8. Message search index table
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'message_search_index'
+                )
+            """)
+            if not cursor.fetchone()[0]:
+                print("Migrating: Creating message_search_index table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS message_search_index (
+                        id SERIAL PRIMARY KEY,
+                        message_id INTEGER NOT NULL,
+                        search_text TEXT,
+                        indexed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+                        UNIQUE (message_id)
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_message_search_index_message ON message_search_index(message_id)")
+                conn.commit()
+                print("✓ Migration: message_search_index table created")
+        except Exception as e:
+            print(f"Migration note (message_search_index): {e}")
+            conn.rollback()
+
+        print("=" * 60)
+        print("✅ Messaging System Database Migrations Complete!")
+        print("=" * 60)
+
+        # ============================================================================
+        # AI Memory system tables (for existing databases)
+        # ============================================================================
         for table_sql, table_name, indexes in [
             ("""CREATE TABLE IF NOT EXISTS ai_memory_core (
                     id SERIAL PRIMARY KEY,
@@ -14952,91 +15218,77 @@ def get_cbt_tool_history():
 
 @app.route('/api/messages/send', methods=['POST'])
 def send_message():
-    """Send a message to another user"""
+    """Send a message to another user (supports direct and threaded messages)"""
     try:
         sender = get_authenticated_username()
         if not sender:
             return jsonify({'error': 'Authentication required'}), 401
         
+        # Use MessageService if available, otherwise fall back to old implementation
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
         data = request.get_json() or {}
         recipient = data.get('recipient')
         subject = data.get('subject', '')
         content = data.get('content', '').strip()
+        conversation_id = data.get('conversation_id')  # Optional, for threading
         
-        # Validation
+        # Input validation
         if not recipient or not isinstance(recipient, str):
             return jsonify({'error': 'Recipient is required'}), 400
         
         if not content:
             return jsonify({'error': 'Message content is required'}), 400
         
-        if len(content) > 5000:
-            return jsonify({'error': 'Message cannot exceed 5000 characters'}), 400
+        if len(content) > 10000:
+            return jsonify({'error': 'Message cannot exceed 10,000 characters'}), 400
         
-        if len(subject) > 100:
-            return jsonify({'error': 'Subject cannot exceed 100 characters'}), 400
+        if subject and len(subject) > 255:
+            return jsonify({'error': 'Subject cannot exceed 255 characters'}), 400
         
         if sender == recipient:
             return jsonify({'error': 'You cannot send messages to yourself'}), 400
         
-        # Check recipient exists
-        conn = get_db_connection()
-        cur = get_wrapped_cursor(conn)
-        recipient_user = cur.execute('SELECT username, role FROM users WHERE username=%s', (recipient,)).fetchone()
-        
-        if not recipient_user:
+        # Use MessageService for sending
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, sender)
+            
+            result = service.send_direct_message(
+                recipient=recipient,
+                content=content,
+                subject=subject if subject else None,
+                conversation_id=conversation_id
+            )
+            
             conn.close()
-            return jsonify({'error': 'Recipient not found'}), 404
+            
+            # Log the action for audit trail
+            log_event(sender, 'messaging', 'message_sent', f'To: {recipient}, ConvID: {result.get("conversation_id")}')
+            
+            # Send notification to recipient
+            preview = subject if subject else content[:50]
+            send_notification(
+                recipient,
+                f"New message from {sender}: {preview}",
+                'message'
+            )
+            
+            return jsonify({
+                'message_id': result.get('message_id'),
+                'conversation_id': result.get('conversation_id'),
+                'status': 'sent',
+                'recipient': recipient,
+                'timestamp': result.get('timestamp')
+            }), 201
         
-        # Get sender role for permission check
-        sender_user = cur.execute('SELECT role FROM users WHERE username=%s', (sender,)).fetchone()
-        sender_role = sender_user[0] if sender_user else 'user'
-        recipient_role = recipient_user[1]
-        
-        # Role-based access control
-        # Users cannot initiate messages to clinicians (but can reply)
-        if sender_role == 'user' and recipient_role == 'clinician':
-            conn.close()
-            return jsonify({'error': 'Users may only reply to clinicians, not initiate contact'}), 403
-        
-        # Define allowed recipients for each role
-        allowed_recipients = {
-            'therapist': ['therapist', 'clinician', 'user', 'admin', 'developer'],
-            'clinician': ['therapist', 'clinician', 'user', 'admin', 'developer'],
-            'user': ['therapist', 'user', 'admin', 'developer'],  # NOT clinician
-            'admin': ['therapist', 'clinician', 'user', 'admin', 'developer'],
-            'developer': ['therapist', 'clinician', 'user', 'admin', 'developer']
-        }
-        
-        if sender_role not in allowed_recipients or recipient_role not in allowed_recipients.get(sender_role, []):
-            conn.close()
-            return jsonify({'error': 'Permission denied for this message'}), 403
-        
-        # Insert message
-        cur.execute('''
-            INSERT INTO messages (sender_username, recipient_username, subject, content, sent_at)
-            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
-        ''', (sender, recipient, subject if subject else None, content))
-        
-        message_id = cur.fetchone()[0]
-        conn.commit()
-        conn.close()
-        
-        # Log the action
-        log_event(sender, 'messaging', 'message_sent', f'To: {recipient}')
-        
-        # Send notification to recipient
-        send_notification(
-            recipient,
-            f"New message from {sender}: {subject if subject else content[:50]}",
-            'dev_message'
-        )
-        
-        return jsonify({
-            'message_id': message_id,
-            'status': 'sent',
-            'recipient': recipient
-        }), 201
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'MessageService error in send_message: {e}')
+            return jsonify({'error': 'Failed to send message'}), 500
     
     except Exception as e:
         return handle_exception(e, 'send_message')
@@ -15050,6 +15302,10 @@ def get_inbox():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         
+        # Use MessageService if available
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 20))
         unread_only = request.args.get('unread_only', 'false').lower() == 'true'
@@ -15059,81 +15315,34 @@ def get_inbox():
         if limit < 1 or limit > 50:
             limit = 20
         
-        offset = (page - 1) * limit
-        
-        conn = get_db_connection()
-        cur = get_wrapped_cursor(conn)
-        
-        # Get conversations using simple approach for PostgreSQL compatibility
-        # Get all unique conversation partners
-        query = '''
-            SELECT DISTINCT
-                CASE WHEN sender_username = %s THEN recipient_username ELSE sender_username END as other_user
-            FROM messages
-            WHERE (sender_username = %s OR recipient_username = %s)
-            AND deleted_at IS NULL
-        '''
-        
-        rows = cur.execute(query, [username, username, username]).fetchall()
-        
-        # For each conversation, get the latest message and unread count
-        conversations_list = []
-        for row in rows:
-            other_user = row[0]
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
             
-            # Get latest message
-            latest = cur.execute('''
-                SELECT content, sent_at FROM messages
-                WHERE (sender_username = %s AND recipient_username = %s)
-                   OR (sender_username = %s AND recipient_username = %s)
-                AND deleted_at IS NULL
-                ORDER BY sent_at DESC
-                LIMIT 1
-            ''', (username, other_user, other_user, username)).fetchone()
+            # Get conversations list with MessageService
+            result = service.get_conversations_list(
+                limit=limit,
+                offset=(page - 1) * limit,
+                unread_only=unread_only
+            )
             
-            last_message = ''
-            last_message_time = 0
-            if latest:
-                last_message = latest[0][:100] if latest[0] else ''
-                last_message_time = latest[1] if len(latest) > 1 else 0
+            # Get total unread count
+            total_unread = service.get_unread_count()
             
-            # Get unread count from this user
-            unread_count = cur.execute('''
-                SELECT COUNT(*) FROM messages
-                WHERE sender_username = %s AND recipient_username = %s
-                AND is_read = 0 AND deleted_at IS NULL
-            ''', (other_user, username)).fetchone()[0]
+            conn.close()
             
-            conversations_list.append({
-                'with_user': other_user,
-                'last_message': last_message,
-                'last_message_time': last_message_time,
-                'unread_count': unread_count
-            })
+            return jsonify({
+                'conversations': result.get('conversations', []),
+                'total_unread': total_unread,
+                'page': page,
+                'page_size': limit,
+                'total_conversations': result.get('total_conversations', 0)
+            }), 200
         
-        # Sort by most recent first
-        conversations_list.sort(key=lambda x: x['last_message_time'], reverse=True)
-        
-        # Apply pagination
-        total_conversations = len(conversations_list)
-        offset = (page - 1) * limit
-        conversations = conversations_list[offset:offset + limit]
-        
-        # Get total unread count
-        total_unread = cur.execute('''
-            SELECT COUNT(*) FROM messages
-            WHERE recipient_username = %s AND is_read = 0 AND deleted_at IS NULL
-        ''', (username,)).fetchone()[0]
-        
-        conn.close()
-        
-        return jsonify({
-            'conversations': conversations,
-            'total_unread': total_unread,
-            'page': page,
-            'page_size': limit,
-            'total_conversations': total_conversations
-        }), 200
+        except Exception as e:
+            app_logger.error(f'MessageService error in get_inbox: {e}')
+            return jsonify({'error': 'Failed to retrieve inbox'}), 500
     
     except Exception as e:
         return handle_exception(e, 'get_inbox')
@@ -15147,62 +15356,41 @@ def get_conversation(recipient_username):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         
+        # Use MessageService if available
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
         limit = int(request.args.get('limit', 50))
         if limit < 1 or limit > 200:
             limit = 50
         
-        conn = get_db_connection()
-        cur = get_wrapped_cursor(conn)
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            # Get conversation with MessageService
+            result = service.get_conversation(
+                recipient_username=recipient_username,
+                limit=limit
+            )
+            
+            # Mark messages as read
+            service.mark_conversation_as_read(recipient_username)
+            
+            conn.close()
+            
+            return jsonify({
+                'messages': result.get('messages', []),
+                'with_user': recipient_username,
+                'participant_count': 2
+            }), 200
         
-        # Get conversation messages (both directions, ordered chronologically)
-        rows = cur.execute('''
-            SELECT id, sender_username, recipient_username, content, subject, is_read, read_at, sent_at
-            FROM messages
-            WHERE (sender_username = %s AND recipient_username = %s)
-               OR (sender_username = %s AND recipient_username = %s)
-            AND deleted_at IS NULL
-            ORDER BY sent_at ASC
-            LIMIT %s
-        ''', (username, recipient_username, recipient_username, username, limit)).fetchall()
-        
-        # Mark all messages from recipient as read
-        cur.execute('''
-            UPDATE messages
-            SET is_read = 1, read_at = CURRENT_TIMESTAMP
-            WHERE sender_username = %s AND recipient_username = %s AND is_read = 0
-        ''', (recipient_username, username))
-        
-        conn.commit()
-        
-        # Re-fetch messages to get updated is_read values
-        limit = request.args.get('limit', 50, type=int)
-        rows = cur.execute('''
-            SELECT id, sender_username, recipient_username, content, subject, is_read, read_at, sent_at
-            FROM messages
-            WHERE (sender_username = %s AND recipient_username = %s)
-               OR (sender_username = %s AND recipient_username = %s)
-            AND deleted_at IS NULL
-            ORDER BY sent_at ASC
-            LIMIT %s
-        ''', (username, recipient_username, recipient_username, username, limit)).fetchall()
-        
-        conn.close()
-        
-        messages = [{
-            'id': row[0],
-            'sender': row[1],
-            'recipient': row[2],
-            'content': row[3],
-            'subject': row[4],
-            'is_read': bool(row[5]),
-            'read_at': row[6],
-            'sent_at': row[7]
-        } for row in rows]
-        
-        return jsonify({
-            'messages': messages,
-            'participant_count': 2
-        }), 200
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'MessageService error in get_conversation: {e}')
+            return jsonify({'error': 'Failed to retrieve conversation'}), 500
     
     except Exception as e:
         return handle_exception(e, 'get_conversation')
@@ -15216,37 +15404,31 @@ def mark_message_read(message_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         
-        conn = get_db_connection()
-        cur = get_wrapped_cursor(conn)
+        # Use MessageService if available
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
         
-        # Check message exists and user is recipient
-        message = cur.execute('''
-            SELECT id, recipient_username FROM messages WHERE id = %s
-        ''', (message_id,)).fetchone()
-        
-        if not message:
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            # Mark message as read using MessageService
+            result = service.mark_message_as_read(message_id)
+            
             conn.close()
-            return jsonify({'error': 'Message not found'}), 404
+            
+            return jsonify({
+                'message_id': message_id,
+                'is_read': True,
+                'read_at': result.get('read_at')
+            }), 200
         
-        if message[1] != username:
-            conn.close()
-            return jsonify({'error': 'You are not the recipient of this message'}), 403
-        
-        # Mark as read
-        cur.execute('''
-            UPDATE messages
-            SET is_read = 1, read_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        ''', (message_id,))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            'message_id': message_id,
-            'is_read': True,
-            'read_at': datetime.now().isoformat() + 'Z'
-        }), 200
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'MessageService error in mark_message_read: {e}')
+            return jsonify({'error': 'Failed to mark message as read'}), 500
     
     except Exception as e:
         return handle_exception(e, 'mark_message_read')
@@ -15260,49 +15442,33 @@ def search_messages():
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         
+        # Use MessageService if available
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
         query_param = request.args.get('q', '').strip()
         if not query_param or len(query_param) < 2:
             return jsonify({'error': 'Search query must be at least 2 characters'}), 400
         
-        # Sanitize search query to prevent SQL injection
-        search_query = f"%{query_param}%"
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            # Search using MessageService
+            results = service.search_messages(query_param, limit=100)
+            
+            conn.close()
+            
+            return jsonify({
+                'query': query_param,
+                'results': results,
+                'count': len(results)
+            }), 200
         
-        conn = get_db_connection()
-        cur = get_wrapped_cursor(conn)
-        
-        # Search in messages where user is sender or recipient
-        messages = cur.execute('''
-            SELECT id, sender_username, recipient_username, subject, content, sent_at, is_read
-            FROM messages
-            WHERE (sender_username = %s OR recipient_username = %s)
-            AND deleted_at IS NULL
-            AND (
-                content ILIKE %s
-                OR subject ILIKE %s
-                OR sender_username ILIKE %s
-                OR recipient_username ILIKE %s
-            )
-            ORDER BY sent_at DESC
-            LIMIT 100
-        ''', (username, username, search_query, search_query, search_query, search_query)).fetchall()
-        
-        conn.close()
-        
-        results = [{
-            'id': msg[0],
-            'sender': msg[1],
-            'recipient': msg[2],
-            'subject': msg[3],
-            'content': msg[4],
-            'sent_at': msg[5],
-            'is_read': bool(msg[6])
-        } for msg in messages]
-        
-        return jsonify({
-            'query': query_param,
-            'results': results,
-            'count': len(results)
-        }), 200
+        except Exception as e:
+            app_logger.error(f'MessageService error in search_messages: {e}')
+            return jsonify({'error': 'Failed to search messages'}), 500
     
     except Exception as e:
         return handle_exception(e, 'search_messages')
@@ -15315,36 +15481,30 @@ def get_sent_messages():
         sender = get_authenticated_username()
         if not sender:
             return jsonify({'error': 'Authentication required'}), 401
-
-        conn = get_db_connection()
-        cur = get_wrapped_cursor(conn)
-
-        # Get sent messages (messages where user is sender)
-        messages = cur.execute('''
-            SELECT id, sender_username, recipient_username, subject, content, sent_at, is_read, read_at
-            FROM messages 
-            WHERE sender_username = %s AND is_deleted_by_sender = 0
-            ORDER BY sent_at DESC
-        ''', (sender,)).fetchall()
-
-        conn.close()
-
-        return jsonify({
-            'success': True,
-            'messages': [
-                {
-                    'id': m[0],
-                    'sender': m[1],
-                    'recipient': m[2],
-                    'subject': m[3],
-                    'content': m[4],
-                    'sent_at': m[5],
-                    'is_read': bool(m[6]),
-                    'read_at': m[7]
-                }
-                for m in messages
-            ]
-        }), 200
+        
+        # Use MessageService if available
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, sender)
+            
+            # Get sent messages using MessageService
+            messages = service.get_sent_messages(limit=500)
+            
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'messages': messages,
+                'count': len(messages)
+            }), 200
+        
+        except Exception as e:
+            app_logger.error(f'MessageService error in get_sent_messages: {e}')
+            return jsonify({'error': 'Failed to retrieve sent messages'}), 500
 
     except Exception as e:
         return handle_exception(e, 'get_sent_messages')
@@ -15478,47 +15638,29 @@ def delete_message(message_id):
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
         
-        conn = get_db_connection()
-        cur = get_wrapped_cursor(conn)
+        # Use MessageService if available
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
         
-        # Check message exists and user is sender or recipient
-        message = cur.execute('''
-            SELECT id, sender_username, recipient_username, is_deleted_by_sender, is_deleted_by_recipient
-            FROM messages WHERE id = %s
-        ''', (message_id,)).fetchone()
-        
-        if not message:
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            # Delete message using MessageService
+            service.delete_message(message_id)
+            
             conn.close()
-            return jsonify({'error': 'Message not found'}), 404
+            
+            log_event(username, 'messaging', 'message_deleted', f'Message ID: {message_id}')
+            
+            return '', 204  # No content response
         
-        msg_id, sender, recipient, deleted_by_sender, deleted_by_recipient = message
-        
-        if username not in (sender, recipient):
-            conn.close()
-            return jsonify({'error': 'You cannot delete this message'}), 403
-        
-        # Mark as deleted by this user
-        if username == sender:
-            cur.execute('''
-                UPDATE messages SET is_deleted_by_sender = 1 WHERE id = %s
-            ''', (message_id,))
-        else:  # recipient
-            cur.execute('''
-                UPDATE messages SET is_deleted_by_recipient = 1 WHERE id = %s
-            ''', (message_id,))
-        
-        # If both have marked deleted, hide the message permanently
-        if (username == sender and deleted_by_recipient) or (username == recipient and deleted_by_sender):
-            cur.execute('''
-                UPDATE messages SET deleted_at = CURRENT_TIMESTAMP WHERE id = %s
-            ''', (message_id,))
-        
-        conn.commit()
-        conn.close()
-        
-        log_event(username, 'messaging', 'message_deleted', f'Message ID: {message_id}')
-        
-        return '', 204  # No content response
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'MessageService error in delete_message: {e}')
+            return jsonify({'error': 'Failed to delete message'}), 500
     
     except Exception as e:
         return handle_exception(e, 'delete_message')
@@ -15536,54 +15678,40 @@ def reply_to_message(message_id):
         if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
             return jsonify({'error': 'CSRF token invalid'}), 403
         
+        # Use MessageService if available
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
         data = request.json or {}
         content, error = InputValidator.validate_message(data.get('content'))
         if error:
             return jsonify({'error': error}), 400
         
-        conn = get_db_connection()
-        cur = get_wrapped_cursor(conn)
-        
-        # Get the original message to find the conversation partner
-        original_msg = cur.execute('''
-            SELECT id, sender_username, recipient_username, subject
-            FROM messages WHERE id = %s
-        ''', (message_id,)).fetchone()
-        
-        if not original_msg:
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            # Reply to message using MessageService
+            result = service.reply_to_message(message_id, content)
+            
             conn.close()
-            return jsonify({'error': 'Original message not found'}), 404
+            
+            log_event(username, 'messaging', 'message_replied', f'Original Message ID: {message_id}, Reply ID: {result.get("message_id")}')
+            
+            return jsonify({
+                'success': True,
+                'message_id': result.get('message_id'),
+                'recipient': result.get('recipient'),
+                'subject': result.get('subject'),
+                'timestamp': result.get('timestamp')
+            }), 201
         
-        msg_id, sender, recipient, subject = original_msg
-        
-        # Ensure user is part of this conversation
-        if username not in (sender, recipient):
-            conn.close()
-            return jsonify({'error': 'You cannot reply to this message'}), 403
-        
-        # Determine the conversation partner
-        recipient_user = recipient if username == sender else sender
-        
-        # Create the reply (with same subject, prefixed with "Re: " if not already)
-        reply_subject = subject if subject and subject.startswith('Re:') else f"Re: {subject or 'No Subject'}"
-        
-        new_msg_id = cur.execute('''
-            INSERT INTO messages (sender_username, recipient_username, subject, content, sent_at)
-            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
-            RETURNING id
-        ''', (username, recipient_user, reply_subject, content)).fetchone()[0]
-        
-        conn.commit()
-        conn.close()
-        
-        log_event(username, 'messaging', 'message_replied', f'Original Message ID: {message_id}, Reply ID: {new_msg_id}')
-        
-        return jsonify({
-            'success': True,
-            'message_id': new_msg_id,
-            'recipient': recipient_user,
-            'subject': reply_subject
-        }), 201
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'MessageService error in reply_to_message: {e}')
+            return jsonify({'error': 'Failed to send reply'}), 500
     
     except Exception as e:
         return handle_exception(e, 'reply_to_message')
