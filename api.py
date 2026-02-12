@@ -16695,6 +16695,73 @@ def get_unread_count():
         return handle_exception(e, 'get_unread_count')
 
 
+@app.route('/api/messages/search-recipients', methods=['GET'])
+def search_message_recipients():
+    """Search for recipients to message (autocomplete for message composer)"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        query = request.args.get('q', '').strip()[:50]
+        if len(query) < 1:
+            return jsonify({'recipients': []}), 200
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Get role of current user to determine who they can message
+        user_role = cur.execute('SELECT role FROM users WHERE username=%s', (username,)).fetchone()
+        user_role = user_role[0] if user_role else 'user'
+        
+        # Build search query based on role
+        if user_role == 'clinician':
+            # Clinician can message their assigned patients
+            recipients = cur.execute("""
+                SELECT DISTINCT u.username, u.full_name
+                FROM users u
+                INNER JOIN patient_approvals pa ON u.username = pa.patient_username
+                WHERE pa.clinician_username = %s
+                AND pa.status = 'approved'
+                AND (u.username ILIKE %s OR u.full_name ILIKE %s)
+                LIMIT 20
+            """, (username, f'%{query}%', f'%{query}%')).fetchall()
+        elif user_role == 'user':
+            # Patient can message their clinician and developer
+            recipients = cur.execute("""
+                SELECT DISTINCT u.username, u.full_name
+                FROM users u
+                WHERE (u.role IN ('clinician', 'developer'))
+                AND (u.username ILIKE %s OR u.full_name ILIKE %s)
+                LIMIT 20
+            """, (f'%{query}%', f'%{query}%')).fetchall()
+        else:  # developer
+            # Developer can message anyone
+            recipients = cur.execute("""
+                SELECT username, full_name
+                FROM users
+                WHERE username != %s
+                AND (username ILIKE %s OR full_name ILIKE %s)
+                LIMIT 20
+            """, (username, f'%{query}%', f'%{query}%')).fetchall()
+        
+        conn.close()
+        
+        result = []
+        for rec in recipients:
+            rec_username, rec_name = rec
+            result.append({
+                'username': rec_username,
+                'name': rec_name or rec_username
+            })
+        
+        return jsonify({'recipients': result}), 200
+    
+    except Exception as e:
+        app_logger.error(f'Error searching recipients: {e}', exc_info=True)
+        return jsonify({'error': 'Search failed'}), 500
+
+
 @app.route('/api/messages/archive/<int:message_id>', methods=['POST'])
 def archive_message(message_id):
     """Archive a message or conversation"""
@@ -18789,7 +18856,7 @@ def get_clinician_patients():
     """Get all patients assigned to clinician with key data.
     
     Returns array of patients with:
-    - username, first_name, last_name, email
+    - username, full_name, email
     - last_session: Date of last therapy session
     - risk_level: Current risk assessment
     - mood_7d: Average mood over last 7 days
@@ -18815,15 +18882,12 @@ def get_clinician_patients():
             conn.close()
             return jsonify({'error': 'Clinician access required'}), 403
         
-        # Get all assigned patients with their data
+        # Get all assigned patients with their data (simplified query)
         patients = cur.execute("""
             SELECT 
                 u.username,
                 u.full_name,
-                u.email,
-                (SELECT MAX(timestamp) FROM chat_history WHERE sender = u.username) as last_session,
-                (SELECT COUNT(*) FROM alerts WHERE username = u.username AND status = 'open' AND alert_type IN ('critical', 'high')) as open_alerts,
-                (SELECT AVG(mood_val) FROM mood_logs WHERE username = u.username AND entry_timestamp > CURRENT_TIMESTAMP - INTERVAL '7 days') as mood_7d
+                u.email
             FROM users u
             INNER JOIN patient_approvals pa ON u.username = pa.patient_username
             WHERE pa.clinician_username = %s
@@ -18834,14 +18898,11 @@ def get_clinician_patients():
         
         patient_list = []
         for p in patients:
-            username, full_name, email, last_session, open_alerts, mood_7d = p
+            username, full_name, email = p
             patient_list.append({
                 'username': username,
                 'name': full_name or username,
-                'email': email or '',
-                'last_session': last_session.isoformat() if last_session else None,
-                'open_alerts': open_alerts or 0,
-                'mood_7d': round(mood_7d, 1) if mood_7d else None
+                'email': email or ''
             })
         
         conn.close()
