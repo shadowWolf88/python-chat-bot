@@ -297,6 +297,7 @@ app.config['SECRET_KEY'] = SECRET_KEY
 app.config['SESSION_COOKIE_SECURE'] = not os.getenv('DEBUG', '').lower() in ('1', 'true', 'yes')  # HTTPS in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['SESSION_COOKIE_DOMAIN'] = os.getenv('SESSION_COOKIE_DOMAIN', None)  # Set domain for subdomain cookies (e.g., '.healing-space.org.uk')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)  # TIER 1.5: Reduced from 30 to 7 days (max session lifetime)
 
 # Initialize rate limiter (Phase 1D)
@@ -2261,6 +2262,23 @@ def get_csrf_token():
     # Also set as cookie for double-submit pattern
     response.set_cookie('csrf_token', token, httponly=False, samesite='Strict', secure=not DEBUG)
     return response
+
+
+@app.route('/api/auth/status', methods=['GET'])
+def get_auth_status():
+    """Check current authentication status (DEBUG endpoint)"""
+    username = session.get('username')
+    role = session.get('role')
+    is_authenticated = bool(username and role)
+    
+    return jsonify({
+        'authenticated': is_authenticated,
+        'username': username,
+        'role': role,
+        'session_exists': bool(session),
+        'debug_mode': DEBUG
+    }), 200
+
 
 # ==================== RATE LIMITING ====================
 # In-memory rate limiter (for single-instance deployments)

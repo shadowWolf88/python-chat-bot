@@ -15588,7 +15588,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 });
                 
                 if (response.status === 401) {
-                    container.innerHTML = '<p style="color: #e74c3c; padding: 20px;">⚠️ Please log in again</p>';
+                    container.innerHTML = '<p style="color: #e74c3c; padding: 20px;">⚠️ Session expired. Please <a href="/logout" style="color: #667eea; text-decoration: underline;">log in again</a></p>';
+                    console.warn('Session expired - user needs to re-authenticate');
                     return;
                 }
 
