@@ -1,6 +1,8 @@
 # 📚 Healing Space UK - Complete Documentation Index
 
-**Last Updated**: February 11, 2026 | **Version**: 2.0 (PostgreSQL) | **Status**: ✅ TIER 0 Complete | ✅ TIER 1 Complete
+**Last Updated**: February 11, 2026 | **Version**: 2.1 | **Status**: ✅ TIER 0 Complete | ✅ TIER 1 Complete | ✅ Week 1 Quick Wins Live
+
+**Key Metrics**: [Project Statistics](./PROJECT_STATISTICS.md) • [Development Hours](./DEVELOPMENT_HOURS_ESTIMATE.md) • [Week 2-4 Roadmap](./WHATS_NEXT_ROADMAP.md)
 
 ---
 
@@ -55,6 +57,9 @@ Understand how your data is protected:
 ### 📊 **I Want Progress/Roadmap Information**
 Track development and understand priorities:
 - [Priority Roadmap](./9-ROADMAP/Priority-Roadmap.md)
+- [Week 2-4 Roadmap](./WHATS_NEXT_ROADMAP.md) ✨ NEW
+- [Project Statistics](./PROJECT_STATISTICS.md) ✨ NEW
+- [Development Hours Estimate](./DEVELOPMENT_HOURS_ESTIMATE.md) ✨ NEW
 - [TIER 1 Progress Report](./8-PROGRESS/TIER-1-Progress.md)
 - [Completion Status](./8-PROGRESS/Completion-Status.md)
 

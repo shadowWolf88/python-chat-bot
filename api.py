@@ -23,6 +23,13 @@ import logging
 import logging.handlers
 import threading
 
+# Load environment variables from .env file if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # ===== TIER 1.6: Configure Structured Logging =====
 DEBUG = os.getenv('DEBUG', '').lower() in ('1', 'true', 'yes')
 logging.basicConfig(
@@ -2271,7 +2278,7 @@ class RateLimiter:
         self.limits = {
             'login': (5, 60),                    # 5 login attempts per minute
             'verify_code': (10, 60),             # 10 code verification attempts per minute (Phase 1D)
-            'register': (3, 300),                # 3 registrations per 5 minutes
+            'register': (50, 60) if DEBUG else (3, 300),  # DEV: 50/min, PROD: 3/5min
             'send_verification': (3, 300),       # 3 verification sends per 5 minutes (prevent spam)
             'confirm_reset': (5, 300),           # 5 password reset confirms per 5 minutes
             'clinician_register': (2, 3600),     # 2 clinician registrations per hour (manual review)
@@ -16993,6 +17000,275 @@ def get_clinician_summaries_endpoint():
 # ==================== TIER 1.1: CLINICIAN DASHBOARD ENDPOINTS ====================
 
 # CRITICAL BLOCKERS (4 endpoints)
+
+# === CLINICIAN APPROVAL ENDPOINTS ===
+
+@app.route('/api/clinician/pending-approvals', methods=['GET'])
+def get_clinician_pending_approvals():
+    """Get pending patient approval requests for the authenticated clinician.
+    
+    Returns array of pending approvals with:
+    - id: Approval request ID
+    - patient_username: Patient's username
+    - patient_email: Patient's email
+    - patient_name: Patient's full name
+    - request_date: When approval was requested
+    
+    SECURITY: Requires clinician role + session auth
+    """
+    try:
+        # AUTH CHECK
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # ROLE CHECK
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Get pending approvals
+        approvals = cur.execute("""
+            SELECT 
+                pa.id,
+                pa.patient_username,
+                u.email,
+                u.full_name,
+                pa.request_date
+            FROM patient_approvals pa
+            INNER JOIN users u ON pa.patient_username = u.username
+            WHERE pa.clinician_username = %s
+            AND pa.status = 'pending'
+            ORDER BY pa.request_date ASC
+        """, (clinician_username,)).fetchall()
+        
+        conn.close()
+        
+        approval_list = []
+        for a in approvals:
+            approval_id, patient_username, email, full_name, request_date = a
+            approval_list.append({
+                'id': approval_id,
+                'patient_username': patient_username,
+                'patient_email': email,
+                'patient_name': full_name,
+                'request_date': request_date.isoformat() if request_date else None
+            })
+        
+        log_event(clinician_username, 'clinician_approvals', 'view_pending', f'count={len(approval_list)}')
+        
+        return jsonify({
+            'success': True,
+            'approvals': approval_list,
+            'total': len(approval_list)
+        }), 200
+        
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in get_clinician_pending_approvals: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Database operation failed'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in get_clinician_pending_approvals: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/approve-patient', methods=['POST'])
+def clinician_approve_patient():
+    """Approve a pending patient request.
+    
+    Request body:
+    - patient_username: Username of patient to approve
+    
+    SECURITY: Requires clinician role + CSRF token + session auth
+    """
+    try:
+        # AUTH CHECK
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        data = request.json or {}
+        patient_username = data.get('patient_username')
+        
+        if not patient_username:
+            return jsonify({'error': 'Patient username required'}), 400
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # ROLE CHECK
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Find the approval record
+        approval = cur.execute("""
+            SELECT id FROM patient_approvals 
+            WHERE patient_username = %s 
+            AND clinician_username = %s 
+            AND status = 'pending'
+        """, (patient_username, clinician_username)).fetchone()
+        
+        if not approval:
+            conn.close()
+            return jsonify({'error': 'Approval request not found'}), 404
+        
+        approval_id = approval[0]
+        
+        # Update approval status
+        cur.execute("""
+            UPDATE patient_approvals 
+            SET status = 'approved', approval_date = %s 
+            WHERE id = %s
+        """, (datetime.now(), approval_id))
+        
+        # Link patient to clinician
+        cur.execute(
+            "UPDATE users SET clinician_id = %s WHERE username = %s",
+            (clinician_username, patient_username)
+        )
+        
+        # Create notifications
+        cur.execute("""
+            INSERT INTO notifications (recipient_username, message, notification_type) 
+            VALUES (%s, %s, %s)
+        """, (patient_username, f'Your clinician has approved your request! You can now access all features.', 'approval_accepted'))
+        
+        cur.execute("""
+            INSERT INTO notifications (recipient_username, message, notification_type) 
+            VALUES (%s, %s, %s)
+        """, (clinician_username, f'You approved {patient_username} as your patient', 'patient_approved'))
+        
+        # Mark old approval_pending notifications as read
+        cur.execute("""
+            UPDATE notifications 
+            SET read = 1 
+            WHERE recipient_username = %s AND notification_type = 'approval_pending'
+        """, (patient_username,))
+        
+        conn.commit()
+        conn.close()
+        
+        log_event(clinician_username, 'clinician_approvals', 'approve_patient', f'patient={patient_username}')
+        
+        return jsonify({
+            'success': True,
+            'message': f'Patient {patient_username} approved successfully'
+        }), 200
+        
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in clinician_approve_patient: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Database operation failed'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in clinician_approve_patient: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/reject-patient', methods=['POST'])
+def clinician_reject_patient():
+    """Reject a pending patient request.
+    
+    Request body:
+    - patient_username: Username of patient to reject
+    - reason: (optional) Reason for rejection
+    
+    SECURITY: Requires clinician role + CSRF token + session auth
+    """
+    try:
+        # AUTH CHECK
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        data = request.json or {}
+        patient_username = data.get('patient_username')
+        reason = data.get('reason', 'No reason provided')
+        
+        if not patient_username:
+            return jsonify({'error': 'Patient username required'}), 400
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # ROLE CHECK
+        role_check = cur.execute(
+            "SELECT role FROM users WHERE username = %s",
+            (clinician_username,)
+        ).fetchone()
+        
+        if not role_check or role_check[0] != 'clinician':
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+        
+        # Find the approval record
+        approval = cur.execute("""
+            SELECT id FROM patient_approvals 
+            WHERE patient_username = %s 
+            AND clinician_username = %s 
+            AND status = 'pending'
+        """, (patient_username, clinician_username)).fetchone()
+        
+        if not approval:
+            conn.close()
+            return jsonify({'error': 'Approval request not found'}), 404
+        
+        approval_id = approval[0]
+        
+        # Update approval status
+        cur.execute(
+            "UPDATE patient_approvals SET status = 'rejected' WHERE id = %s",
+            (approval_id,)
+        )
+        
+        # Notify patient of rejection
+        cur.execute("""
+            INSERT INTO notifications (recipient_username, message, notification_type) 
+            VALUES (%s, %s, %s)
+        """, (patient_username, f'Your clinician declined your request. Please select another clinician.', 'approval_rejected'))
+        
+        # Mark old approval_pending notifications as read
+        cur.execute("""
+            UPDATE notifications 
+            SET read = 1 
+            WHERE recipient_username = %s AND notification_type = 'approval_pending'
+        """, (patient_username,))
+        
+        conn.commit()
+        conn.close()
+        
+        log_event(clinician_username, 'clinician_approvals', 'reject_patient', f'patient={patient_username},reason={reason}')
+        
+        return jsonify({
+            'success': True,
+            'message': f'Patient {patient_username} request rejected'
+        }), 200
+        
+    except psycopg2.Error as e:
+        app.logger.error(f'DB error in clinician_reject_patient: {e}')
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': 'Database operation failed'}), 500
+    except Exception as e:
+        app.logger.error(f'Error in clinician_reject_patient: {e}')
+        return jsonify({'error': 'Operation failed'}), 500
 
 @app.route('/api/clinician/summary', methods=['GET'])
 def get_clinician_summary():

@@ -5,6 +5,12 @@
 **Scope**: Patient engagement, clinician dominance, security excellence, developer experience  
 **Objective**: Transform from "production-ready backend" to "market-leading mental health platform"
 
+**📊 Related Documentation**:
+- [Project Statistics](../PROJECT_STATISTICS.md) - 857K lines across 9,175 files
+- [Development Hours Estimate](../DEVELOPMENT_HOURS_ESTIMATE.md) - 1,057 hours invested
+- [Week 1 Quick Wins](../8-PROGRESS/WEEK1_QUICK_WINS_IMPLEMENTATION_REPORT.md) - Latest features
+- [What's Next Roadmap](../WHATS_NEXT_ROADMAP.md) - Upcoming features & timeline
+
 ---
 
 ## EXECUTIVE SUMMARY: FROM GOOD TO BEST-IN-CLASS
@@ -30,7 +36,7 @@
 
 | Feature | Status | Impact | Effort | Priority |
 |---------|--------|--------|--------|----------|
-| **Patient Search & Filtering** | ❌ | Clinicians waste 10+ min/day finding patients | 4 hrs | 🔴 CRITICAL |
+| **Patient Search & Filtering** | ✅ DONE (Feb 11) | Clinicians can now filter patients by risk level, status, name | 4 hrs | 🟢 COMPLETED |
 | **Appointment Scheduling** | ❌ | No way to book, no reminders | 8-10 hrs | 🔴 CRITICAL |
 | **Outcome Dashboard** | ⚠️ Partial | Can't see PHQ-9/GAD-7 progress | 10-12 hrs | 🔴 CRITICAL |
 | **Task Management** | ❌ | No "My Action Items" view | 6-8 hrs | 🟠 HIGH |

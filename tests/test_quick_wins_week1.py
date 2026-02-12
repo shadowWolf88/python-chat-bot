@@ -13,7 +13,6 @@ Total: 36 test cases covering unit + integration scenarios
 import pytest
 import json
 from datetime import datetime, timedelta
-from conftest import app, client, db_conn  # Shared fixtures
 
 
 class TestProgressDisplay:

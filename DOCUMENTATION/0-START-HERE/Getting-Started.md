@@ -12,8 +12,14 @@ Visit [healing-space.org.uk](https://healing-space.org.uk) and click "Sign Up"
 - See all features immediately
 - Create an account in 2 minutes
 
-### 💻 Option 2: Run Locally (5 min)
+### 💻 Option 2: Run Locally (10 min)
 Want to run it on your computer for development or testing?
+
+#### Prerequisites
+- Python 3.10+
+- PostgreSQL 14+ (for production-like testing)
+
+#### Quick Start
 
 ```bash
 # 1. Clone the repository
@@ -27,17 +33,46 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Configure environment
-cp .env.example .env
-# Edit .env and add your GROQ_API_KEY (get free key from https://console.groq.com)
+# 4. Set up PostgreSQL (choose one):
 
-# 5. Run
+## Option A: Install PostgreSQL locally
+# macOS: brew install postgresql
+# Linux (Ubuntu): sudo apt install postgresql postgresql-contrib
+# Windows: https://www.postgresql.org/download/windows/
+
+# Start PostgreSQL service and create database:
+# createdb healing_space_test
+# psql -U postgres -c "ALTER USER postgres PASSWORD 'yourpassword';"
+
+## Option B: Use Docker (easier)
+docker run -d --name healing_space_db \
+  -e POSTGRES_PASSWORD=healing_space_dev \
+  -p 5432:5432 \
+  postgres:15
+
+# 5. Configure environment
+cp .env.example .env
+
+# Edit .env and add:
+export DEBUG=1
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=healing_space_test
+export DB_USER=postgres
+export DB_PASSWORD=your_password  # or 'healing_space_dev' if using Docker
+export GROQ_API_KEY=gsk_...  # Get free key from https://console.groq.com
+export SECRET_KEY=your_random_secret_key
+export ENCRYPTION_KEY=your_encryption_key  # Generate: python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+# 6. Run the application
 python3 api.py
 
-# 6. Visit http://localhost:5000 in your browser
+# 7. Visit http://localhost:5000 in your browser
+# All tables will auto-create on startup
 ```
 
-**Full setup guide:** [Developer Setup](../6-DEVELOPMENT/Developer-Setup.md)
+**Full setup guide:** [Developer Setup Guide](../6-DEVELOPMENT/Developer-Setup.md)  
+**Local testing docs:** [Testing Guide](../6-DEVELOPMENT/Testing-Guide.md)
 
 ### 🚀 Option 3: Deploy to Production (Railway)
 Want to deploy for real users?

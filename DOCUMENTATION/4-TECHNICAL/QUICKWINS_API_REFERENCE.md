@@ -1,11 +1,24 @@
-# THIS WEEK API ENDPOINTS REFERENCE
+# Week 1 Quick Wins - API ENDPOINTS REFERENCE
 **Date**: February 11, 2026  
 **Version**: 1.0  
-**Status**: Development Ready
+**Status**: Production Ready ✅  
+**Features**: 4 new endpoints live on main branch
 
 ---
 
-## QUICK WINS: PATIENT ENGAGEMENT ENDPOINTS
+## 🚀 Quick Reference
+
+| Endpoint | Method | Purpose | Auth | Rate Limit |
+|----------|--------|---------|------|-----------|
+| `/api/patient/progress/mood` | GET | Show patient mood progress % | Session | 10/min |
+| `/api/patient/achievements` | GET | List unlocked achievements | Session | 30/min |
+| `/api/patient/achievements/check-unlocks` | POST | Check & unlock new badges | Session | 5/min |
+| `/api/patient/homework` | GET | View homework assignments | Session | 10/min |
+| `/api/clinician/patients/search` | GET | Search patients (clinician) | Session | 20/min |
+
+---
+
+## 📚 Detailed Documentation
 
 ### 1. Get Mood Progress
 ```

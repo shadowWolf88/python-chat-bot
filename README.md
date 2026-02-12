@@ -2,8 +2,9 @@
 
 **A mental health companion combining evidence-based therapy with AI support.**
 
-> **Version**: 2.0 (PostgreSQL) | **Status**: ✅ TIER 0 Complete | ✅ TIER 1 Complete | ✅ TIER 2.1 C-SSRS Complete | **Last Updated**: February 11, 2026
-> **📚 All documentation has been consolidated into the `/DOCUMENTATION` folder - [START HERE](./DOCUMENTATION/INDEX.md)**
+> **Version**: 2.1 (PostgreSQL + Quick Wins) | **Status**: ✅ TIER 0 Complete | ✅ TIER 1 Complete | ✅ TIER 2.1 C-SSRS Complete | ✅ Week 1 Quick Wins Live | **Last Updated**: February 11, 2026
+> **📚 All documentation has been consolidated into the `/DOCUMENTATION` folder - [START HERE](./DOCUMENTATION/0-START-HERE/README.md)**
+> **📊 Project Stats**: [857K lines of code](./DOCUMENTATION/PROJECT_STATISTICS.md) | [1,057 development hours](./DOCUMENTATION/DEVELOPMENT_HOURS_ESTIMATE.md) | [What's Next](./DOCUMENTATION/WHATS_NEXT_ROADMAP.md)**
 
 ---
 
@@ -47,12 +48,12 @@ Unauthorized copying, modification, or distribution is strictly prohibited.
 
 | I'm a... | I should read... | Time |
 |----------|------------------|------|
-| **Patient** | [Patient Getting Started](./docs/0-START-HERE/Getting-Started.md) | 5 min |
-| **Clinician** | [Clinician Guide](./docs/1-USER-GUIDES/Clinician-Guide.md) | 20 min |
-| **NHS** | [NHS Readiness Checklist](./docs/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md) | 30 min |
-| **Researcher** | [University Readiness Checklist](./docs/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md) | 30 min |
-| **Developer** | [Developer Setup](./docs/6-DEVELOPMENT/Developer-Setup.md) | 10 min |
-| **DevOps** | [Railway Deployment](./docs/5-DEPLOYMENT/Railway-Deployment.md) | 15 min |
+| **Patient** | [Patient Getting Started](./DOCUMENTATION/0-START-HERE/Getting-Started.md) | 5 min |
+| **Clinician** | [Clinician Setup Guide](./DOCUMENTATION/1-USER-GUIDES/Setup/CLINICIAN_SETUP_COMPLETE.md) | 20 min |
+| **NHS** | [NHS Readiness Checklist](./DOCUMENTATION/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md) | 30 min |
+| **Researcher** | [University Readiness Checklist](./DOCUMENTATION/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md) | 30 min |
+| **Developer** | [Developer Setup](./DOCUMENTATION/6-DEVELOPMENT/Developer-Setup.md) | 10 min |
+| **DevOps** | [Railway Deployment](./DOCUMENTATION/5-DEPLOYMENT/Railway-Deployment.md) | 15 min |
 
 ---
 
@@ -64,12 +65,12 @@ Unauthorized copying, modification, or distribution is strictly prohibited.
 3. Create your account and begin therapy
 
 ### For NHS Clinicians
-Contact your NHS IT department for VPN access and clinician credentials. See [Clinician Guide](./docs/1-USER-GUIDES/Clinician-Guide.md).
+Contact your NHS IT department for VPN access and clinician credentials. See [Clinician Setup Guide](./DOCUMENTATION/1-USER-GUIDES/Setup/CLINICIAN_SETUP_COMPLETE.md).
 
 ### For Authorized Developers
 **Development setup is restricted to authorized team members only.** Contact the project lead for access credentials.
 
-**Full setup:** [Developer Setup](./docs/6-DEVELOPMENT/Developer-Setup.md) (restricted access)
+**Full setup:** [Developer Setup](./DOCUMENTATION/6-DEVELOPMENT/Developer-Setup.md) (restricted access)
 
 ---
 
@@ -77,19 +78,22 @@ Contact your NHS IT department for VPN access and clinician credentials. See [Cl
 
 ### For Patients 👤
 - 💬 AI-powered therapy chat (24/7, confidential)
-- 📊 Mood & sleep tracking with trend analysis
+- 📊 Mood & sleep tracking with trend analysis + **Progress % display** ✨ NEW
 - 🎯 Personalized CBT tools (goals, coping strategies, exposures)
 - 🆘 Risk assessment & crisis detection
 - 💬 Secure clinician messaging
 - 🌿 Wellness gamification (pet game, habit tracking)
+- 🏆 **Achievement badges** with unlock animations ✨ NEW
+- 📋 **Homework visibility** with clinician feedback ✨ NEW
 
 ### For Clinicians 👨‍⚕️
-- 👥 Multi-patient dashboard with risk alerts
+- 👥 Multi-patient dashboard with risk alerts + **Advanced search & filtering** ✨ NEW
 - 📈 Patient progress analytics
 - 🔔 Real-time crisis notifications
 - 💬 Secure messaging system
 - 📋 AI-assisted session summaries
 - 📊 Outcome measure tracking (C-SSRS, PHQ-9, GAD-7)
+- 🔍 **Patient search with risk level filters** ✨ NEW
 
 ### For Researchers 🎓
 - 🔬 Built-in measurement scales (C-SSRS, PHQ-9, GAD-7, CORE-OM)
@@ -105,18 +109,18 @@ Contact your NHS IT department for VPN access and clinician credentials. See [Cl
 
 **Complete documentation with 150+ pages:**
 
-👉 **[START HERE → Complete Documentation Index](./docs/INDEX.md)**
+👉 **[START HERE → Complete Documentation Index](./DOCUMENTATION_INDEX.md)**
 
 Or jump directly to:
-- [What is Healing Space?](./docs/0-START-HERE/What-is-Healing-Space.md) - Overview
-- [Patient Guide](./docs/1-USER-GUIDES/Patient-Guide.md) - How to use it
-- [Clinician Guide](./docs/1-USER-GUIDES/Clinician-Guide.md) - Dashboard, patients, alerts
-- [NHS Compliance](./docs/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md) - 8 requirements ✅
-- [University Trials](./docs/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md) - 10 requirements ✅
-- [Developer Guide](./docs/6-DEVELOPMENT/Developer-Setup.md) - Start coding
-- [Architecture](./docs/4-TECHNICAL/Architecture-Overview.md) - How it works
-- [Security](./docs/8-SECURITY/Security-Overview.md) - Defense in depth
-- [Roadmap](./docs/9-ROADMAP/Priority-Roadmap.md) - What's next
+- [What is Healing Space?](./DOCUMENTATION/0-START-HERE/What-is-Healing-Space.md) - Overview
+- [Getting Started](./DOCUMENTATION/0-START-HERE/Getting-Started.md) - How to use it
+- [Clinician Setup Guide](./DOCUMENTATION/1-USER-GUIDES/Setup/CLINICIAN_SETUP_COMPLETE.md) - Dashboard, patients, alerts
+- [NHS Compliance](./DOCUMENTATION/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md) - 8 requirements ✅
+- [University Trials](./DOCUMENTATION/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md) - 10 requirements ✅
+- [Developer Guide](./DOCUMENTATION/6-DEVELOPMENT/Developer-Setup.md) - Start coding
+- [API Reference](./DOCUMENTATION/4-TECHNICAL/QUICKWINS_API_REFERENCE.md) - How it works
+- [Security](./DOCUMENTATION/7-SECURITY/Security-Overview.md) - Defense in depth
+- [Roadmap](./DOCUMENTATION/9-ROADMAP/Priority-Roadmap.md) - What's next
 
 ---
 
@@ -161,7 +165,7 @@ Or jump directly to:
 - Crisis keywords monitored
 - Clinician alerts within 1 minute
 
-**Read more:** [Security Overview](./docs/8-SECURITY/Security-Overview.md) | [Data Protection](./docs/2-NHS-COMPLIANCE/Data-Protection-Impact-Assessment.md)
+**Read more:** [Security Overview](./DOCUMENTATION/7-SECURITY/Security-Overview.md) | [Data Protection](./DOCUMENTATION/2-NHS-COMPLIANCE/Data-Protection-Impact-Assessment.md)
 
 ---
 
@@ -206,22 +210,22 @@ Or jump directly to:
 ## 🚀 Getting Started
 
 ### For Patients
-→ [Patient Getting Started](./docs/0-START-HERE/Getting-Started.md)
+→ [Patient Getting Started](./DOCUMENTATION/0-START-HERE/Getting-Started.md)
 
 ### For Clinicians
-→ [Clinician Guide](./docs/1-USER-GUIDES/Clinician-Guide.md)
+→ [Clinician Setup Guide](./DOCUMENTATION/1-USER-GUIDES/Setup/CLINICIAN_SETUP_COMPLETE.md)
 
 ### For NHS Deploying
-→ [NHS Readiness Checklist](./docs/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md)
+→ [NHS Readiness Checklist](./DOCUMENTATION/2-NHS-COMPLIANCE/NHS-Readiness-Checklist.md)
 
 ### For Researchers
-→ [University Readiness Checklist](./docs/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md)
+→ [University Readiness Checklist](./DOCUMENTATION/3-UNIVERSITY-TRIALS/University-Readiness-Checklist.md)
 
 ### For Developers
-→ [Developer Setup](./docs/6-DEVELOPMENT/Developer-Setup.md)
+→ [Developer Setup](./DOCUMENTATION/6-DEVELOPMENT/Developer-Setup.md)
 
 ### For Operations
-→ [Railway Deployment](./docs/5-DEPLOYMENT/Railway-Deployment.md)
+→ [Railway Deployment](./DOCUMENTATION/5-DEPLOYMENT/Railway-Deployment.md)
 
 ---
 
@@ -270,7 +274,7 @@ Or jump directly to:
 - 3.3 Ethics Approval
 - ... (5 more compliance items)
 
-**Full details:** [Priority Roadmap](./docs/9-ROADMAP/Priority-Roadmap.md)
+**Full details:** [Priority Roadmap](./DOCUMENTATION/9-ROADMAP/Priority-Roadmap.md)
 
 ---
 
@@ -295,7 +299,7 @@ docs_new/
 
 ## 🤝 Contributing
 
-Want to contribute? See [Contributing Guide](./docs/6-DEVELOPMENT/Contributing-Guide.md)
+Want to contribute? See [Contributing Guide](./DOCUMENTATION/6-DEVELOPMENT/Contributing-Guide.md)
 
 **Ways to help:**
 - 🐛 Report bugs
@@ -309,10 +313,10 @@ Want to contribute? See [Contributing Guide](./docs/6-DEVELOPMENT/Contributing-G
 
 ## 📞 Support
 
-- **Questions?** See [FAQ](./docs/1-USER-GUIDES/FAQ.md)
-- **Having issues?** See [Troubleshooting](./docs/1-USER-GUIDES/Troubleshooting.md)
-- **Security issue?** See [Vulnerability Disclosure](./docs/8-SECURITY/Vulnerability-Disclosure.md)
-- **Want to deploy?** See [Deployment Guide](./docs/5-DEPLOYMENT/)
+- **Questions?** See [FAQ](./DOCUMENTATION/1-USER-GUIDES/FAQ.md)
+- **Having issues?** See [Troubleshooting](./DOCUMENTATION/1-USER-GUIDES/Troubleshooting.md)
+- **Security issue?** See [Vulnerability Disclosure](./DOCUMENTATION/7-SECURITY/Vulnerability-Disclosure.md)
+- **Want to deploy?** See [Deployment Guide](./DOCUMENTATION/5-DEPLOYMENT/)
 
 ---
 

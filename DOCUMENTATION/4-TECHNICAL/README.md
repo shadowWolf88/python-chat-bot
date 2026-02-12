@@ -4,6 +4,7 @@ This folder contains technical architecture, API reference, database schema, and
 
 ## Contents
 
+- **QUICKWINS_API_REFERENCE.md** ✨ NEW - Week 1 Quick Wins endpoints (Progress %, Badges, Homework, Patient Search)
 - **Architecture-Overview.md** - System architecture and component design
 - **API-Reference.md** - All 210+ REST API endpoints
 - **Database-Schema.md** - PostgreSQL schema and table relationships
@@ -13,10 +14,10 @@ This folder contains technical architecture, API reference, database schema, and
 
 - **Backend**: Flask (Python) - 210+ REST endpoints
 - **Frontend**: Vanilla JavaScript - responsive SPA
-- **Database**: PostgreSQL - 43 tables
+- **Database**: PostgreSQL - 43 tables (+ 2 new for Week 1: achievements, notification_preferences)
 - **AI**: Groq LLM - fast, affordable, reliable
 - **Deployment**: Railway (recommended)
 
 ---
 
-Last Updated: February 11, 2026
+Last Updated: February 11, 2026 | Week 1 Complete ✅

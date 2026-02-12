@@ -2,7 +2,7 @@
 
 **A mental health companion combining evidence-based therapy with AI support.**
 
-> **Version**: 2.0 (PostgreSQL) | **Status**: ✅ TIER 0 Complete | ✅ TIER 1 Complete | ✅ TIER 2.1 & 2.2 Complete | **Last Updated**: February 11, 2026
+> **Version**: 2.1 | **Status**: ✅ TIER 0 Complete | ✅ TIER 1 Complete | ✅ TIER 2.1 & 2.2 Complete | ✅ Week 1 Quick Wins Live | **Last Updated**: February 11, 2026
 
 ---
 
@@ -105,6 +105,11 @@ Contact your NHS IT department for VPN access and clinician credentials. See [Cl
 **Complete documentation with 150+ pages:**
 
 👉 **[START HERE → Complete Documentation Index](./docs/INDEX.md)**
+
+**📊 Project Metrics** (NEW):
+- [Project Statistics](./docs/PROJECT_STATISTICS.md) - 857K lines, 9,175 files
+- [Development Hours Estimate](./docs/DEVELOPMENT_HOURS_ESTIMATE.md) - 1,057 hours total
+- [Week 2-4 Roadmap](./docs/WHATS_NEXT_ROADMAP.md) - Detailed next phase plan
 
 Or jump directly to:
 - [What is Healing Space?](./docs/0-START-HERE/What-is-Healing-Space.md) - Overview
