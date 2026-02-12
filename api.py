@@ -8037,7 +8037,7 @@ def mood_history():
         logs = cur.execute(
             """SELECT id, mood_val, sleep_val, meds, notes, entrestamp, 
                water_pints, exercise_mins, outside_mins 
-               FROM mood_logs WHERE username = %s ORDER BY entrestamp DESC LIMIT ?""",
+               FROM mood_logs WHERE username = %s ORDER BY entrestamp DESC LIMIT %s""",
             (username, limit)
         ).fetchall()
         conn.close()
@@ -8274,7 +8274,7 @@ def get_sleep_diary_list():
                       times_woken, total_sleep_hours, sleep_quality, dreams_nightmares,
                       factors_affecting, morning_mood, notes, entry_timestamp
                FROM sleep_diary WHERE username = %s
-               ORDER BY sleep_date DESC LIMIT ?""",
+               ORDER BY sleep_date DESC LIMIT %s""",
             (username, days)
         ).fetchall()
         conn.close()
@@ -14902,7 +14902,7 @@ def get_cbt_tool_history():
                 FROM cbt_tool_entries
                 WHERE username = %s AND tool_type = %s
                 ORDER BY created_at DESC
-                LIMIT ?
+                LIMIT %s
             ''', (username, tool_type, limit)).fetchall()
         else:
             rows = cur.execute('''
@@ -14910,7 +14910,7 @@ def get_cbt_tool_history():
                 FROM cbt_tool_entries
                 WHERE username = %s
                 ORDER BY created_at DESC
-                LIMIT ?
+                LIMIT %s
             ''', (username, limit)).fetchall()
 
         conn.close()
@@ -15157,6 +15157,7 @@ def get_conversation(recipient_username):
         conn.commit()
         
         # Re-fetch messages to get updated is_read values
+        limit = request.args.get('limit', 50, type=int)
         rows = cur.execute('''
             SELECT id, sender_username, recipient_username, content, subject, is_read, read_at, sent_at
             FROM messages
@@ -15164,7 +15165,7 @@ def get_conversation(recipient_username):
                OR (sender_username = %s AND recipient_username = %s)
             AND deleted_at IS NULL
             ORDER BY sent_at ASC
-            LIMIT ?
+            LIMIT %s
         ''', (username, recipient_username, recipient_username, username, limit)).fetchall()
         
         conn.close()
@@ -15231,6 +15232,62 @@ def mark_message_read(message_id):
     
     except Exception as e:
         return handle_exception(e, 'mark_message_read')
+
+
+@app.route('/api/messages/search', methods=['GET'])
+def search_messages():
+    """Search messages by content, subject, or participant"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        query_param = request.args.get('q', '').strip()
+        if not query_param or len(query_param) < 2:
+            return jsonify({'error': 'Search query must be at least 2 characters'}), 400
+        
+        # Sanitize search query to prevent SQL injection
+        search_query = f"%{query_param}%"
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Search in messages where user is sender or recipient
+        messages = cur.execute('''
+            SELECT id, sender_username, recipient_username, subject, content, sent_at, is_read
+            FROM messages
+            WHERE (sender_username = %s OR recipient_username = %s)
+            AND deleted_at IS NULL
+            AND (
+                content ILIKE %s
+                OR subject ILIKE %s
+                OR sender_username ILIKE %s
+                OR recipient_username ILIKE %s
+            )
+            ORDER BY sent_at DESC
+            LIMIT 100
+        ''', (username, username, search_query, search_query, search_query, search_query)).fetchall()
+        
+        conn.close()
+        
+        results = [{
+            'id': msg[0],
+            'sender': msg[1],
+            'recipient': msg[2],
+            'subject': msg[3],
+            'content': msg[4],
+            'sent_at': msg[5],
+            'is_read': bool(msg[6])
+        } for msg in messages]
+        
+        return jsonify({
+            'query': query_param,
+            'results': results,
+            'count': len(results)
+        }), 200
+    
+    except Exception as e:
+        return handle_exception(e, 'search_messages')
 
 
 @app.route('/api/messages/sent', methods=['GET'])
@@ -15447,6 +15504,71 @@ def delete_message(message_id):
     
     except Exception as e:
         return handle_exception(e, 'delete_message')
+
+
+@app.route('/api/messages/<int:message_id>/reply', methods=['POST'])
+def reply_to_message(message_id):
+    """Reply to a specific message in a conversation"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Validate CSRF token
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        content, error = InputValidator.validate_message(data.get('content'))
+        if error:
+            return jsonify({'error': error}), 400
+        
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        
+        # Get the original message to find the conversation partner
+        original_msg = cur.execute('''
+            SELECT id, sender_username, recipient_username, subject
+            FROM messages WHERE id = %s
+        ''', (message_id,)).fetchone()
+        
+        if not original_msg:
+            conn.close()
+            return jsonify({'error': 'Original message not found'}), 404
+        
+        msg_id, sender, recipient, subject = original_msg
+        
+        # Ensure user is part of this conversation
+        if username not in (sender, recipient):
+            conn.close()
+            return jsonify({'error': 'You cannot reply to this message'}), 403
+        
+        # Determine the conversation partner
+        recipient_user = recipient if username == sender else sender
+        
+        # Create the reply (with same subject, prefixed with "Re: " if not already)
+        reply_subject = subject if subject and subject.startswith('Re:') else f"Re: {subject or 'No Subject'}"
+        
+        new_msg_id = cur.execute('''
+            INSERT INTO messages (sender_username, recipient_username, subject, content, sent_at)
+            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+            RETURNING id
+        ''', (username, recipient_user, reply_subject, content)).fetchone()[0]
+        
+        conn.commit()
+        conn.close()
+        
+        log_event(username, 'messaging', 'message_replied', f'Original Message ID: {message_id}, Reply ID: {new_msg_id}')
+        
+        return jsonify({
+            'success': True,
+            'message_id': new_msg_id,
+            'recipient': recipient_user,
+            'subject': reply_subject
+        }), 201
+    
+    except Exception as e:
+        return handle_exception(e, 'reply_to_message')
 
 
 # ================== DEVELOPER DASHBOARD: TEST INTEGRATION ENDPOINTS ==================
