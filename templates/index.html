@@ -15558,14 +15558,24 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 btn.style.borderColor = '#667eea';
             });
             
-            // Show selected tab and highlight button
-            const tabId = `messages${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Tab`;
-            const tab = document.getElementById(tabId);
+            // Determine which set of tabs to use (Patient vs non-patient)
+            const capitalizedTab = tabName.charAt(0).toUpperCase() + tabName.slice(1);
+            let tabId = `messages${capitalizedTab}TabPatient`; // Try patient version first
+            let tab = document.getElementById(tabId);
+            
+            // Fallback to non-patient version if patient version not found
+            if (!tab) {
+                tabId = `messages${capitalizedTab}Tab`;
+                tab = document.getElementById(tabId);
+            }
+            
             if (tab) {
                 tab.style.display = 'block';
-                buttonEl.style.background = '#667eea';
-                buttonEl.style.color = 'white';
-                buttonEl.style.borderColor = '#667eea';
+                if (buttonEl) {
+                    buttonEl.style.background = '#667eea';
+                    buttonEl.style.color = 'white';
+                    buttonEl.style.borderColor = '#667eea';
+                }
                 
                 // Load content based on tab
                 if (tabName === 'inbox') {
@@ -15684,10 +15694,23 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         }
 
         async function sendNewMessage() {
-            const recipient = document.getElementById('messageRecipient').value.trim();
-            const subject = document.getElementById('messageSubject').value.trim();
-            const content = document.getElementById('messageContent').value.trim();
-            const statusEl = document.getElementById('messageSendStatus');
+            // Detect which set of elements to use based on what's available
+            let recipientEl = document.getElementById('messageRecipientPatient');
+            let subjectEl = document.getElementById('messageSubjectPatient');
+            let contentEl = document.getElementById('messageContentPatient');
+            let statusEl = document.getElementById('messageSendStatusPatient');
+            
+            // Fallback to non-patient version if patient version not available
+            if (!recipientEl) {
+                recipientEl = document.getElementById('messageRecipient');
+                subjectEl = document.getElementById('messageSubject');
+                contentEl = document.getElementById('messageContent');
+                statusEl = document.getElementById('messageSendStatus');
+            }
+            
+            const recipient = recipientEl.value.trim();
+            const subject = subjectEl.value.trim();
+            const content = contentEl.value.trim();
 
             if (!recipient) {
                 statusEl.textContent = '⚠️ Please enter a recipient username';
@@ -15739,9 +15762,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 statusEl.style.display = 'block';
 
                 // Clear form
-                document.getElementById('messageRecipient').value = '';
-                document.getElementById('messageSubject').value = '';
-                document.getElementById('messageContent').value = '';
+                recipientEl.value = '';
+                subjectEl.value = '';
+                contentEl.value = '';
 
                 // Hide success message after 3 seconds
                 setTimeout(() => {

@@ -1,13 +1,13 @@
 # Healing Space UK - Comprehensive Project Statistics
 
-**Generated:** February 11, 2026  
+**Generated:** February 12, 2026  
 **Status:** Production Ready
 
 ---
 
 ## Executive Summary
 
-The Healing Space UK project encompasses **857,134 lines of code and documentation** across **9,175 files**, representing a complete, enterprise-grade mental health therapy platform with clinical features, security hardening, and comprehensive testing.
+The Healing Space UK project encompasses **828,658 lines of code and documentation** across **8,772 files**, representing a complete, enterprise-grade mental health therapy platform with clinical features, security hardening, and comprehensive testing.
 
 ---
 
@@ -17,23 +17,23 @@ The Healing Space UK project encompasses **857,134 lines of code and documentati
 
 | Language | Lines | Files | % of Total |
 |----------|-------|-------|-----------|
-| **Python** | 301,344 | 7,358 | 39.5% |
-| **JavaScript** | 264,175 | 840 | 34.7% |
-| **HTML/Templates** | 174,059 | 277 | 22.9% |
+| **Python** | 302,266 | 7,358 | 36.5% |
+| **JavaScript** | 265,245 | 840 | 32.0% |
+| **HTML/Templates** | 175,963 | 277 | 21.2% |
 | **SQL** | 1,061 | 7 | 0.1% |
-| **Configuration** | 21,063 | 304 | 2.8% |
-| **TOTAL CODE** | **761,702** | **8,786** | **88.9%** |
+| **Configuration** | 21,063 | 304 | 2.5% |
+| **TOTAL CODE** | **765,598** | **8,786** | **92.4%** |
 
 ### Documentation
 
 | Type | Lines | Files |
 |------|-------|-------|
-| **Markdown Documentation** | 95,432 | 389 |
+| **Markdown Documentation** | 85,184 | 389 |
 
 ### Grand Total
 
 ```
-TOTAL: 857,134 lines across 9,175 files (88.9% code, 11.1% documentation)
+TOTAL: 828,658 lines across 8,772 files (92.4% code, 7.6% documentation)
 ```
 
 ---
@@ -81,15 +81,10 @@ Configuration files:         304 files
 
 | Component | Lines | Purpose |
 |-----------|-------|---------|
-| `api.py` | 19,412 | 260+ REST endpoints, core business logic |
-| `c_ssrs_assessment.py` | 12,117 | Columbia-Suicide Severity Rating Scale |
-| `safety_monitor.py` | 21,726 | Real-time crisis detection & alerting |
-| `ai_trainer.py` | 13,905 | ML model training for risk scoring |
-| `training_data_manager.py` | 17,150 | GDPR compliance & data anonymization |
-| `fhir_export.py` | 8,534 | HL7 FHIR export for clinical records |
-| Tests/Utilities | ~188,000 | conftest.py, test suites, migrations |
+| Core Backend Modules | 23,037 | api.py, c_ssrs_assessment.py, safety_monitor.py, ai_trainer.py, training_data_manager.py, fhir_export.py |
+| Tests/Utilities | ~279,229 | conftest.py, test suites (161 test files), migrations |
 
-**Backend Subtotal: ~280,000 lines**
+**Backend Subtotal: ~302,266 lines**
 
 ### Frontend (JavaScript + HTML)
 
@@ -100,7 +95,7 @@ Configuration files:         304 files
 | `static/css/style.css` | ~3,000+ | Responsive design, dark theme |
 | Mobile wrappers (Capacitor) | ~240,000+ | iOS & Android via Capacitor |
 | Libraries (Chart.js, D3.js, etc) | Included in JS total | Data visualization |
-
+7,469
 **Frontend Subtotal: ~264,000+ lines**
 
 ### Database
@@ -162,11 +157,11 @@ PostgreSQL (production-ready)
 ### Project Scale
 
 ```
-857,134 total lines ≈
+828,658 total lines ≈
   • 3-4 commercial SaaS applications combined
   • 40-50 typical open-source projects
   • 2 large enterprise systems
-  • ~28,000 average-length books (30 pages each)
+  • ~27,600 average-length books (30 pages each)
 ```
 
 ### Code vs Documentation Ratio
@@ -177,8 +172,8 @@ Documentation: 95,432 lines  (11.1%)
 ```
 
 ---
-
-## Project Complexity Metrics
+5,598 lines (92.4%)
+Documentation: 85,184 lines  (7.6
 
 ### Backend Complexity
 
@@ -190,7 +185,7 @@ Documentation: 95,432 lines  (11.1%)
 
 ### Frontend Complexity
 
-- **Monolithic SPA:** 16,687 lines of HTML/CSS/JS
+- **Monolithic SPA:** 17,469 lines of HTML/CSS/JS
 - **Real-time updates:** AJAX with polling
 - **Visualizations:** Chart.js for mood/sleep/activity tracking
 - **Mobile apps:** iOS + Android via Capacitor
@@ -234,11 +229,12 @@ Documentation: 95,432 lines  (11.1%)
 
 | Metric | Value |
 |--------|-------|
-| Total Lines | 857,134 |
-| Total Files | 9,175 |
+| Total Lines | 828,658 |
+| Total Files | 8,772 |
 | API Endpoints | 260+ |
 | Database Tables | 43 |
-| Test Cases | 264 |
+| Test Cases | 264+ |
+| Test Files | 161 |
 | Test Pass Rate | 92% |
 | Python Files | 7,358 |
 | JavaScript Files | 840 |
@@ -246,8 +242,8 @@ Documentation: 95,432 lines  (11.1%)
 | SQL Files | 7 |
 | Config Files | 304 |
 | Documentation Files | 389 |
-| Largest File | api.py (19,412 lines) |
-| Average Lines/File | 93 |
+| Largest File | templates/index.html (17,469 lines) |
+| Average Lines/File | 94 |
 
 ---
 
@@ -282,7 +278,7 @@ Documentation: 95,432 lines  (11.1%)
 ---
 
 ## Generated
-
-**Date:** February 11, 2026  
+2, 2026  
 **Source:** Comprehensive file analysis across entire codebase  
+**Accuracy:** Based on actual file counts and line measurements from workspace analysi  
 **Accuracy:** Based on actual file counts and line measurements
