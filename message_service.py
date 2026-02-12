@@ -54,45 +54,64 @@ class MessageService:
             raise ValueError(f"Message exceeds {self.MAX_MESSAGE_LENGTH} characters")
         
         # Check if recipient exists
-        recipient = self.cur.execute(
-            "SELECT username, role FROM users WHERE username=%s",
-            (recipient_username,)
-        ).fetchone()
+        try:
+            self.cur.execute(
+                "SELECT username, role FROM users WHERE username=%s",
+                (recipient_username,)
+            )
+            recipient = self.cur.fetchone()
+        except Exception as e:
+            raise ValueError(f"Database error checking recipient: {str(e)}")
         
         if not recipient:
-            raise ValueError("Recipient not found")
+            raise ValueError(f"Recipient '{recipient_username}' not found")
         
         # Prevent self-messaging
         if self.username == recipient_username:
             raise ValueError("Cannot send messages to yourself")
         
         # Get or create conversation
-        conversation_id = self._get_or_create_conversation(
-            type='direct',
-            subject=subject,
-            participants=[self.username, recipient_username]
-        )
+        try:
+            conversation_id = self._get_or_create_conversation(
+                type='direct',
+                subject=subject,
+                participants=[self.username, recipient_username]
+            )
+        except Exception as e:
+            raise ValueError(f"Failed to create/get conversation: {str(e)}")
+        
+        if not conversation_id:
+            raise ValueError("Failed to get conversation ID")
         
         # Insert message
-        self.cur.execute("""
-            INSERT INTO messages (
-                conversation_id, sender_username, recipient_username,
-                message_type, subject, content, sent_at, delivery_status
-            ) VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, 'sent')
-            RETURNING id, sent_at
-        """, (conversation_id, self.username, recipient_username, 'direct', subject, content))
-        
-        result = self.cur.fetchone()
-        message_id, sent_at = result[0], result[1]
+        try:
+            self.cur.execute("""
+                INSERT INTO messages (
+                    conversation_id, sender_username, recipient_username,
+                    message_type, subject, content, sent_at, delivery_status
+                ) VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, 'sent')
+                RETURNING id, sent_at
+            """, (conversation_id, self.username, recipient_username, 'direct', subject, content))
+            
+            result = self.cur.fetchone()
+            if not result:
+                raise ValueError("Message insert returned no result")
+            
+            message_id, sent_at = result[0], result[1]
+        except Exception as e:
+            raise ValueError(f"Failed to insert message: {str(e)}")
         
         # Update conversation's last_message_at
-        self.cur.execute("""
-            UPDATE conversations 
-            SET last_message_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """, (conversation_id,))
-        
-        self.conn.commit()
+        try:
+            self.cur.execute("""
+                UPDATE conversations 
+                SET last_message_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (conversation_id,))
+            
+            self.conn.commit()
+        except Exception as e:
+            raise ValueError(f"Failed to update conversation: {str(e)}")
         
         return {
             'message_id': message_id,
@@ -746,33 +765,48 @@ class MessageService:
         if type == 'direct' and len(participants) == 2:
             # Check for existing direct conversation
             p1, p2 = sorted(participants)
-            existing = self.cur.execute("""
-                SELECT c.id FROM conversations c
-                JOIN conversation_participants cp1 ON c.id = cp1.conversation_id
-                JOIN conversation_participants cp2 ON c.id = cp2.conversation_id
-                WHERE c.type = 'direct'
-                AND ((cp1.username = %s AND cp2.username = %s) OR (cp1.username = %s AND cp2.username = %s))
-                LIMIT 1
-            """, (p1, p2, p2, p1)).fetchone()
-            
-            if existing:
-                return existing[0]
+            try:
+                self.cur.execute("""
+                    SELECT c.id FROM conversations c
+                    JOIN conversation_participants cp1 ON c.id = cp1.conversation_id
+                    JOIN conversation_participants cp2 ON c.id = cp2.conversation_id
+                    WHERE c.type = 'direct'
+                    AND ((cp1.username = %s AND cp2.username = %s) OR (cp1.username = %s AND cp2.username = %s))
+                    LIMIT 1
+                """, (p1, p2, p2, p1))
+                existing = self.cur.fetchone()
+                
+                if existing:
+                    return existing[0]
+            except Exception as e:
+                # Log but continue to create new conversation
+                pass
         
         # Create new conversation
-        self.cur.execute("""
-            INSERT INTO conversations (type, subject, created_by, participant_count)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id
-        """, (type, subject, self.username, len(participants)))
-        
-        conv_id = self.cur.fetchone()[0]
+        try:
+            self.cur.execute("""
+                INSERT INTO conversations (type, subject, created_by, participant_count)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+            """, (type, subject, self.username, len(participants)))
+            
+            result = self.cur.fetchone()
+            if not result:
+                raise ValueError("Conversation creation returned no result")
+            
+            conv_id = result[0]
+        except Exception as e:
+            raise ValueError(f"Failed to create conversation: {str(e)}")
         
         # Add participants
-        for participant in participants:
-            self.cur.execute("""
-                INSERT INTO conversation_participants (conversation_id, username)
-                VALUES (%s, %s)
-            """, (conv_id, participant))
+        try:
+            for participant in participants:
+                self.cur.execute("""
+                    INSERT INTO conversation_participants (conversation_id, username)
+                    VALUES (%s, %s)
+                """, (conv_id, participant))
+        except Exception as e:
+            raise ValueError(f"Failed to add conversation participants: {str(e)}")
         
         return conv_id
     

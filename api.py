@@ -2001,7 +2001,7 @@ def add_security_headers(response):
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self' https:; "
-            "connect-src 'self' https://api.groq.com https://www.healing-space.org.uk; "
+            "connect-src 'self' https://api.groq.com https://www.healing-space.org.uk https://cdn.jsdelivr.net; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
             "form-action 'self';"
@@ -15219,6 +15219,7 @@ def get_cbt_tool_history():
 @app.route('/api/messages/send', methods=['POST'])
 def send_message():
     """Send a message to another user (supports direct and threaded messages)"""
+    conn = None
     try:
         sender = get_authenticated_username()
         if not sender:
@@ -15256,6 +15257,8 @@ def send_message():
             cur = get_wrapped_cursor(conn)
             service = MessageService(conn, cur, sender)
             
+            app_logger.info(f'[send_message] Sending from {sender} to {recipient}, subject: {subject[:50] if subject else "(none)"}')
+            
             result = service.send_direct_message(
                 recipient=recipient,
                 content=content,
@@ -15263,7 +15266,7 @@ def send_message():
                 conversation_id=conversation_id
             )
             
-            conn.close()
+            app_logger.info(f'[send_message] Success! msg_id={result.get("message_id")}, conv_id={result.get("conversation_id")}')
             
             # Log the action for audit trail
             log_event(sender, 'messaging', 'message_sent', f'To: {recipient}, ConvID: {result.get("conversation_id")}')
@@ -15285,13 +15288,35 @@ def send_message():
             }), 201
         
         except ValueError as e:
+            app_logger.warning(f'[send_message] Validation error from {sender}: {str(e)}')
             return jsonify({'error': str(e)}), 400
+        except psycopg2.IntegrityError as e:
+            if conn:
+                conn.rollback()
+            app_logger.error(f'[send_message] Integrity error (bad recipient?): {str(e)}')
+            return jsonify({'error': 'Recipient does not exist or constraint violation'}), 400
+        except psycopg2.DatabaseError as e:
+            if conn:
+                conn.rollback()
+            app_logger.error(f'[send_message] Database error: {str(e)}', exc_info=True)
+            return jsonify({'error': 'Database operation failed'}), 500
         except Exception as e:
-            app_logger.error(f'MessageService error in send_message: {e}')
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            app_logger.error(f'[send_message] Unexpected error: {type(e).__name__}: {str(e)}', exc_info=True)
             return jsonify({'error': 'Failed to send message'}), 500
     
     except Exception as e:
         return handle_exception(e, 'send_message')
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
 
 
 @app.route('/api/messages/inbox', methods=['GET'])

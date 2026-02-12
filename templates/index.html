@@ -15552,6 +15552,90 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             lastLoadTime: {}
         };
 
+        function renderInboxFromCache() {
+            try {
+                const data = messageTabCache.inbox;
+                const container = document.getElementById('messagesInboxContainer');
+                if (!container) {
+                    console.error('[renderInboxFromCache] Could not find messagesInboxContainer');
+                    return;
+                }
+                
+                if (!data || !data.conversations || data.conversations.length === 0) {
+                    container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">📭 No messages in your inbox</p>';
+                    return;
+                }
+                
+                // Render cached inbox messages
+                container.innerHTML = data.conversations.map(conv => `
+                    <div style="border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 10px; background: ${conv.unread_count > 0 ? '#f0f7ff' : 'white'}; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
+                         onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'"
+                         onmouseout="this.style.boxShadow='none'"
+                         onclick="openConversation('${sanitizeHTML(conv.with_user)}')">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="flex: 1;">
+                                <strong style="color: #333; font-size: 15px;">📧 ${sanitizeHTML(conv.with_user)}</strong>
+                                ${conv.unread_count > 0 ? `<span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">${conv.unread_count}</span>` : ''}
+                            </div>
+                            <span style="color: #999; font-size: 12px; white-space: nowrap;">${new Date(conv.last_message_time).toLocaleString()}</span>
+                        </div>
+                        <div style="color: #666; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 8px;">
+                            ${conv.last_message ? (conv.last_message.length > 100 ? sanitizeHTML(conv.last_message.substring(0, 100)) + '...' : sanitizeHTML(conv.last_message)) : 'No message text'}
+                        </div>
+                    </div>
+                `).join('');
+                console.log(`[renderInboxFromCache] Rendered ${data.conversations.length} conversations`);
+            } catch (error) {
+                console.error('[renderInboxFromCache] Error:', error);
+                const container = document.getElementById('messagesInboxContainer');
+                if (container) {
+                    container.innerHTML = `<p style="color: #e74c3c; padding: 20px;">❌ Error rendering cached messages: ${sanitizeHTML(error.message)}</p>`;
+                }
+            }
+        }
+
+        function renderSentFromCache() {
+            try {
+                const data = messageTabCache.sent;
+                const container = document.getElementById('messagesSentContainer');
+                if (!container) {
+                    console.error('[renderSentFromCache] Could not find messagesSentContainer');
+                    return;
+                }
+                
+                if (!data || !data.messages || data.messages.length === 0) {
+                    container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">📤 No sent messages</p>';
+                    return;
+                }
+                
+                // Render cached sent messages
+                container.innerHTML = data.messages.map(msg => `
+                    <div style="border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 10px; background: #f9f9f9; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div>
+                                <strong style="color: #333; font-size: 15px;">📤 To: ${sanitizeHTML(msg.recipient)}</strong>
+                                <span style="background: ${msg.is_read ? '#4caf50' : '#999'}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 10px; font-weight: bold;">
+                                    ${msg.is_read ? '✓ Read' : 'Unread'}
+                                </span>
+                            </div>
+                            <span style="color: #999; font-size: 12px; white-space: nowrap;">${new Date(msg.sent_at).toLocaleString()}</span>
+                        </div>
+                        ${msg.subject ? `<div style="font-weight: 600; color: #555; margin-bottom: 8px;">Subject: ${sanitizeHTML(msg.subject)}</div>` : ''}
+                        <div style="color: #666; font-size: 14px; background: white; padding: 10px; border-radius: 4px;">
+                            ${sanitizeHTML(msg.content.substring(0, 150))}${msg.content.length > 150 ? '...' : ''}
+                        </div>
+                    </div>
+                `).join('');
+                console.log(`[renderSentFromCache] Rendered ${data.messages.length} sent messages`);
+            } catch (error) {
+                console.error('[renderSentFromCache] Error:', error);
+                const container = document.getElementById('messagesSentContainer');
+                if (container) {
+                    container.innerHTML = `<p style="color: #e74c3c; padding: 20px;">❌ Error rendering cached messages: ${sanitizeHTML(error.message)}</p>`;
+                }
+            }
+        }
+
         async function switchMessageTab(tabName, buttonEl) {
             console.log(`[switchMessageTab] === START === tabName: "${tabName}", buttonEl:`, buttonEl);
             
@@ -15617,14 +15701,24 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     const cacheAge = messageTabCache.lastLoadTime[tabName] ? now - messageTabCache.lastLoadTime[tabName] : Infinity;
                     const CACHE_DURATION = 30000; // 30 seconds
                     
-                    if (tabName === 'inbox' && (messageTabCache.inbox === null || cacheAge > CACHE_DURATION)) {
-                        console.log(`[switchMessageTab] Loading inbox (cache age: ${cacheAge}ms)`);
-                        loadMessagesInbox();
-                    } else if (tabName === 'sent' && (messageTabCache.sent === null || cacheAge > CACHE_DURATION)) {
-                        console.log(`[switchMessageTab] Loading sent messages (cache age: ${cacheAge}ms)`);
-                        loadMessagesSent();
+                    if (tabName === 'inbox') {
+                        if (messageTabCache.inbox === null || cacheAge > CACHE_DURATION) {
+                            console.log(`[switchMessageTab] Loading fresh inbox (cache age: ${cacheAge}ms)`);
+                            loadMessagesInbox();
+                        } else {
+                            console.log(`[switchMessageTab] Rendering cached inbox (age: ${cacheAge}ms)`);
+                            renderInboxFromCache();
+                        }
+                    } else if (tabName === 'sent') {
+                        if (messageTabCache.sent === null || cacheAge > CACHE_DURATION) {
+                            console.log(`[switchMessageTab] Loading fresh sent messages (cache age: ${cacheAge}ms)`);
+                            loadMessagesSent();
+                        } else {
+                            console.log(`[switchMessageTab] Rendering cached sent messages (age: ${cacheAge}ms)`);
+                            renderSentFromCache();
+                        }
                     } else {
-                        console.log(`[switchMessageTab] Using cached data or no load needed for "${tabName}"`);
+                        console.log(`[switchMessageTab] Using default behavior for "${tabName}"`);
                     }
                     // New message tab doesn't need loading - just show the form
                 } else {
