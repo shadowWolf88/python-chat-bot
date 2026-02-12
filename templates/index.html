@@ -15832,6 +15832,102 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
 
+        // Recipient autocomplete for message composer
+        let recipientAutocompleteTimeout;
+        
+        async function searchMessageRecipients(query) {
+            if (!query || query.length < 1) {
+                const dropdown = document.getElementById('recipientAutocompleteDropdown');
+                if (dropdown) dropdown.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/messages/search-recipients?q=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) throw new Error('Search failed');
+                
+                const data = await response.json();
+                showRecipientAutocomplete(data.recipients);
+            } catch (error) {
+                console.error('Error searching recipients:', error);
+            }
+        }
+        
+        function showRecipientAutocomplete(recipients) {
+            let dropdown = document.getElementById('recipientAutocompleteDropdown');
+            
+            if (!dropdown) {
+                // Create dropdown if it doesn't exist
+                dropdown = document.createElement('div');
+                dropdown.id = 'recipientAutocompleteDropdown';
+                dropdown.style.cssText = `
+                    position: absolute;
+                    background: white;
+                    border: 1px solid #e0e0e0;
+                    border-radius: 8px;
+                    max-width: 400px;
+                    max-height: 300px;
+                    overflow-y: auto;
+                    z-index: 1000;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                `;
+                
+                const recipientInput = document.getElementById('clinMessageRecipient');
+                if (recipientInput) {
+                    recipientInput.parentElement.style.position = 'relative';
+                    recipientInput.parentElement.appendChild(dropdown);
+                }
+            }
+            
+            if (recipients.length === 0) {
+                dropdown.innerHTML = '<div style="padding: 10px; color: #999;">No recipients found</div>';
+            } else {
+                dropdown.innerHTML = recipients.map(r => `
+                    <div onclick="selectRecipient('${sanitizeHTML(r.username)}', '${sanitizeHTML(r.name)}')"
+                         style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: background 0.2s;"
+                         onmouseover="this.style.background='#f5f5f5'"
+                         onmouseout="this.style.background='white'">
+                        <strong>${sanitizeHTML(r.username)}</strong><br>
+                        <small style="color: #999;">${sanitizeHTML(r.name)}</small>
+                    </div>
+                `).join('');
+            }
+            
+            dropdown.style.display = 'block';
+        }
+        
+        function selectRecipient(username, name) {
+            document.getElementById('clinMessageRecipient').value = username;
+            const dropdown = document.getElementById('recipientAutocompleteDropdown');
+            if (dropdown) dropdown.style.display = 'none';
+        }
+        
+        // Setup autocomplete on input field change
+        document.addEventListener('DOMContentLoaded', function() {
+            const recipientInput = document.getElementById('clinMessageRecipient');
+            if (recipientInput) {
+                recipientInput.addEventListener('input', function(e) {
+                    clearTimeout(recipientAutocompleteTimeout);
+                    recipientAutocompleteTimeout = setTimeout(() => {
+                        searchMessageRecipients(e.target.value.trim());
+                    }, 300);
+                });
+                
+                // Close dropdown when clicking elsewhere
+                document.addEventListener('click', function(e) {
+                    if (e.target !== recipientInput) {
+                        const dropdown = document.getElementById('recipientAutocompleteDropdown');
+                        if (dropdown) dropdown.style.display = 'none';
+                    }
+                });
+            }
+        });
+        
         async function sendClinicianMessage() {
             const recipient = document.getElementById('clinMessageRecipient').value.trim();
             const subject = document.getElementById('clinMessageSubject').value.trim();
@@ -15857,7 +15953,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 statusEl.style.color = '#667eea';
                 statusEl.style.display = 'block';
 
-                const response = await fetch('/api/clinician/message', {
+                // Use the correct endpoint with correct field names
+                const response = await fetch('/api/messages/send', {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -15865,14 +15962,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         'X-CSRF-Token': csrfToken
                     },
                     body: JSON.stringify({
-                        patient_username: recipient,
-                        subject,
-                        content
+                        recipient: recipient,
+                        subject: subject,
+                        content: content
                     })
                 });
 
                 if (response.status === 403) {
-                    statusEl.textContent = '❌ You do not have permission to message this patient';
+                    statusEl.textContent = '❌ You cannot send messages to this person';
                     statusEl.style.color = '#e74c3c';
                     statusEl.style.display = 'block';
                     return;
@@ -15891,6 +15988,12 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 document.getElementById('clinMessageRecipient').value = '';
                 document.getElementById('clinMessageSubject').value = '';
                 document.getElementById('clinMessageContent').value = '';
+                
+                // Hide autocomplete dropdown if visible
+                const dropdown = document.getElementById('recipientAutocompleteDropdown');
+                if (dropdown) {
+                    dropdown.style.display = 'none';
+                }
 
                 // Hide success message after 3 seconds
                 setTimeout(() => {
@@ -15898,6 +16001,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 }, 3000);
 
                 // Reload messages
+
                 loadUserMessages();
 
             } catch (error) {
