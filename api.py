@@ -15717,6 +15717,1156 @@ def reply_to_message(message_id):
         return handle_exception(e, 'reply_to_message')
 
 
+# ================== MESSAGING SYSTEM: PHASE 2C - ADVANCED ENDPOINTS ==================
+# This section contains 25+ new endpoints for:
+# - Message templates (5 endpoints)
+# - Group messaging (4 endpoints)
+# - Message scheduling (4 endpoints)
+# - User blocking (3 endpoints)
+# - Broadcast messaging (2 endpoints)
+# - Notifications & Archives (5 endpoints)
+# - Analytics (2 endpoints)
+
+# ============= MESSAGE TEMPLATES (5 ENDPOINTS) =============
+
+@app.route('/api/messages/templates', methods=['POST'])
+def create_message_template():
+    """Create a new message template"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        name = data.get('name', '').strip()
+        content = data.get('content', '').strip()
+        category = data.get('category', '').strip()
+        is_public = data.get('is_public', False)
+        
+        # Validation
+        if not name or len(name) > 255:
+            return jsonify({'error': 'Template name is required (1-255 chars)'}), 400
+        
+        if not content or len(content) > 50000:
+            return jsonify({'error': 'Template content is required (1-50000 chars)'}), 400
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            result = service.create_message_template(name, content, category, is_public)
+            conn.close()
+            
+            log_event(username, 'messaging', 'template_created', f'Name: {name}, Public: {is_public}')
+            
+            return jsonify({
+                'template_id': result.get('template_id'),
+                'name': name,
+                'category': category,
+                'is_public': is_public,
+                'created_at': result.get('created_at')
+            }), 201
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error creating template: {e}')
+            return jsonify({'error': 'Failed to create template'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'create_message_template')
+
+
+@app.route('/api/messages/templates', methods=['GET'])
+def list_message_templates():
+    """List user's message templates"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            templates = service.get_message_templates()
+            conn.close()
+            
+            return jsonify({
+                'templates': templates,
+                'count': len(templates)
+            }), 200
+        
+        except Exception as e:
+            app_logger.error(f'Error listing templates: {e}')
+            return jsonify({'error': 'Failed to list templates'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'list_message_templates')
+
+
+@app.route('/api/messages/templates/<int:template_id>', methods=['PUT'])
+def update_message_template(template_id):
+    """Update a message template"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        name = data.get('name', '').strip() if 'name' in data else None
+        content = data.get('content', '').strip() if 'content' in data else None
+        category = data.get('category', '').strip() if 'category' in data else None
+        is_public = data.get('is_public') if 'is_public' in data else None
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            result = service.update_message_template(template_id, name, content, category, is_public)
+            conn.close()
+            
+            log_event(username, 'messaging', 'template_updated', f'Template ID: {template_id}')
+            
+            return jsonify({
+                'template_id': template_id,
+                'success': True,
+                'updated_at': result.get('updated_at')
+            }), 200
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error updating template: {e}')
+            return jsonify({'error': 'Failed to update template'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'update_message_template')
+
+
+@app.route('/api/messages/templates/<int:template_id>', methods=['DELETE'])
+def delete_message_template(template_id):
+    """Delete a message template"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            service.delete_message_template(template_id)
+            conn.close()
+            
+            log_event(username, 'messaging', 'template_deleted', f'Template ID: {template_id}')
+            
+            return '', 204
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error deleting template: {e}')
+            return jsonify({'error': 'Failed to delete template'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'delete_message_template')
+
+
+@app.route('/api/messages/templates/<int:template_id>/use', methods=['POST'])
+def use_message_template(template_id):
+    """Use a template to send a message"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        recipient = data.get('recipient', '').strip()
+        subject = data.get('subject', '').strip()
+        template_vars = data.get('variables', {})  # For variable substitution
+        
+        if not recipient:
+            return jsonify({'error': 'Recipient is required'}), 400
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            # Get template content and populate with variables
+            result = service.use_message_template(template_id, recipient, subject, template_vars)
+            conn.close()
+            
+            log_event(username, 'messaging', 'template_used', f'Template ID: {template_id}, Recipient: {recipient}')
+            
+            return jsonify({
+                'message_id': result.get('message_id'),
+                'recipient': recipient,
+                'status': 'sent',
+                'timestamp': result.get('timestamp')
+            }), 201
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error using template: {e}')
+            return jsonify({'error': 'Failed to use template'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'use_message_template')
+
+
+# ============= GROUP MESSAGING (4 ENDPOINTS) =============
+
+@app.route('/api/messages/group/create', methods=['POST'])
+def create_group_conversation():
+    """Create a group conversation"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        subject = data.get('subject', '').strip()
+        members = data.get('members', [])
+        
+        if not subject or len(subject) > 255:
+            return jsonify({'error': 'Group subject is required (1-255 chars)'}), 400
+        
+        if not members or not isinstance(members, list) or len(members) < 2:
+            return jsonify({'error': 'At least 2 members required (including creator)'}), 400
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            result = service.create_group_conversation(subject, members)
+            conn.close()
+            
+            log_event(username, 'messaging', 'group_created', f'Subject: {subject}, Members: {len(members)}')
+            
+            return jsonify({
+                'conversation_id': result.get('conversation_id'),
+                'subject': subject,
+                'members': members,
+                'created_at': result.get('created_at')
+            }), 201
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error creating group: {e}')
+            return jsonify({'error': 'Failed to create group'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'create_group_conversation')
+
+
+@app.route('/api/messages/group/<int:conversation_id>/send', methods=['POST'])
+def send_group_message(conversation_id):
+    """Send a message to a group conversation"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        content = data.get('content', '').strip()
+        subject = data.get('subject', '').strip()
+        
+        if not content or len(content) > 10000:
+            return jsonify({'error': 'Message content is required (1-10000 chars)'}), 400
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            result = service.send_group_message(conversation_id, content, subject)
+            conn.close()
+            
+            log_event(username, 'messaging', 'group_message_sent', f'Conversation ID: {conversation_id}')
+            
+            return jsonify({
+                'message_id': result.get('message_id'),
+                'conversation_id': conversation_id,
+                'status': 'sent',
+                'timestamp': result.get('timestamp')
+            }), 201
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error sending group message: {e}')
+            return jsonify({'error': 'Failed to send group message'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'send_group_message')
+
+
+@app.route('/api/messages/group/<int:conversation_id>/members', methods=['POST'])
+def add_group_member(conversation_id):
+    """Add a member to a group conversation"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        member_username = data.get('username', '').strip()
+        
+        if not member_username:
+            return jsonify({'error': 'Username is required'}), 400
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            service.add_group_member(conversation_id, member_username)
+            conn.close()
+            
+            log_event(username, 'messaging', 'member_added', f'Conversation: {conversation_id}, Member: {member_username}')
+            
+            return jsonify({
+                'conversation_id': conversation_id,
+                'member_added': member_username,
+                'timestamp': datetime.now().isoformat() + 'Z'
+            }), 201
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error adding member: {e}')
+            return jsonify({'error': 'Failed to add member'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'add_group_member')
+
+
+@app.route('/api/messages/group/<int:conversation_id>/members', methods=['GET'])
+def list_group_members(conversation_id):
+    """List members of a group conversation"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            members = service.get_group_members(conversation_id)
+            conn.close()
+            
+            return jsonify({
+                'conversation_id': conversation_id,
+                'members': members,
+                'count': len(members)
+            }), 200
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error listing members: {e}')
+            return jsonify({'error': 'Failed to list members'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'list_group_members')
+
+
+# ============= MESSAGE SCHEDULING (4 ENDPOINTS) =============
+
+@app.route('/api/messages/scheduled', methods=['POST'])
+def schedule_message():
+    """Schedule a message to be sent at a future time"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        recipient = data.get('recipient', '').strip()
+        content = data.get('content', '').strip()
+        subject = data.get('subject', '').strip()
+        scheduled_for = data.get('scheduled_for')  # ISO format datetime
+        
+        if not recipient or not content or not scheduled_for:
+            return jsonify({'error': 'Recipient, content, and scheduled_for are required'}), 400
+        
+        if len(content) > 10000:
+            return jsonify({'error': 'Message cannot exceed 10,000 characters'}), 400
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            result = service.schedule_message(recipient, content, subject, scheduled_for)
+            conn.close()
+            
+            log_event(username, 'messaging', 'message_scheduled', f'Recipient: {recipient}, Scheduled: {scheduled_for}')
+            
+            return jsonify({
+                'message_id': result.get('message_id'),
+                'recipient': recipient,
+                'scheduled_for': scheduled_for,
+                'status': 'scheduled'
+            }), 201
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error scheduling message: {e}')
+            return jsonify({'error': 'Failed to schedule message'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'schedule_message')
+
+
+@app.route('/api/messages/scheduled', methods=['GET'])
+def list_scheduled_messages():
+    """List scheduled messages"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            messages = service.get_scheduled_messages()
+            conn.close()
+            
+            return jsonify({
+                'scheduled_messages': messages,
+                'count': len(messages)
+            }), 200
+        
+        except Exception as e:
+            app_logger.error(f'Error listing scheduled: {e}')
+            return jsonify({'error': 'Failed to list scheduled messages'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'list_scheduled_messages')
+
+
+@app.route('/api/messages/scheduled/<int:message_id>', methods=['PATCH'])
+def update_scheduled_message(message_id):
+    """Update a scheduled message"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        scheduled_for = data.get('scheduled_for')
+        content = data.get('content', '').strip() if 'content' in data else None
+        subject = data.get('subject', '').strip() if 'subject' in data else None
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            result = service.update_scheduled_message(message_id, scheduled_for, content, subject)
+            conn.close()
+            
+            log_event(username, 'messaging', 'scheduled_updated', f'Message ID: {message_id}')
+            
+            return jsonify({
+                'message_id': message_id,
+                'scheduled_for': scheduled_for,
+                'updated_at': result.get('updated_at')
+            }), 200
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error updating scheduled: {e}')
+            return jsonify({'error': 'Failed to update scheduled message'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'update_scheduled_message')
+
+
+@app.route('/api/messages/scheduled/<int:message_id>', methods=['DELETE'])
+def cancel_scheduled_message(message_id):
+    """Cancel a scheduled message"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            service.cancel_scheduled_message(message_id)
+            conn.close()
+            
+            log_event(username, 'messaging', 'scheduled_cancelled', f'Message ID: {message_id}')
+            
+            return '', 204
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error cancelling scheduled: {e}')
+            return jsonify({'error': 'Failed to cancel scheduled message'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'cancel_scheduled_message')
+
+
+# ============= USER BLOCKING (3 ENDPOINTS) =============
+
+@app.route('/api/messages/block/<username_to_block>', methods=['POST'])
+def block_user(username_to_block):
+    """Block a user from sending messages"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        if username == username_to_block:
+            return jsonify({'error': 'You cannot block yourself'}), 400
+        
+        data = request.json or {}
+        reason = data.get('reason', '').strip()
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            service.block_user(username_to_block, reason)
+            conn.close()
+            
+            log_event(username, 'messaging', 'user_blocked', f'Blocked: {username_to_block}, Reason: {reason}')
+            
+            return jsonify({
+                'blocked_user': username_to_block,
+                'reason': reason,
+                'blocked_at': datetime.now().isoformat() + 'Z'
+            }), 201
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error blocking user: {e}')
+            return jsonify({'error': 'Failed to block user'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'block_user')
+
+
+@app.route('/api/messages/block/<username_to_unblock>', methods=['DELETE'])
+def unblock_user(username_to_unblock):
+    """Unblock a previously blocked user"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            service.unblock_user(username_to_unblock)
+            conn.close()
+            
+            log_event(username, 'messaging', 'user_unblocked', f'Unblocked: {username_to_unblock}')
+            
+            return '', 204
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error unblocking user: {e}')
+            return jsonify({'error': 'Failed to unblock user'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'unblock_user')
+
+
+@app.route('/api/messages/blocked', methods=['GET'])
+def list_blocked_users():
+    """List all blocked users"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            blocked_users = service.get_blocked_users()
+            conn.close()
+            
+            return jsonify({
+                'blocked_users': blocked_users,
+                'count': len(blocked_users)
+            }), 200
+        
+        except Exception as e:
+            app_logger.error(f'Error listing blocked: {e}')
+            return jsonify({'error': 'Failed to list blocked users'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'list_blocked_users')
+
+
+# ============= BROADCAST MESSAGING (2 ENDPOINTS) =============
+
+@app.route('/api/admin/messages/broadcast', methods=['POST'])
+def broadcast_message_admin():
+    """Broadcast message to all users (admin only)"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Check admin role
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        user = cur.execute('SELECT role FROM users WHERE username=%s', (username,)).fetchone()
+        conn.close()
+        
+        if not user or user[0] != 'admin':
+            return jsonify({'error': 'Admin role required'}), 403
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        subject = data.get('subject', '').strip()
+        content = data.get('content', '').strip()
+        
+        if not subject or not content:
+            return jsonify({'error': 'Subject and content are required'}), 400
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, 'SYSTEM')
+            
+            result = service.broadcast_message(subject, content, broadcast_type='admin')
+            conn.close()
+            
+            log_event(username, 'messaging', 'broadcast_sent', f'Subject: {subject}, Recipients: {result.get("recipient_count")}')
+            
+            return jsonify({
+                'broadcast_id': result.get('broadcast_id'),
+                'subject': subject,
+                'recipient_count': result.get('recipient_count'),
+                'status': 'sent'
+            }), 201
+        
+        except Exception as e:
+            app_logger.error(f'Error broadcasting: {e}')
+            return jsonify({'error': 'Failed to broadcast message'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'broadcast_message_admin')
+
+
+@app.route('/api/clinician/messages/broadcast', methods=['POST'])
+def broadcast_message_clinician():
+    """Broadcast message to assigned patients (clinician only)"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Check clinician role
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        user = cur.execute('SELECT role FROM users WHERE username=%s', (username,)).fetchone()
+        conn.close()
+        
+        if not user or user[0] not in ('clinician', 'therapist'):
+            return jsonify({'error': 'Clinician role required'}), 403
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        subject = data.get('subject', '').strip()
+        content = data.get('content', '').strip()
+        
+        if not subject or not content:
+            return jsonify({'error': 'Subject and content are required'}), 400
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            result = service.broadcast_to_patients(subject, content)
+            conn.close()
+            
+            log_event(username, 'messaging', 'broadcast_sent', f'Subject: {subject}, Patients: {result.get("recipient_count")}')
+            
+            return jsonify({
+                'broadcast_id': result.get('broadcast_id'),
+                'subject': subject,
+                'recipient_count': result.get('recipient_count'),
+                'status': 'sent'
+            }), 201
+        
+        except Exception as e:
+            app_logger.error(f'Error broadcasting: {e}')
+            return jsonify({'error': 'Failed to broadcast message'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'broadcast_message_clinician')
+
+
+# ============= NOTIFICATIONS & ARCHIVES (5 ENDPOINTS) =============
+
+@app.route('/api/messages/notifications/settings', methods=['GET'])
+def get_notification_settings():
+    """Get user's message notification preferences"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            
+            # Get notification settings from user preferences
+            settings = cur.execute('''
+                SELECT 
+                    COALESCE((SELECT setting_value FROM user_settings 
+                             WHERE username=%s AND setting_key='notify_in_app'), 'true') as notify_in_app,
+                    COALESCE((SELECT setting_value FROM user_settings 
+                             WHERE username=%s AND setting_key='notify_email'), 'false') as notify_email,
+                    COALESCE((SELECT setting_value FROM user_settings 
+                             WHERE username=%s AND setting_key='notify_push'), 'false') as notify_push,
+                    COALESCE((SELECT setting_value FROM user_settings 
+                             WHERE username=%s AND setting_key='notify_digest'), 'true') as notify_digest
+            ''', (username, username, username, username)).fetchone()
+            
+            conn.close()
+            
+            if settings:
+                return jsonify({
+                    'notify_in_app': settings[0] == 'true',
+                    'notify_email': settings[1] == 'true',
+                    'notify_push': settings[2] == 'true',
+                    'notify_digest': settings[3] == 'true'
+                }), 200
+            else:
+                return jsonify({
+                    'notify_in_app': True,
+                    'notify_email': False,
+                    'notify_push': False,
+                    'notify_digest': True
+                }), 200
+        
+        except Exception as e:
+            app_logger.error(f'Error getting notification settings: {e}')
+            return jsonify({'error': 'Failed to get settings'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'get_notification_settings')
+
+
+@app.route('/api/messages/notifications/settings', methods=['PUT'])
+def update_notification_settings():
+    """Update user's message notification preferences"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        data = request.json or {}
+        notify_in_app = data.get('notify_in_app', True)
+        notify_email = data.get('notify_email', False)
+        notify_push = data.get('notify_push', False)
+        notify_digest = data.get('notify_digest', True)
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            
+            # Ensure user_settings table exists
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS user_settings (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    setting_key VARCHAR(255) NOT NULL,
+                    setting_value VARCHAR(255),
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(username, setting_key),
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+                )
+            ''')
+            
+            # Update or insert settings
+            settings = [
+                ('notify_in_app', 'true' if notify_in_app else 'false'),
+                ('notify_email', 'true' if notify_email else 'false'),
+                ('notify_push', 'true' if notify_push else 'false'),
+                ('notify_digest', 'true' if notify_digest else 'false')
+            ]
+            
+            for key, value in settings:
+                cur.execute('''
+                    INSERT INTO user_settings (username, setting_key, setting_value)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (username, setting_key) DO UPDATE
+                    SET setting_value = %s, updated_at = CURRENT_TIMESTAMP
+                ''', (username, key, value, value))
+            
+            conn.commit()
+            conn.close()
+            
+            log_event(username, 'messaging', 'settings_updated', f'Notifications updated')
+            
+            return jsonify({
+                'notify_in_app': notify_in_app,
+                'notify_email': notify_email,
+                'notify_push': notify_push,
+                'notify_digest': notify_digest,
+                'updated_at': datetime.now().isoformat() + 'Z'
+            }), 200
+        
+        except Exception as e:
+            app_logger.error(f'Error updating notification settings: {e}')
+            return jsonify({'error': 'Failed to update settings'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'update_notification_settings')
+
+
+@app.route('/api/messages/unread-count', methods=['GET'])
+def get_unread_count():
+    """Quick endpoint to get total unread message count"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            unread_count = service.get_unread_count()
+            conn.close()
+            
+            return jsonify({
+                'unread_count': unread_count
+            }), 200
+        
+        except Exception as e:
+            app_logger.error(f'Error getting unread count: {e}')
+            return jsonify({'error': 'Failed to get unread count'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'get_unread_count')
+
+
+@app.route('/api/messages/archive/<int:message_id>', methods=['POST'])
+def archive_message(message_id):
+    """Archive a message or conversation"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            service.archive_message(message_id)
+            conn.close()
+            
+            log_event(username, 'messaging', 'message_archived', f'Message ID: {message_id}')
+            
+            return jsonify({
+                'message_id': message_id,
+                'archived': True,
+                'archived_at': datetime.now().isoformat() + 'Z'
+            }), 200
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error archiving message: {e}')
+            return jsonify({'error': 'Failed to archive message'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'archive_message')
+
+
+@app.route('/api/messages/archive/<int:message_id>', methods=['DELETE'])
+def unarchive_message(message_id):
+    """Unarchive a message or conversation"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        if not HAS_MESSAGE_SERVICE:
+            return jsonify({'error': 'Messaging system not available'}), 503
+        
+        # Validate CSRF
+        if not validate_csrf_token(request.headers.get('X-CSRF-Token')):
+            return jsonify({'error': 'CSRF token invalid'}), 403
+        
+        try:
+            conn = get_db_connection()
+            cur = get_wrapped_cursor(conn)
+            service = MessageService(conn, cur, username)
+            
+            service.unarchive_message(message_id)
+            conn.close()
+            
+            log_event(username, 'messaging', 'message_unarchived', f'Message ID: {message_id}')
+            
+            return '', 204
+        
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app_logger.error(f'Error unarchiving message: {e}')
+            return jsonify({'error': 'Failed to unarchive message'}), 500
+    
+    except Exception as e:
+        return handle_exception(e, 'unarchive_message')
+
+
+# ============= ANALYTICS (2 ENDPOINTS) =============
+
+@app.route('/api/admin/messages/analytics', methods=['GET'])
+def get_message_analytics_admin():
+    """Get message analytics (admin dashboard)"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Check admin role
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        user = cur.execute('SELECT role FROM users WHERE username=%s', (username,)).fetchone()
+        
+        if not user or user[0] != 'admin':
+            conn.close()
+            return jsonify({'error': 'Admin role required'}), 403
+        
+        # Get analytics
+        total_messages = cur.execute('SELECT COUNT(*) FROM messages WHERE deleted_at IS NULL').fetchone()[0]
+        total_users = cur.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        total_conversations = cur.execute('SELECT COUNT(*) FROM conversations').fetchone()[0]
+        active_users = cur.execute('''
+            SELECT COUNT(DISTINCT sender_username) FROM messages 
+            WHERE sent_at > NOW() - INTERVAL '24 hours'
+        ''').fetchone()[0]
+        
+        conn.close()
+        
+        return jsonify({
+            'total_messages': total_messages,
+            'total_users': total_users,
+            'total_conversations': total_conversations,
+            'active_users_24h': active_users,
+            'avg_messages_per_user': round(total_messages / total_users, 2) if total_users > 0 else 0
+        }), 200
+    
+    except Exception as e:
+        return handle_exception(e, 'get_message_analytics_admin')
+
+
+@app.route('/api/clinician/messages/analytics', methods=['GET'])
+def get_message_analytics_clinician():
+    """Get message analytics for clinician's patients"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Check clinician role
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        user = cur.execute('SELECT role FROM users WHERE username=%s', (username,)).fetchone()
+        
+        if not user or user[0] not in ('clinician', 'therapist'):
+            conn.close()
+            return jsonify({'error': 'Clinician role required'}), 403
+        
+        # Get clinician's patients
+        patients = cur.execute('''
+            SELECT patient_username FROM clinician_patients WHERE clinician_username=%s
+        ''', (username,)).fetchall()
+        patient_list = [p[0] for p in patients]
+        
+        if not patient_list:
+            conn.close()
+            return jsonify({
+                'total_messages_with_patients': 0,
+                'patient_count': 0,
+                'avg_response_time_hours': 0
+            }), 200
+        
+        # Get message stats
+        placeholders = ','.join(['%s'] * len(patient_list))
+        messages = cur.execute(f'''
+            SELECT COUNT(*) FROM messages 
+            WHERE (sender_username = %s AND recipient_username IN ({placeholders}))
+               OR (recipient_username = %s AND sender_username IN ({placeholders}))
+            AND deleted_at IS NULL
+        ''', [username] + patient_list + [username] + patient_list).fetchone()[0]
+        
+        conn.close()
+        
+        return jsonify({
+            'total_messages_with_patients': messages,
+            'patient_count': len(patient_list),
+            'avg_messages_per_patient': round(messages / len(patient_list), 2) if patient_list else 0
+        }), 200
+    
+    except Exception as e:
+        return handle_exception(e, 'get_message_analytics_clinician')
+
+
 # ================== DEVELOPER DASHBOARD: TEST INTEGRATION ENDPOINTS ==================
 
 @CSRFProtection.require_csrf
