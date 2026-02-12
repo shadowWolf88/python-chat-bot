@@ -15322,8 +15322,8 @@ def get_inbox():
             
             # Get conversations list with MessageService
             result = service.get_conversations_list(
+                page=page,
                 limit=limit,
-                offset=(page - 1) * limit,
                 unread_only=unread_only
             )
             
