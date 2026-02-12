@@ -15341,8 +15341,8 @@ def get_inbox():
             }), 200
         
         except Exception as e:
-            app_logger.error(f'MessageService error in get_inbox: {e}')
-            return jsonify({'error': 'Failed to retrieve inbox'}), 500
+            app_logger.error(f'MessageService error in get_inbox: {str(e)}, Type: {type(e).__name__}', exc_info=True)
+            return jsonify({'error': f'Failed to retrieve inbox: {str(e)}'}), 500
     
     except Exception as e:
         return handle_exception(e, 'get_inbox')
