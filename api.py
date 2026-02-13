@@ -11514,8 +11514,17 @@ def get_patient_detail(username):
         except Exception:
             wins = []
 
+        # Patient AI suggestions (active)
+        try:
+            patient_suggestions = cur.execute(
+                "SELECT suggestion_text, created_at FROM patient_suggestions WHERE username = %s AND is_active = TRUE ORDER BY created_at DESC",
+                (username,)
+            ).fetchall()
+        except Exception:
+            patient_suggestions = []
+
         conn.close()
-        
+
         return jsonify({
             'username': username,
             'profile': {
@@ -11558,6 +11567,9 @@ def get_patient_detail(username):
             ],
             'recent_wins': [
                 {'type': w[0], 'text': w[1], 'timestamp': str(w[2]) if w[2] else None} for w in wins
+            ],
+            'patient_suggestions': [
+                {'text': s[0], 'created_at': str(s[1]) if s[1] else None} for s in patient_suggestions
             ]
         }), 200
     except Exception as e:
