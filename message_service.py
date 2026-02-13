@@ -36,17 +36,22 @@ class MessageService:
     
     # ==================== DIRECT MESSAGING ====================
     
-    def send_direct_message(self, recipient_username: str, content: str, 
-                           subject: str = None, attachments: List[Dict] = None) -> Dict[str, Any]:
+    def send_direct_message(self, recipient_username: str = None, content: str = None,
+                           subject: str = None, attachments: List[Dict] = None,
+                           recipient: str = None, conversation_id: int = None) -> Dict[str, Any]:
         """
         Send a direct message from authenticated user to recipient.
         Creates conversation if needed, stores message, logs event.
-        
+
         Returns: {message_id, conversation_id, status, sent_at}
         """
+        # Accept 'recipient' as alias for 'recipient_username'
+        if recipient and not recipient_username:
+            recipient_username = recipient
+
         if not self.username:
             raise ValueError("Authentication required")
-        
+
         if not recipient_username or not content:
             raise ValueError("Recipient and content required")
         
@@ -70,13 +75,14 @@ class MessageService:
         if self.username == recipient_username:
             raise ValueError("Cannot send messages to yourself")
         
-        # Get or create conversation
+        # Get or create conversation (use provided conversation_id if valid)
         try:
-            conversation_id = self._get_or_create_conversation(
-                type='direct',
-                subject=subject,
-                participants=[self.username, recipient_username]
-            )
+            if not conversation_id:
+                conversation_id = self._get_or_create_conversation(
+                    type='direct',
+                    subject=subject,
+                    participants=[self.username, recipient_username]
+                )
         except Exception as e:
             raise ValueError(f"Failed to create/get conversation: {str(e)}")
         

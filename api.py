@@ -14786,11 +14786,12 @@ def submit_feedback():
         role = user[0] if user else 'user'
 
         cur.execute(
-            "INSERT INTO feedback (username, role, category, message) VALUES (%s, %s, %s, %s)",
+            "INSERT INTO feedback (username, role, category, message) VALUES (%s, %s, %s, %s) RETURNING id",
             (username, role, category, message)
         )
-        
-        feedback_id = cur.fetchone()[0]
+
+        result = cur.fetchone()
+        feedback_id = result[0] if result else None
         conn.commit()
 
         # Send notification to all developers
