@@ -335,23 +335,64 @@ class MessageService:
             'total_pages': (total + limit - 1) // limit
         }
     
+    def get_conversation(self, recipient_username: str, limit: int = 50) -> Dict[str, Any]:
+        """Get conversation with a specific user (by username)"""
+        if not self.username:
+            raise ValueError("Authentication required")
+
+        if not recipient_username:
+            raise ValueError("Recipient username required")
+
+        if limit < 1 or limit > 200:
+            limit = 50
+
+        # Find conversation between these two users
+        self.cur.execute("""
+            SELECT c.id FROM conversations c
+            JOIN conversation_participants cp1 ON c.id = cp1.conversation_id
+            JOIN conversation_participants cp2 ON c.id = cp2.conversation_id
+            WHERE c.type = 'direct'
+            AND cp1.username = %s AND cp2.username = %s
+            LIMIT 1
+        """, (self.username, recipient_username))
+
+        conv_result = self.cur.fetchone()
+        if not conv_result:
+            # No conversation found - return empty
+            return {
+                'messages': [],
+                'with_user': recipient_username,
+                'participant_count': 2
+            }
+
+        conversation_id = conv_result[0]
+
+        # Get messages using get_conversation_thread
+        thread = self.get_conversation_thread(conversation_id, limit)
+
+        # Add with_user field for frontend
+        thread['with_user'] = recipient_username
+        thread['participant_count'] = 2
+
+        return thread
+
     def get_conversation_thread(self, conversation_id: int, limit: int = 50) -> Dict[str, Any]:
         """Get full conversation thread"""
         if not self.username:
             raise ValueError("Authentication required")
-        
+
         if limit < 1 or limit > 500:
             limit = 50
-        
+
         # Verify access
         access = self.cur.execute("""
             SELECT 1 FROM conversation_participants
             WHERE conversation_id = %s AND username = %s
         """, (conversation_id, self.username)).fetchone()
-        
+
         if not access:
             raise ValueError("Access denied")
-        
+
         # Get messages
         self.cur.execute("""
             SELECT id, sender_username, recipient_username, subject, content,
@@ -360,7 +401,7 @@ class MessageService:
             WHERE conversation_id = %s AND deleted_at IS NULL
             ORDER BY sent_at ASC LIMIT %s
         """, (conversation_id, limit))
-        
+
         messages = []
         for row in self.cur.fetchall():
             # Mark as read if recipient
@@ -369,7 +410,7 @@ class MessageService:
                     UPDATE messages SET is_read = 1, read_at = CURRENT_TIMESTAMP
                     WHERE id = %s
                 """, (row[0],))
-            
+
             messages.append({
                 'id': row[0],
                 'sender': row[1],
@@ -381,9 +422,9 @@ class MessageService:
                 'sent_at': row[7].isoformat() if row[7] else None,
                 'message_type': row[8]
             })
-        
+
         self.conn.commit()
-        
+
         return {
             'conversation_id': conversation_id,
             'messages': messages,
