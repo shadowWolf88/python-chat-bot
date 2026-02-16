@@ -1,0 +1,22 @@
+{
+  "appId": "com.healingspace.app",
+  "appName": "Healing Space",
+  "webDir": "templates",
+  "server": {
+    "url": "https://www.healing-space.org.uk",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#667eea"
+    }
+  }
+}

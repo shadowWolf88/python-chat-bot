@@ -1,0 +1,44 @@
+To make this script executable on Ubuntu, you need to save the code into a .py file and ensure your system has the necessary Python libraries installed. Ubuntu usually comes with Python, but customtkinter and requests need to be added manually.
+1. Install Dependencies
+
+Open your terminal and run the following command to install the required libraries:
+Bash
+
+pip install customtkinter requests
+
+Note: If pip is not installed, run sudo apt update && sudo apt install python3-pip first.
+2. Create the Script File
+
+You can create the file directly from the terminal using the nano editor:
+
+    Type nano healing_space.py in your terminal.
+
+    Paste the entire code block provided in the previous response into the editor.
+
+    Press Ctrl + O then Enter to save.
+
+    Press Ctrl + X to exit.
+
+3. Make it Executable
+
+To run the script like a standalone program, you need to change its permissions:
+Bash
+
+chmod +x healing_space.py
+
+chmod +x healing_space.py
+chmod +x healing_space.py
+x
+X
+
+
+ch
+/bin/python3 "/home/computer001/Documents/python chat bot/testUII.py"
+/bin/python3 "/home/computer001/Documents/python chat bot/main.py"
+/bin/python3 "/home/computer001/Documents/python chat bot/main.py"
+/bin/python3 "/home/computer001/Documents/python chat bot/main.py"
+/bin/python3 "/home/computer001/Documents/python chat bot/main.py"
+/bin/python3 "/home/computer001/Documents/python chat bot/main.py"
+/bin/python3 "/home/computer001/Documents/python chat bot/main.py"
+/bin/python3 "/home/computer001/Documents/python chat bot/main.py"
+
