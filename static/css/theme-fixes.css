@@ -1,0 +1,395 @@
+/**
+ * ============================================
+ * Theme Fixes - Override Inline Styles
+ * ============================================
+ *
+ * This file forces theme-aware colors on elements
+ * with hardcoded inline styles until they can be
+ * properly refactored.
+ * ============================================
+ */
+
+/* ============================================
+   GLOBAL TEXT COLOR FIXES
+   ============================================ */
+
+/* Force all text to use theme colors */
+body, body * {
+    color: var(--text-primary) !important;
+}
+
+/* Small text / helper text */
+small,
+.form-help,
+[style*="color: #666"],
+[style*="color: #999"],
+[style*="color:#666"],
+[style*="color:#999"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary) !important;
+}
+
+/* Links */
+a {
+    color: var(--text-link) !important;
+}
+
+a:hover {
+    color: var(--text-link-hover) !important;
+}
+
+/* ============================================
+   FORM INPUTS
+   ============================================ */
+
+/* All form inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="number"],
+input[type="tel"],
+textarea,
+select {
+    background: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-primary) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--text-muted) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--border-focus) !important;
+    outline: none !important;
+}
+
+/* Override hardcoded input borders */
+[style*="border: 2px solid #e0e0e0"],
+[style*="border:2px solid #e0e0e0"] {
+    border-color: var(--border-primary) !important;
+}
+
+/* ============================================
+   BACKGROUNDS
+   ============================================ */
+
+/* Light gray backgrounds */
+[style*="background: #f9f9f9"],
+[style*="background: #f8f9fa"],
+[style*="background: #fafafa"],
+[style*="background:#f9f9f9"],
+[style*="background:#f8f9fa"] {
+    background: var(--bg-secondary) !important;
+}
+
+/* White backgrounds */
+[style*="background: white"],
+[style*="background: #ffffff"],
+[style*="background:#fff"] {
+    background: var(--bg-primary) !important;
+}
+
+/* ============================================
+   CARDS & CONTAINERS
+   ============================================ */
+
+.card,
+.modal-content,
+.auth-box,
+[style*="background: white"][style*="border"] {
+    background: var(--bg-elevated) !important;
+    border-color: var(--border-primary) !important;
+}
+
+/* ============================================
+   STATUS COLORS - FORCE THEME COLORS
+   ============================================ */
+
+/* Warning boxes */
+[style*="background: #fff3cd"],
+[style*="background: #ffebee"],
+[style*="background:#fff3cd"] {
+    background: var(--status-warning-bg) !important;
+    border-color: var(--status-warning-border) !important;
+}
+
+[style*="background: #fff3cd"] *,
+[style*="background: #ffebee"] * {
+    color: var(--text-primary) !important;
+}
+
+/* Error/danger colors */
+[style*="color: #c62828"],
+[style*="color: #e74c3c"],
+[style*="border-left: 4px solid #e74c3c"] {
+    color: var(--status-error) !important;
+    border-color: var(--status-error) !important;
+}
+
+/* Success colors */
+[style*="color: #27ae60"],
+[style*="color: #2f855a"] {
+    color: var(--status-success) !important;
+}
+
+/* Info/accent colors */
+[style*="color: #667eea"],
+h2[style*="color: #667eea"] {
+    color: var(--accent-primary) !important;
+}
+
+/* ============================================
+   BUTTONS - OVERRIDE INLINE STYLES
+   ============================================ */
+
+button,
+.btn,
+[style*="background: #667eea"],
+[style*="background: linear-gradient"] {
+    background: var(--interactive-primary) !important;
+    color: var(--text-inverse) !important;
+    border-color: var(--interactive-primary) !important;
+}
+
+button:hover,
+.btn:hover {
+    background: var(--interactive-primary-hover) !important;
+}
+
+/* Secondary buttons */
+[style*="background: #f0f0f0"],
+[style*="background: #e0e0e0"] {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ============================================
+   TABLES
+   ============================================ */
+
+table {
+    color: var(--text-primary) !important;
+}
+
+table th {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+table td {
+    color: var(--text-secondary) !important;
+    border-color: var(--border-primary) !important;
+}
+
+thead tr[style*="background"],
+[style*="background: #f8f9fa"] {
+    background: var(--bg-secondary) !important;
+}
+
+/* ============================================
+   STRENGTH INDICATORS & PROGRESS BARS
+   ============================================ */
+
+[style*="background: #e0e0e0"][style*="height"][style*="border-radius"] {
+    background: var(--bg-tertiary) !important;
+}
+
+[style*="background: #dc3545"] {
+    background: var(--status-error) !important;
+}
+
+/* ============================================
+   SIDEBAR & NAVIGATION
+   ============================================ */
+
+.sidebar {
+    background: var(--bg-sidebar) !important;
+    border-color: var(--border-primary) !important;
+}
+
+.tab-btn {
+    color: var(--text-primary) !important;
+    background: transparent !important;
+}
+
+.tab-btn.active,
+.tab-btn:hover {
+    background: var(--bg-hover) !important;
+    color: var(--accent-primary) !important;
+}
+
+/* ============================================
+   MODALS & OVERLAYS
+   ============================================ */
+
+.modal {
+    background: var(--bg-elevated) !important;
+}
+
+.modal-content {
+    background: var(--bg-elevated) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ============================================
+   CHAT & MESSAGING
+   ============================================ */
+
+.chat-container {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-primary) !important;
+}
+
+.chat-messages {
+    background: var(--bg-secondary) !important;
+}
+
+.message.ai {
+    background: var(--bg-elevated) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-primary) !important;
+}
+
+.message.user {
+    background: var(--interactive-primary) !important;
+    color: var(--text-inverse) !important;
+}
+
+.chat-input-area {
+    background: var(--bg-elevated) !important;
+    border-color: var(--border-primary) !important;
+}
+
+.chat-input-area textarea {
+    background: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-primary) !important;
+}
+
+/* ============================================
+   SPECIFIC OVERRIDES FOR COMMON PATTERNS
+   ============================================ */
+
+/* Dropdown placeholders */
+[id$="Placeholder"],
+.dropdown-placeholder {
+    background: var(--bg-secondary) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border-primary) !important;
+}
+
+/* Patient cards */
+.patient-card {
+    background: var(--bg-elevated) !important;
+    border-color: var(--border-primary) !important;
+}
+
+.patient-card * {
+    color: var(--text-primary) !important;
+}
+
+/* Stats and metrics */
+.stat-card {
+    background: var(--bg-elevated) !important;
+    border-color: var(--border-primary) !important;
+}
+
+.stat-label {
+    color: var(--text-secondary) !important;
+}
+
+.stat-value {
+    color: var(--text-primary) !important;
+}
+
+/* ============================================
+   ACCESSIBILITY - ENSURE READABLE TEXT
+   ============================================ */
+
+/* Force minimum contrast for all text */
+p, span, div, label {
+    color: var(--text-primary);
+}
+
+/* Secondary text elements */
+.secondary-text,
+.help-text,
+.meta-text {
+    color: var(--text-secondary);
+}
+
+/* Muted text */
+.muted-text,
+.placeholder-text {
+    color: var(--text-muted);
+}
+
+/* ============================================
+   PRINT STYLES - FORCE LIGHT THEME
+   ============================================ */
+
+@media print {
+    * {
+        background: white !important;
+        color: black !important;
+        border-color: #cccccc !important;
+    }
+}
+
+/* ============================================
+   DARK MODE SPECIFIC FIXES
+   ============================================ */
+
+[data-theme="dark"] {
+    /* Ensure absolutely everything inherits theme colors */
+    color-scheme: dark;
+}
+
+[data-theme="dark"] * {
+    /* Force theme colors in dark mode */
+    border-color: var(--border-primary);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+    color-scheme: dark;
+    background: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ============================================
+   URGENCY: HIGH CONTRAST ENFORCEMENT
+   ============================================ */
+
+/* Absolutely ensure text is visible */
+[data-theme="dark"] body,
+[data-theme="dark"] .main-content,
+[data-theme="dark"] .card,
+[data-theme="dark"] .modal {
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Force all paragraphs and text to be visible */
+[data-theme="dark"] p,
+[data-theme="dark"] span,
+[data-theme="dark"] div,
+[data-theme="dark"] label,
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+    color: var(--text-primary) !important;
+}
