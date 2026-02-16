@@ -15829,6 +15829,19 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     '</div>';
                 }).join('');
                 console.log('[renderInbox] Successfully rendered HTML, length:', container.innerHTML.length);
+
+                // Verify container is still visible and has content
+                setTimeout(function() {
+                    var checkContainer = document.getElementById('messagesInboxContainer');
+                    console.log('[renderInbox] Post-render check:', {
+                        exists: !!checkContainer,
+                        hasContent: checkContainer ? checkContainer.innerHTML.length : 0,
+                        isVisible: checkContainer ? (checkContainer.offsetHeight > 0) : false,
+                        parentTab: checkContainer ? checkContainer.closest('.message-subtab-content') : null,
+                        parentVisible: checkContainer ? (checkContainer.closest('.message-subtab-content')?.style.display !== 'none') : false
+                    });
+                }, 100);
+
                 updateUnreadBadge(data);
             } catch (e) {
                 console.error('[renderInbox] Error rendering:', {
@@ -15875,6 +15888,18 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     '</div>';
                 }).join('');
                 console.log('[renderSent] Successfully rendered HTML, length:', container.innerHTML.length);
+
+                // Verify container is still visible and has content
+                setTimeout(function() {
+                    var checkContainer = document.getElementById('messagesSentContainer');
+                    console.log('[renderSent] Post-render check:', {
+                        exists: !!checkContainer,
+                        hasContent: checkContainer ? checkContainer.innerHTML.length : 0,
+                        isVisible: checkContainer ? (checkContainer.offsetHeight > 0) : false,
+                        parentTab: checkContainer ? checkContainer.closest('.message-subtab-content') : null,
+                        parentVisible: checkContainer ? (checkContainer.closest('.message-subtab-content')?.style.display !== 'none') : false
+                    });
+                }, 100);
             } catch (e) {
                 console.error('[renderSent] Error rendering:', {
                     message: e.message,
@@ -15932,6 +15957,23 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             renderSent(messageTabCache.sent);
                         }
                     }
+
+                    // Final state check after render/load
+                    setTimeout(function() {
+                        var containerId = tabName === 'inbox' ? 'messagesInboxContainer' :
+                                         tabName === 'sent' ? 'messagesSentContainer' : null;
+                        if (containerId) {
+                            var finalContainer = document.getElementById(containerId);
+                            console.log('[switchMessageTab] Final state check:', {
+                                tab: tabName,
+                                tabVisible: tab.style.display,
+                                containerExists: !!finalContainer,
+                                containerHasContent: finalContainer ? finalContainer.innerHTML.length : 0,
+                                containerVisible: finalContainer ? (finalContainer.offsetHeight > 0) : false,
+                                containerHTML: finalContainer ? finalContainer.innerHTML.substring(0, 200) : 'N/A'
+                            });
+                        }
+                    }, 200);
                 } else {
                     console.error('[switchMessageTab] Tab not found! ID:', tabId);
                 }
