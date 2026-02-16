@@ -16112,8 +16112,15 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 messageTabCache.inbox = null;
                 updateUnreadBadge(null);
             } catch (e) {
-                console.error('[openConversation]', e);
-                document.getElementById('conversationMessages').innerHTML = '<div class="msg-empty"><p>Error: ' + sanitizeHTML(e.message) + '</p></div>';
+                console.error('[openConversation] Error details:', {
+                    message: e.message,
+                    stack: e.stack,
+                    withUser: withUser
+                });
+                var messagesEl = document.getElementById('conversationMessages');
+                if (messagesEl) {
+                    messagesEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⚠️</div><p>Error loading conversation: ' + sanitizeHTML(e.message) + '</p><p style="font-size: 14px; color: var(--text-muted); margin-top: 8px;">Please try again or contact support.</p></div>';
+                }
             }
         }
 
