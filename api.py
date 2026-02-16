@@ -278,6 +278,10 @@ def get_db_connection_pooled():
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
+# CRITICAL: Force template reload to fix deployment cache issues
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.auto_reload = True
+
 # Configure Flask session support for secure authentication (Phase 1A)
 # CRITICAL: SECRET_KEY must be strong and set in environment
 SECRET_KEY = os.getenv('SECRET_KEY')
