@@ -1,0 +1,77 @@
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">🧠 Core Beliefs Worksheet</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Explore and challenge a core belief that might be holding you back</p>
+
+    <form id="coreBeliefsForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="coreBeliefsMoodBefore"></div>
+        </div>
+
+        <!-- Core Belief Input -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">What is a core belief you want to examine? 🔍</label>
+            <input type="text" name="belief" required style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;" placeholder="e.g., I'm not good enough...">
+        </div>
+
+        <!-- Evidence For -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Evidence that supports this belief 📝</label>
+            <textarea name="evidence_for" rows="4" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="What experiences seem to confirm this belief?"></textarea>
+        </div>
+
+        <!-- Evidence Against -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Evidence that challenges this belief ✨</label>
+            <textarea name="evidence_against" rows="4" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="What evidence contradicts this belief?"></textarea>
+        </div>
+
+        <!-- Alternative Belief -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Alternative, more balanced belief 🌟</label>
+            <input type="text" name="alternative" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;" placeholder="A more realistic and helpful belief...">
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after this reflection? 💭</label>
+            <div id="coreBeliefsMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetCoreBeliefs()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveCoreBeliefs()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Worksheet</button>
+        </div>
+    </form>
+    <div id="coreBeliefsStatus"></div>
+</div>
+
+<script>
+function saveCoreBeliefs() {
+    saveCBTToolData('CoreBeliefsWorksheet');
+}
+
+function resetCoreBeliefs() {
+    document.getElementById('coreBeliefsForm').reset();
+    const beforeBtns = document.querySelectorAll('#coreBeliefsMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#coreBeliefsMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('coreBeliefsMoodBefore') && !document.querySelector('#coreBeliefsMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('coreBeliefsMoodBefore');
+        const beforeInput = document.getElementById('coreBeliefsMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('coreBeliefsMoodAfter') && !document.querySelector('#coreBeliefsMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('coreBeliefsMoodAfter');
+        const afterInput = document.getElementById('coreBeliefsMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

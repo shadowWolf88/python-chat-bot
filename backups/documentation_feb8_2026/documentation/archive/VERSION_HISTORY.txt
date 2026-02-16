@@ -1,0 +1,212 @@
+vd5818e7 (2026-01-31): fix: Critical save/load API endpoints and AI memory integration
+vd3cbbd5 (2026-01-31): fix: Resolve duplicate tools and save/load issues
+v056f8ff (2026-01-31): feat: Phase 2 gamification - badges, mood tracking, and streaks
+v076d5d3 (2026-01-31): feat: Phase 1 - CBT Tools Gamification (Emoji Moods, Confetti, Pet Rewards)
+vc652304 (2026-01-31): version number update
+v6c5f307 (2026-01-30): fix: Remove all remaining duplicate Flask route functions
+v3be3194 (2026-01-30): fix: Remove duplicate function definitions causing Flask route conflicts
+vd313042 (2026-01-30): fix: CBT tools dashboard backend and AI memory integration
+vdc14473 (2026-01-30): Fix: syntax error in POSITIVE_AFFIRMATIONS array, CBT tools dashboard and persistence, ensure AI listens to all tools
+v0c1a4db (2026-01-30): New CBT tools added
+v881b7b6 (2026-01-30): fix: Daily Tasks Errors
+vd7e291f (2026-01-30): Version History Update v1.1
+v20f1674 (2026-01-30): Version History Update
+v78660be (2026-01-30): Home Page Bug Fix 1.0
+va4056a3 (2026-01-30): fix: add detailed error logging and improved error display for mood and gratitude logging
+v70d133a (2026-01-30): feat: Home tab, daily tasks, feedback, and polish for Healing Space UK
+v216e8c4 (2026-01-30): Fix comprehensive dark mode for chat, safety, insights, appointments, and about me tabs
+vdfd219c (2026-01-30): Fix dark mode backgrounds for all tabs and dashboard cards
+v5548a68 (2026-01-30): Update app header branding to Healing Space UK in web UI
+v075e829 (2026-01-30): Update web UI branding to Healing Space UK
+v2a91418 (2026-01-30): Update all branding to Healing Space UK
+v0e049df (2026-01-30): docs update
+vfba863c (2026-01-30): Fix dark/light theme for all tabs and cards
+vb22bc20 (2026-01-30): Crash bug fix FlaskApp location incorrect
+v236120e (2026-01-30): UI FIX
+v543d1ff (2026-01-30): Add full CRUD endpoints, audit logging, and AI memory integration for all new CBT tools (breathing, relaxation, sleep, core belief, exposure, problem-solving, coping cards, self-compassion, values, goals)
+v17be5a8 (2026-01-30): feat: Add site-wide dark mode with toggle in Settings
+va157d83 (2026-01-30): feat: Discord-style community with channels, threads, and pinned posts
+v66732c8 (2026-01-30): version_history_update
+v058af18 (2026-01-30): feat: Add category system, inline replies, and auto-refresh to community
+vaaba963 (2026-01-30): feat: add reply deletion and multiple reaction emojis
+vb6e0611 (2026-01-30): fix: add missing flagged/flag_reason to ContentModerator
+vc8ccb96 (2026-01-30): fix: pet database persistence and content moderator
+vee84710 (2026-01-30): fix:PT3 ensure pet table exists before all pet DB access (robust pet features after Railway reset)
+vbf369e9 (2026-01-30): fix:PT2 ensure pet table exists before all pet DB access (robust pet features after Railway reset)
+v85dd8de (2026-01-29): fix: ensure pet table exists before all pet DB access (robust pet features after Railway reset)
+vc152d81 (2026-01-29): Update audit.md - Phase 6 complete (88% resolution rate)
+va5987b8 (2026-01-29): Phase 6: Fix Medium (P2) security and code quality issues
+vbb95165 (2026-01-29): Phase 6: Fix all Critical (P0) and High (P1) security issues
+vbda7721 (2026-01-29): Phase 6: Fresh security audit - 16 new issues identified
+v6ce1663 (2026-01-29): Merge remote changes and resolve VERSION_HISTORY conflict
+vbb3db19 (2026-01-29): Fix: AI summary endpoint - remove non-existent created_at column from users query
+v4d49306 (2026-01-29): Phase 5: Web/Android audit - Fix pet endpoints, duplicate routes, exception leaks
+v3707216 (2026-01-29): Phase 5: Web/Android audit - Fix pet endpoints, duplicate routes, exception leaks
+v6aaabdc (2026-01-29): fix: Harden /api/professional/ai-summary endpoint (null checks, safe defaults, debug logging, robust fallback)
+vc4075fb (2026-01-29): Fix: Add None checks to AI summary prompt string slicing
+v0fc8b4b (2026-01-29): fix: Set Updates tab as default for changelog debug (shows changelog on load)
+vd273911 (2026-01-29): Add null safety and error logging to AI summary endpoint
+v6fa4f05 (2026-01-29): Enhance AI clinical summary and fix patient charts
+v2728e87 (2026-01-29): Fix: Add missing clinician parameter to patient detail endpoint
+v54fa1b6 (2026-01-29): Update VERSION_HISTORY.txt with today's fixes
+vb5f86ef (2026-01-29): Fix: Clinician dashboard patient data and AI insights
+v39de2f8 (2026-01-29): Update VERSION_HISTORY.txt with recent commits
+v19c7ace (2026-01-29): Fix: loadInsights sends role=clinician for clinician users (enables clinician data/AI insights)
+v8c5e6fb (2026-01-29): Fix: /api/insights always returns avg_mood, avg_sleep, and trend (prevents frontend errors on empty data)
+vfe6e50d (2026-01-29): Fix: remove syntax error in /api/pet/status endpoint (no nested try)
+v2dacca2 (2026-01-29): Chore: trigger Railway deploy (trivial comment change)
+v87d1c5e (2026-01-29): Fix: Insights always sends prompt, pet endpoints handle missing user/pet, frontend sends username for pet reward
+v3cada82 (2026-01-29): UI: Add show/hide toggle for PIN fields on all login forms
+v8be5cf8 (2026-01-29): Frontend: always use credentials: include in fetch for CSRF/session reliability
+v8203d93 (2026-01-29): Fix CSRF token endpoint: resolve secrets shadowing, use stdlib secrets for token generation, ensure session cookie set
+ve74f4df (2026-01-29): Add Phase 4 UX enhancements: onboarding, accessibility, mobile
+v553277a (2026-01-29): Set up venv, install all dependencies, playwright, and fixed test environment. Ready for further dev and testing.
+ve8f8ddc (2026-01-28): Fix TherapistAI indentation error (production boot fix)
+v1c28343 (2026-01-28): Add get_insight method to TherapistAI for insights endpoint compatibility
+vb7dc96b (2026-01-28): Refactor insights endpoint: custom date range, AI prompt, clinician/patient narrative
+vee56f29 (2026-01-28): Updated AUDIT.md with dynamic audit results
+v077cace (2026-01-28): Rollback: restore project to v1.0.46 (2026-01-26) - Fix chat input layout for mobile
+v82f1071 (2026-01-26): Fix chat input layout for mobile - stack textarea above buttons
+vb32a89a (2026-01-26): Add Updates tab, notification management, and chat improvements
+vb6f1231 (2026-01-26): Improve AI chat: voice input, thinking animation, natural responses
+v5ac4a31 (2026-01-25): message bugs update
+v3ad585a (2026-01-25): API update
+vc27d396 (2026-01-25): Remove package.json to fix Railway Python deploy (prevent npm ci)
+v20ea026 (2026-01-25): Fix Railway deploy: allow pip install in Nixpacks immutable env
+vf49d59f (2026-01-25): Add nixpacks.toml to force Python dependency install on Railway
+v49d9969 (2026-01-25): Add mobile app (Capacitor) and deployment documentation
+vffe5634 (2026-01-24): Major update: Fix database concurrency, user deletion, and messaging system
+v948a5c2 (2026-01-24): Add developer dashboard
+v9828be0 (2026-01-23): Add developer dashboard
+va58f926 (2026-01-25): Add api.py deep-audit and update roadmap with endpoint mapping and migration plan
+vbc0057d (2026-01-25): Update ROADMAP.md with detailed file-by-file audit and next steps (2026-01-25)
+ve932e41 (2026-01-25): Add roadmap and index for mobile app development
+vd07448c (2026-01-24): docs: add Additional Features & Roadmap under future updates and ideas (2026-01-24)
+v26a50b6 (2026-01-24): docs: update repository README and documentation index to reflect current features and usage (2026-01-24)
+vf15a508 (2026-01-22): legal: add role-specific disclaimers with comprehensive UK legal protection
+v1a42df4 (2026-01-22): docs: strengthen pitch—emphasize AI bridging gap between sessions and patient continuity
+vcb38760 (2026-01-22): docs: make clinician/patient guides website-only (remove developer instructions)
+v7776672 (2026-01-22): docs: add non-technical web access guide and surface it in clinician/patient guides
+v5ff58f2 (2026-01-22): ci: stabilize workflow, disable pytest plugin autoload, set test env vars
+v908f17d (2026-01-22): chore: timezone-aware datetimes; optional browser smoke test + CI step
+v85de4c8 (2026-01-22): fix: robust FHIR export handling; add integration chat+FHIR tests; add CI workflow
+v61ed68b (2026-01-22): chore: normalize timestamp queries, fix analytics; tests passing
+v2dd21c1 (2026-01-22): fix(clinician): show appointments in patient dashboard; add attendance controls
+v975d7ac (2026-01-22): feat: appointment attendance, notification fixes, deploy automation
+v75ed153 (2026-01-19): Expand pet game: mini-games, mood, journal, daily challenges, healthy habit rewards, and bugfixes. All tests passing.
+vd120927 (2026-01-19): Fix patient analytics mood query: use entrestamp/mood_val instead of timestamp/mood_score
+ve1d640b (2026-01-19): Remove Analytics tab, redesign Appointments with calendar views (month/week/day) for scalability
+vf09cd10 (2026-01-19): Fix active patient tracking: update last_login on login, add clickable active count with details modal
+v8d38c3c (2026-01-19): Fix clinical_scales column names (scale_name/score not scale_type/total_score)
+v9d07101 (2026-01-19): Add analytics debug endpoint and refresh button
+vd9ce29a (2026-01-19): Add documentation for Railway database wipe
+v2b01785 (2026-01-19): Add admin database wipe endpoint and web interface for Railway
+v0b3ca9a (2026-01-19): Add detailed logging to auth endpoints and update version to v2026.01.19.5
+v1f64897 (2026-01-19): Fix password reset email error handling - make SMTP failures graceful
+ve1c03c6 (2026-01-19): Add 2FA verification system for signup with email and SMS support
+vb14e959 (2026-01-19): database wipe 3.3.5
+v05d4d59 (2026-01-19): Fix alerts query to use status column and add DOM render delay for analytics load
+v7f35b85 (2026-01-19): Add comprehensive logging for analytics dashboard and auto-load on clinician login
+vd52d3a8 (2026-01-19): Add migration for chat_session_id column and improve chat session creation error handling
+v40d2d3b (2026-01-19): Add comprehensive error handling to AI chat endpoint - better debugging and clearer error messages
+vfd8dada (2026-01-19): Fix analytics display handling null values, add patient notification when appointment cancelled, therapy notes already timestamped
+vf246e2a (2026-01-19): Restructure clinician dashboard: Overview shows only 3 stat cards, charts moved to Analytics tab
+v3cc03ab (2026-01-19): Fix analytics dashboard patient counting queries
+vf63f063 (2026-01-19): Add organized subtabs for patient detail view
+vc26122d (2026-01-19): Reorganize clinician dashboard with organized subtabs
+v20319b2 (2026-01-19): DB quick update
+v94ffce1 (2026-01-19): Fix login error handling and appointment display issues
+vec0fff9 (2026-01-19): Add clinician analytics dashboard, report generator, and patient search features
+v133f184 (2026-01-19): docs: Add comprehensive Android app conversion guide
+vcab5fbc (2026-01-18): fix: Load appointments automatically when clinician logs in
+vc5afdb9 (2026-01-18): fix: Force refresh of appointments list by disabling browser cache
+v69bf4f4 (2026-01-18): fix: Organize clinician appointments into clear sections
+vcb76d5d (2026-01-18): fix: Add patient notifications for appointments and improve clinician response visibility
+v6995ffb (2026-01-18): feat: Auto-training on Railway + local dev setup
+v14600eb (2026-01-18): feat: Background AI training system for independent learning
+vf5a91f2 (2026-01-18): feat: Multiple chat sessions with full clinician/ML access
+vd98cba0 (2026-01-18): feat: Add chat search, timestamps, and export with date range
+v9e1ca0f (2026-01-18): docs: Add comprehensive web app validation report
+vd0413e7 (2026-01-18): Add diagnostic page for testing JavaScript loading
+v65eafe8 (2026-01-18): CRITICAL FIX: Remove broken text breaking entire JavaScript execution
+vef6bff6 (2026-01-18): Fix: Remove duplicate checkPetReturn function causing syntax error
+v407be92 (2026-01-18): Fix: Remove orphaned duplicate code causing login function to not load
+v5b48c7f (2026-01-18): fix: update node version in Dockerfile
+vcfe3de7 (2026-01-18): login issues v1.8
+vab7eade (2026-01-18): docs: update copilot instructions for web API
+ve9d4e58 (2026-01-18): landing page issue
+v6a31872 (2026-01-17): feat: Add model training script and fix auth flow
+vf11d2c0 (2026-01-17): 1.1
+v683a19b (2026-01-17): login flow bug fix
+ve38ddcc (2026-01-17): index missed fix
+v05783f3 (2026-01-17): Menu Bug Fix
+v03fd2c7 (2026-01-17): Fix: Remove duplicate walkCountdownInterval declarations causing syntax error
+v2682c56 (2026-01-17): Add version tracking and debug logs for auth functions
+vd2e4d5c (2026-01-17): Add cache-busting meta tags to fix showClinicianAuth function not loading
+v0794c58 (2026-01-17): Fix pet game: increase modal z-index, add 30min walk cooldown with countdown timer, show rewards
+vb90324b (2026-01-17): Fix: Show appointments from last 30 days in clinician view (prevent disappearing after patient response)
+v7d85eae (2026-01-17): Add bidirectional appointments system with patient acknowledgment and response tracking
+v78208c3 (2026-01-17): Fix export errors and enhance signup forms
+v1dff3a4 (2026-01-17): Documentation: Add sleep chart feature documentation
+v16b75a5 (2026-01-17): Feature: Add sleep chart and custom date ranges to insights
+vfb721b8 (2026-01-17): Fix: Insights API column name mismatch
+ve58621c (2026-01-17): Complete audit: All features verified and documented
+vbe31b88 (2026-01-17): Add appointment calendar system to web interface
+v71e7e94 (2026-01-17): Add show/hide password toggle to login screens
+v6c16a12 (2026-01-17): Fix: Separate desktop and web code, fix tkinter import errors
+vba2abee (2026-01-17): Fix: Add About Me page, fix PDF/CSV exports with reportlab
+v4c01091 (2026-01-17): Add API endpoints for appointments and patient profile
+vf6a7944 (2026-01-17): Deploy to Railway - 2026-01-17 17:48:01
+v5dd82de (2026-01-17): Add patient About Me page and personal PDF export
+veb8799b (2026-01-17): Add completion summary for appointment system
+v8fac38d (2026-01-17): Add clinician appointment calendar with PDF reports and notifications
+ve727a97 (2026-01-17): Organize all documentation in documentation/ folder with comprehensive coverage
+vca3cc58 (2026-01-17): Add comprehensive user guide for patients and clinicians
+v5be665a (2026-01-17): Implement pet care features and assessment limits
+vebb98a2 (2026-01-17): Fix missing time import in api.py
+v9a9ace3 (2026-01-17): Trigger Railway redeploy
+v8351689 (2026-01-16): Add pet rewards for all self-care activities
+va684220 (2026-01-16): Add session persistence and Remember Me functionality
+vaa4728f (2026-01-16): Complete AI memory integration and chat initialization system
+vfedcd93 (2026-01-16): Require full name, DOB, and medical conditions on patient signup
+v29a46db (2026-01-16): Fix chat history loading with correct function names and async flow
+v570d231 (2026-01-16): Fix AI chat, add persistent chat history, make therapy default tab, include all patient data in clinician dashboard
+v033a28f (2026-01-16): Add deployment checklist for Railway setup
+vb29d0c3 (2026-01-16): Add Railway deployment support with GitHub Actions for 8pm mood reminders
+vc40ecb7 (2026-01-16): Complete 8pm mood reminder system with cron automation
+va4e92eb (2026-01-16): Add cron job setup for 8pm mood reminders
+va360e3b (2026-01-16): clin notes/ai tracking/dupe prevention implementattion
+vd9c040b (2026-01-16): overhall v1.45
+v35db63c (2026-01-16): Add Railway volume support
+v8fb37e2 (2026-01-16): Patient approval udate v1.1
+v6cc9584 (2026-01-16): email/api update
+vb3265ec (2026-01-16): clin dash update
+v4c3d2bd (2026-01-16): Add implementation summary for email/phone and password reset features
+vf46164f (2026-01-16): Add email/phone to signup, forgot password/PIN functionality with email reset, and PostgreSQL setup guide
+v1dfaa53 (2026-01-16): Fix pending approvals not showing - correct property name from approvals to pending_approvals
+v945ca32 (2026-01-16): Fix JavaScript syntax error - incorrect quote escaping in startAdventure function
+v37a6403 (2026-01-16): Add explicit pointer-events: auto and console logging to debug landing page button clicks
+v9d571af (2026-01-16): Fix landing page buttons - remove stacking context from app-container and add explicit z-index to buttons
+v89eed25 (2026-01-16): Move disclaimer to registration flow - shows after user selects patient/clinician during signup only
+ved35a64 (2026-01-16): Fix landing page button clicks - add z-index to auth-box
+vaf71966 (2026-01-16): Fix login after disclaimer acceptance - use stored auth data instead of re-authenticating
+v5b905f7 (2026-01-16): Fix z-index issue on landing page - auth screen now properly overlays app
+v9ebef1f (2026-01-16): Complete pet game implementation with shop, declutter, adventure, time decay + move menu to left sidebar
+v1351307 (2026-01-14): database reset
+va6a0f47 (2026-01-14): Add developer README PDF and database reset endpoint for testing
+ve31a439 (2026-01-14): Dev Files Update (v1.0.1)
+v7a9b07f (2026-01-14): Fix missing clinician_id column and add password special character requirement for both patient and clinician registration
+ve9871e7 (2026-01-14): Add legal disclaimer, landing page for clinician/patient separation, and PIN requirement for clinician registration
+vd089a39 (2026-01-14): Add comprehensive documentation for new features
+v9cea946 (2026-01-14): Add 2FA PIN authentication, password strength validation, patient approval workflow, and notification system
+vdbba1c5 (2026-01-14): Implement professional clinician system: clinician registration, patient-clinician linking, role-based dashboard access, clinician filtering
+v03cc3d6 (2026-01-14): Add ALL missing features: Community Board, Safety Plan, Progress Insights with charts, CSV/PDF export, Sleep Hygiene, Professional Dashboard - complete feature parity with desktop app
+vb5e8b71 (2026-01-14): Complete feature implementation: all original app functionality now in web version
+v635bcb0 (2026-01-14): database update
+v9efcd5e (2026-01-12): Fix registration error: remove main. prefix from hash functions
+vd0a9d26 (2026-01-12): push for web app
+vedd93ef (2026-01-12): Fix syntax error in api.py hash_pin function
+va6907af (2026-01-12): Fix Railway deployment: Remove tkinter dependency from API
+v3f33f14 (2026-01-12): Add Railway deployment guide (with placeholders for secrets)
+v5111a39 (2026-01-12): Add Flask API for Railway deployment
+v2c058f8 (2026-01-12): Initial commit: Mental health companion app with AI therapy

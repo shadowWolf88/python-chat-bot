@@ -1,0 +1,31 @@
+[run]
+source = .
+omit =
+    tests/*
+    venv/*
+    env/*
+    .venv/*
+    migrations/*
+    docs/*
+    static/*
+    templates/*
+    __pycache__/*
+    setup.py
+
+[report]
+show_missing = true
+precision = 2
+fail_under = 60
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if __name__ == .__main__.
+    raise NotImplementedError
+    pass
+    except ImportError
+    except Exception as e:
+        print
+
+[html]
+directory = tests/coverage_html
+title = Healing Space Coverage Report

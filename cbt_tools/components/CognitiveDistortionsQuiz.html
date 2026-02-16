@@ -1,0 +1,152 @@
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">🧩 Cognitive Distortions Detective</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Let's catch those tricky thinking patterns together!</p>
+
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+        <div class="step-dot active" id="step-dot-0"></div>
+        <div class="step-dot" id="step-dot-1"></div>
+        <div class="step-dot" id="step-dot-2"></div>
+    </div>
+
+    <form id="distortionsQuizForm">
+        <!-- Step 1: Select Distortions -->
+        <div class="progressive-step active" id="distortion-step-1">
+            <h5 style="margin-bottom: 20px;">Which thinking patterns did you notice?</h5>
+            <div style="display: grid; gap: 12px;">
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" name="distortion" value="all_or_nothing" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>All-or-Nothing Thinking</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Seeing things in black and white categories</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" name="distortion" value="catastrophizing" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>Catastrophizing</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Expecting the worst-case scenario</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" name="distortion" value="mind_reading" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>Mind Reading</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Assuming you know what others think</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" name="distortion" value="fortune_telling" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>Fortune Telling</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Predicting negative outcomes</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" name="distortion" value="should_statements" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>Should Statements</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Rigid rules about how things "should" be</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" name="distortion" value="labeling" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>Labeling</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Using negative labels for yourself or others</div>
+                    </div>
+                </label>
+                <label style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" name="distortion" value="personalization" style="width: 20px; height: 20px;">
+                    <div>
+                        <strong>Personalization</strong>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">Blaming yourself for things outside your control</div>
+                    </div>
+                </label>
+            </div>
+            <button type="button" class="btn" onclick="goToDistortionStep(2)" style="margin-top: 20px; width: 100%;">Next: How are you feeling? →</button>
+        </div>
+
+        <!-- Step 2: Mood Rating with Emoji -->
+        <div class="progressive-step" id="distortion-step-2" style="display: none;">
+            <h5 style="text-align: center; margin-bottom: 20px;">How are you feeling right now?</h5>
+            <div id="distortionMoodContainer"></div>
+            <div style="display: flex; gap: 10px; margin-top: 30px;">
+                <button type="button" class="btn btn-secondary" onclick="goToDistortionStep(1)" style="flex: 1;">← Back</button>
+                <button type="button" class="btn" onclick="goToDistortionStep(3)" style="flex: 1;">Next: Add notes →</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Notes -->
+        <div class="progressive-step" id="distortion-step-3" style="display: none;">
+            <h5>Any additional thoughts? (Optional)</h5>
+            <textarea name="notes" rows="5" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="What situations triggered these thought patterns? What might you tell a friend in this situation?"></textarea>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="goToDistortionStep(2)" style="flex: 1;">← Back</button>
+                <button type="button" class="btn" onclick="saveDistortionsQuiz()" style="flex: 2; background: var(--success-color);">💾 Save My Progress</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+let currentDistortionStep = 1;
+
+function goToDistortionStep(step) {
+    // Hide all steps
+    for (let i = 1; i <= 3; i++) {
+        const stepEl = document.getElementById(`distortion-step-${i}`);
+        const dotEl = document.getElementById(`step-dot-${i-1}`);
+        if (stepEl) {
+            stepEl.style.display = 'none';
+            stepEl.classList.remove('active');
+        }
+        if (dotEl) {
+            dotEl.classList.remove('active');
+            if (i < step) dotEl.classList.add('completed');
+            else dotEl.classList.remove('completed');
+        }
+    }
+
+    // Show current step
+    const targetStep = document.getElementById(`distortion-step-${step}`);
+    const targetDot = document.getElementById(`step-dot-${step-1}`);
+    if (targetStep) {
+        targetStep.style.display = 'block';
+        setTimeout(() => targetStep.classList.add('active'), 10);
+    }
+    if (targetDot) targetDot.classList.add('active');
+
+    // Initialize mood selector on step 2
+    if (step === 2 && !document.querySelector('#distortionMoodContainer .emoji-mood-selector')) {
+        createEmojiMoodSelector('distortionMoodContainer');
+    }
+
+    currentDistortionStep = step;
+}
+
+function saveDistortionsQuiz() {
+    // This will trigger the enhanced save with confetti and pet rewards!
+    saveCBTToolData('CognitiveDistortionsQuiz');
+}
+
+function resetDistortionsQuiz() {
+    document.getElementById('distortionsQuizForm').reset();
+    goToDistortionStep(1);
+}
+
+// Auto-add hover effects to checkboxes
+document.addEventListener('DOMContentLoaded', () => {
+    const labels = document.querySelectorAll('#distortionsQuizForm label');
+    labels.forEach(label => {
+        label.addEventListener('mouseenter', () => {
+            label.style.background = 'var(--bg-hover)';
+            label.style.transform = 'translateX(5px)';
+        });
+        label.addEventListener('mouseleave', () => {
+            label.style.background = 'var(--bg-input)';
+            label.style.transform = 'translateX(0)';
+        });
+    });
+});
+</script>

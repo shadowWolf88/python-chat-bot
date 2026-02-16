@@ -1,0 +1,71 @@
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">📅 Activity Scheduling</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Plan a pleasurable or meaningful activity to boost your mood</p>
+
+    <form id="activitySchedulerForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="activitySchedulerMoodBefore"></div>
+        </div>
+
+        <!-- Activity Input -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">What activity would you like to schedule? 🎨</label>
+            <input type="text" name="activity" required style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;" placeholder="e.g., Take a walk in the park, call a friend...">
+        </div>
+
+        <!-- Date Input -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">When will you do this? 📆</label>
+            <input type="date" name="date" required style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;">
+        </div>
+
+        <!-- Notes -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Notes (optional) 📝</label>
+            <textarea name="notes" rows="3" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="Any additional details or reminders..."></textarea>
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after planning this? 😊</label>
+            <div id="activitySchedulerMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetActivityScheduler()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveActivityScheduler()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Schedule Activity</button>
+        </div>
+    </form>
+    <div id="activitySchedulerStatus"></div>
+</div>
+
+<script>
+function saveActivityScheduler() {
+    saveCBTToolData('ActivityScheduler');
+}
+
+function resetActivityScheduler() {
+    document.getElementById('activitySchedulerForm').reset();
+    const beforeBtns = document.querySelectorAll('#activitySchedulerMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#activitySchedulerMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('activitySchedulerMoodBefore') && !document.querySelector('#activitySchedulerMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('activitySchedulerMoodBefore');
+        const beforeInput = document.getElementById('activitySchedulerMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('activitySchedulerMoodAfter') && !document.querySelector('#activitySchedulerMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('activitySchedulerMoodAfter');
+        const afterInput = document.getElementById('activitySchedulerMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

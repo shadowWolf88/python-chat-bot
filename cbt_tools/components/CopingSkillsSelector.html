@@ -1,0 +1,92 @@
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">🎲 Coping Skills Selector</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Get a random healthy coping skill suggestion to try right now</p>
+
+    <form id="copingSkillsForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="copingSkillsMoodBefore"></div>
+        </div>
+
+        <!-- Random Skill Display -->
+        <div style="text-align: center; margin: 30px 0;">
+            <button type="button" class="btn" onclick="getRandomCopingSkill()" style="font-size: 1.2em; padding: 20px 40px; background: var(--accent-gradient);">🎲 Get Coping Skill</button>
+        </div>
+
+        <div id="copingSkillResult" style="margin: 25px 0; padding: 20px; background: var(--bg-input); border-radius: 15px; border: 2px solid var(--border-color); min-height: 60px; display: flex; align-items: center; justify-content: center; font-size: 1.1em; text-align: center;"></div>
+
+        <!-- Notes about using the skill -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Notes about using this skill (optional) 📝</label>
+            <textarea name="notes" rows="3" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="How did this skill work for you? What did you notice?"></textarea>
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after trying this? 😊</label>
+            <div id="copingSkillsMoodAfter"></div>
+        </div>
+
+        <!-- Hidden field to store the selected skill -->
+        <input type="hidden" name="selected_skill" id="selectedCopingSkill">
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetCopingSkills()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveCopingSkills()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Progress</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function getRandomCopingSkill() {
+    const skills = [
+        '🧘 Try deep breathing for 5 minutes',
+        '🚶 Take a short walk outside',
+        '📝 Journal your thoughts',
+        '🎵 Listen to calming music',
+        '☕ Make yourself a warm drink',
+        '📞 Call a friend',
+        '🎨 Do something creative',
+        '🧊 Hold an ice cube',
+        '📖 Read something inspiring',
+        '🤗 Give yourself a hug',
+        '🌳 Spend time in nature',
+        '🧹 Organize a small space',
+        '🎭 Watch something funny',
+        '💪 Do some gentle stretching',
+        '🛁 Take a relaxing bath'
+    ];
+    const randomSkill = skills[Math.floor(Math.random() * skills.length)];
+    document.getElementById('copingSkillResult').innerHTML = `<strong style="color: var(--accent-color);">${randomSkill}</strong>`;
+    document.getElementById('selectedCopingSkill').value = randomSkill;
+}
+
+function saveCopingSkills() {
+    saveCBTToolData('CopingSkillsSelector');
+}
+
+function resetCopingSkills() {
+    document.getElementById('copingSkillsForm').reset();
+    document.getElementById('copingSkillResult').innerHTML = '';
+    const beforeBtns = document.querySelectorAll('#copingSkillsMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#copingSkillsMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('copingSkillsMoodBefore') && !document.querySelector('#copingSkillsMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('copingSkillsMoodBefore');
+        const beforeInput = document.getElementById('copingSkillsMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('copingSkillsMoodAfter') && !document.querySelector('#copingSkillsMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('copingSkillsMoodAfter');
+        const afterInput = document.getElementById('copingSkillsMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

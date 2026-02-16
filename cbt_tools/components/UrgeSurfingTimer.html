@@ -1,0 +1,127 @@
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">🌊 Urge Surfing Timer</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Ride the wave of an urge until it naturally passes</p>
+
+    <div id="urgeSurfingTimer">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="urgeSurfingMoodBefore"></div>
+        </div>
+
+        <!-- Explanation -->
+        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); padding: 20px; border-radius: 15px; margin-bottom: 25px;">
+            <h5 style="margin-bottom: 10px;">🧘 How to surf an urge:</h5>
+            <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
+                <li>Notice the urge without judgment</li>
+                <li>Breathe naturally and observe the sensations</li>
+                <li>Remember: urges rise, peak, and fall like waves</li>
+                <li>Most urges pass within 15-30 minutes</li>
+            </ul>
+        </div>
+
+        <!-- Timer Display -->
+        <div style="text-align: center; margin: 30px 0;">
+            <button type="button" class="btn" onclick="startUrgeSurfingTimer()" style="font-size: 1.2em; padding: 20px 40px; background: var(--accent-gradient);">🌊 Start Timer</button>
+        </div>
+
+        <div id="urgeTimerDisplay" style="text-align: center; font-size: 3em; font-weight: bold; color: var(--accent-color); margin: 20px 0; min-height: 80px;"></div>
+
+        <form id="urgeSurfingForm">
+            <!-- Urge Intensity Tracking -->
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label style="font-weight: 600; margin-bottom: 10px; display: block;">What urge are you surfing? 🌊</label>
+                <input type="text" name="urge_type" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;" placeholder="e.g., Urge to smoke, eat emotionally, check phone...">
+            </div>
+
+            <!-- Notes -->
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label style="font-weight: 600; margin-bottom: 10px; display: block;">Notes about your experience (optional) 📝</label>
+                <textarea name="notes" rows="4" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="How did the urge change over time? What did you notice in your body? What helped you stay present?"></textarea>
+            </div>
+
+            <!-- Hidden field for timer duration -->
+            <input type="hidden" name="duration_seconds" id="urgeDurationSeconds">
+
+            <!-- After Mood -->
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after surfing the urge? 🌈</label>
+                <div id="urgeSurfingMoodAfter"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 12px;">
+                <button type="button" class="btn btn-secondary" onclick="resetUrgeSurfing()" style="flex: 1;">🔄 Reset</button>
+                <button type="button" class="btn" onclick="saveUrgeSurfing()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Session</button>
+            </div>
+        </form>
+        <div id="urgeSurfingStatus"></div>
+    </div>
+</div>
+
+<script>
+let urgeTimerInterval = null;
+let urgeTimerSeconds = 0;
+
+function startUrgeSurfingTimer() {
+    if (urgeTimerInterval) {
+        // Stop timer if already running
+        clearInterval(urgeTimerInterval);
+        urgeTimerInterval = null;
+        document.querySelector('[onclick="startUrgeSurfingTimer()"]').textContent = '🌊 Start Timer';
+        document.getElementById('urgeDurationSeconds').value = urgeTimerSeconds;
+        return;
+    }
+
+    // Start timer
+    urgeTimerSeconds = 0;
+    document.querySelector('[onclick="startUrgeSurfingTimer()"]').textContent = '⏸️ Stop Timer';
+
+    urgeTimerInterval = setInterval(() => {
+        urgeTimerSeconds++;
+        const minutes = Math.floor(urgeTimerSeconds / 60);
+        const seconds = urgeTimerSeconds % 60;
+        document.getElementById('urgeTimerDisplay').textContent =
+            `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }, 1000);
+}
+
+function saveUrgeSurfing() {
+    if (urgeTimerInterval) {
+        clearInterval(urgeTimerInterval);
+        urgeTimerInterval = null;
+        document.querySelector('[onclick="startUrgeSurfingTimer()"]').textContent = '🌊 Start Timer';
+    }
+    document.getElementById('urgeDurationSeconds').value = urgeTimerSeconds;
+    saveCBTToolData('UrgeSurfingTimer');
+}
+
+function resetUrgeSurfing() {
+    if (urgeTimerInterval) {
+        clearInterval(urgeTimerInterval);
+        urgeTimerInterval = null;
+    }
+    urgeTimerSeconds = 0;
+    document.getElementById('urgeTimerDisplay').textContent = '';
+    document.getElementById('urgeSurfingForm').reset();
+    document.querySelector('[onclick="startUrgeSurfingTimer()"]').textContent = '🌊 Start Timer';
+    const beforeBtns = document.querySelectorAll('#urgeSurfingMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#urgeSurfingMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('urgeSurfingMoodBefore') && !document.querySelector('#urgeSurfingMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('urgeSurfingMoodBefore');
+        const beforeInput = document.getElementById('urgeSurfingMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('urgeSurfingMoodAfter') && !document.querySelector('#urgeSurfingMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('urgeSurfingMoodAfter');
+        const afterInput = document.getElementById('urgeSurfingMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

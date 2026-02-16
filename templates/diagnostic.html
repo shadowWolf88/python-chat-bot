@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Diagnostic Test - Healing Space</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #4a90e2; }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #357abd; }
+    </style>
+</head>
+<body>
+    <div class="test-box">
+        <h1>🔧 Healing Space Diagnostic Test</h1>
+        <p>This page tests if JavaScript functions load correctly.</p>
+        
+        <div id="results"></div>
+        
+        <h3>Manual Tests:</h3>
+        <button onclick="testLogin()">Test login()</button>
+        <button onclick="testRegister()">Test register()</button>
+        <button onclick="testShowLanding()">Test showLanding()</button>
+        <button onclick="testShowPatientAuth()">Test showPatientAuth()</button>
+    </div>
+
+    <script>
+        console.log('🚀 Diagnostic script loading - v2026.01.17.3');
+        
+        const results = document.getElementById('results');
+        
+        function addResult(test, status, message) {
+            const div = document.createElement('div');
+            div.className = `result ${status}`;
+            div.textContent = `${status === 'success' ? '✓' : '✗'} ${test}: ${message}`;
+            results.appendChild(div);
+        }
+        
+        // Test 1: Check if functions are defined
+        function checkFunction(name) {
+            if (typeof window[name] === 'function') {
+                addResult(`Function ${name}`, 'success', 'Defined');
+                return true;
+            } else {
+                addResult(`Function ${name}`, 'error', `NOT DEFINED (type: ${typeof window[name]})`);
+                return false;
+            }
+        }
+        
+        // Define test functions
+        async function login(userType) {
+            console.log(`LOGIN TEST: Called with userType=${userType}`);
+            alert(`✓ login() function works! Called with: ${userType}`);
+        }
+        
+        async function register() {
+            console.log('REGISTER TEST: Called');
+            alert('✓ register() function works!');
+        }
+        
+        function showLanding() {
+            console.log('SHOWLANDING TEST: Called');
+            alert('✓ showLanding() function works!');
+        }
+        
+        function showPatientAuth() {
+            console.log('SHOWPATIENTAUTH TEST: Called');
+            alert('✓ showPatientAuth() function works!');
+        }
+        
+        function showPatientRegister() {
+            console.log('SHOWPATIENTREGISTER TEST: Called');
+            alert('✓ showPatientRegister() function works!');
+        }
+        
+        // Test functions for buttons
+        function testLogin() {
+            login('user');
+        }
+        
+        function testRegister() {
+            register();
+        }
+        
+        function testShowLanding() {
+            showLanding();
+        }
+        
+        function testShowPatientAuth() {
+            showPatientAuth();
+        }
+        
+        // Run automatic checks on load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('Running automatic function checks...');
+            
+            addResult('Script Load', 'success', 'JavaScript is executing');
+            
+            // Check critical functions
+            checkFunction('login');
+            checkFunction('register');
+            checkFunction('showLanding');
+            checkFunction('showPatientAuth');
+            checkFunction('showPatientRegister');
+            
+            // Check main page functions from window scope
+            if (typeof window.parent !== 'undefined') {
+                addResult('Window Check', 'success', 'Window object accessible');
+            }
+            
+            console.log('✓ All diagnostic checks complete');
+        });
+    </script>
+</body>
+</html>

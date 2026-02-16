@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Post-commit hook: push new commit to origin and attempt Railway deploy if CLI + env configured
+set -euo pipefail
+
+# Push current branch to origin
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+echo "Post-commit: pushing branch $BRANCH to origin..."
+git push origin "$BRANCH" || { echo "git push failed" >&2; exit 1; }
+
+# If Railway CLI available and required env vars set, deploy
+if command -v railway >/dev/null 2>&1; then
+  if [ -n "${RAILWAY_TOKEN-}" ] && [ -n "${RAILWAY_PROJECT-}" ]; then
+    echo "Railway CLI found and env configured. Deploying to Railway project $RAILWAY_PROJECT..."
+    # Use --detach to run deploy in background where supported
+    railway up --project "$RAILWAY_PROJECT" --detach || echo "Railway deploy failed; check logs"
+  else
+    echo "Railway CLI found but RAILWAY_TOKEN or RAILWAY_PROJECT not set. Skipping Railway deploy."
+  fi
+else
+  echo "Railway CLI not found; skipping Railway deploy. Install from https://railway.app or use CI to deploy."
+fi
+
+exit 0

@@ -1,0 +1,7 @@
+
+[phases.setup]
+nixPkgs = ["python312", "python312Packages.pip"]
+
+[phases.pipInstall]
+dependsOn = ["setup"]
+cmds = ["pip install --break-system-packages -r requirements.txt"]

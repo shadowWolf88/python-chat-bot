@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Clinician Messaging Dashboard - Healing Space</title>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/messaging.css') }}">
+    
+    <style>
+        /* Clinician Dashboard Specific Styles */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .dashboard-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .dashboard-card h3 {
+            margin: 10px 0 5px;
+            color: #2d3436;
+            font-size: 14px;
+        }
+
+        .dashboard-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #6c5ce7;
+            margin: 10px 0;
+        }
+
+        .dashboard-card .subtitle {
+            font-size: 12px;
+            color: #636e72;
+        }
+
+        .patients-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .patient-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #6c5ce7;
+        }
+
+        .patient-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .patient-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2d3436;
+        }
+
+        .patient-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .patient-status.active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .patient-status.inactive {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .patient-info {
+            font-size: 13px;
+            color: #636e72;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .patient-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .patient-actions button {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px 12px;
+            font-size: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-message {
+            background-color: #6c5ce7;
+            color: white;
+        }
+
+        .btn-message:hover {
+            background-color: #5f4cd6;
+        }
+
+        .btn-view-notes {
+            background-color: #f0f0f0;
+            color: #2d3436;
+        }
+
+        .btn-view-notes:hover {
+            background-color: #e0e0e0;
+        }
+
+        .unread-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #d63031;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-bar {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px;
+            border: 1px solid #dfe6e9;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #dfe6e9;
+            background-color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background-color: #6c5ce7;
+            color: white;
+            border-color: #6c5ce7;
+        }
+
+        .filter-btn:hover {
+            border-color: #6c5ce7;
+        }
+
+        .analytics-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .analytics-item {
+            padding: 15px;
+            border: 1px solid #dfe6e9;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .analytics-item h4 {
+            margin: 0 0 10px;
+            font-size: 13px;
+            color: #636e72;
+        }
+
+        .analytics-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #6c5ce7;
+        }
+
+        .analytics-trend {
+            font-size: 11px;
+            color: #636e72;
+            margin-top: 5px;
+        }
+
+        .trend-up {
+            color: #00b894;
+        }
+
+        .trend-down {
+            color: #d63031;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .patients-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .patient-actions button {
+                flex: auto;
+            }
+
+            .quick-actions {
+                flex-direction: column;
+            }
+
+            .search-bar {
+                width: 100%;
+            }
+
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="navbar-logo">
+                <span class="logo-icon">🧘</span> Healing Space
+            </a>
+            <ul class="navbar-menu">
+                <li><a href="/clinician/dashboard">Dashboard</a></li>
+                <li><a href="/clinician/patients">Patients</a></li>
+                <li><a href="/clinician/messaging" class="active">Messaging</a></li>
+                <li><a href="/clinician/analytics">Analytics</a></li>
+                <li><a href="/settings">Settings</a></li>
+                <li><a href="/logout">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="messaging-container">
+        
+        <!-- Header -->
+        <div class="messaging-header">
+            <h1 class="messaging-title">Patient Messaging Dashboard</h1>
+            <div class="messaging-actions">
+                <span id="unread-badge" class="unread-badge" style="display: none;">0</span>
+            </div>
+        </div>
+
+        <!-- Dashboard Cards -->
+        <div class="dashboard-grid">
+            <div class="dashboard-card">
+                <h3>Total Messages</h3>
+                <div class="value" id="total-messages">0</div>
+                <div class="subtitle">All-time</div>
+            </div>
+            <div class="dashboard-card">
+                <h3>Unread Messages</h3>
+                <div class="value" id="unread-messages">0</div>
+                <div class="subtitle">Requires attention</div>
+            </div>
+            <div class="dashboard-card">
+                <h3>Active Conversations</h3>
+                <div class="value" id="active-conversations">0</div>
+                <div class="subtitle">With patients</div>
+            </div>
+        </div>
+
+        <!-- Quick Actions & Search -->
+        <div class="quick-actions">
+            <input 
+                type="text" 
+                id="patient-search" 
+                class="search-bar" 
+                placeholder="Search patients by name or username..."
+                maxlength="255"
+            >
+            <div class="filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="unread">Unread</button>
+                <button class="filter-btn" data-filter="today">Today</button>
+                <button class="filter-btn" data-filter="flagged">Flagged</button>
+            </div>
+        </div>
+
+        <!-- Patients List -->
+        <div class="patients-grid" id="patients-list">
+            <div class="empty-state" style="grid-column: 1 / -1;">Loading patients...</div>
+        </div>
+
+        <!-- Analytics Section -->
+        <div class="analytics-section">
+            <h2>Messaging Analytics</h2>
+            <div class="analytics-grid">
+                <div class="analytics-item">
+                    <h4>Average Response Time</h4>
+                    <div class="analytics-value" id="avg-response-time">--</div>
+                    <div class="analytics-trend">minutes</div>
+                </div>
+                <div class="analytics-item">
+                    <h4>Messages This Week</h4>
+                    <div class="analytics-value" id="messages-this-week">0</div>
+                    <div class="analytics-trend trend-up">↑ 12%</div>
+                </div>
+                <div class="analytics-item">
+                    <h4>Engagement Rate</h4>
+                    <div class="analytics-value" id="engagement-rate">--%</div>
+                    <div class="analytics-trend">of patients active</div>
+                </div>
+                <div class="analytics-item">
+                    <h4>Critical Messages</h4>
+                    <div class="analytics-value" id="critical-messages">0</div>
+                    <div class="analytics-trend">requiring attention</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conversation Templates -->
+        <div style="margin-top: 30px; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+            <h2>Quick Message Templates</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;" class="template-shortcut" data-template="greeting">
+                    <strong>Check-in</strong>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: #636e72;">Send a quick check-in message</p>
+                </div>
+                <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;" class="template-shortcut" data-template="appointment">
+                    <strong>Appointment</strong>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: #636e72;">Schedule or confirm appointment</p>
+                </div>
+                <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;" class="template-shortcut" data-template="follow-up">
+                    <strong>Follow-up</strong>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: #636e72;">Follow up on previous conversation</p>
+                </div>
+                <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;" class="template-shortcut" data-template="crisis">
+                    <strong>Crisis Support</strong>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: #636e72;">Provide immediate support resources</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/messaging.js') }}"></script>
+    
+    <script>
+        // Clinician-Specific Messaging Dashboard
+        class ClinicianMessagingDashboard {
+            constructor() {
+                this.messaging = null;
+                this.patients = [];
+                this.currentFilter = 'all';
+                this.init();
+            }
+
+            init() {
+                // Initialize messaging system
+                this.messaging = new MessagingSystem({
+                    apiBase: '/api/messages',
+                    csrfToken: this.getCsrfToken(),
+                    username: '{{ username }}',
+                    userRole: 'clinician'
+                });
+
+                this.setupEventListeners();
+                this.loadDashboardData();
+                this.loadPatients();
+                this.loadAnalytics();
+            }
+
+            getCsrfToken() {
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (metaTag) return metaTag.getAttribute('content');
+                
+                const name = 'csrf_token=';
+                const decodedCookie = decodeURIComponent(document.cookie);
+                const cookieArray = decodedCookie.split(';');
+                for (let cookie of cookieArray) {
+                    cookie = cookie.trim();
+                    if (cookie.indexOf(name) === 0) {
+                        return cookie.substring(name.length);
+                    }
+                }
+                return '';
+            }
+
+            setupEventListeners() {
+                // Search functionality
+                document.getElementById('patient-search').addEventListener('input', (e) => {
+                    this.filterPatients(e.target.value);
+                });
+
+                // Filter buttons
+                document.querySelectorAll('[data-filter]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.currentFilter = e.target.dataset.filter;
+                        this.loadPatients();
+                    });
+                });
+
+                // Template shortcuts
+                document.querySelectorAll('.template-shortcut').forEach(shortcut => {
+                    shortcut.addEventListener('click', () => {
+                        this.showTemplateModal(shortcut.dataset.template);
+                    });
+                    shortcut.addEventListener('mouseover', () => {
+                        shortcut.style.backgroundColor = '#f5f6fa';
+                        shortcut.style.borderColor = '#6c5ce7';
+                    });
+                    shortcut.addEventListener('mouseout', () => {
+                        shortcut.style.backgroundColor = 'transparent';
+                        shortcut.style.borderColor = '#dfe6e9';
+                    });
+                });
+            }
+
+            async loadDashboardData() {
+                try {
+                    const response = await fetch('/api/messages/stats', {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        document.getElementById('total-messages').textContent = data.total_messages || 0;
+                        document.getElementById('unread-messages').textContent = data.unread_messages || 0;
+                        document.getElementById('active-conversations').textContent = data.active_conversations || 0;
+                    }
+                } catch (error) {
+                    console.error('Error loading dashboard data:', error);
+                }
+            }
+
+            async loadPatients() {
+                try {
+                    const url = new URL('/api/clinician/patients', window.location.origin);
+                    if (this.currentFilter !== 'all') {
+                        url.searchParams.append('filter', this.currentFilter);
+                    }
+
+                    const response = await fetch(url.toString(), {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.patients = data.patients || [];
+                        this.renderPatients();
+                    }
+                } catch (error) {
+                    console.error('Error loading patients:', error);
+                }
+            }
+
+            renderPatients() {
+                const container = document.getElementById('patients-list');
+                
+                if (this.patients.length === 0) {
+                    container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">No patients found</div>';
+                    return;
+                }
+
+                const html = this.patients.map(patient => `
+                    <div class="patient-card">
+                        <div class="patient-header">
+                            <span class="patient-name">
+                                ${patient.unread_count > 0 ? '<span class="unread-indicator"></span>' : ''}
+                                ${this.escapeHtml(patient.name)}
+                            </span>
+                            <span class="patient-status ${patient.is_active ? 'active' : 'inactive'}">
+                                ${patient.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                        <div class="patient-info">
+                            <strong>Last message:</strong> ${this.formatTime(patient.last_message_time)}<br>
+                            <strong>Unread:</strong> ${patient.unread_count} message${patient.unread_count !== 1 ? 's' : ''}<br>
+                            ${patient.risk_level ? `<strong>Risk Level:</strong> <span style="color: ${this.getRiskColor(patient.risk_level)}">${this.escapeHtml(patient.risk_level)}</span>` : ''}
+                        </div>
+                        <div class="patient-actions">
+                            <button class="btn-message" onclick="window.dashboard.messaging.loadConversation('${patient.username}')">
+                                💬 Message
+                            </button>
+                            <button class="btn-view-notes" onclick="window.location.href='/clinician/patient/${patient.username}'">
+                                📋 View
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                container.innerHTML = html;
+            }
+
+            filterPatients(query) {
+                const container = document.getElementById('patients-list');
+                if (!query) {
+                    this.renderPatients();
+                    return;
+                }
+
+                const filtered = this.patients.filter(p => 
+                    p.name.toLowerCase().includes(query.toLowerCase()) ||
+                    p.username.toLowerCase().includes(query.toLowerCase())
+                );
+
+                if (filtered.length === 0) {
+                    container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">No patients match your search</div>';
+                    return;
+                }
+
+                const html = filtered.map(patient => `
+                    <div class="patient-card">
+                        <div class="patient-header">
+                            <span class="patient-name">${this.escapeHtml(patient.name)}</span>
+                            <span class="patient-status ${patient.is_active ? 'active' : 'inactive'}">
+                                ${patient.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                        <div class="patient-info">
+                            <strong>Unread:</strong> ${patient.unread_count} messages
+                        </div>
+                        <div class="patient-actions">
+                            <button class="btn-message" onclick="window.dashboard.messaging.loadConversation('${patient.username}')">
+                                💬 Message
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                container.innerHTML = html;
+            }
+
+            async loadAnalytics() {
+                try {
+                    const response = await fetch('/api/clinician/messages/analytics', {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        document.getElementById('avg-response-time').textContent = data.avg_response_time || '--';
+                        document.getElementById('messages-this-week').textContent = data.messages_this_week || 0;
+                        document.getElementById('engagement-rate').textContent = (data.engagement_rate || 0) + '%';
+                        document.getElementById('critical-messages').textContent = data.critical_messages || 0;
+                    }
+                } catch (error) {
+                    console.error('Error loading analytics:', error);
+                }
+            }
+
+            showTemplateModal(templateType) {
+                const templates = {
+                    greeting: "Hi! Just checking in. How have you been doing since our last session?",
+                    appointment: "I'd like to schedule an appointment with you. Are you available this week?",
+                    'follow-up': "Following up on what we discussed last time. How are you managing?",
+                    crisis: "If you're in crisis, please reach out to the crisis hotline: [NUMBER]. I'm here to help."
+                };
+
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Use Template</h3>
+                            <button class="close-modal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="text" id="template-recipient" placeholder="Select patient..." maxlength="255">
+                            <textarea id="template-content" style="padding: 12px; border: 1px solid #dfe6e9; border-radius: 8px; font-family: inherit;" maxlength="10000" rows="5">${templates[templateType] || ''}</textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn-primary" id="send-template">Send</button>
+                            <button class="btn-secondary" id="cancel-template">Cancel</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                document.getElementById('send-template').addEventListener('click', async () => {
+                    const recipient = document.getElementById('template-recipient').value;
+                    const content = document.getElementById('template-content').value;
+                    
+                    if (recipient && content) {
+                        await this.messaging.sendMessage({
+                            recipient: recipient,
+                            content: content,
+                            subject: ''
+                        });
+                        modal.remove();
+                    }
+                });
+
+                document.getElementById('cancel-template').addEventListener('click', () => modal.remove());
+                document.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            formatTime(timestamp) {
+                if (!timestamp) return '--';
+                const date = new Date(timestamp);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+
+                if (diffMins < 1) return 'just now';
+                if (diffMins < 60) return `${diffMins}m ago`;
+                if (diffHours < 24) return `${diffHours}h ago`;
+                if (diffDays < 7) return `${diffDays}d ago`;
+                
+                return date.toLocaleDateString();
+            }
+
+            getRiskColor(riskLevel) {
+                const colors = {
+                    'low': '#00b894',
+                    'moderate': '#fdcb6e',
+                    'high': '#ff7675',
+                    'critical': '#d63031'
+                };
+                return colors[riskLevel] || '#636e72';
+            }
+
+            destroy() {
+                if (this.messaging) {
+                    this.messaging.destroy();
+                }
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            window.dashboard = new ClinicianMessagingDashboard();
+            console.log('✅ Clinician messaging dashboard initialized');
+        });
+
+        // Cleanup
+        window.addEventListener('beforeunload', function() {
+            if (window.dashboard) {
+                window.dashboard.destroy();
+            }
+        });
+    </script>
+
+</body>
+</html>

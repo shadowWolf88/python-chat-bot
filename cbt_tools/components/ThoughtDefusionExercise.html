@@ -1,0 +1,69 @@
+<div style="max-width: 650px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">🌬️ Thought Defusion Exercise</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Let's practice gently observing thoughts without getting tangled in them</p>
+
+    <form id="thoughtDefusionForm">
+        <!-- Thought Input -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">What's the distressing thought? 💭</label>
+            <input type="text" name="thought" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1.1em;" placeholder="e.g., I'm not good enough...">
+        </div>
+
+        <!-- Guided Defusion Prompts -->
+        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); padding: 20px; border-radius: 15px; margin-bottom: 25px;">
+            <h5 style="margin-bottom: 15px;">🧘 Try these perspectives:</h5>
+            <ul style="list-style: none; padding: 0; color: var(--text-secondary);">
+                <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
+                    <span style="position: absolute; left: 0;">🎈</span> "I'm having the thought that..."
+                </li>
+                <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
+                    <span style="position: absolute; left: 0;">🍃</span> "I notice my mind saying..."
+                </li>
+                <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
+                    <span style="position: absolute; left: 0;">☁️</span> Imagine the thought floating by like a cloud
+                </li>
+                <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
+                    <span style="position: absolute; left: 0;">🎵</span> Sing the thought to a silly tune
+                </li>
+            </ul>
+        </div>
+
+        <!-- Observation -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">How can you observe this thought without judgment? ✨</label>
+            <textarea name="observation" rows="4" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="Describe how you're observing this thought... Is it just a thought? Does it have power over you, or can you let it float by?"></textarea>
+        </div>
+
+        <!-- Mood Selector -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after this exercise? 😌</label>
+            <div id="defusionMoodContainer"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetThoughtDefusion()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveThoughtDefusion()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Progress</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function saveThoughtDefusion() {
+    // Trigger the enhanced save with confetti and pet rewards!
+    saveCBTToolData('ThoughtDefusionExercise');
+}
+
+function resetThoughtDefusion() {
+    document.getElementById('thoughtDefusionForm').reset();
+    const moodBtns = document.querySelectorAll('#defusionMoodContainer .emoji-mood-btn');
+    moodBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selector
+setTimeout(() => {
+    if (document.getElementById('defusionMoodContainer') && !document.querySelector('#defusionMoodContainer .emoji-mood-selector')) {
+        createEmojiMoodSelector('defusionMoodContainer');
+    }
+}, 100);
+</script>

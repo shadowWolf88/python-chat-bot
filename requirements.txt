@@ -1,0 +1,15 @@
+requests
+cryptography
+reportlab
+pyttsx3
+edge-tts
+bcrypt
+python-dotenv
+paramiko
+argon2-cffi
+flask
+flask-cors
+flask-limiter
+gunicorn
+psycopg2-binary
+pytest

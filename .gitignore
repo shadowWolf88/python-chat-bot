@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database files (local development)
+*.db
+*.db-journal
+*.bak
+backups/*.bak
+
+# Secrets and environment
+.env
+.env.local
+.env.*.local
+secrets/
+*.key
+*.pem
+encryption_key.key
+encryption_key
+secret_key
+*.secret
+
+# Audio/Media generated at runtime
+*.mp3
+*.wav
+
+# PDF exports (user-generated)
+*.pdf
+
+# Logs
+*.log
+audit_logs/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# User-specific files
+Full_History_*.txt
+healing_space.py.save
+
+# Mobile/Node dependencies (Capacitor, build tools)
+node_modules/
+capacitor.config.json
+*.hxml
+

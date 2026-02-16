@@ -1,0 +1,180 @@
+<div style="max-width: 700px; margin: 0 auto;">
+    <h4 style="text-align: center; font-size: 1.8em; margin-bottom: 10px;">🧘 Guided Breathing Exercise</h4>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px;">Follow the visual breathing guide to calm your mind and body</p>
+
+    <form id="relaxationAudioForm">
+        <!-- Before Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How are you feeling right now?</label>
+            <div id="relaxationAudioMoodBefore"></div>
+        </div>
+
+        <!-- Breathing Guide -->
+        <div style="background: var(--bg-input); padding: 40px; border-radius: 15px; margin-bottom: 25px; text-align: center;">
+            <div id="breathingCircle" style="width: 200px; height: 200px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); margin: 0 auto 30px; display: flex; align-items: center; justify-content: center; transition: transform 4s ease-in-out; box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);">
+                <span id="breathingText" style="color: white; font-size: 1.5em; font-weight: bold;">Ready</span>
+            </div>
+            <div id="breathingInstructions" style="font-size: 1.2em; color: var(--text-primary); margin-bottom: 20px; min-height: 30px;"></div>
+            <div style="margin-top: 20px;">
+                <button type="button" id="breathingBtn" class="btn" onclick="toggleBreathingExercise()" style="padding: 15px 40px; font-size: 1.1em; background: var(--accent-gradient);">🌬️ Start Breathing</button>
+            </div>
+            <div id="breathingCounter" style="margin-top: 15px; font-size: 1em; color: var(--text-secondary);"></div>
+        </div>
+
+        <!-- Instructions -->
+        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); padding: 20px; border-radius: 15px; margin-bottom: 25px;">
+            <h5 style="margin-bottom: 10px;">💡 Breathing exercise benefits:</h5>
+            <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
+                <li>Activates your relaxation response</li>
+                <li>Reduces stress and anxiety</li>
+                <li>Improves focus and clarity</li>
+                <li>Helps regulate emotions</li>
+            </ul>
+        </div>
+
+        <!-- Duration Tracking -->
+        <input type="hidden" name="duration_seconds" id="breathingDurationSeconds" value="0">
+        <input type="hidden" name="cycles_completed" id="breathingCycles" value="0">
+
+        <!-- Notes -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Notes about your experience (optional) 📝</label>
+            <textarea name="notes" rows="3" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 1em;" placeholder="How did this breathing exercise feel for you?"></textarea>
+        </div>
+
+        <!-- After Mood -->
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label style="font-weight: 600; margin-bottom: 15px; display: block; text-align: center;">How do you feel after this exercise? 😌</label>
+            <div id="relaxationAudioMoodAfter"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="resetRelaxationAudio()" style="flex: 1;">🔄 Reset</button>
+            <button type="button" class="btn" onclick="saveRelaxationAudio()" style="flex: 2; background: var(--success-color); font-size: 1.1em;">💾 Save Session</button>
+        </div>
+    </form>
+    <div id="relaxationAudioStatus"></div>
+</div>
+
+<script>
+let breathingInterval = null;
+let breathingPhase = 0;
+let breathingCycleCount = 0;
+let breathingStartTime = null;
+
+function toggleBreathingExercise() {
+    if (breathingInterval) {
+        stopBreathingExercise();
+    } else {
+        startBreathingExercise();
+    }
+}
+
+function startBreathingExercise() {
+    const circle = document.getElementById('breathingCircle');
+    const text = document.getElementById('breathingText');
+    const instructions = document.getElementById('breathingInstructions');
+    const btn = document.getElementById('breathingBtn');
+    const counter = document.getElementById('breathingCounter');
+
+    breathingStartTime = Date.now();
+    breathingCycleCount = 0;
+    breathingPhase = 0;
+    btn.textContent = '⏸️ Stop';
+
+    function breathingCycle() {
+        breathingPhase = (breathingPhase + 1) % 4;
+
+        switch(breathingPhase) {
+            case 0:
+                // Breathe in
+                circle.style.transform = 'scale(1.5)';
+                text.textContent = 'Breathe In';
+                instructions.textContent = 'Inhale slowly through your nose...';
+                setTimeout(() => {
+                    breathingPhase = 1;
+                    // Hold
+                    text.textContent = 'Hold';
+                    instructions.textContent = 'Hold your breath gently...';
+                }, 4000);
+                break;
+            case 2:
+                // Breathe out
+                circle.style.transform = 'scale(1)';
+                text.textContent = 'Breathe Out';
+                instructions.textContent = 'Exhale slowly through your mouth...';
+                setTimeout(() => {
+                    breathingPhase = 3;
+                    // Rest
+                    text.textContent = 'Rest';
+                    instructions.textContent = 'Relax and prepare for the next breath...';
+                    breathingCycleCount++;
+                    counter.textContent = `Completed ${breathingCycleCount} breathing cycle${breathingCycleCount > 1 ? 's' : ''}`;
+                    document.getElementById('breathingCycles').value = breathingCycleCount;
+                }, 4000);
+                break;
+        }
+    }
+
+    breathingCycle();
+    breathingInterval = setInterval(() => {
+        if (breathingPhase === 1 || breathingPhase === 3) {
+            breathingCycle();
+        }
+    }, 4000);
+}
+
+function stopBreathingExercise() {
+    if (breathingInterval) {
+        clearInterval(breathingInterval);
+        breathingInterval = null;
+    }
+
+    const circle = document.getElementById('breathingCircle');
+    const text = document.getElementById('breathingText');
+    const instructions = document.getElementById('breathingInstructions');
+    const btn = document.getElementById('breathingBtn');
+
+    circle.style.transform = 'scale(1)';
+    text.textContent = 'Ready';
+    instructions.textContent = '';
+    btn.textContent = '🌬️ Start Breathing';
+
+    if (breathingStartTime) {
+        const duration = Math.floor((Date.now() - breathingStartTime) / 1000);
+        document.getElementById('breathingDurationSeconds').value = duration;
+    }
+}
+
+function saveRelaxationAudio() {
+    stopBreathingExercise();
+    saveCBTToolData('RelaxationAudioPlayer');
+}
+
+function resetRelaxationAudio() {
+    stopBreathingExercise();
+    document.getElementById('relaxationAudioForm').reset();
+    document.getElementById('breathingCounter').textContent = '';
+    breathingCycleCount = 0;
+    breathingStartTime = null;
+    const beforeBtns = document.querySelectorAll('#relaxationAudioMoodBefore .emoji-mood-btn');
+    const afterBtns = document.querySelectorAll('#relaxationAudioMoodAfter .emoji-mood-btn');
+    beforeBtns.forEach(btn => btn.classList.remove('selected'));
+    afterBtns.forEach(btn => btn.classList.remove('selected'));
+}
+
+// Initialize mood selectors
+setTimeout(() => {
+    if (document.getElementById('relaxationAudioMoodBefore') && !document.querySelector('#relaxationAudioMoodBefore .emoji-mood-selector')) {
+        createEmojiMoodSelector('relaxationAudioMoodBefore');
+        const beforeInput = document.getElementById('relaxationAudioMoodBefore_value');
+        if (beforeInput) beforeInput.name = 'mood_before_value';
+    }
+    if (document.getElementById('relaxationAudioMoodAfter') && !document.querySelector('#relaxationAudioMoodAfter .emoji-mood-selector')) {
+        createEmojiMoodSelector('relaxationAudioMoodAfter');
+        const afterInput = document.getElementById('relaxationAudioMoodAfter_value');
+        if (afterInput) afterInput.name = 'mood_rating';
+    }
+}, 100);
+</script>

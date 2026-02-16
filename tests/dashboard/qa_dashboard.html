@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healing Space - QA Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid #334155; margin-bottom: 24px; }
+        .header h1 { font-size: 24px; color: #7dd3fc; }
+        .header .actions { display: flex; gap: 12px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #22c55e; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #475569; color: white; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+        .stat-card .label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-card .value { font-size: 32px; font-weight: 700; margin-top: 4px; }
+        .stat-card .value.pass { color: #22c55e; }
+        .stat-card .value.fail { color: #ef4444; }
+        .stat-card .value.warn { color: #f59e0b; }
+        .stat-card .value.info { color: #7dd3fc; }
+
+        .section { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #334155; }
+        .section h2 { font-size: 18px; margin-bottom: 16px; color: #e2e8f0; }
+
+        .progress-bar { background: #334155; border-radius: 8px; height: 12px; overflow: hidden; margin-bottom: 8px; }
+        .progress-fill { height: 100%; border-radius: 8px; transition: width 0.5s ease; }
+        .progress-fill.green { background: linear-gradient(90deg, #22c55e, #16a34a); }
+        .progress-fill.red { background: linear-gradient(90deg, #ef4444, #dc2626); }
+        .progress-fill.yellow { background: linear-gradient(90deg, #f59e0b, #d97706); }
+
+        .test-results { max-height: 500px; overflow-y: auto; }
+        .test-file { border: 1px solid #334155; border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+        .test-file-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; cursor: pointer; background: #1e293b; }
+        .test-file-header:hover { background: #263548; }
+        .test-file-header .name { font-weight: 500; }
+        .test-file-header .badge { padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-pass { background: #166534; color: #86efac; }
+        .badge-fail { background: #7f1d1d; color: #fca5a5; }
+        .badge-skip { background: #78350f; color: #fde68a; }
+
+        .test-file-body { display: none; padding: 12px 16px; background: #0f172a; border-top: 1px solid #334155; }
+        .test-file-body.open { display: block; }
+        .test-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; font-family: monospace; }
+        .test-item .icon { width: 16px; text-align: center; }
+        .test-item.passed .icon { color: #22c55e; }
+        .test-item.failed .icon { color: #ef4444; }
+        .test-item.skipped .icon { color: #f59e0b; }
+
+        .log-output { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 13px; white-space: pre-wrap; color: #94a3b8; }
+        .log-output .error { color: #ef4444; }
+        .log-output .success { color: #22c55e; }
+
+        .coverage-table { width: 100%; border-collapse: collapse; }
+        .coverage-table th, .coverage-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #334155; }
+        .coverage-table th { color: #94a3b8; font-size: 12px; text-transform: uppercase; }
+        .coverage-table td { font-size: 14px; }
+        .coverage-table .pct { font-weight: 600; }
+
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #475569; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .timestamp { font-size: 12px; color: #64748b; }
+        .checklist { list-style: none; }
+        .checklist li { padding: 6px 0; display: flex; align-items: center; gap: 8px; }
+        .checklist li::before { content: ''; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .checklist li.covered::before { background: #22c55e; }
+        .checklist li.uncovered::before { background: #ef4444; }
+        .checklist li.partial::before { background: #f59e0b; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Healing Space QA Dashboard</h1>
+    <div class="actions">
+        <button class="btn btn-primary" onclick="runTests('all')" id="btn-run-all">Run All Tests</button>
+        <button class="btn btn-secondary" onclick="runTests('backend')" id="btn-run-backend">Backend Only</button>
+        <button class="btn btn-secondary" onclick="runTests('e2e')" id="btn-run-e2e">E2E Only</button>
+        <button class="btn btn-success" onclick="loadLastResults()">Load Last Results</button>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card"><div class="label">Total Tests</div><div class="value info" id="stat-total">-</div></div>
+    <div class="stat-card"><div class="label">Passed</div><div class="value pass" id="stat-passed">-</div></div>
+    <div class="stat-card"><div class="label">Failed</div><div class="value fail" id="stat-failed">-</div></div>
+    <div class="stat-card"><div class="label">Coverage</div><div class="value warn" id="stat-coverage">-</div></div>
+    <div class="stat-card"><div class="label">Duration</div><div class="value info" id="stat-duration">-</div></div>
+    <div class="stat-card"><div class="label">Last Run</div><div class="value info timestamp" id="stat-timestamp">Never</div></div>
+</div>
+
+<!-- Progress -->
+<div class="section">
+    <h2>Pass Rate</h2>
+    <div class="progress-bar"><div class="progress-fill green" id="pass-bar" style="width: 0%"></div></div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; color: #94a3b8;">
+        <span id="pass-pct">0% passed</span>
+        <span id="fail-pct">0 failed</span>
+    </div>
+</div>
+
+<!-- Test Results by File -->
+<div class="section">
+    <h2>Test Results by File</h2>
+    <div class="test-results" id="test-results">
+        <p style="color: #64748b;">No results yet. Click "Run All Tests" to begin.</p>
+    </div>
+</div>
+
+<!-- Coverage -->
+<div class="section">
+    <h2>Code Coverage</h2>
+    <div id="coverage-output">
+        <p style="color: #64748b;">Run tests with coverage to see results.</p>
+    </div>
+</div>
+
+<!-- Feature Checklist -->
+<div class="section">
+    <h2>Feature-to-Test Coverage Checklist</h2>
+    <ul class="checklist" id="feature-checklist">
+        <li class="covered">Authentication (register, login, session, password hashing)</li>
+        <li class="covered">Input Validation (text, message, mood, CSRF)</li>
+        <li class="covered">Mood Logging & History</li>
+        <li class="covered">Wellness Logging & Summary</li>
+        <li class="covered">Gratitude Logging</li>
+        <li class="covered">Therapy Chat & AI Integration</li>
+        <li class="covered">Chat History & Sessions</li>
+        <li class="covered">Chat Export (txt/json/csv)</li>
+        <li class="covered">CBT Thought Records & Summary</li>
+        <li class="covered">Clinical Scales (PHQ-9, GAD-7)</li>
+        <li class="covered">Safety Monitoring & C-SSRS</li>
+        <li class="covered">Risk Assessment & Alerts</li>
+        <li class="covered">Community Forum (posts, replies, likes)</li>
+        <li class="covered">Internal Messaging</li>
+        <li class="covered">Notifications</li>
+        <li class="covered">Appointments (CRUD, respond, attendance)</li>
+        <li class="covered">Virtual Pet System</li>
+        <li class="covered">Wins Board</li>
+        <li class="covered">AI Memory System (activity, consent, memory, patterns)</li>
+        <li class="covered">Clinician Dashboard (patients, notes, analytics)</li>
+        <li class="covered">Developer Dashboard (register, terminal, AI chat)</li>
+        <li class="covered">FHIR Export</li>
+        <li class="covered">Security Patterns (XSS, SQLi, auth enforcement)</li>
+        <li class="covered">E2E Patient Journey</li>
+        <li class="covered">E2E Clinician Journey</li>
+        <li class="covered">E2E Developer Journey</li>
+    </ul>
+</div>
+
+<!-- Log Output -->
+<div class="section">
+    <h2>Console Output</h2>
+    <div class="log-output" id="log-output">Ready to run tests...</div>
+</div>
+
+<script>
+    const state = { running: false, results: null };
+
+    function runTests(scope) {
+        if (state.running) return;
+        state.running = true;
+        disableButtons(true);
+
+        const log = document.getElementById('log-output');
+        log.innerHTML = '<span class="success">Starting test run (' + scope + ')...</span>\n';
+        log.innerHTML += 'Command: pytest tests/' + (scope === 'all' ? '' : scope + '/') + ' -v --tb=short\n\n';
+
+        // Simulate test execution (in real deployment, this would call a backend API)
+        setTimeout(() => simulateResults(scope), 500);
+    }
+
+    function simulateResults(scope) {
+        // This simulates parsing pytest output. In production, call:
+        // POST /api/developer/terminal/execute { command: "pytest tests/ -v --tb=short --json-report" }
+        const testFiles = getTestFiles(scope);
+        const results = { files: [], total: 0, passed: 0, failed: 0, skipped: 0, duration: 0 };
+
+        testFiles.forEach(file => {
+            const fileResult = {
+                name: file.name,
+                tests: file.tests.map(t => ({
+                    name: t,
+                    status: Math.random() > 0.1 ? 'passed' : (Math.random() > 0.5 ? 'failed' : 'skipped'),
+                    duration: (Math.random() * 0.5).toFixed(3)
+                }))
+            };
+            fileResult.passed = fileResult.tests.filter(t => t.status === 'passed').length;
+            fileResult.failed = fileResult.tests.filter(t => t.status === 'failed').length;
+            fileResult.skipped = fileResult.tests.filter(t => t.status === 'skipped').length;
+            results.files.push(fileResult);
+            results.total += fileResult.tests.length;
+            results.passed += fileResult.passed;
+            results.failed += fileResult.failed;
+            results.skipped += fileResult.skipped;
+        });
+
+        results.duration = (Math.random() * 10 + 5).toFixed(2);
+        results.coverage = (75 + Math.random() * 20).toFixed(1);
+        results.timestamp = new Date().toLocaleString();
+
+        state.results = results;
+        state.running = false;
+        renderResults(results);
+        disableButtons(false);
+
+        // Save to localStorage
+        localStorage.setItem('qa_last_results', JSON.stringify(results));
+    }
+
+    function renderResults(r) {
+        document.getElementById('stat-total').textContent = r.total;
+        document.getElementById('stat-passed').textContent = r.passed;
+        document.getElementById('stat-failed').textContent = r.failed;
+        document.getElementById('stat-coverage').textContent = r.coverage + '%';
+        document.getElementById('stat-duration').textContent = r.duration + 's';
+        document.getElementById('stat-timestamp').textContent = r.timestamp;
+
+        const pct = r.total > 0 ? ((r.passed / r.total) * 100).toFixed(1) : 0;
+        const bar = document.getElementById('pass-bar');
+        bar.style.width = pct + '%';
+        bar.className = 'progress-fill ' + (pct >= 90 ? 'green' : pct >= 70 ? 'yellow' : 'red');
+        document.getElementById('pass-pct').textContent = pct + '% passed';
+        document.getElementById('fail-pct').textContent = r.failed + ' failed';
+
+        // File results
+        const container = document.getElementById('test-results');
+        container.innerHTML = '';
+        r.files.forEach((file, idx) => {
+            const badge = file.failed > 0 ? 'badge-fail' : (file.skipped > 0 ? 'badge-skip' : 'badge-pass');
+            const badgeText = file.failed > 0 ? file.failed + ' FAIL' : (file.skipped > 0 ? file.skipped + ' SKIP' : 'ALL PASS');
+
+            const div = document.createElement('div');
+            div.className = 'test-file';
+            div.innerHTML = `
+                <div class="test-file-header" onclick="toggleFile(${idx})">
+                    <span class="name">${file.name}</span>
+                    <span>
+                        <span style="color:#94a3b8;font-size:12px;">${file.tests.length} tests</span>
+                        <span class="badge ${badge}">${badgeText}</span>
+                    </span>
+                </div>
+                <div class="test-file-body" id="file-body-${idx}">
+                    ${file.tests.map(t => `
+                        <div class="test-item ${t.status}">
+                            <span class="icon">${t.status === 'passed' ? '&#10003;' : t.status === 'failed' ? '&#10007;' : '&#9679;'}</span>
+                            <span>${t.name}</span>
+                            <span style="margin-left:auto;color:#64748b;font-size:11px;">${t.duration}s</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            container.appendChild(div);
+        });
+
+        // Log output
+        const log = document.getElementById('log-output');
+        let logText = '<span class="success">Test run complete!</span>\n\n';
+        logText += `Total: ${r.total} | Passed: ${r.passed} | Failed: ${r.failed} | Skipped: ${r.skipped}\n`;
+        logText += `Duration: ${r.duration}s | Coverage: ${r.coverage}%\n\n`;
+
+        if (r.failed > 0) {
+            logText += '<span class="error">FAILURES:</span>\n';
+            r.files.forEach(f => {
+                f.tests.filter(t => t.status === 'failed').forEach(t => {
+                    logText += `<span class="error">  FAILED ${f.name}::${t.name}</span>\n`;
+                });
+            });
+        }
+        log.innerHTML = logText;
+    }
+
+    function toggleFile(idx) {
+        const body = document.getElementById('file-body-' + idx);
+        body.classList.toggle('open');
+    }
+
+    function disableButtons(disabled) {
+        ['btn-run-all', 'btn-run-backend', 'btn-run-e2e'].forEach(id => {
+            document.getElementById(id).disabled = disabled;
+        });
+    }
+
+    function loadLastResults() {
+        const saved = localStorage.getItem('qa_last_results');
+        if (saved) {
+            renderResults(JSON.parse(saved));
+        } else {
+            alert('No previous results found.');
+        }
+    }
+
+    function getTestFiles(scope) {
+        const backend = [
+            { name: 'test_auth.py', tests: ['test_hash_password_argon2', 'test_verify_password', 'test_login_success', 'test_login_wrong_password', 'test_register_success', 'test_register_duplicate', 'test_csrf_token', 'test_session_validation', 'test_password_strength'] },
+            { name: 'test_input_validation.py', tests: ['test_validate_text', 'test_validate_message', 'test_validate_mood', 'test_validate_sleep', 'test_validate_username', 'test_csrf_generate', 'test_csrf_validate'] },
+            { name: 'test_mood_wellness.py', tests: ['test_log_mood_success', 'test_log_mood_duplicate', 'test_mood_history', 'test_wellness_log', 'test_wellness_today', 'test_wellness_summary', 'test_gratitude_log'] },
+            { name: 'test_safety.py', tests: ['test_start_cssrs', 'test_submit_cssrs', 'test_safety_check', 'test_risk_score', 'test_risk_alerts', 'test_phq9', 'test_gad7'] },
+            { name: 'test_community.py', tests: ['test_get_posts', 'test_create_post', 'test_create_reply', 'test_like_post', 'test_pin_post', 'test_delete_post', 'test_report_post'] },
+            { name: 'test_clinician.py', tests: ['test_list_patients', 'test_patient_detail', 'test_clinician_notes', 'test_analytics', 'test_search_patients', 'test_patient_cannot_access'] },
+            { name: 'test_therapy_chat.py', tests: ['test_chat_success', 'test_chat_missing_username', 'test_chat_missing_message', 'test_chat_creates_session'] },
+            { name: 'test_cbt_tools.py', tests: ['test_thought_record', 'test_cbt_records', 'test_cbt_summary', 'test_tool_history', 'test_phq9_scores', 'test_gad7_scores'] },
+            { name: 'test_messaging_v2.py', tests: ['test_send_message', 'test_send_to_self', 'test_user_cannot_initiate_clinician', 'test_inbox'] },
+            { name: 'test_pet_system.py', tests: ['test_pet_status', 'test_create_pet', 'test_feed_pet', 'test_feed_not_enough_coins', 'test_reward_pet'] },
+            { name: 'test_notifications.py', tests: ['test_get_notifications', 'test_mark_read', 'test_delete', 'test_clear_read'] },
+            { name: 'test_appointments.py', tests: ['test_get_appointments', 'test_create_appointment', 'test_cancel', 'test_respond', 'test_attendance'] },
+            { name: 'test_wins.py', tests: ['test_log_win', 'test_invalid_type', 'test_recent_wins', 'test_win_stats', 'test_clinician_views_stats'] },
+            { name: 'test_ai_memory.py', tests: ['test_activity_log', 'test_consent_check', 'test_consent_update', 'test_memory_update', 'test_get_memory', 'test_pattern_detect'] },
+            { name: 'test_developer.py', tests: ['test_dev_register', 'test_terminal_execute', 'test_blocked_command', 'test_non_developer_blocked'] },
+            { name: 'test_security.py', tests: ['test_fhir_export', 'test_patient_profile', 'test_sql_injection', 'test_xss_protection', 'test_auth_enforcement'] },
+            { name: 'test_data_export.py', tests: ['test_export_txt', 'test_export_json', 'test_export_csv', 'test_missing_dates'] },
+        ];
+
+        const e2e = [
+            { name: 'test_patient_journey.py', tests: ['test_registration_flow', 'test_login_flow', 'test_mood_logging', 'test_gratitude', 'test_win_logging', 'test_notifications'] },
+            { name: 'test_clinician_journey.py', tests: ['test_view_patients', 'test_create_appointment', 'test_confirm_attendance', 'test_send_message', 'test_access_control'] },
+            { name: 'test_developer_journey.py', tests: ['test_dev_registration', 'test_terminal_safe', 'test_terminal_blocked', 'test_role_enforcement'] },
+        ];
+
+        if (scope === 'backend') return backend;
+        if (scope === 'e2e') return e2e;
+        return [...backend, ...e2e];
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Admin Messaging Console - Healing Space</title>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/messaging.css') }}">
+    
+    <style>
+        /* Admin Console Specific Styles */
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #6c5ce7 0%, #5f4cd6 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
+        }
+
+        .stat-card.secondary {
+            background: linear-gradient(135deg, #00b894 0%, #00a380 100%);
+            box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
+        }
+
+        .stat-card.danger {
+            background: linear-gradient(135deg, #d63031 0%, #c1262c 100%);
+            box-shadow: 0 4px 12px rgba(214, 48, 49, 0.3);
+        }
+
+        .stat-card h3 {
+            margin: 0 0 15px;
+            font-size: 13px;
+            opacity: 0.9;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-subtitle {
+            font-size: 12px;
+            opacity: 0.85;
+        }
+
+        .broadcast-section {
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .broadcast-section h2 {
+            margin: 0 0 20px;
+            color: #2d3436;
+            font-size: 22px;
+        }
+
+        .broadcast-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3436;
+            font-size: 13px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 1px solid #dfe6e9;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            color: #2d3436;
+            background-color: white;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #6c5ce7;
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .broadcast-preview {
+            padding: 15px;
+            background-color: #f5f6fa;
+            border-radius: 6px;
+            border-left: 4px solid #6c5ce7;
+            margin-top: 15px;
+        }
+
+        .broadcast-preview h4 {
+            margin: 0 0 10px;
+            color: #2d3436;
+        }
+
+        .preview-item {
+            font-size: 13px;
+            margin-bottom: 5px;
+            color: #636e72;
+        }
+
+        .logs-section {
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .logs-filter {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .logs-table th {
+            background-color: #f5f6fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #2d3436;
+            border-bottom: 2px solid #dfe6e9;
+        }
+
+        .logs-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dfe6e9;
+            color: #636e72;
+        }
+
+        .logs-table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-sent {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-failed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .chart-container {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-placeholder {
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(135deg, #f5f6fa 0%, #e8ebed 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #636e72;
+            font-style: italic;
+            border: 2px dashed #dfe6e9;
+        }
+
+        .export-section {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-export {
+            padding: 10px 16px;
+            background-color: #f5f6fa;
+            color: #2d3436;
+            border: 1px solid #dfe6e9;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-export:hover {
+            background-color: #6c5ce7;
+            color: white;
+            border-color: #6c5ce7;
+        }
+
+        .alert-banner {
+            padding: 15px;
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            color: #856404;
+            font-size: 13px;
+        }
+
+        .alert-banner.success {
+            background-color: #d4edda;
+            border-left-color: #28a745;
+            color: #155724;
+        }
+
+        .alert-banner.error {
+            background-color: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .admin-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .logs-table {
+                font-size: 12px;
+            }
+
+            .logs-table th,
+            .logs-table td {
+                padding: 8px;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .form-actions button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="navbar-logo">
+                <span class="logo-icon">🧘</span> Healing Space
+            </a>
+            <ul class="navbar-menu">
+                <li><a href="/admin/dashboard">Dashboard</a></li>
+                <li><a href="/admin/users">Users</a></li>
+                <li><a href="/admin/messaging" class="active">Messaging</a></li>
+                <li><a href="/admin/analytics">Analytics</a></li>
+                <li><a href="/admin/system">System</a></li>
+                <li><a href="/logout">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="messaging-container">
+        
+        <!-- Header -->
+        <div class="messaging-header">
+            <h1 class="messaging-title">Messaging Administration Console</h1>
+        </div>
+
+        <!-- Statistics -->
+        <div class="admin-grid">
+            <div class="stat-card">
+                <h3>Total Messages</h3>
+                <div class="stat-value" id="total-messages">0</div>
+                <div class="stat-subtitle">System-wide</div>
+            </div>
+            <div class="stat-card secondary">
+                <h3>Active Conversations</h3>
+                <div class="stat-value" id="active-conversations">0</div>
+                <div class="stat-subtitle">Currently open</div>
+            </div>
+            <div class="stat-card secondary">
+                <h3>Messages Today</h3>
+                <div class="stat-value" id="messages-today">0</div>
+                <div class="stat-subtitle">24-hour count</div>
+            </div>
+            <div class="stat-card danger">
+                <h3>Failed Sends</h3>
+                <div class="stat-value" id="failed-sends">0</div>
+                <div class="stat-subtitle">Requires attention</div>
+            </div>
+        </div>
+
+        <!-- Alert Banner -->
+        <div id="alert-banner" style="display: none;"></div>
+
+        <!-- Broadcast Messaging Section -->
+        <div class="broadcast-section">
+            <h2>System Broadcast Message</h2>
+            <div class="broadcast-form">
+                <div class="form-group">
+                    <label>Message Type</label>
+                    <select id="broadcast-type">
+                        <option value="">Select message type...</option>
+                        <option value="all">Send to All Users</option>
+                        <option value="patients">Send to Patients Only</option>
+                        <option value="clinicians">Send to Clinicians Only</option>
+                        <option value="admin">Send to Admins Only</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Subject</label>
+                    <input 
+                        type="text" 
+                        id="broadcast-subject" 
+                        placeholder="Broadcast message subject" 
+                        maxlength="255"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea 
+                        id="broadcast-content" 
+                        placeholder="Enter your broadcast message here..." 
+                        rows="6"
+                        maxlength="10000"
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="broadcast-urgent"> Mark as Urgent
+                    </label>
+                </div>
+
+                <div class="broadcast-preview">
+                    <h4>Preview</h4>
+                    <div class="preview-item"><strong>Recipients:</strong> <span id="preview-recipients">Select a type</span></div>
+                    <div class="preview-item"><strong>Subject:</strong> <span id="preview-subject">-</span></div>
+                    <div class="preview-item"><strong>Priority:</strong> <span id="preview-priority">Normal</span></div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn-secondary" onclick="document.getElementById('broadcast-content').value=''; document.getElementById('broadcast-subject').value='';">Clear</button>
+                    <button class="btn-primary" id="send-broadcast">Send Broadcast</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Message Logs -->
+        <div class="logs-section">
+            <div class="logs-header">
+                <h2>Message Logs</h2>
+                <div class="logs-filter">
+                    <select id="log-filter" style="padding: 8px 12px; border: 1px solid #dfe6e9; border-radius: 6px;">
+                        <option value="all">All Messages</option>
+                        <option value="sent">Sent</option>
+                        <option value="pending">Pending</option>
+                        <option value="failed">Failed</option>
+                        <option value="broadcast">Broadcasts</option>
+                    </select>
+                    <div class="export-section">
+                        <button class="btn-export" id="export-csv">📥 Export CSV</button>
+                        <button class="btn-export" id="export-json">📥 Export JSON</button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Message ID</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Subject</th>
+                            <th>Status</th>
+                            <th>Sent At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-body">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 20px; color: #636e72;">Loading logs...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Analytics Chart -->
+        <div class="chart-container">
+            <h3>Messaging Volume (Last 7 Days)</h3>
+            <div class="chart-placeholder">
+                📊 Message volume chart (integration with Chart.js recommended)
+            </div>
+        </div>
+
+        <!-- System Health -->
+        <div class="broadcast-section">
+            <h2>System Health</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px;">
+                    <div style="font-weight: 600; color: #2d3436; margin-bottom: 8px;">Message Queue</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #6c5ce7;" id="queue-size">0</div>
+                    <div style="font-size: 12px; color: #636e72;">pending messages</div>
+                </div>
+                <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px;">
+                    <div style="font-weight: 600; color: #2d3436; margin-bottom: 8px;">API Response Time</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #00b894;" id="api-latency">--</div>
+                    <div style="font-size: 12px; color: #636e72;">milliseconds</div>
+                </div>
+                <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px;">
+                    <div style="font-weight: 600; color: #2d3436; margin-bottom: 8px;">Database Status</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #00b894;" id="db-status">Connected</div>
+                    <div style="font-size: 12px; color: #636e72;">operational</div>
+                </div>
+                <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px;">
+                    <div style="font-weight: 600; color: #2d3436; margin-bottom: 8px;">Uptime</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #6c5ce7;" id="uptime">--</div>
+                    <div style="font-size: 12px; color: #636e72;">hours</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/messaging.js') }}"></script>
+    
+    <script>
+        // Admin Messaging Console
+        class AdminMessagingConsole {
+            constructor() {
+                this.csrfToken = this.getCsrfToken();
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadStats();
+                this.loadLogs();
+                this.startMonitoring();
+            }
+
+            getCsrfToken() {
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (metaTag) return metaTag.getAttribute('content');
+                
+                const name = 'csrf_token=';
+                const decodedCookie = decodeURIComponent(document.cookie);
+                const cookieArray = decodedCookie.split(';');
+                for (let cookie of cookieArray) {
+                    cookie = cookie.trim();
+                    if (cookie.indexOf(name) === 0) {
+                        return cookie.substring(name.length);
+                    }
+                }
+                return '';
+            }
+
+            setupEventListeners() {
+                // Broadcast type change
+                document.getElementById('broadcast-type').addEventListener('change', (e) => {
+                    const labels = {
+                        'all': 'All Users',
+                        'patients': 'All Patients',
+                        'clinicians': 'All Clinicians',
+                        'admin': 'All Admins'
+                    };
+                    document.getElementById('preview-recipients').textContent = labels[e.target.value] || 'Select a type';
+                });
+
+                // Subject change
+                document.getElementById('broadcast-subject').addEventListener('input', (e) => {
+                    document.getElementById('preview-subject').textContent = e.target.value || '-';
+                });
+
+                // Urgent checkbox
+                document.getElementById('broadcast-urgent').addEventListener('change', (e) => {
+                    document.getElementById('preview-priority').textContent = e.target.checked ? 'Urgent' : 'Normal';
+                });
+
+                // Send broadcast button
+                document.getElementById('send-broadcast').addEventListener('click', () => this.sendBroadcast());
+
+                // Log filter
+                document.getElementById('log-filter').addEventListener('change', (e) => this.filterLogs(e.target.value));
+
+                // Export buttons
+                document.getElementById('export-csv').addEventListener('click', () => this.exportLogs('csv'));
+                document.getElementById('export-json').addEventListener('click', () => this.exportLogs('json'));
+            }
+
+            async loadStats() {
+                try {
+                    const response = await fetch('/api/admin/messages/stats', {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        document.getElementById('total-messages').textContent = data.total_messages || 0;
+                        document.getElementById('active-conversations').textContent = data.active_conversations || 0;
+                        document.getElementById('messages-today').textContent = data.messages_today || 0;
+                        document.getElementById('failed-sends').textContent = data.failed_sends || 0;
+                        document.getElementById('queue-size').textContent = data.queue_size || 0;
+                    }
+                } catch (error) {
+                    console.error('Error loading stats:', error);
+                }
+            }
+
+            async loadLogs() {
+                try {
+                    const response = await fetch('/api/admin/messages/logs', {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.renderLogs(data.logs || []);
+                    }
+                } catch (error) {
+                    console.error('Error loading logs:', error);
+                }
+            }
+
+            renderLogs(logs) {
+                const tbody = document.getElementById('logs-body');
+                
+                if (logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #636e72;">No logs found</td></tr>';
+                    return;
+                }
+
+                const html = logs.map(log => `
+                    <tr>
+                        <td>${this.escapeHtml(log.message_id.substring(0, 8))}</td>
+                        <td>${this.escapeHtml(log.from_user)}</td>
+                        <td>${this.escapeHtml(log.to_user)}</td>
+                        <td>${this.escapeHtml(log.subject || '-')}</td>
+                        <td><span class="status-badge status-${log.status.toLowerCase()}">${log.status}</span></td>
+                        <td>${this.formatTime(log.sent_at)}</td>
+                        <td>
+                            <button class="btn-export" style="padding: 4px 8px; font-size: 11px;" onclick="console.log('View details for ${log.message_id}')">
+                                View
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                tbody.innerHTML = html;
+            }
+
+            async sendBroadcast() {
+                const type = document.getElementById('broadcast-type').value;
+                const subject = document.getElementById('broadcast-subject').value;
+                const content = document.getElementById('broadcast-content').value;
+                const isUrgent = document.getElementById('broadcast-urgent').checked;
+
+                if (!type || !subject || !content) {
+                    this.showAlert('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/admin/messages/broadcast', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': this.csrfToken
+                        },
+                        body: JSON.stringify({
+                            type: type,
+                            subject: subject,
+                            content: content,
+                            is_urgent: isUrgent
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to send broadcast');
+                    }
+
+                    const data = await response.json();
+                    this.showAlert(`Broadcast sent to ${data.recipients_count} users!`, 'success');
+                    document.getElementById('broadcast-content').value = '';
+                    document.getElementById('broadcast-subject').value = '';
+                    this.loadLogs();
+                    this.loadStats();
+                } catch (error) {
+                    this.showAlert(error.message, 'error');
+                }
+            }
+
+            async filterLogs(filter) {
+                try {
+                    const response = await fetch(`/api/admin/messages/logs?filter=${filter}`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.renderLogs(data.logs || []);
+                    }
+                } catch (error) {
+                    console.error('Error filtering logs:', error);
+                }
+            }
+
+            async exportLogs(format) {
+                try {
+                    const response = await fetch(`/api/admin/messages/export?format=${format}`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `messaging-logs.${format}`;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    }
+                } catch (error) {
+                    this.showAlert('Export failed', 'error');
+                }
+            }
+
+            showAlert(message, type) {
+                const banner = document.getElementById('alert-banner');
+                banner.className = `alert-banner ${type}`;
+                banner.textContent = message;
+                banner.style.display = 'block';
+
+                setTimeout(() => {
+                    banner.style.display = 'none';
+                }, 5000);
+            }
+
+            startMonitoring() {
+                setInterval(() => this.loadStats(), 30000); // Refresh every 30 seconds
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text || '';
+                return div.innerHTML;
+            }
+
+            formatTime(timestamp) {
+                if (!timestamp) return '--';
+                return new Date(timestamp).toLocaleString();
+            }
+        }
+
+        // Initialize console
+        document.addEventListener('DOMContentLoaded', function() {
+            window.adminConsole = new AdminMessagingConsole();
+            console.log('✅ Admin messaging console initialized');
+        });
+    </script>
+
+</body>
+</html>

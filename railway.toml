@@ -1,0 +1,18 @@
+[build]
+builder = "nixpacks"
+# Force rebuild: v2026.02.05-database-connected-FORCE-5affdc6
+
+[deploy]
+startCommand = "gunicorn api:app"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[nixpacks]
+# Nixpacks will auto-detect Python and install dependencies
+
+[[deploy.healthcheck]]
+httpPath = "/api/health"
+initialDelaySeconds = 60
+timeoutSeconds = 10
+intervalSeconds = 10
+periodSeconds = 10
