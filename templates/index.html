@@ -9195,7 +9195,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, pin })
+                    body: JSON.stringify({ username, password, pin, remember_me: rememberMe })
                 });
                 
                 const data = await response.json();
@@ -9276,6 +9276,12 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             document.getElementById('usernameDisplay').textContent = `Welcome, ${currentUser}!`;
             document.getElementById('authScreen').style.display = 'none';
             document.getElementById('appScreen').style.display = 'block';
+
+            // Fetch developer username for Contact Dev Team button
+            fetch('/api/users/developer', { credentials: 'include' })
+                .then(r => r.json())
+                .then(d => { if (d.username) window.developerUsername = d.username; })
+                .catch(() => {});
 
             // Initialize AI activity logger
             try {
@@ -16091,7 +16097,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 appointment: { recipient: '', subject: 'Appointment Request', content: 'Hi,\n\nI would like to request an appointment. Please could you let me know your available times?\n\nPreferred days: \nPreferred time: \n\nThank you.' },
                 checkin: { recipient: '', subject: 'Check-in', content: 'Hi,\n\nJust checking in to let you know how I\'ve been doing.\n\n' },
                 enquiry: { recipient: '', subject: 'General Enquiry', content: 'Hi,\n\nI have a question about: \n\n' },
-                dev: { recipient: 'dev', subject: 'Feedback / Issue Report', content: 'Hi Development Team,\n\nI wanted to report the following:\n\nType: [Bug / Feature Request / Feedback]\nDetails: \n\nThank you.' }
+                dev: { recipient: window.developerUsername || '', subject: 'Feedback / Issue Report', content: 'Hi Development Team,\n\nI wanted to report the following:\n\nType: [Bug / Feature Request / Feedback]\nDetails: \n\nThank you.' }
             };
             var t = templates[type];
             if (t) {

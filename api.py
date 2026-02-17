@@ -2242,28 +2242,31 @@ def csrf_protect():
 
 @app.before_request
 def check_session_inactivity():
-    """TIER 1.5: Invalidate session after 30 minutes of inactivity"""
+    """TIER 1.5: Invalidate session after inactivity (skipped for Remember Me sessions)"""
     # Only check authenticated sessions
     if 'username' not in session:
         return
-    
+
+    # Skip inactivity check for Remember Me sessions - they use the cookie expiry instead
+    if session.get('remember_me'):
+        session['last_activity'] = datetime.utcnow().isoformat()
+        return
+
     last_activity = session.get('last_activity')
     if last_activity:
         try:
             last_activity_time = datetime.fromisoformat(last_activity)
-            inactivity_timeout = timedelta(minutes=30)
-            
+            inactivity_timeout = timedelta(hours=4)  # 4 hours for non-remembered sessions
+
             if datetime.utcnow() - last_activity_time > inactivity_timeout:
-                # Session expired due to inactivity
                 username = session.get('username')
                 session.clear()
-                log_event(username or 'unknown', 'security', 'session_expired_inactivity', 'Session invalidated after 30 min inactivity')
+                log_event(username or 'unknown', 'security', 'session_expired_inactivity', 'Session invalidated after 4h inactivity')
                 return jsonify({'error': 'Session expired due to inactivity. Please log in again.', 'code': 'SESSION_EXPIRED'}), 401
         except (ValueError, TypeError):
-            # Invalid timestamp, clear session
             session.clear()
             return jsonify({'error': 'Invalid session. Please log in again.'}), 401
-    
+
     # Update last activity timestamp on each request
     session['last_activity'] = datetime.utcnow().isoformat()
 
@@ -5520,6 +5523,7 @@ def login():
         username = data.get('username')
         password = data.get('password')
         pin = data.get('pin')  # Required for 2FA
+        remember_me = bool(data.get('remember_me', False))
 
         print(f"🔐 Login attempt for user: {username}")
         
@@ -5607,7 +5611,12 @@ def login():
         session['role'] = role
         session['clinician_id'] = clinician_id
         session['login_time'] = datetime.utcnow().isoformat()
-        session['last_activity'] = datetime.utcnow().isoformat()  # TIER 1.5: Track inactivity
+        session['last_activity'] = datetime.utcnow().isoformat()
+        session['remember_me'] = remember_me
+
+        # Extend session lifetime for Remember Me users (30 days vs 7 days)
+        if remember_me:
+            app.permanent_session_lifetime = timedelta(days=30)
         
         # PHASE 2B: Generate CSRF token on successful login
         csrf_token = CSRFProtection.generate_csrf_token(username)
@@ -17438,6 +17447,22 @@ print(f"✅ SECRET_KEY configured: {bool(app.config.get('SECRET_KEY'))}", flush=
 print(f"✅ PIN_SALT configured: {bool(PIN_SALT)}", flush=True)
 
 # ============================================================================
+@app.route('/api/users/developer', methods=['GET'])
+def get_developer_username():
+    """Get the developer username for contact purposes"""
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        result = cur.execute(
+            "SELECT username FROM users WHERE role='developer' LIMIT 1"
+        ).fetchone()
+        conn.close()
+        if result:
+            return jsonify({'username': result[0]}), 200
+        return jsonify({'username': ''}), 200
+    except Exception as e:
+        return jsonify({'username': ''}), 200
+
 # WELLNESS RITUAL ENDPOINTS
 # ============================================================================
 
