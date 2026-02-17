@@ -15524,13 +15524,16 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 return;
             }
             container.innerHTML = convs.map(function(conv) {
-                var initial = getMsgInitial(conv.other_username);
+                var user = conv.with_user || conv.other_username || 'Unknown';
+                var avatarClass = typeof getMsgAvatarClass === 'function' ? getMsgAvatarClass(conv.with_role) : 'default';
+                var initial = getMsgInitial(user);
+                var escapedUser = sanitizeHTML(user);
                 var unreadHtml = conv.unread_count > 0 ? '<span class="msg-unread-badge">' + conv.unread_count + '</span>' : '';
-                return '<div class="msg-card' + (conv.unread_count > 0 ? ' unread' : '') + '" onclick="openConversation(\'' + sanitizeHTML(conv.other_username) + '\')">' +
-                    '<div class="msg-avatar default">' + initial + '</div>' +
+                return '<div class="msg-card' + (conv.unread_count > 0 ? ' unread' : '') + '" onclick="openConversation(\'' + escapedUser + '\')">' +
+                    '<div class="msg-avatar ' + avatarClass + '">' + initial + '</div>' +
                     '<div class="msg-content">' +
                         '<div class="msg-header">' +
-                            '<span class="msg-sender">' + sanitizeHTML(conv.other_username) + '</span>' +
+                            '<span class="msg-sender">' + escapedUser + '</span>' +
                             '<span class="msg-time">' + (conv.last_message_time ? formatMsgTime(conv.last_message_time) : '') + '</span>' +
                         '</div>' +
                         '<div class="msg-preview">' + sanitizeHTML((conv.last_message || 'No messages').substring(0, 100)) + unreadHtml + '</div>' +
