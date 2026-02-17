@@ -5950,6 +5950,101 @@ def send_reset_email(to_email, username, reset_token):
         return False
 
 
+def send_risk_alert_email(to_email: str, patient_username: str, clinician_username: str,
+                          severity: str, alert_type: str, details: str) -> bool:
+    """
+    Send a high-risk patient alert email to the assigned clinician.
+    Uses GMAIL_ADDRESS + GMAIL_APP_PASSWORD env vars (falls back to SMTP_* vars).
+    """
+    try:
+        # Gmail-specific overrides take priority; fall back to generic SMTP vars
+        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_user = os.getenv('GMAIL_ADDRESS') or os.getenv('SMTP_USER')
+        smtp_password = os.getenv('GMAIL_APP_PASSWORD') or os.getenv('SMTP_PASSWORD')
+        from_email = os.getenv('FROM_EMAIL', smtp_user)
+        app_url = os.getenv('APP_URL', 'https://healing-space.org.uk')
+
+        if not smtp_user or not smtp_password:
+            print("⚠️  Risk alert email skipped: GMAIL_ADDRESS/GMAIL_APP_PASSWORD not configured")
+            return False
+
+        severity_upper = severity.upper()
+        severity_color = {
+            'critical': '#dc2626',
+            'high':     '#ea580c',
+            'moderate': '#d97706',
+            'low':      '#16a34a',
+        }.get(severity, '#6b7280')
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"⚠️ [{severity_upper}] Risk Alert — Patient: {patient_username}"
+        msg['From'] = f"Healing Space UK Alerts <{from_email}>"
+        msg['To'] = to_email
+
+        html = f"""
+        <html>
+          <body style="font-family:Inter,Arial,sans-serif;background:#f9fafb;padding:32px 0;margin:0;">
+            <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+              <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:24px 32px;">
+                <h1 style="color:#fff;margin:0;font-size:1.25rem;font-weight:700;">Healing Space UK</h1>
+                <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:0.875rem;">Clinical Risk Alert System</p>
+              </div>
+              <div style="padding:32px;">
+                <div style="display:inline-block;background:{severity_color};color:#fff;padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.875rem;margin-bottom:20px;">
+                  {severity_upper} RISK
+                </div>
+                <h2 style="margin:0 0 8px;color:#111827;font-size:1.1rem;">Patient at-risk notification</h2>
+                <p style="color:#6b7280;margin:0 0 24px;font-size:0.9rem;">
+                  The AI companion has detected risk indicators in a recent session for one of your patients.
+                  Please review and respond promptly.
+                </p>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+                  <tr style="border-bottom:1px solid #e5e7eb;">
+                    <td style="padding:10px 0;color:#6b7280;font-size:0.875rem;width:140px;">Patient</td>
+                    <td style="padding:10px 0;color:#111827;font-weight:600;">{patient_username}</td>
+                  </tr>
+                  <tr style="border-bottom:1px solid #e5e7eb;">
+                    <td style="padding:10px 0;color:#6b7280;font-size:0.875rem;">Alert type</td>
+                    <td style="padding:10px 0;color:#111827;">{alert_type}</td>
+                  </tr>
+                  <tr style="border-bottom:1px solid #e5e7eb;">
+                    <td style="padding:10px 0;color:#6b7280;font-size:0.875rem;">Severity</td>
+                    <td style="padding:10px 0;font-weight:700;color:{severity_color};">{severity_upper}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;color:#6b7280;font-size:0.875rem;vertical-align:top;">Details</td>
+                    <td style="padding:10px 0;color:#374151;font-size:0.875rem;">{details}</td>
+                  </tr>
+                </table>
+                <a href="{app_url}/login" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:0.95rem;">
+                  Open Dashboard &rarr;
+                </a>
+                <p style="margin:24px 0 0;font-size:0.8rem;color:#9ca3af;">
+                  This alert was generated automatically by the Healing Space UK risk monitoring system.
+                  Logged to your clinician dashboard for audit purposes.
+                </p>
+              </div>
+            </div>
+          </body>
+        </html>
+        """
+
+        msg.attach(MIMEText(html, 'html'))
+
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+
+        print(f"✅ Risk alert email sent to {to_email} (patient: {patient_username}, severity: {severity})")
+        return True
+
+    except Exception as e:
+        print(f"❌ Risk alert email failed: {e}")
+        return False
+
+
 @CSRFProtection.require_csrf
 @check_rate_limit('confirm_reset')
 @app.route('/api/auth/confirm-reset', methods=['POST'])
@@ -7746,6 +7841,27 @@ def therapy_chat():
                          risk_analysis.get('confidence', 0))
                     )
                     conn.commit()
+
+                    # Send email alert to assigned clinician
+                    if clinician_username:
+                        try:
+                            clinician_row = cur.execute(
+                                "SELECT email FROM users WHERE username = %s", (clinician_username,)
+                            ).fetchone()
+                            if clinician_row and clinician_row[0]:
+                                send_risk_alert_email(
+                                    to_email=clinician_row[0],
+                                    patient_username=username,
+                                    clinician_username=clinician_username,
+                                    severity=detected_risk_level,
+                                    alert_type=risk_analysis.get('risk_type', 'unknown'),
+                                    details=(
+                                        f"Keywords flagged: {[h['keyword'] for h in keyword_hits][:3]}. "
+                                        f"AI reasoning: {risk_analysis.get('reasoning', '')[:200]}"
+                                    )
+                                )
+                        except Exception as email_err:
+                            print(f"Risk alert email error (non-critical): {email_err}")
 
                     log_event(username, 'risk', f'chat_risk_{detected_risk_level}',
                               f"Keywords: {[h['keyword'] for h in keyword_hits][:3]}, AI confidence: {risk_analysis.get('confidence', 0)}")
@@ -14140,6 +14256,23 @@ def create_risk_alert():
         )
         alert_id = cur.fetchone()[0]
         conn.commit()
+
+        # Send email alert to the clinician who created the manual alert (confirmation + audit trail)
+        try:
+            clinician_row = cur.execute(
+                "SELECT email FROM users WHERE username = %s", (username,)
+            ).fetchone()
+            if clinician_row and clinician_row[0]:
+                send_risk_alert_email(
+                    to_email=clinician_row[0],
+                    patient_username=patient_username,
+                    clinician_username=username,
+                    severity=severity,
+                    alert_type=alert_type,
+                    details=details or title
+                )
+        except Exception as email_err:
+            print(f"Manual risk alert email error (non-critical): {email_err}")
 
         log_event(username, 'risk', 'manual_alert_created',
                   f"Created {severity} alert for {patient_username}: {title}")

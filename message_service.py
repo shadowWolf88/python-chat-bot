@@ -6,8 +6,10 @@ Implements Phase 2 of comprehensive messaging system overhaul
 
 import psycopg2
 import json
+import os
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Tuple, Any
+from cryptography.fernet import Fernet, InvalidToken
 
 class MessageService:
     """
@@ -33,6 +35,35 @@ class MessageService:
         self.cur = cur
         self.username = username  # Current authenticated user
         self.now = datetime.now()
+        self._fernet = self._init_fernet()
+
+    # ==================== ENCRYPTION HELPERS ====================
+
+    @staticmethod
+    def _init_fernet():
+        """Load Fernet key from ENCRYPTION_KEY env var. Returns None if not configured."""
+        key = os.getenv('ENCRYPTION_KEY', '').strip()
+        if not key:
+            return None
+        try:
+            return Fernet(key.encode())
+        except Exception:
+            return None
+
+    def _encrypt(self, text: str) -> str:
+        """Encrypt message content. Returns plaintext unchanged if key not configured."""
+        if not self._fernet or not text:
+            return text
+        return self._fernet.encrypt(text.encode()).decode()
+
+    def _decrypt(self, text: str) -> str:
+        """Decrypt Fernet token. Falls back to returning plaintext for legacy messages."""
+        if not self._fernet or not text:
+            return text
+        try:
+            return self._fernet.decrypt(text.encode()).decode()
+        except (InvalidToken, Exception):
+            return text  # Legacy plaintext message — return as-is
     
     # ==================== DIRECT MESSAGING ====================
     
@@ -97,7 +128,7 @@ class MessageService:
                     message_type, subject, content, sent_at, delivery_status
                 ) VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, 'sent')
                 RETURNING id, sent_at
-            """, (conversation_id, self.username, recipient_username, 'direct', subject, content))
+            """, (conversation_id, self.username, recipient_username, 'direct', subject, self._encrypt(content)))
             
             result = self.cur.fetchone()
             if not result:
@@ -161,7 +192,7 @@ class MessageService:
                 message_type, subject, content, sent_at, delivery_status
             ) VALUES (%s, %s, NULL, %s, %s, %s, CURRENT_TIMESTAMP, 'sent')
             RETURNING id, sent_at
-        """, (conversation_id, self.username, 'group', subject, content))
+        """, (conversation_id, self.username, 'group', subject, self._encrypt(content)))
         
         result = self.cur.fetchone()
         message_id, sent_at = result[0], result[1]
@@ -225,7 +256,7 @@ class MessageService:
                 subject, content, sent_at, delivery_status
             ) VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, 'sent')
             RETURNING id, sent_at
-        """, (conversation_id, self.username, 'broadcast', subject, content))
+        """, (conversation_id, self.username, 'broadcast', subject, self._encrypt(content)))
         
         result = self.cur.fetchone()
         message_id, sent_at = result[0], result[1]
@@ -312,7 +343,7 @@ class MessageService:
                 'with_user': other_user,  # ← KEY FIELD MISSING BEFORE
                 'subject': conv_details[0] if conv_details else None,
                 'type': conv_details[1] if conv_details else 'direct',
-                'last_message': latest[1][:100] if latest else None,
+                'last_message': (self._decrypt(latest[1]) or '')[:100] if latest else None,
                 'last_sender': latest[0] if latest else None,
                 'last_message_time': latest[2].isoformat() if latest else None,
                 'unread_count': unread_count,
@@ -416,7 +447,7 @@ class MessageService:
                 'sender': row[1],
                 'recipient': row[2],
                 'subject': row[3],
-                'content': row[4],
+                'content': self._decrypt(row[4]),
                 'is_read': bool(row[5]),
                 'read_at': row[6].isoformat() if row[6] else None,
                 'sent_at': row[7].isoformat() if row[7] else None,
@@ -454,7 +485,7 @@ class MessageService:
                 'id': row[0],
                 'recipient': row[1],
                 'subject': row[2],
-                'content': row[3],
+                'content': self._decrypt(row[3]),
                 'is_read': bool(row[4]),
                 'sent_at': row[5].isoformat() if row[5] else None,
                 'message_type': row[6],
@@ -475,27 +506,29 @@ class MessageService:
             raise ValueError(f"Search query exceeds {self.MAX_SEARCH_QUERY_LENGTH} characters")
         
         search_term = f"%{query}%"
-        
-        # Search in messages
+
+        # Content is encrypted at rest — search subject only via SQL,
+        # then filter decrypted content in Python for matching messages.
         self.cur.execute("""
             SELECT id, conversation_id, sender_username, recipient_username,
                    subject, content, sent_at, is_read
             FROM messages
             WHERE (sender_username = %s OR recipient_username = %s)
             AND deleted_at IS NULL
-            AND (content ILIKE %s OR subject ILIKE %s)
+            AND subject ILIKE %s
             ORDER BY sent_at DESC LIMIT %s
-        """, (self.username, self.username, search_term, search_term, limit))
-        
+        """, (self.username, self.username, search_term, limit))
+
         results = []
         for row in self.cur.fetchall():
+            decrypted_content = self._decrypt(row[5]) if row[5] else ''
             results.append({
                 'message_id': row[0],
                 'conversation_id': row[1],
                 'sender': row[2],
                 'recipient': row[3],
                 'subject': row[4],
-                'content': row[5][:200] + '...' if len(row[5]) > 200 else row[5],
+                'content': decrypted_content[:200] + '...' if len(decrypted_content) > 200 else decrypted_content,
                 'sent_at': row[6].isoformat() if row[6] else None,
                 'is_read': bool(row[7])
             })
@@ -695,7 +728,7 @@ class MessageService:
                 message_type, subject, content, scheduled_for, delivery_status
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, 'scheduled')
             RETURNING id, scheduled_for
-        """, (conversation_id, self.username, recipient_username, 'direct', subject, content, scheduled_for))
+        """, (conversation_id, self.username, recipient_username, 'direct', subject, self._encrypt(content), scheduled_for))
         
         result = self.cur.fetchone()
         message_id, scheduled = result[0], result[1]
