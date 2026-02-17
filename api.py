@@ -13268,16 +13268,16 @@ def get_active_patients():
                 last_activity_type = recent_activities[0][0]
                 last_activity_time = recent_activities[0][1]
                 
-                # Check if active in last 7 days
-                seven_days_ago = cur.execute(
-                    "SELECT CURRENT_TIMESTAMP - INTERVAL '7 days'"
-                ).fetchone()[0]
-                
-                if last_activity_time > seven_days_ago:
+                # Check if active in last 7 days (normalize timezones)
+                seven_days_ago = datetime.utcnow() - timedelta(days=7)
+                # Strip timezone info for comparison (normalize to naive)
+                act_time = last_activity_time.replace(tzinfo=None) if hasattr(last_activity_time, 'tzinfo') and last_activity_time.tzinfo else last_activity_time
+
+                if act_time > seven_days_ago:
                     active_patients.append({
                         'username': username,
                         'full_name': full_name,
-                        'last_activity': last_activity_time,
+                        'last_activity': act_time.isoformat(),
                         'activity_type': last_activity_type
                     })
         
