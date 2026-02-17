@@ -3886,6 +3886,7 @@ def init_db():
             cursor.execute("CREATE TABLE IF NOT EXISTS ai_memory (username TEXT PRIMARY KEY, memory_summary TEXT, last_updated TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, sender_username TEXT NOT NULL, recipient_username TEXT NOT NULL, subject TEXT, content TEXT NOT NULL, is_read INTEGER DEFAULT 0, read_at TIMESTAMP, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP, is_deleted_by_sender INTEGER DEFAULT 0, is_deleted_by_recipient INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS app_updates (id SERIAL PRIMARY KEY, title TEXT NOT NULL, version TEXT, changes JSONB NOT NULL DEFAULT '[]', posted_by TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS dev_jobs (id SERIAL PRIMARY KEY, title TEXT NOT NULL, description TEXT, status VARCHAR(50) DEFAULT 'open', priority VARCHAR(50) DEFAULT 'medium', source VARCHAR(50) DEFAULT 'manual', feedback_id INTEGER, reported_by TEXT, notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             
             # Community tables
             cursor.execute("CREATE TABLE IF NOT EXISTS community_posts (id SERIAL PRIMARY KEY, username TEXT NOT NULL, message TEXT NOT NULL, category TEXT DEFAULT 'general', likes INTEGER DEFAULT 0, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_pinned INTEGER DEFAULT 0, FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE)")
@@ -6786,6 +6787,166 @@ def post_app_update():
         return jsonify({'success': True}), 201
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/dev/jobs', methods=['GET'])
+def get_dev_jobs():
+    """Get all developer jobs (developer only)"""
+    try:
+        if session.get('role') != 'developer':
+            return jsonify({'error': 'Unauthorized'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        rows = cur.execute(
+            "SELECT id, title, description, status, priority, source, feedback_id, reported_by, notes, created_at, updated_at FROM dev_jobs ORDER BY created_at DESC"
+        ).fetchall()
+        conn.close()
+        jobs = [{'id': r[0], 'title': r[1], 'description': r[2], 'status': r[3], 'priority': r[4],
+                 'source': r[5], 'feedback_id': r[6], 'reported_by': r[7], 'notes': r[8],
+                 'created_at': r[9].isoformat() if r[9] else None,
+                 'updated_at': r[10].isoformat() if r[10] else None} for r in rows]
+        return jsonify({'jobs': jobs}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_dev_jobs')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/dev/jobs', methods=['POST'])
+def create_dev_job():
+    """Create a developer job (developer only)"""
+    try:
+        if session.get('role') != 'developer':
+            return jsonify({'error': 'Unauthorized'}), 403
+        data = request.json or {}
+        title = (data.get('title') or '').strip()
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+        description = (data.get('description') or '').strip() or None
+        priority = data.get('priority', 'medium')
+        source = data.get('source', 'manual')
+        feedback_id = data.get('feedback_id') or None
+        reported_by = (data.get('reported_by') or '').strip() or None
+        notes = (data.get('notes') or '').strip() or None
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        row = cur.execute(
+            "INSERT INTO dev_jobs (title, description, priority, source, feedback_id, reported_by, notes) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+            (title, description, priority, source, feedback_id, reported_by, notes)
+        ).fetchone()
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'job_id': row[0]}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_dev_job')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/dev/jobs/<int:job_id>', methods=['PUT'])
+def update_dev_job(job_id):
+    """Update a developer job (developer only)"""
+    try:
+        if session.get('role') != 'developer':
+            return jsonify({'error': 'Unauthorized'}), 403
+        data = request.json or {}
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute(
+            """UPDATE dev_jobs SET
+               title = COALESCE(%s, title),
+               description = COALESCE(%s, description),
+               status = COALESCE(%s, status),
+               priority = COALESCE(%s, priority),
+               notes = COALESCE(%s, notes),
+               updated_at = CURRENT_TIMESTAMP
+               WHERE id = %s""",
+            (data.get('title'), data.get('description'), data.get('status'),
+             data.get('priority'), data.get('notes'), job_id)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_dev_job')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/dev/jobs/<int:job_id>', methods=['DELETE'])
+def delete_dev_job(job_id):
+    """Delete a developer job (developer only)"""
+    try:
+        if session.get('role') != 'developer':
+            return jsonify({'error': 'Unauthorized'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute("DELETE FROM dev_jobs WHERE id = %s", (job_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_dev_job')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/messages/conversation/<username>/archive', methods=['POST'])
+def archive_conversation(username):
+    """Archive an entire conversation between current user and <username>"""
+    try:
+        current_user = get_authenticated_username()
+        if not current_user:
+            return jsonify({'error': 'Authentication required'}), 401
+        notify = (request.json or {}).get('notify_resolved', False)
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        # Find the conversation between the two users
+        cur.execute("""
+            UPDATE conversations SET is_archived = TRUE
+            WHERE id IN (
+                SELECT cp1.conversation_id FROM conversation_participants cp1
+                JOIN conversation_participants cp2 ON cp1.conversation_id = cp2.conversation_id
+                WHERE cp1.username = %s AND cp2.username = %s AND cp1.conversation_id IN (
+                    SELECT id FROM conversations WHERE type = 'direct'
+                )
+            )
+        """, (current_user, username))
+        conn.commit()
+        # Optionally notify the patient their query is resolved
+        if notify:
+            try:
+                send_notification(username,
+                    '✅ Your support query has been marked as resolved by the support team. Reply to reopen.',
+                    'query_resolved')
+            except Exception:
+                pass
+        conn.close()
+        return jsonify({'archived': True}), 200
+    except Exception as e:
+        return handle_exception(e, 'archive_conversation')
+
+
+@app.route('/api/dev/archived-conversations', methods=['GET'])
+def get_archived_conversations():
+    """Get archived conversations for current developer"""
+    try:
+        current_user = get_authenticated_username()
+        if not current_user or session.get('role') != 'developer':
+            return jsonify({'error': 'Unauthorized'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        rows = cur.execute("""
+            SELECT cp2.username, c.subject, c.last_message_at, c.id
+            FROM conversations c
+            JOIN conversation_participants cp1 ON c.id = cp1.conversation_id AND cp1.username = %s
+            JOIN conversation_participants cp2 ON c.id = cp2.conversation_id AND cp2.username != %s
+            WHERE c.is_archived = TRUE AND c.type = 'direct'
+            ORDER BY c.last_message_at DESC NULLS LAST
+        """, (current_user, current_user)).fetchall()
+        conn.close()
+        convs = [{'with_user': r[0], 'subject': r[1],
+                  'last_message_time': r[2].isoformat() if r[2] else None,
+                  'conversation_id': r[3]} for r in rows]
+        return jsonify({'conversations': convs}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_archived_conversations')
+
 
 @app.route('/api/developer/stats', methods=['GET'])
 def developer_stats():

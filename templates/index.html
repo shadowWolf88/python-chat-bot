@@ -2685,6 +2685,102 @@
             display: block;
         }
 
+        /* Dev conversation view bubbles */
+        .dev-conv-bubble {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .dev-conv-bubble.own { justify-content: flex-end; }
+        .dev-conv-bubble.other { justify-content: flex-start; }
+        .dev-conv-bubble-inner {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .dev-conv-bubble.own .dev-conv-bubble-inner {
+            background: var(--accent-primary, #667eea);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .dev-conv-bubble.other .dev-conv-bubble-inner {
+            background: var(--bg-secondary, #f0f0f0);
+            color: var(--text-primary, #333);
+            border-bottom-left-radius: 4px;
+        }
+        .dev-conv-bubble-meta {
+            font-size: 11px;
+            color: var(--text-muted, #888);
+            margin-top: 3px;
+            text-align: right;
+        }
+        .dev-conv-bubble.other .dev-conv-bubble-meta { text-align: left; }
+
+        /* Template reply buttons */
+        .dev-template-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .dev-template-btn:hover { opacity: 0.8; }
+        .dev-tpl-received  { background: #e6f4ea; color: #1e7e34; }
+        .dev-tpl-working   { background: #fff3cd; color: #856404; }
+        .dev-tpl-completed { background: #d1ecf1; color: #0c5460; }
+
+        /* Jobs tab */
+        .job-card {
+            background: var(--bg-elevated, white);
+            border: 1px solid var(--border-color, #e0e0e0);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--border-color, #ccc);
+            transition: box-shadow 0.2s;
+        }
+        .job-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .job-card.priority-critical { border-left-color: #e74c3c; }
+        .job-card.priority-high     { border-left-color: #f39c12; }
+        .job-card.priority-medium   { border-left-color: #667eea; }
+        .job-card.priority-low      { border-left-color: #27ae60; }
+        .job-status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .job-status-open        { background: #fff3cd; color: #856404; }
+        .job-status-in_progress { background: #cce5ff; color: #004085; }
+        .job-status-resolved    { background: #d4edda; color: #155724; }
+        .job-status-wont_fix    { background: #e2e3e5; color: #383d41; }
+
+        /* Job filter buttons */
+        .job-filter-btn {
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 2px solid var(--border-color, #e0e0e0);
+            background: transparent;
+            color: var(--text-secondary, #555);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .job-filter-btn.active, .job-filter-btn:hover {
+            background: var(--accent-primary, #667eea);
+            color: #fff;
+            border-color: var(--accent-primary, #667eea);
+        }
+
         .stat-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -6367,6 +6463,9 @@
                     <button class="dev-subtab-btn" onclick="switchDevTab('qa', this)">
                         🧪 QA Tests
                     </button>
+                    <button class="dev-subtab-btn" onclick="switchDevTab('jobs', this)" id="devJobsSubtabBtn">
+                        🔧 Jobs
+                    </button>
                 </div>
 
                 <!-- Terminal Subtab -->
@@ -6452,16 +6551,53 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         <button class="dev-msg-tab-btn" onclick="switchDevMsgTab('compose', this)">✏️ Compose</button>
                         <button class="dev-msg-tab-btn" onclick="switchDevMsgTab('broadcast', this)">📢 Broadcast</button>
                         <button class="dev-msg-tab-btn" onclick="switchDevMsgTab('postupdate', this)">📝 Post Update</button>
+                        <button class="dev-msg-tab-btn" onclick="switchDevMsgTab('archived', this)">📁 Archived</button>
                     </div>
 
                     <!-- Inbox Panel -->
                     <div id="devMsgInboxPanel" class="dev-msg-panel">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h4 style="margin: 0;">📬 Your Inbox</h4>
-                            <button class="btn btn-secondary" onclick="loadDevInbox(true)" style="padding: 8px 16px;">🔄 Refresh</button>
-                        </div>
+                        <!-- Inbox list -->
                         <div id="devMsgInboxContainer" style="max-height: 500px; overflow-y: auto;">
-                            <div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading messages...</p></div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h4 style="margin: 0;">📬 Your Inbox</h4>
+                                <button class="btn btn-secondary" onclick="loadDevInbox(true)" style="padding: 8px 16px;">🔄 Refresh</button>
+                            </div>
+                            <div id="devMsgInboxList">
+                                <div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading messages...</p></div>
+                            </div>
+                        </div>
+                        <!-- Inline conversation view (hidden until a thread is opened) -->
+                        <div id="devConvView" style="display:none;">
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; padding-bottom:12px; border-bottom:2px solid var(--border-color,#e0e0e0);">
+                                <button class="btn btn-secondary" onclick="closeDevConversation()" style="padding:6px 14px; font-size:13px;">← Back</button>
+                                <h4 style="margin:0;" id="devConvWithLabel">Conversation</h4>
+                            </div>
+                            <!-- Messages thread -->
+                            <div id="devConvMessages" style="max-height:320px; overflow-y:auto; padding:8px 0; margin-bottom:16px;"></div>
+                            <!-- Template reply buttons -->
+                            <div style="margin-bottom:12px;">
+                                <p style="font-size:12px; color:var(--text-muted,#888); margin:0 0 8px 0; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Quick Replies</p>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <button class="dev-template-btn dev-tpl-received" onclick="sendDevReply(null,'✅ Received — thanks for getting in touch. We\'re looking into this.')">✅ Received</button>
+                                    <button class="dev-template-btn dev-tpl-working" onclick="sendDevReply(null,'⚙️ Working on it — this is currently being investigated by the team.')">⚙️ Working on it</button>
+                                    <button class="dev-template-btn dev-tpl-completed" onclick="sendDevReply(null,'✅ Completed — this has been resolved. Please let us know if you have any further questions.')">✅ Completed</button>
+                                </div>
+                            </div>
+                            <!-- Custom reply -->
+                            <div style="margin-bottom:10px;">
+                                <p style="font-size:12px; color:var(--text-muted,#888); margin:0 0 6px 0; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Custom Reply</p>
+                                <textarea id="devConvReplyText" rows="3" placeholder="Type a custom reply..." style="width:100%; padding:10px 12px; border:2px solid var(--border-color,#e0e0e0); border-radius:8px; resize:vertical; box-sizing:border-box; font-family:inherit; font-size:14px; background:var(--bg-input,white); color:var(--text-primary,#333);"></textarea>
+                            </div>
+                            <!-- Action buttons -->
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                                <button class="btn" onclick="sendDevReply()" style="padding:8px 16px;">📤 Send</button>
+                                <button class="btn btn-secondary" onclick="markDevConvRead()" style="padding:8px 16px;">✓ Mark Read</button>
+                                <button class="btn btn-secondary" onclick="archiveDevConversation(false)" style="padding:8px 16px;">📁 Archive</button>
+                                <button class="btn btn-secondary" onclick="archiveDevConversation(true)" style="padding:8px 16px; background:var(--status-success-bg,#d4edda); color:var(--status-success,#27ae60);">✅ Resolve &amp; Archive</button>
+                                <button class="btn" onclick="deleteDevMessages()" style="padding:8px 16px; background:var(--status-error,#e74c3c); color:#fff;">🗑 Delete (my copy)</button>
+                                <button class="btn btn-secondary" onclick="addConvToJobs()" style="padding:8px 16px;">🔧 Add to Jobs</button>
+                            </div>
+                            <div id="devConvStatus" style="font-size:13px; margin-top:4px; display:none;"></div>
                         </div>
                     </div>
 
@@ -6561,6 +6697,18 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             <div id="devPostedUpdatesContainer" style="max-height: 400px; overflow-y: auto;">
                                 <p style="color: var(--text-muted, #999); text-align: center; padding: 20px;">Loading...</p>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Archived Panel -->
+                    <div id="devMsgArchivedPanel" class="dev-msg-panel" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="margin: 0;">📁 Archived Conversations</h4>
+                            <button class="btn btn-secondary" onclick="loadDevArchived(true)" style="padding: 8px 16px;">🔄 Refresh</button>
+                        </div>
+                        <p style="font-size:13px; color:var(--text-muted,#888); margin-bottom:12px;">Archived conversations are hidden from your inbox but remain accessible here. Click to reopen a thread.</p>
+                        <div id="devMsgArchivedList">
+                            <div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading...</p></div>
                         </div>
                     </div>
 
@@ -6755,6 +6903,69 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         </details>
                     </div>
                 </div>
+
+                <!-- Jobs Subtab -->
+                <div id="devJobsTab" class="dev-subtab-content" style="display: none;">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h4 style="margin:0;">🔧 Jobs &amp; Issue Tracker</h4>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn btn-secondary" onclick="loadDevJobs(true)" style="padding:8px 14px;">🔄 Refresh</button>
+                                <button class="btn" onclick="toggleNewJobForm()" style="padding:8px 14px;">➕ New Job</button>
+                            </div>
+                        </div>
+                        <p style="color:var(--text-muted,#888); font-size:13px; margin-bottom:16px;">Track bugs, feature requests, and tasks. Add jobs manually or directly from bug reports in the Feedback tab.</p>
+
+                        <!-- New Job Form (hidden by default) -->
+                        <div id="newJobForm" style="display:none; background:var(--bg-secondary,#f8f9fa); border-radius:10px; padding:16px; margin-bottom:20px; border:2px solid var(--border-color,#e0e0e0);">
+                            <h5 style="margin:0 0 12px 0;">Create New Job</h5>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                                <div>
+                                    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Title *</label>
+                                    <input type="text" id="newJobTitle" placeholder="Short description of the issue..." style="width:100%; padding:10px 12px; border:2px solid var(--border-color,#e0e0e0); border-radius:8px; box-sizing:border-box; font-size:14px; background:var(--bg-input,white); color:var(--text-primary,#333);">
+                                </div>
+                                <div>
+                                    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Priority</label>
+                                    <select id="newJobPriority" style="width:100%; padding:10px 12px; border:2px solid var(--border-color,#e0e0e0); border-radius:8px; box-sizing:border-box; font-size:14px; background:var(--bg-input,white); color:var(--text-primary,#333);">
+                                        <option value="low">🟢 Low</option>
+                                        <option value="medium" selected>🟡 Medium</option>
+                                        <option value="high">🟠 High</option>
+                                        <option value="critical">🔴 Critical</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="margin-bottom:12px;">
+                                <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Description</label>
+                                <textarea id="newJobDescription" rows="3" placeholder="More detail about the issue or task..." style="width:100%; padding:10px 12px; border:2px solid var(--border-color,#e0e0e0); border-radius:8px; resize:vertical; box-sizing:border-box; font-size:14px; background:var(--bg-input,white); color:var(--text-primary,#333);"></textarea>
+                            </div>
+                            <div style="margin-bottom:12px;">
+                                <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Reported by (username, optional)</label>
+                                <input type="text" id="newJobReportedBy" placeholder="Patient/clinician username..." style="width:240px; padding:10px 12px; border:2px solid var(--border-color,#e0e0e0); border-radius:8px; box-sizing:border-box; font-size:14px; background:var(--bg-input,white); color:var(--text-primary,#333);">
+                            </div>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <button class="btn" onclick="createDevJob()">💾 Save Job</button>
+                                <button class="btn btn-secondary" onclick="toggleNewJobForm()">Cancel</button>
+                                <span id="newJobStatus" style="font-size:13px; display:none;"></span>
+                            </div>
+                        </div>
+
+                        <!-- Filter bar -->
+                        <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+                            <span style="font-size:13px; color:var(--text-muted,#888);">Filter:</span>
+                            <button class="job-filter-btn active" onclick="filterJobs('all', this)">All</button>
+                            <button class="job-filter-btn" onclick="filterJobs('open', this)">🟠 Open</button>
+                            <button class="job-filter-btn" onclick="filterJobs('in_progress', this)">🔵 In Progress</button>
+                            <button class="job-filter-btn" onclick="filterJobs('resolved', this)">🟢 Resolved</button>
+                            <button class="job-filter-btn" onclick="filterJobs('wont_fix', this)">⚫ Won't Fix</button>
+                        </div>
+
+                        <!-- Jobs list -->
+                        <div id="devJobsList">
+                            <div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading jobs...</p></div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
         </div> <!-- End of app-content -->
@@ -14972,6 +15183,8 @@ ${reportText}
                 loadSystemStats();
             } else if (subtabName === 'users') {
                 loadUsersList();
+            } else if (subtabName === 'jobs') {
+                loadDevJobs();
             } else if (subtabName === 'qa') {
                 // QA tab - no auto-load needed
             }
@@ -15483,7 +15696,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 sent: 'devMsgSentPanel',
                 compose: 'devMsgComposePanel',
                 broadcast: 'devMsgBroadcastPanel',
-                postupdate: 'devMsgPostUpdatePanel'
+                postupdate: 'devMsgPostUpdatePanel',
+                archived: 'devMsgArchivedPanel'
             };
             var panel = document.getElementById(panelMap[tabName]);
             if (panel) panel.style.display = 'block';
@@ -15492,15 +15706,19 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             else if (tabName === 'sent') loadDevSent();
             else if (tabName === 'broadcast') loadMessageRecipients();
             else if (tabName === 'postupdate') loadPostedUpdates();
+            else if (tabName === 'archived') loadDevArchived();
         }
 
+        var devCurrentConvUser = null; // currently open conversation username
+        var devCurrentConvMessages = []; // messages in the open conversation
+
         async function loadDevInbox(force) {
-            var container = document.getElementById('devMsgInboxContainer');
-            if (!container) return;
+            var listEl = document.getElementById('devMsgInboxList');
+            if (!listEl) return;
             var CACHE_TTL = 30000;
             var age = devMsgCache.lastLoad.inbox ? Date.now() - devMsgCache.lastLoad.inbox : Infinity;
             if (!force && devMsgCache.inbox && age < CACHE_TTL) { renderDevInbox(devMsgCache.inbox); return; }
-            container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading...</p></div>';
+            listEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading...</p></div>';
             try {
                 var res = await fetch('/api/messages/inbox', { credentials: 'include' });
                 var data = await res.json();
@@ -15511,25 +15729,25 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 var badge = document.getElementById('devMsgUnreadBadge');
                 if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? 'inline' : 'none'; }
             } catch (e) {
-                container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⚠️</div><p>Error loading inbox</p></div>';
+                listEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⚠️</div><p>Error loading inbox</p></div>';
             }
         }
 
         function renderDevInbox(data) {
-            var container = document.getElementById('devMsgInboxContainer');
-            if (!container) return;
+            var listEl = document.getElementById('devMsgInboxList');
+            if (!listEl) return;
             var convs = data.conversations || [];
             if (convs.length === 0) {
-                container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">📬</div><p>No messages yet</p></div>';
+                listEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">📬</div><p>No messages yet</p></div>';
                 return;
             }
-            container.innerHTML = convs.map(function(conv) {
+            listEl.innerHTML = convs.map(function(conv) {
                 var user = conv.with_user || conv.other_username || 'Unknown';
                 var avatarClass = typeof getMsgAvatarClass === 'function' ? getMsgAvatarClass(conv.with_role) : 'default';
                 var initial = getMsgInitial(user);
                 var escapedUser = sanitizeHTML(user);
                 var unreadHtml = conv.unread_count > 0 ? '<span class="msg-unread-badge">' + conv.unread_count + '</span>' : '';
-                return '<div class="msg-card' + (conv.unread_count > 0 ? ' unread' : '') + '" onclick="openConversation(\'' + escapedUser + '\')">' +
+                return '<div class="msg-card' + (conv.unread_count > 0 ? ' unread' : '') + '" onclick="openDevConversation(\'' + escapedUser + '\')">' +
                     '<div class="msg-avatar ' + avatarClass + '">' + initial + '</div>' +
                     '<div class="msg-content">' +
                         '<div class="msg-header">' +
@@ -15540,6 +15758,216 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     '</div>' +
                 '</div>';
             }).join('');
+        }
+
+        async function openDevConversation(username) {
+            if (!username || username === 'Unknown') return;
+            devCurrentConvUser = username;
+            // Show conversation view, hide inbox container
+            document.getElementById('devMsgInboxContainer').style.display = 'none';
+            var convView = document.getElementById('devConvView');
+            convView.style.display = 'block';
+            document.getElementById('devConvWithLabel').textContent = username;
+            document.getElementById('devConvReplyText').value = '';
+            var statusEl = document.getElementById('devConvStatus');
+            statusEl.style.display = 'none';
+            var messagesEl = document.getElementById('devConvMessages');
+            messagesEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading conversation...</p></div>';
+            try {
+                var res = await fetch('/api/messages/conversation/' + encodeURIComponent(username), { credentials: 'include' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                var data = await res.json();
+                devCurrentConvMessages = data.messages || [];
+                renderDevConvMessages(devCurrentConvMessages);
+            } catch (e) {
+                messagesEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⚠️</div><p>Error loading conversation: ' + sanitizeHTML(e.message) + '</p></div>';
+            }
+        }
+
+        function renderDevConvMessages(messages) {
+            var el = document.getElementById('devConvMessages');
+            if (!el) return;
+            if (!messages || messages.length === 0) {
+                el.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">💬</div><p>No messages yet.</p></div>';
+                return;
+            }
+            el.innerHTML = messages.map(function(msg) {
+                var senderField = msg.sender_username || msg.sender || '';
+                var isOwn = senderField === currentUser;
+                var timeStr = msg.sent_at ? new Date(msg.sent_at).toLocaleString() : '';
+                return '<div class="dev-conv-bubble ' + (isOwn ? 'own' : 'other') + '">' +
+                    '<div>' +
+                        '<div class="dev-conv-bubble-inner">' + sanitizeWithLineBreaks(msg.content || '') + '</div>' +
+                        '<div class="dev-conv-bubble-meta">' + sanitizeHTML(senderField) + ' &middot; ' + timeStr + '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function closeDevConversation() {
+            devCurrentConvUser = null;
+            devCurrentConvMessages = [];
+            document.getElementById('devConvView').style.display = 'none';
+            document.getElementById('devMsgInboxContainer').style.display = 'block';
+            loadDevInbox(true); // refresh unread counts
+        }
+
+        async function sendDevReply(targetUser, templateText) {
+            var recipient = targetUser || devCurrentConvUser;
+            if (!recipient) return;
+            var content = templateText || document.getElementById('devConvReplyText').value.trim();
+            if (!content) { alert('Please enter a message or select a template.'); return; }
+            var statusEl = document.getElementById('devConvStatus');
+            statusEl.style.display = 'block';
+            statusEl.style.color = 'var(--text-muted,#888)';
+            statusEl.textContent = 'Sending...';
+            try {
+                var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+                var res = await fetch('/api/messages/send', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                    body: JSON.stringify({ recipient_username: recipient, content: content })
+                });
+                var data = await res.json();
+                if (res.ok) {
+                    statusEl.style.color = 'var(--status-success,#27ae60)';
+                    statusEl.textContent = '✓ Sent!';
+                    document.getElementById('devConvReplyText').value = '';
+                    devMsgCache.inbox = null;
+                    // Reload the conversation
+                    var res2 = await fetch('/api/messages/conversation/' + encodeURIComponent(recipient), { credentials: 'include' });
+                    var d2 = await res2.json();
+                    devCurrentConvMessages = d2.messages || [];
+                    renderDevConvMessages(devCurrentConvMessages);
+                    setTimeout(function() { statusEl.style.display = 'none'; }, 3000);
+                } else {
+                    statusEl.style.color = 'var(--status-error,#e74c3c)';
+                    statusEl.textContent = '✗ ' + (data.error || 'Failed to send');
+                }
+            } catch (e) {
+                statusEl.style.color = 'var(--status-error,#e74c3c)';
+                statusEl.textContent = '✗ Network error';
+            }
+        }
+
+        function markDevConvRead() {
+            // Re-fetching the conversation already marks all messages as read server-side
+            if (!devCurrentConvUser) return;
+            fetch('/api/messages/conversation/' + encodeURIComponent(devCurrentConvUser), { credentials: 'include' })
+                .then(function() {
+                    devMsgCache.inbox = null;
+                    var badge = document.getElementById('devMsgUnreadBadge');
+                    if (badge) badge.style.display = 'none';
+                    var statusEl = document.getElementById('devConvStatus');
+                    statusEl.style.display = 'block';
+                    statusEl.style.color = 'var(--status-success,#27ae60)';
+                    statusEl.textContent = '✓ Marked as read';
+                    setTimeout(function() { statusEl.style.display = 'none'; }, 2000);
+                });
+        }
+
+        async function archiveDevConversation(resolveAndNotify) {
+            if (!devCurrentConvUser) return;
+            var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            var statusEl = document.getElementById('devConvStatus');
+            statusEl.style.display = 'block';
+            statusEl.style.color = 'var(--text-muted,#888)';
+            statusEl.textContent = 'Archiving...';
+            try {
+                var res = await fetch('/api/messages/conversation/' + encodeURIComponent(devCurrentConvUser) + '/archive', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                    body: JSON.stringify({ notify_resolved: !!resolveAndNotify })
+                });
+                var data = await res.json();
+                if (res.ok) {
+                    statusEl.style.color = 'var(--status-success,#27ae60)';
+                    statusEl.textContent = resolveAndNotify ? '✅ Resolved & archived. Patient notified.' : '📁 Archived.';
+                    devMsgCache.inbox = null;
+                    setTimeout(function() { closeDevConversation(); }, 1200);
+                } else {
+                    statusEl.style.color = 'var(--status-error,#e74c3c)';
+                    statusEl.textContent = '✗ ' + (data.error || 'Failed to archive');
+                }
+            } catch (e) {
+                statusEl.style.color = 'var(--status-error,#e74c3c)';
+                statusEl.textContent = '✗ Network error';
+            }
+        }
+
+        async function deleteDevMessages() {
+            if (!devCurrentConvUser || devCurrentConvMessages.length === 0) return;
+            if (!confirm('Delete your copy of this conversation? The other user will still have their messages.')) return;
+            var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            var statusEl = document.getElementById('devConvStatus');
+            statusEl.style.display = 'block';
+            statusEl.style.color = 'var(--text-muted,#888)';
+            statusEl.textContent = 'Deleting...';
+            // Only delete messages where we are the recipient (soft-delete our copy)
+            var myMessages = devCurrentConvMessages.filter(function(m) {
+                return (m.recipient_username || m.recipient) === currentUser;
+            });
+            var promises = myMessages.map(function(m) {
+                return fetch('/api/messages/' + m.id, {
+                    method: 'DELETE', credentials: 'include',
+                    headers: { 'X-CSRF-Token': csrf }
+                });
+            });
+            try {
+                await Promise.all(promises);
+                devMsgCache.inbox = null;
+                statusEl.style.color = 'var(--status-success,#27ae60)';
+                statusEl.textContent = '✓ Deleted from your inbox.';
+                setTimeout(function() { closeDevConversation(); }, 1000);
+            } catch (e) {
+                statusEl.style.color = 'var(--status-error,#e74c3c)';
+                statusEl.textContent = '✗ Error deleting messages';
+            }
+        }
+
+        function addConvToJobs() {
+            if (!devCurrentConvUser) return;
+            // Pre-fill the Jobs form and switch to Jobs tab
+            var jobsBtn = document.getElementById('devJobsSubtabBtn');
+            switchDevTab('jobs', jobsBtn);
+            setTimeout(function() {
+                document.getElementById('newJobTitle').value = 'Issue reported by ' + devCurrentConvUser;
+                document.getElementById('newJobReportedBy').value = devCurrentConvUser;
+                document.getElementById('newJobDescription').value = devCurrentConvMessages.length > 0
+                    ? devCurrentConvMessages[0].content.substring(0, 500) : '';
+                document.getElementById('newJobForm').style.display = 'block';
+            }, 100);
+        }
+
+        async function loadDevArchived(force) {
+            var listEl = document.getElementById('devMsgArchivedList');
+            if (!listEl) return;
+            listEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading...</p></div>';
+            try {
+                var res = await fetch('/api/dev/archived-conversations', { credentials: 'include' });
+                var data = await res.json();
+                var convs = data.conversations || [];
+                if (convs.length === 0) {
+                    listEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">📁</div><p>No archived conversations</p></div>';
+                    return;
+                }
+                listEl.innerHTML = convs.map(function(conv) {
+                    var user = sanitizeHTML(conv.with_user || 'Unknown');
+                    var time = conv.last_message_time ? formatMsgTime(conv.last_message_time) : '';
+                    var subj = conv.subject ? '<div style="font-size:12px;color:var(--text-muted,#888);">' + sanitizeHTML(conv.subject) + '</div>' : '';
+                    return '<div class="msg-card" onclick="openDevConversation(\'' + user + '\')">' +
+                        '<div class="msg-avatar default">' + getMsgInitial(conv.with_user) + '</div>' +
+                        '<div class="msg-content">' +
+                            '<div class="msg-header"><span class="msg-sender">' + user + '</span><span class="msg-time">' + time + '</span></div>' +
+                            subj +
+                            '<div class="msg-preview" style="color:var(--text-muted,#888); font-size:12px;">📁 Archived</div>' +
+                        '</div>' +
+                    '</div>';
+                }).join('');
+            } catch (e) {
+                listEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⚠️</div><p>Error loading archived conversations</p></div>';
+            }
         }
 
         async function loadDevSent(force) {
@@ -15684,6 +16112,164 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             } catch (e) {
                 container.innerHTML = '<p style="color: var(--status-error, #e74c3c); text-align: center; padding: 20px;">Error loading updates</p>';
             }
+        }
+
+        // ===== DEVELOPER JOBS =====
+        var devJobsCache = null;
+        var devJobsFilter = 'all';
+
+        function toggleNewJobForm() {
+            var form = document.getElementById('newJobForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'block') {
+                document.getElementById('newJobTitle').focus();
+            }
+        }
+
+        function filterJobs(status, btn) {
+            devJobsFilter = status;
+            document.querySelectorAll('.job-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+            if (btn) btn.classList.add('active');
+            if (devJobsCache) renderDevJobs(devJobsCache);
+        }
+
+        async function loadDevJobs(force) {
+            var listEl = document.getElementById('devJobsList');
+            if (!listEl) return;
+            listEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading jobs...</p></div>';
+            try {
+                var res = await fetch('/api/dev/jobs', { credentials: 'include' });
+                var data = await res.json();
+                devJobsCache = data.jobs || [];
+                renderDevJobs(devJobsCache);
+            } catch (e) {
+                listEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⚠️</div><p>Error loading jobs</p></div>';
+            }
+        }
+
+        function renderDevJobs(jobs) {
+            var listEl = document.getElementById('devJobsList');
+            if (!listEl) return;
+            var filtered = devJobsFilter === 'all' ? jobs : jobs.filter(function(j) { return j.status === devJobsFilter; });
+            if (filtered.length === 0) {
+                listEl.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">🔧</div><p>' + (devJobsFilter === 'all' ? 'No jobs yet. Create your first one above.' : 'No ' + devJobsFilter.replace('_',' ') + ' jobs.') + '</p></div>';
+                return;
+            }
+            var priorityLabels = { low: '🟢 Low', medium: '🟡 Medium', high: '🟠 High', critical: '🔴 Critical' };
+            listEl.innerHTML = filtered.map(function(job) {
+                var statusMap = { open: 'job-status-open', in_progress: 'job-status-in_progress', resolved: 'job-status-resolved', wont_fix: 'job-status-wont_fix' };
+                var statusLabel = job.status.replace('_', ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+                var created = job.created_at ? new Date(job.created_at).toLocaleDateString('en-GB') : '';
+                return '<div class="job-card priority-' + sanitizeHTML(job.priority || 'medium') + '" id="jobCard' + job.id + '">' +
+                    '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">' +
+                        '<div style="flex:1;">' +
+                            '<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">' +
+                                '<strong style="font-size:15px;">' + sanitizeHTML(job.title) + '</strong>' +
+                                '<span class="job-status-badge ' + sanitizeHTML(statusMap[job.status] || 'job-status-open') + '">' + sanitizeHTML(statusLabel) + '</span>' +
+                                '<span style="font-size:12px; color:var(--text-muted,#888);">' + sanitizeHTML(priorityLabels[job.priority] || job.priority) + '</span>' +
+                            '</div>' +
+                            (job.description ? '<p style="font-size:13px; color:var(--text-secondary,#555); margin:0 0 6px 0;">' + sanitizeHTML(job.description) + '</p>' : '') +
+                            (job.reported_by ? '<p style="font-size:12px; color:var(--text-muted,#888); margin:0 0 4px 0;">Reported by: <strong>' + sanitizeHTML(job.reported_by) + '</strong></p>' : '') +
+                            (job.notes ? '<p style="font-size:12px; color:var(--text-secondary,#666); margin:0; font-style:italic;">Notes: ' + sanitizeHTML(job.notes) + '</p>' : '') +
+                        '</div>' +
+                        '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; min-width:130px;">' +
+                            '<span style="font-size:11px; color:var(--text-muted,#888);">' + created + '</span>' +
+                            '<select onchange="updateDevJobStatus(' + job.id + ', this.value)" style="font-size:12px; padding:4px 8px; border:1px solid var(--border-color,#e0e0e0); border-radius:6px; background:var(--bg-input,white); color:var(--text-primary,#333);">' +
+                                ['open','in_progress','resolved','wont_fix'].map(function(s) {
+                                    return '<option value="' + s + '"' + (s === job.status ? ' selected' : '') + '>' + s.replace('_',' ').replace(/\b\w/g, function(c){return c.toUpperCase();}) + '</option>';
+                                }).join('') +
+                            '</select>' +
+                            '<div style="display:flex; gap:4px;">' +
+                                '<button class="btn btn-secondary" onclick="editDevJob(' + job.id + ')" style="padding:4px 10px; font-size:12px;">✏️</button>' +
+                                '<button class="btn" onclick="deleteDevJob(' + job.id + ')" style="padding:4px 10px; font-size:12px; background:var(--status-error,#e74c3c); color:#fff;">🗑</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        async function createDevJob() {
+            var title = document.getElementById('newJobTitle').value.trim();
+            if (!title) { alert('Title is required'); return; }
+            var statusEl = document.getElementById('newJobStatus');
+            statusEl.style.display = 'inline';
+            statusEl.style.color = 'var(--text-muted,#888)';
+            statusEl.textContent = 'Saving...';
+            try {
+                var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+                var res = await fetch('/api/dev/jobs', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                    body: JSON.stringify({
+                        title: title,
+                        description: document.getElementById('newJobDescription').value.trim(),
+                        priority: document.getElementById('newJobPriority').value,
+                        reported_by: document.getElementById('newJobReportedBy').value.trim(),
+                        source: 'manual'
+                    })
+                });
+                var data = await res.json();
+                if (res.ok) {
+                    statusEl.style.color = 'var(--status-success,#27ae60)';
+                    statusEl.textContent = '✓ Job created!';
+                    document.getElementById('newJobTitle').value = '';
+                    document.getElementById('newJobDescription').value = '';
+                    document.getElementById('newJobReportedBy').value = '';
+                    devJobsCache = null;
+                    await loadDevJobs();
+                    setTimeout(function() {
+                        statusEl.style.display = 'none';
+                        document.getElementById('newJobForm').style.display = 'none';
+                    }, 1500);
+                } else {
+                    statusEl.style.color = 'var(--status-error,#e74c3c)';
+                    statusEl.textContent = '✗ ' + (data.error || 'Failed');
+                }
+            } catch (e) {
+                statusEl.style.color = 'var(--status-error,#e74c3c)';
+                statusEl.textContent = '✗ Network error';
+            }
+        }
+
+        async function updateDevJobStatus(jobId, status) {
+            try {
+                var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+                var res = await fetch('/api/dev/jobs/' + jobId, {
+                    method: 'PUT', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                    body: JSON.stringify({ status: status })
+                });
+                if (res.ok) {
+                    devJobsCache = null;
+                    loadDevJobs();
+                }
+            } catch (e) { console.error('Failed to update job:', e); }
+        }
+
+        function editDevJob(jobId) {
+            var job = (devJobsCache || []).find(function(j) { return j.id === jobId; });
+            if (!job) return;
+            var notes = prompt('Update notes for: ' + job.title, job.notes || '');
+            if (notes === null) return;
+            var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            fetch('/api/dev/jobs/' + jobId, {
+                method: 'PUT', credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                body: JSON.stringify({ notes: notes })
+            }).then(function() { devJobsCache = null; loadDevJobs(); });
+        }
+
+        async function deleteDevJob(jobId) {
+            if (!confirm('Delete this job? This cannot be undone.')) return;
+            try {
+                var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+                var res = await fetch('/api/dev/jobs/' + jobId, {
+                    method: 'DELETE', credentials: 'include',
+                    headers: { 'X-CSRF-Token': csrf }
+                });
+                if (res.ok) { devJobsCache = null; loadDevJobs(); }
+            } catch (e) { alert('Failed to delete job'); }
         }
 
         // System Stats Functions

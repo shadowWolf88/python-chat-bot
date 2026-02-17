@@ -17,66 +17,59 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         /* ============================================================
-           DESIGN TOKENS — full hardcoded fallbacks for standalone page
+           DESIGN TOKENS
            ============================================================ */
         :root {
-            --brand-gradient:       linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --brand-primary:        #667eea;
-            --brand-secondary:      #764ba2;
+            --brand-gradient:    linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --brand-primary:     #667eea;
+            --brand-secondary:   #764ba2;
 
-            /* Light theme */
-            --bg-page:              #ffffff;
-            --bg-surface:           #f6f7fb;
-            --bg-elevated:          #ffffff;
-            --bg-card:              #ffffff;
-            --text-primary:         #1a1a2e;
-            --text-secondary:       #4a4a6a;
-            --text-muted:           #8080a8;
-            --border-subtle:        #e4e6f0;
-            --border-accent:        rgba(102, 126, 234, 0.18);
-            --shadow-sm:            0 2px 8px rgba(0,0,0,0.06);
-            --shadow-md:            0 4px 20px rgba(0,0,0,0.09);
-            --shadow-lg:            0 8px 40px rgba(0,0,0,0.13);
-            --shadow-xl:            0 16px 64px rgba(0,0,0,0.18);
-            --nav-bg:               rgba(255,255,255,0.92);
-            --nav-border:           rgba(102, 126, 234, 0.12);
-            --stats-bg:             #f2f3fb;
-            --card-hover-shadow:    0 14px 44px rgba(102, 126, 234, 0.20);
-            --footer-bg:            #0e0e1c;
-            --footer-text:          rgba(255,255,255,0.60);
-            --footer-heading:       #ffffff;
+            --bg-page:           #ffffff;
+            --bg-surface:        #f6f7fb;
+            --bg-elevated:       #ffffff;
+            --bg-card:           #ffffff;
+            --text-primary:      #1a1a2e;
+            --text-secondary:    #4a4a6a;
+            --text-muted:        #8080a8;
+            --border-subtle:     #e4e6f0;
+            --border-accent:     rgba(102,126,234,0.22);
+            --shadow-sm:         0 2px 8px rgba(0,0,0,0.06);
+            --shadow-md:         0 4px 20px rgba(0,0,0,0.09);
+            --shadow-lg:         0 8px 40px rgba(0,0,0,0.13);
+            --shadow-xl:         0 16px 64px rgba(0,0,0,0.18);
+            --nav-bg:            rgba(255,255,255,0.93);
+            --nav-border:        rgba(102,126,234,0.12);
+            --stats-bg:          #f2f3fb;
+            --card-hover-shadow: 0 14px 44px rgba(102,126,234,0.20);
+            --footer-bg:         #0e0e1c;
+            --footer-text:       rgba(255,255,255,0.60);
+            --footer-heading:    #ffffff;
         }
 
         [data-theme="dark"] {
-            --bg-page:              #0d0d1c;
-            --bg-surface:           #141428;
-            --bg-elevated:          #1c1c38;
-            --bg-card:              #1e1e3c;
-            --text-primary:         #ededff;
-            --text-secondary:       #a0a0cc;
-            --text-muted:           #6060a0;
-            --border-subtle:        rgba(255,255,255,0.07);
-            --border-accent:        rgba(102, 126, 234, 0.28);
-            --shadow-sm:            0 2px 8px rgba(0,0,0,0.50);
-            --shadow-md:            0 4px 20px rgba(0,0,0,0.60);
-            --shadow-lg:            0 8px 40px rgba(0,0,0,0.70);
-            --shadow-xl:            0 16px 64px rgba(0,0,0,0.80);
-            --nav-bg:               rgba(13,13,28,0.93);
-            --nav-border:           rgba(102, 126, 234, 0.22);
-            --stats-bg:             #141428;
-            --card-hover-shadow:    0 14px 44px rgba(102, 126, 234, 0.28);
-            --footer-bg:            #080812;
-            --footer-text:          rgba(255,255,255,0.50);
-            --footer-heading:       #ededff;
+            --bg-page:           #0d0d1c;
+            --bg-surface:        #141428;
+            --bg-elevated:       #1c1c38;
+            --bg-card:           #1e1e3c;
+            --text-primary:      #ededff;
+            --text-secondary:    #a0a0cc;
+            --text-muted:        #6060a0;
+            --border-subtle:     rgba(255,255,255,0.07);
+            --border-accent:     rgba(102,126,234,0.30);
+            --shadow-sm:         0 2px 8px rgba(0,0,0,0.50);
+            --shadow-md:         0 4px 20px rgba(0,0,0,0.60);
+            --shadow-lg:         0 8px 40px rgba(0,0,0,0.70);
+            --shadow-xl:         0 16px 64px rgba(0,0,0,0.80);
+            --nav-bg:            rgba(13,13,28,0.94);
+            --nav-border:        rgba(102,126,234,0.24);
+            --stats-bg:          #141428;
+            --card-hover-shadow: 0 14px 44px rgba(102,126,234,0.28);
+            --footer-bg:         #080812;
+            --footer-text:       rgba(255,255,255,0.50);
+            --footer-heading:    #ededff;
         }
 
-        /* ============================================================
-           HTML & BODY
-           ============================================================ */
-        html {
-            scroll-behavior: smooth;
-            font-size: 16px;
-        }
+        html { scroll-behavior: smooth; font-size: 16px; }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -87,9 +80,6 @@
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        /* ============================================================
-           ACCESSIBILITY
-           ============================================================ */
         :focus-visible {
             outline: 3px solid var(--brand-primary);
             outline-offset: 3px;
@@ -97,17 +87,11 @@
         }
 
         .skip-link {
-            position: absolute;
-            top: -120px;
-            left: 16px;
-            background: var(--brand-primary);
-            color: #fff;
-            padding: 10px 18px;
-            border-radius: 0 0 10px 10px;
-            font-weight: 700;
-            font-size: 0.9375rem;
-            z-index: 10000;
-            text-decoration: none;
+            position: absolute; top: -120px; left: 16px;
+            background: var(--brand-primary); color: #fff;
+            padding: 10px 18px; border-radius: 0 0 10px 10px;
+            font-weight: 700; font-size: 0.9375rem;
+            z-index: 10000; text-decoration: none;
             transition: top 0.2s ease;
         }
         .skip-link:focus { top: 0; }
@@ -116,75 +100,43 @@
            NAVBAR
            ============================================================ */
         .nav {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 1000;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
             background: transparent;
             border-bottom: 1px solid transparent;
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
-
         .nav.scrolled {
             background: var(--nav-bg);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
             border-bottom-color: var(--nav-border);
             box-shadow: var(--shadow-sm);
         }
-
         .nav-inner {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 28px;
-            height: 74px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
+            max-width: 1200px; margin: 0 auto; padding: 0 28px;
+            height: 74px; display: flex; align-items: center;
+            justify-content: space-between; gap: 24px;
         }
-
-        /* Logo */
         .nav-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            flex-shrink: 0;
+            display: flex; align-items: center; gap: 10px;
+            text-decoration: none; flex-shrink: 0;
         }
         .nav-logo-emoji { font-size: 1.5rem; line-height: 1; }
         .nav-logo-wordmark {
-            font-size: 1.125rem;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: -0.02em;
-            transition: color 0.3s ease;
+            font-size: 1.125rem; font-weight: 700; color: #fff;
+            letter-spacing: -0.02em; transition: color 0.3s ease;
         }
         .nav.scrolled .nav-logo-wordmark { color: var(--text-primary); }
 
-        /* Centre links (desktop) */
-        .nav-links {
-            display: flex;
-            align-items: center;
-            gap: 32px;
-            list-style: none;
-        }
+        .nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
         .nav-links a {
-            color: rgba(255,255,255,0.88);
-            text-decoration: none;
-            font-size: 0.9375rem;
-            font-weight: 500;
-            position: relative;
+            color: rgba(255,255,255,0.88); text-decoration: none;
+            font-size: 0.9375rem; font-weight: 500; position: relative;
             transition: color 0.2s ease;
         }
         .nav-links a::after {
-            content: '';
-            position: absolute;
-            bottom: -5px; left: 0; right: 0;
-            height: 2px;
-            background: #fff;
-            transform: scaleX(0);
-            transition: transform 0.22s ease;
-            border-radius: 2px;
+            content: ''; position: absolute; bottom: -5px; left: 0; right: 0;
+            height: 2px; background: #fff; transform: scaleX(0);
+            transition: transform 0.22s ease; border-radius: 2px;
         }
         .nav-links a:hover { color: #fff; }
         .nav-links a:hover::after { transform: scaleX(1); }
@@ -192,1085 +144,712 @@
         .nav.scrolled .nav-links a::after { background: var(--brand-primary); }
         .nav.scrolled .nav-links a:hover { color: var(--brand-primary); }
 
-        /* Right actions */
-        .nav-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+        .nav-actions { display: flex; align-items: center; gap: 10px; }
 
         .theme-toggle {
-            width: 40px; height: 40px;
-            border-radius: 50%;
+            width: 40px; height: 40px; border-radius: 50%;
             border: 1.5px solid rgba(255,255,255,0.35);
-            background: rgba(255,255,255,0.12);
-            color: #fff;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            transition: all 0.22s ease;
-            flex-shrink: 0;
+            background: rgba(255,255,255,0.12); color: #fff;
+            cursor: pointer; display: flex; align-items: center;
+            justify-content: center; font-size: 1.1rem;
+            transition: all 0.22s ease; flex-shrink: 0;
         }
-        .theme-toggle:hover {
-            background: rgba(255,255,255,0.24);
-            transform: rotate(18deg);
-        }
+        .theme-toggle:hover { background: rgba(255,255,255,0.24); transform: rotate(18deg); }
         .nav.scrolled .theme-toggle {
-            background: var(--bg-surface);
-            border-color: var(--border-subtle);
+            background: var(--bg-surface); border-color: var(--border-subtle);
             color: var(--text-primary);
         }
-        .nav.scrolled .theme-toggle:hover {
-            border-color: var(--brand-primary);
-            background: var(--bg-elevated);
-        }
+        .nav.scrolled .theme-toggle:hover { border-color: var(--brand-primary); background: var(--bg-elevated); }
 
         .btn-login {
-            background: #fff;
-            color: var(--brand-primary);
-            border: none;
-            padding: 10px 26px;
-            border-radius: 100px;
-            font-size: 0.9375rem;
-            font-weight: 700;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.22s ease;
-            box-shadow: 0 2px 14px rgba(0,0,0,0.18);
-            flex-shrink: 0;
-            white-space: nowrap;
+            background: #fff; color: var(--brand-primary); border: none;
+            padding: 10px 26px; border-radius: 100px;
+            font-size: 0.9375rem; font-weight: 700; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: all 0.22s ease; box-shadow: 0 2px 14px rgba(0,0,0,0.18);
+            flex-shrink: 0; white-space: nowrap;
         }
-        .btn-login:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 5px 22px rgba(0,0,0,0.24);
-            background: #f0f0ff;
-        }
-        .nav.scrolled .btn-login {
-            background: var(--brand-gradient);
-            color: #fff;
-            box-shadow: 0 2px 14px rgba(102,126,234,0.38);
-        }
-        .nav.scrolled .btn-login:hover {
-            box-shadow: 0 5px 24px rgba(102,126,234,0.52);
-        }
+        .btn-login:hover { transform: translateY(-1px); box-shadow: 0 5px 22px rgba(0,0,0,0.24); background: #f0f0ff; }
+        .nav.scrolled .btn-login { background: var(--brand-gradient); color: #fff; box-shadow: 0 2px 14px rgba(102,126,234,0.38); }
+        .nav.scrolled .btn-login:hover { box-shadow: 0 5px 24px rgba(102,126,234,0.52); }
 
-        /* Hamburger */
         .hamburger {
-            display: none;
-            flex-direction: column;
-            gap: 5px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 8px;
+            display: none; flex-direction: column; gap: 5px;
+            background: none; border: none; cursor: pointer; padding: 8px; border-radius: 8px;
         }
         .hamburger span {
-            display: block;
-            width: 24px; height: 2px;
-            background: #fff;
-            border-radius: 2px;
-            transition: all 0.3s ease;
+            display: block; width: 24px; height: 2px; background: #fff;
+            border-radius: 2px; transition: all 0.3s ease;
         }
         .nav.scrolled .hamburger span { background: var(--text-primary); }
-        .hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+        .hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px,5px); }
         .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
-        .hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+        .hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px,-5px); }
 
-        /* Mobile menu */
         .mobile-menu {
-            display: none;
-            position: absolute;
-            top: 74px; left: 0; right: 0;
-            background: var(--bg-elevated);
-            border-top: 1px solid var(--border-subtle);
-            box-shadow: var(--shadow-lg);
-            padding: 12px 20px 20px;
-            flex-direction: column;
-            gap: 2px;
+            display: none; position: absolute; top: 74px; left: 0; right: 0;
+            background: var(--bg-elevated); border-top: 1px solid var(--border-subtle);
+            box-shadow: var(--shadow-lg); padding: 12px 20px 20px;
+            flex-direction: column; gap: 2px;
         }
         .mobile-menu.open { display: flex; }
         .mobile-menu a {
-            padding: 13px 16px;
-            color: var(--text-primary);
-            text-decoration: none;
-            font-size: 1rem;
-            font-weight: 500;
-            border-radius: 10px;
+            padding: 13px 16px; color: var(--text-primary); text-decoration: none;
+            font-size: 1rem; font-weight: 500; border-radius: 10px;
             transition: background 0.2s ease, color 0.2s ease;
         }
         .mobile-menu a:hover { background: var(--bg-surface); color: var(--brand-primary); }
         .mobile-menu .btn-login-mobile {
-            margin-top: 8px;
-            background: var(--brand-gradient);
-            color: #fff;
-            text-align: center;
-            border-radius: 100px;
-            font-weight: 700;
+            margin-top: 8px; background: var(--brand-gradient); color: #fff;
+            text-align: center; border-radius: 100px; font-weight: 700;
             box-shadow: 0 2px 14px rgba(102,126,234,0.32);
         }
         .mobile-menu .btn-login-mobile:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 5px 22px rgba(102,126,234,0.45);
-            background: var(--brand-gradient);
-            color: #fff;
+            transform: translateY(-1px); box-shadow: 0 5px 22px rgba(102,126,234,0.45);
+            background: var(--brand-gradient); color: #fff;
         }
 
         /* ============================================================
            HERO
            ============================================================ */
         .hero {
-            min-height: 100vh;
-            background: var(--brand-gradient);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-            padding: 110px 28px 96px;
+            min-height: 100vh; background: var(--brand-gradient);
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden; padding: 110px 28px 96px;
         }
-
-        /* Pure CSS animated particles */
         .particle {
-            position: absolute;
-            border-radius: 50%;
+            position: absolute; border-radius: 50%;
             background: rgba(255,255,255,0.06);
-            animation: floatParticle linear infinite;
-            pointer-events: none;
+            animation: floatParticle linear infinite; pointer-events: none;
         }
-        .particle:nth-child(1) { width: 90px;  height: 90px;  top: 12%; left: 8%;   animation-duration: 22s; animation-delay: 0s;    }
-        .particle:nth-child(2) { width: 140px; height: 140px; top: 58%; left: 4%;   animation-duration: 28s; animation-delay: -6s;   }
-        .particle:nth-child(3) { width: 55px;  height: 55px;  top: 28%; left: 88%;  animation-duration: 17s; animation-delay: -3s;   }
-        .particle:nth-child(4) { width: 180px; height: 180px; top: 68%; left: 82%;  animation-duration: 34s; animation-delay: -12s;  }
-        .particle:nth-child(5) { width: 45px;  height: 45px;  top: 82%; left: 48%;  animation-duration: 20s; animation-delay: -8s;   }
-        .particle:nth-child(6) { width: 110px; height: 110px; top: 8%;  left: 58%;  animation-duration: 26s; animation-delay: -15s;  }
-        .particle:nth-child(7) { width: 35px;  height: 35px;  top: 44%; left: 28%;  animation-duration: 16s; animation-delay: -2s;   }
-        .particle:nth-child(8) { width: 75px;  height: 75px;  top: 22%; left: 42%;  animation-duration: 24s; animation-delay: -9s;   }
+        .particle:nth-child(1) { width:90px;  height:90px;  top:12%; left:8%;  animation-duration:22s; animation-delay:0s;   }
+        .particle:nth-child(2) { width:140px; height:140px; top:58%; left:4%;  animation-duration:28s; animation-delay:-6s;  }
+        .particle:nth-child(3) { width:55px;  height:55px;  top:28%; left:88%; animation-duration:17s; animation-delay:-3s;  }
+        .particle:nth-child(4) { width:180px; height:180px; top:68%; left:82%; animation-duration:34s; animation-delay:-12s; }
+        .particle:nth-child(5) { width:45px;  height:45px;  top:82%; left:48%; animation-duration:20s; animation-delay:-8s;  }
+        .particle:nth-child(6) { width:110px; height:110px; top:8%;  left:58%; animation-duration:26s; animation-delay:-15s; }
+        .particle:nth-child(7) { width:35px;  height:35px;  top:44%; left:28%; animation-duration:16s; animation-delay:-2s;  }
+        .particle:nth-child(8) { width:75px;  height:75px;  top:22%; left:42%; animation-duration:24s; animation-delay:-9s;  }
 
         @keyframes floatParticle {
-            0%   { transform: translate(0, 0) rotate(0deg);    opacity: 0.25; }
-            20%  { transform: translate(20px, -30px) rotate(72deg);  opacity: 0.55; }
-            50%  { transform: translate(-15px, -80px) rotate(180deg); opacity: 0.30; }
-            75%  { transform: translate(35px, -120px) rotate(270deg); opacity: 0.50; }
-            100% { transform: translate(0, -170px) rotate(360deg);  opacity: 0;    }
+            0%   { transform:translate(0,0) rotate(0deg);      opacity:0.25; }
+            20%  { transform:translate(20px,-30px) rotate(72deg);   opacity:0.55; }
+            50%  { transform:translate(-15px,-80px) rotate(180deg);  opacity:0.30; }
+            75%  { transform:translate(35px,-120px) rotate(270deg);  opacity:0.50; }
+            100% { transform:translate(0,-170px) rotate(360deg);   opacity:0;    }
         }
 
-        .hero-content {
-            position: relative;
-            z-index: 1;
-            text-align: center;
-            max-width: 820px;
-            width: 100%;
-        }
+        .hero-content { position:relative; z-index:1; text-align:center; max-width:820px; width:100%; }
 
         .hero-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255,255,255,0.14);
-            border: 1px solid rgba(255,255,255,0.28);
-            color: #fff;
-            padding: 8px 22px;
-            border-radius: 100px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-            letter-spacing: 0.02em;
+            display:inline-flex; align-items:center; gap:8px;
+            background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.28);
+            color:#fff; padding:8px 22px; border-radius:100px;
+            font-size:0.875rem; font-weight:500; margin-bottom:30px;
+            backdrop-filter:blur(10px); letter-spacing:0.02em;
         }
-
         .hero-title {
-            font-size: clamp(2.25rem, 5vw, 3.875rem);
-            font-weight: 900;
-            color: #fff;
-            line-height: 1.12;
-            letter-spacing: -0.035em;
-            margin-bottom: 24px;
+            font-size:clamp(2.25rem,5vw,3.875rem); font-weight:900; color:#fff;
+            line-height:1.12; letter-spacing:-0.035em; margin-bottom:24px;
         }
-
         .hero-subtitle {
-            font-size: clamp(1rem, 2vw, 1.25rem);
-            color: rgba(255,255,255,0.78);
-            line-height: 1.72;
-            max-width: 620px;
-            margin: 0 auto 44px;
-            font-weight: 400;
+            font-size:clamp(1rem,2vw,1.25rem); color:rgba(255,255,255,0.78);
+            line-height:1.72; max-width:620px; margin:0 auto 44px; font-weight:400;
         }
-
-        .hero-ctas {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
+        .hero-ctas { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
 
         .btn-primary-hero {
-            background: #fff;
-            color: var(--brand-primary);
-            border: none;
-            padding: 17px 38px;
-            border-radius: 100px;
-            font-size: 1.0625rem;
-            font-weight: 800;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.25s ease;
-            box-shadow: 0 4px 28px rgba(0,0,0,0.22);
-            letter-spacing: -0.01em;
+            background:#fff; color:var(--brand-primary); border:none;
+            padding:17px 38px; border-radius:100px; font-size:1.0625rem; font-weight:800;
+            cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+            transition:all 0.25s ease; box-shadow:0 4px 28px rgba(0,0,0,0.22); letter-spacing:-0.01em;
         }
-        .btn-primary-hero:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 36px rgba(0,0,0,0.30);
-            background: #f2f2ff;
-            color: #5066d4;
-        }
+        .btn-primary-hero:hover { transform:translateY(-3px); box-shadow:0 10px 36px rgba(0,0,0,0.30); background:#f2f2ff; color:#5066d4; }
 
         .btn-secondary-hero {
-            background: transparent;
-            color: #fff;
-            border: 2px solid rgba(255,255,255,0.55);
-            padding: 17px 38px;
-            border-radius: 100px;
-            font-size: 1.0625rem;
-            font-weight: 700;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.25s ease;
-            letter-spacing: -0.01em;
+            background:transparent; color:#fff; border:2px solid rgba(255,255,255,0.55);
+            padding:17px 38px; border-radius:100px; font-size:1.0625rem; font-weight:700;
+            cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+            transition:all 0.25s ease; letter-spacing:-0.01em;
         }
-        .btn-secondary-hero:hover {
-            border-color: #fff;
-            background: rgba(255,255,255,0.12);
-            transform: translateY(-3px);
-        }
+        .btn-secondary-hero:hover { border-color:#fff; background:rgba(255,255,255,0.12); transform:translateY(-3px); }
 
-        /* Scroll chevron */
         .scroll-chevron {
-            position: absolute;
-            bottom: 36px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            animation: bounceDown 2.2s ease-in-out infinite;
-            text-decoration: none;
-            opacity: 0.8;
+            position:absolute; bottom:36px; left:50%; transform:translateX(-50%);
+            display:flex; flex-direction:column; align-items:center;
+            animation:bounceDown 2.2s ease-in-out infinite;
+            text-decoration:none; opacity:0.8;
         }
         .scroll-chevron-icon {
-            display: block;
-            width: 26px; height: 26px;
-            border-right: 2.5px solid rgba(255,255,255,0.75);
-            border-bottom: 2.5px solid rgba(255,255,255,0.75);
-            transform: rotate(45deg);
+            display:block; width:26px; height:26px;
+            border-right:2.5px solid rgba(255,255,255,0.75);
+            border-bottom:2.5px solid rgba(255,255,255,0.75);
+            transform:rotate(45deg);
         }
         @keyframes bounceDown {
-            0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.7; }
-            50%       { transform: translateX(-50%) translateY(10px); opacity: 1; }
+            0%,100% { transform:translateX(-50%) translateY(0); opacity:0.7; }
+            50%      { transform:translateX(-50%) translateY(10px); opacity:1; }
         }
 
         /* ============================================================
            STATS BAR
            ============================================================ */
         .stats {
-            background: var(--stats-bg);
-            border-bottom: 1px solid var(--border-subtle);
-            padding: 36px 28px;
+            background:var(--stats-bg); border-bottom:1px solid var(--border-subtle); padding:36px 28px;
         }
         .stats-inner {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
+            max-width:1200px; margin:0 auto;
+            display:grid; grid-template-columns:repeat(4,1fr); gap:20px;
         }
         .stat-item {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 18px 22px;
-            background: var(--bg-elevated);
-            border-radius: 14px;
-            border: 1px solid var(--border-subtle);
-            box-shadow: var(--shadow-sm);
-            transition: transform 0.22s ease, box-shadow 0.22s ease;
+            display:flex; align-items:center; gap:14px;
+            padding:18px 22px; background:var(--bg-elevated);
+            border-radius:14px; border:1px solid var(--border-subtle);
+            box-shadow:var(--shadow-sm); transition:transform 0.22s ease, box-shadow 0.22s ease;
         }
-        .stat-item:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-md);
-        }
+        .stat-item:hover { transform:translateY(-3px); box-shadow:var(--shadow-md); }
         .stat-icon {
-            font-size: 1.75rem;
-            flex-shrink: 0;
-            width: 50px; height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, rgba(102,126,234,0.11), rgba(118,75,162,0.11));
-            border-radius: 12px;
+            font-size:1.75rem; flex-shrink:0; width:50px; height:50px;
+            display:flex; align-items:center; justify-content:center;
+            background:linear-gradient(135deg,rgba(102,126,234,0.11),rgba(118,75,162,0.11));
+            border-radius:12px;
         }
-        .stat-label {
-            font-size: 0.9375rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            line-height: 1.35;
-        }
+        .stat-label { font-size:0.9375rem; font-weight:600; color:var(--text-primary); line-height:1.35; }
 
         /* ============================================================
            SHARED SECTION STYLES
            ============================================================ */
-        section { padding: 104px 28px; }
-
-        .section-inner { max-width: 1200px; margin: 0 auto; }
-
+        section { padding:104px 28px; }
+        .section-inner { max-width:1200px; margin:0 auto; }
         .section-tag {
-            display: inline-block;
-            background: linear-gradient(135deg, rgba(102,126,234,0.11), rgba(118,75,162,0.11));
-            color: var(--brand-primary);
-            padding: 6px 18px;
-            border-radius: 100px;
-            font-size: 0.8125rem;
-            font-weight: 700;
-            letter-spacing: 0.09em;
-            text-transform: uppercase;
-            margin-bottom: 16px;
+            display:inline-block;
+            background:linear-gradient(135deg,rgba(102,126,234,0.11),rgba(118,75,162,0.11));
+            color:var(--brand-primary); padding:6px 18px; border-radius:100px;
+            font-size:0.8125rem; font-weight:700; letter-spacing:0.09em;
+            text-transform:uppercase; margin-bottom:16px;
         }
-
         .section-title {
-            font-size: clamp(1.875rem, 3.5vw, 2.75rem);
-            font-weight: 800;
-            color: var(--text-primary);
-            line-height: 1.18;
-            letter-spacing: -0.03em;
-            margin-bottom: 16px;
+            font-size:clamp(1.875rem,3.5vw,2.75rem); font-weight:800;
+            color:var(--text-primary); line-height:1.18; letter-spacing:-0.03em; margin-bottom:16px;
         }
-
-        .section-subtitle {
-            font-size: 1.125rem;
-            color: var(--text-secondary);
-            max-width: 580px;
-            line-height: 1.72;
-        }
+        .section-subtitle { font-size:1.125rem; color:var(--text-secondary); max-width:580px; line-height:1.72; }
 
         /* Fade-in via IntersectionObserver */
-        .fade-in {
-            opacity: 0;
-            transform: translateY(26px);
-            transition: opacity 0.7s ease, transform 0.7s ease;
-        }
-        .fade-in.visible { opacity: 1; transform: translateY(0); }
-        .fade-in-delay-1 { transition-delay: 0.10s; }
-        .fade-in-delay-2 { transition-delay: 0.20s; }
-        .fade-in-delay-3 { transition-delay: 0.30s; }
-        .fade-in-delay-4 { transition-delay: 0.40s; }
-        .fade-in-delay-5 { transition-delay: 0.50s; }
-        .fade-in-delay-6 { transition-delay: 0.60s; }
+        .fade-in { opacity:0; transform:translateY(26px); transition:opacity 0.7s ease, transform 0.7s ease; }
+        .fade-in.visible { opacity:1; transform:translateY(0); }
+        .fade-in-delay-1 { transition-delay:0.10s; }
+        .fade-in-delay-2 { transition-delay:0.20s; }
+        .fade-in-delay-3 { transition-delay:0.30s; }
+        .fade-in-delay-4 { transition-delay:0.40s; }
+        .fade-in-delay-5 { transition-delay:0.50s; }
+        .fade-in-delay-6 { transition-delay:0.60s; }
 
         /* ============================================================
            FEATURES
            ============================================================ */
-        .features { background: var(--bg-page); }
-
-        .features-header { text-align: center; margin-bottom: 68px; }
-        .features-header .section-subtitle { margin: 0 auto; }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 26px;
-        }
+        .features { background:var(--bg-page); }
+        .features-header { text-align:center; margin-bottom:68px; }
+        .features-header .section-subtitle { margin:0 auto; }
+        .features-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:26px; }
 
         .feature-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: 22px;
-            padding: 34px 30px;
-            box-shadow: var(--shadow-sm);
-            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            background:var(--bg-card); border:1px solid var(--border-subtle);
+            border-radius:22px; padding:34px 30px; box-shadow:var(--shadow-sm);
+            transition:transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            position:relative; overflow:hidden; display:flex; flex-direction:column;
         }
         .feature-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
-            background: var(--brand-gradient);
-            opacity: 0;
-            transition: opacity 0.3s ease;
+            content:''; position:absolute; top:0; left:0; right:0; height:3px;
+            background:var(--brand-gradient); opacity:0; transition:opacity 0.3s ease;
         }
-        .feature-card:hover {
-            transform: translateY(-7px);
-            box-shadow: var(--card-hover-shadow);
-            border-color: var(--border-accent);
-        }
-        .feature-card:hover::before { opacity: 1; }
+        .feature-card:hover { transform:translateY(-7px); box-shadow:var(--card-hover-shadow); border-color:var(--border-accent); }
+        .feature-card:hover::before, .feature-card.expanded::before { opacity:1; }
+        .feature-card.expanded { border-color:var(--border-accent); box-shadow:var(--card-hover-shadow); }
 
-        .feature-emoji {
-            font-size: 2.375rem;
-            margin-bottom: 18px;
-            display: block;
+        .feature-emoji { font-size:2.375rem; margin-bottom:18px; display:block; }
+        .feature-title { font-size:1.125rem; font-weight:700; color:var(--text-primary); margin-bottom:10px; letter-spacing:-0.01em; }
+        .feature-desc { font-size:0.9375rem; color:var(--text-secondary); line-height:1.68; flex:1; }
+
+        /* Expand button */
+        .feature-more-btn {
+            display:inline-flex; align-items:center; gap:5px;
+            margin-top:18px; font-size:0.8125rem; font-weight:700;
+            color:var(--brand-primary); background:none; border:none;
+            cursor:pointer; padding:0; font-family:inherit;
+            transition:gap 0.2s ease;
         }
-        .feature-title {
-            font-size: 1.125rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 10px;
-            letter-spacing: -0.01em;
+        .feature-more-btn:hover { gap:8px; }
+        .more-arrow { font-size:0.75rem; transition:transform 0.25s ease; display:inline-block; }
+        .feature-card.expanded .more-arrow { transform:rotate(180deg); }
+
+        /* Expand detail */
+        .feature-expand {
+            max-height:0; overflow:hidden;
+            transition:max-height 0.38s cubic-bezier(0.4,0,0.2,1);
         }
-        .feature-desc {
-            font-size: 0.9375rem;
-            color: var(--text-secondary);
-            line-height: 1.68;
+        .feature-expand-inner {
+            border-top:1px solid var(--border-subtle);
+            margin-top:16px; padding-top:16px;
+        }
+        .feature-expand ul { list-style:none; display:flex; flex-direction:column; gap:8px; }
+        .feature-expand ul li {
+            font-size:0.875rem; color:var(--text-secondary);
+            display:flex; align-items:flex-start; gap:9px; line-height:1.55;
+        }
+        .feature-expand ul li::before {
+            content:'→'; color:var(--brand-primary);
+            font-size:0.75rem; margin-top:2px; flex-shrink:0; font-weight:700;
         }
 
         /* ============================================================
            HOW IT WORKS
            ============================================================ */
-        .how-it-works { background: var(--bg-surface); }
-        .how-header { text-align: center; margin-bottom: 68px; }
-        .how-header .section-subtitle { margin: 0 auto; }
+        .how-it-works { background:var(--bg-surface); }
+        .how-header { text-align:center; margin-bottom:68px; }
+        .how-header .section-subtitle { margin:0 auto; }
 
-        .steps-container {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0;
-            position: relative;
-        }
+        .steps-container { display:grid; grid-template-columns:repeat(3,1fr); gap:0; position:relative; }
         .steps-connector {
-            position: absolute;
-            top: 48px;
-            left: calc(16.667% + 32px);
-            right: calc(16.667% + 32px);
-            height: 2px;
-            background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
-            opacity: 0.25;
+            position:absolute; top:48px;
+            left:calc(16.667% + 32px); right:calc(16.667% + 32px);
+            height:2px;
+            background:linear-gradient(90deg,var(--brand-primary),var(--brand-secondary));
+            opacity:0.25;
         }
 
-        .step {
-            text-align: center;
-            padding: 0 36px;
-            position: relative;
-        }
+        .step { text-align:center; padding:0 36px; position:relative; }
         .step-circle {
-            width: 96px; height: 96px;
-            background: var(--brand-gradient);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 26px;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 8px 32px rgba(102,126,234,0.38);
+            width:96px; height:96px; background:var(--brand-gradient);
+            border-radius:50%; display:flex; align-items:center; justify-content:center;
+            margin:0 auto 26px; position:relative; z-index:1;
+            box-shadow:0 8px 32px rgba(102,126,234,0.38);
+            cursor:pointer;
+            transition:transform 0.25s ease, box-shadow 0.25s ease;
         }
-        .step-circle-emoji { font-size: 2.125rem; }
+        .step-circle:hover { transform:scale(1.07); box-shadow:0 12px 40px rgba(102,126,234,0.50); }
+        .step-circle-emoji { font-size:2.125rem; }
+        .step-title { font-size:1.25rem; font-weight:700; color:var(--text-primary); margin-bottom:12px; letter-spacing:-0.015em; }
+        .step-desc { font-size:0.9375rem; color:var(--text-secondary); line-height:1.68; }
 
-        .step-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 12px;
-            letter-spacing: -0.015em;
+        .step-toggle {
+            display:inline-flex; align-items:center; gap:5px;
+            margin-top:14px; font-size:0.8125rem; font-weight:700;
+            color:var(--brand-primary); background:none; border:none;
+            cursor:pointer; padding:0; font-family:inherit; transition:gap 0.2s ease;
         }
-        .step-desc {
-            font-size: 0.9375rem;
-            color: var(--text-secondary);
-            line-height: 1.68;
+        .step-toggle:hover { gap:8px; }
+        .step-toggle-arrow { font-size:0.75rem; transition:transform 0.25s ease; display:inline-block; }
+        .step.expanded .step-toggle-arrow { transform:rotate(180deg); }
+
+        .step-expand {
+            max-height:0; overflow:hidden;
+            transition:max-height 0.38s cubic-bezier(0.4,0,0.2,1);
+            text-align:left;
+        }
+        .step-expand-inner {
+            margin-top:16px; padding:16px 18px;
+            background:rgba(102,126,234,0.07); border-radius:12px;
+            border-left:3px solid var(--brand-primary);
+            font-size:0.875rem; color:var(--text-secondary); line-height:1.68;
         }
 
         /* ============================================================
-           FOR CLINICIANS
+           FOR CLINICIANS — Accordion List
            ============================================================ */
-        .for-clinicians { background: var(--bg-page); }
+        .for-clinicians { background:var(--bg-page); }
+        .clinicians-grid { display:grid; grid-template-columns:1fr 1fr; gap:88px; align-items:center; }
 
-        .clinicians-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 88px;
-            align-items: center;
-        }
+        .clin-accordion { margin-top:30px; display:flex; flex-direction:column; gap:8px; }
 
-        .clinicians-list {
-            list-style: none;
-            margin-top: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .clin-item {
+            background:var(--bg-surface); border:1px solid var(--border-subtle);
+            border-radius:14px; overflow:hidden;
+            transition:border-color 0.25s ease, box-shadow 0.25s ease;
         }
-        .clinicians-list li {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 0.9375rem;
-            color: var(--text-secondary);
-            padding: 13px 18px;
-            background: var(--bg-surface);
-            border-radius: 12px;
-            border: 1px solid var(--border-subtle);
-            font-weight: 500;
-            transition: border-color 0.2s ease, transform 0.2s ease;
+        .clin-item.open {
+            border-color:var(--border-accent);
+            box-shadow:0 4px 20px rgba(102,126,234,0.12);
         }
-        .clinicians-list li:hover {
-            border-color: var(--border-accent);
-            transform: translateX(4px);
+        .clin-btn {
+            width:100%; display:flex; align-items:center; gap:12px;
+            padding:14px 18px; background:none; border:none;
+            cursor:pointer; text-align:left; font-family:inherit;
+            font-size:0.9375rem; font-weight:600; color:var(--text-secondary);
+            transition:color 0.2s ease;
         }
-        .clinicians-list li .check { color: #22c55e; font-size: 1.125rem; flex-shrink: 0; }
+        .clin-btn:hover { color:var(--text-primary); }
+        .clin-item.open .clin-btn { color:var(--text-primary); }
+        .clin-check { color:#22c55e; font-size:1.125rem; flex-shrink:0; }
+        .clin-plus {
+            margin-left:auto; width:24px; height:24px; border-radius:50%; flex-shrink:0;
+            background:linear-gradient(135deg,rgba(102,126,234,0.12),rgba(118,75,162,0.12));
+            display:flex; align-items:center; justify-content:center;
+            color:var(--brand-primary); font-size:1rem; font-weight:300; line-height:1;
+            transition:transform 0.28s ease, background 0.22s ease, color 0.22s ease;
+        }
+        .clin-item.open .clin-plus {
+            transform:rotate(45deg);
+            background:var(--brand-gradient); color:#fff;
+        }
+        .clin-detail {
+            max-height:0; overflow:hidden;
+            transition:max-height 0.38s cubic-bezier(0.4,0,0.2,1);
+        }
+        .clin-detail-inner {
+            padding:0 18px 16px 48px;
+            font-size:0.875rem; color:var(--text-muted); line-height:1.70;
+            border-left:3px solid var(--brand-primary);
+            margin:0 18px 0 44px;
+            border-radius:0 0 4px 4px;
+        }
 
         /* CSS Dashboard Illustration */
-        .dashboard-mockup {
-            position: relative;
-            height: 440px;
-        }
-
-        .mock-card {
-            position: absolute;
-            border-radius: 18px;
-            padding: 22px;
-            box-shadow: var(--shadow-xl);
-        }
-
-        /* Main card */
+        .dashboard-mockup { position:relative; height:440px; }
+        .mock-card { position:absolute; border-radius:18px; padding:22px; box-shadow:var(--shadow-xl); }
         .mock-main {
-            width: 86%;
-            height: 290px;
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-subtle);
-            top: 0; left: 0;
+            width:86%; height:290px; background:var(--bg-elevated);
+            border:1px solid var(--border-subtle); top:0; left:0;
         }
         .mock-header-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 18px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--border-subtle);
+            display:flex; align-items:center; gap:10px;
+            margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--border-subtle);
         }
-        .mock-avatar-circle {
-            width: 34px; height: 34px;
-            border-radius: 50%;
-            background: var(--brand-gradient);
-            flex-shrink: 0;
-        }
-        .mock-title-block { display: flex; flex-direction: column; gap: 5px; }
-        .mock-pill {
-            height: 9px;
-            border-radius: 5px;
-            background: var(--border-subtle);
-        }
-        .mock-pill-wide  { width: 130px; }
-        .mock-pill-short { width: 80px; }
-
-        .mock-metrics {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 18px;
-        }
-        .mock-metric {
-            background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08));
-            border-radius: 12px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .mock-metric-val {
-            height: 14px; width: 44px;
-            background: var(--brand-primary);
-            border-radius: 5px;
-            opacity: 0.65;
-        }
-        .mock-metric-lbl {
-            height: 7px; width: 66px;
-            background: var(--border-subtle);
-            border-radius: 4px;
-        }
-
-        .mock-bars {
-            display: flex;
-            align-items: flex-end;
-            gap: 6px;
-            height: 64px;
-        }
-        .mock-bar {
-            flex: 1;
-            border-radius: 5px 5px 0 0;
-            background: var(--brand-gradient);
-            opacity: 0.45;
-        }
-
-        /* Patient list card */
+        .mock-avatar-circle { width:34px; height:34px; border-radius:50%; background:var(--brand-gradient); flex-shrink:0; }
+        .mock-title-block { display:flex; flex-direction:column; gap:5px; }
+        .mock-pill { height:9px; border-radius:5px; background:var(--border-subtle); }
+        .mock-pill-wide { width:130px; } .mock-pill-short { width:80px; }
+        .mock-metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+        .mock-metric { background:linear-gradient(135deg,rgba(102,126,234,0.08),rgba(118,75,162,0.08)); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; }
+        .mock-metric-val { height:14px; width:44px; background:var(--brand-primary); border-radius:5px; opacity:0.65; }
+        .mock-metric-lbl { height:7px; width:66px; background:var(--border-subtle); border-radius:4px; }
+        .mock-bars { display:flex; align-items:flex-end; gap:6px; height:64px; }
+        .mock-bar { flex:1; border-radius:5px 5px 0 0; background:var(--brand-gradient); opacity:0.45; }
         .mock-patients {
-            width: 56%;
-            height: 185px;
-            background: var(--brand-gradient);
-            bottom: 0; right: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 12px;
-            padding: 20px;
+            width:56%; height:185px; background:var(--brand-gradient);
+            bottom:0; right:0; display:flex; flex-direction:column;
+            justify-content:center; gap:12px; padding:20px;
         }
-        .mock-patient-row {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-        }
-        .mock-p-avatar {
-            width: 28px; height: 28px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.28);
-            flex-shrink: 0;
-        }
-        .mock-p-info { flex: 1; display: flex; flex-direction: column; gap: 5px; }
-        .mock-p-line {
-            height: 7px;
-            border-radius: 4px;
-            background: rgba(255,255,255,0.5);
-        }
-        .mock-status {
-            padding: 3px 9px;
-            border-radius: 100px;
-            font-size: 0.625rem;
-            font-weight: 700;
-            flex-shrink: 0;
-            letter-spacing: 0.03em;
-        }
-        .mock-status-green { background: rgba(34,197,94,0.28);  color: #86efac; }
-        .mock-status-amber { background: rgba(251,191,36,0.28);  color: #fde68a; }
-        .mock-status-red   { background: rgba(239,68,68,0.28);   color: #fca5a5; }
-
-        /* Floating risk card */
+        .mock-patient-row { display:flex; align-items:center; gap:9px; }
+        .mock-p-avatar { width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.28); flex-shrink:0; }
+        .mock-p-info { flex:1; display:flex; flex-direction:column; gap:5px; }
+        .mock-p-line { height:7px; border-radius:4px; background:rgba(255,255,255,0.5); }
+        .mock-status { padding:3px 9px; border-radius:100px; font-size:0.625rem; font-weight:700; flex-shrink:0; letter-spacing:0.03em; }
+        .mock-status-green { background:rgba(34,197,94,0.28); color:#86efac; }
+        .mock-status-amber { background:rgba(251,191,36,0.28); color:#fde68a; }
+        .mock-status-red   { background:rgba(239,68,68,0.28);  color:#fca5a5; }
         .mock-floating {
-            width: 46%;
-            height: 108px;
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-subtle);
-            top: 208px; right: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 9px;
-            justify-content: center;
+            width:46%; height:108px; background:var(--bg-elevated);
+            border:1px solid var(--border-subtle); top:208px; right:14px;
+            display:flex; flex-direction:column; gap:9px; justify-content:center;
         }
-        .mock-float-title {
-            height: 11px; width: 104px;
-            background: var(--brand-primary);
-            border-radius: 5px;
-            opacity: 0.55;
-            margin-bottom: 2px;
-        }
-        .mock-risk-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .mock-dot {
-            width: 9px; height: 9px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-        .mock-risk-line {
-            height: 7px;
-            border-radius: 4px;
-            background: var(--border-subtle);
-        }
+        .mock-float-title { height:11px; width:104px; background:var(--brand-primary); border-radius:5px; opacity:0.55; margin-bottom:2px; }
+        .mock-risk-row { display:flex; align-items:center; gap:8px; }
+        .mock-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+        .mock-risk-line { height:7px; border-radius:4px; background:var(--border-subtle); }
 
         /* ============================================================
            TESTIMONIALS
            ============================================================ */
-        .testimonials { background: var(--bg-surface); }
-        .test-header { text-align: center; margin-bottom: 64px; }
-        .test-header .section-subtitle { margin: 0 auto; }
-
-        .testimonials-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 26px;
-        }
+        .testimonials { background:var(--bg-surface); }
+        .test-header { text-align:center; margin-bottom:64px; }
+        .test-header .section-subtitle { margin:0 auto; }
+        .testimonials-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:26px; }
 
         .testimonial-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-left: 4px solid var(--brand-primary);
-            border-radius: 18px;
-            padding: 30px 26px;
-            box-shadow: var(--shadow-sm);
-            transition: transform 0.28s ease, box-shadow 0.28s ease;
+            background:var(--bg-card); border:1px solid var(--border-subtle);
+            border-left:4px solid var(--brand-primary); border-radius:18px;
+            padding:30px 26px; box-shadow:var(--shadow-sm);
+            transition:transform 0.28s ease, box-shadow 0.28s ease;
         }
-        .testimonial-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-md);
-        }
+        .testimonial-card:hover { transform:translateY(-5px); box-shadow:var(--shadow-md); }
         .quote-mark {
-            font-size: 3.25rem;
-            color: var(--brand-primary);
-            opacity: 0.38;
-            line-height: 0.75;
-            display: block;
-            margin-bottom: 12px;
-            font-family: Georgia, serif;
+            font-size:3.25rem; color:var(--brand-primary); opacity:0.35;
+            line-height:0.75; display:block; margin-bottom:12px; font-family:Georgia,serif;
         }
-        .testimonial-text {
-            font-size: 0.9375rem;
-            color: var(--text-secondary);
-            line-height: 1.72;
-            font-style: italic;
-            margin-bottom: 22px;
+        .testimonial-text { font-size:0.9375rem; color:var(--text-secondary); line-height:1.72; font-style:italic; margin-bottom:22px; }
+        .testimonial-author { font-size:0.875rem; font-weight:700; color:var(--text-muted); }
+        .testimonial-role { font-size:0.8125rem; color:var(--brand-primary); font-weight:500; margin-top:3px; }
+        .testimonial-note { font-size:0.72rem; color:var(--text-muted); margin-top:10px; font-style:italic; opacity:0.65; }
+
+        /* ============================================================
+           FAQ
+           ============================================================ */
+        .faq { background:var(--bg-page); }
+        .faq-header { text-align:center; margin-bottom:60px; }
+        .faq-header .section-subtitle { margin:0 auto; }
+        .faq-list { max-width:820px; margin:0 auto; display:flex; flex-direction:column; gap:12px; }
+
+        .faq-item {
+            border:1px solid var(--border-subtle); border-radius:16px;
+            overflow:hidden; background:var(--bg-card);
+            transition:border-color 0.25s ease, box-shadow 0.25s ease;
         }
-        .testimonial-author {
-            font-size: 0.875rem;
-            font-weight: 700;
-            color: var(--text-muted);
+        .faq-item.open {
+            border-color:var(--border-accent);
+            box-shadow:0 4px 20px rgba(102,126,234,0.12);
         }
-        .testimonial-note {
-            font-size: 0.72rem;
-            color: var(--text-muted);
-            margin-top: 8px;
-            font-style: italic;
-            opacity: 0.65;
+        .faq-btn {
+            width:100%; display:flex; align-items:center; justify-content:space-between;
+            padding:20px 24px; background:none; border:none; cursor:pointer;
+            text-align:left; font-family:inherit; font-size:1rem; font-weight:600;
+            color:var(--text-primary); gap:16px;
+        }
+        .faq-chevron {
+            width:30px; height:30px; border-radius:50%; flex-shrink:0;
+            background:linear-gradient(135deg,rgba(102,126,234,0.10),rgba(118,75,162,0.10));
+            display:flex; align-items:center; justify-content:center;
+            color:var(--brand-primary); font-size:1.125rem; font-style:normal;
+            transition:transform 0.28s ease, background 0.22s ease, color 0.22s ease;
+            font-weight:300; line-height:1;
+        }
+        .faq-item.open .faq-chevron {
+            transform:rotate(45deg);
+            background:var(--brand-gradient); color:#fff;
+        }
+        .faq-answer {
+            max-height:0; overflow:hidden;
+            transition:max-height 0.38s cubic-bezier(0.4,0,0.2,1);
+        }
+        .faq-answer-inner {
+            padding:0 24px 22px;
+            font-size:0.9375rem; color:var(--text-secondary); line-height:1.72;
+            border-top:1px solid var(--border-subtle); padding-top:18px;
         }
 
         /* ============================================================
            CONTACT
            ============================================================ */
-        .contact { background: var(--bg-page); }
-        .contact-header { text-align: center; margin-bottom: 62px; }
-        .contact-header .section-subtitle { margin: 0 auto; }
+        .contact { background:var(--bg-surface); }
+        .contact-header { text-align:center; margin-bottom:62px; }
+        .contact-header .section-subtitle { margin:0 auto; }
 
-        .contact-cards {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 22px;
-            margin-bottom: 58px;
+        /* Quick access CTAs */
+        .contact-quick {
+            display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-bottom:52px;
         }
+        .contact-cta-btn {
+            display:inline-flex; align-items:center; gap:8px;
+            padding:13px 28px; border-radius:100px; font-size:0.9375rem; font-weight:700;
+            text-decoration:none; transition:all 0.25s ease; border:2px solid transparent;
+        }
+        .contact-cta-btn-primary {
+            background:var(--brand-gradient); color:#fff;
+            box-shadow:0 4px 20px rgba(102,126,234,0.30);
+        }
+        .contact-cta-btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(102,126,234,0.44); }
+        .contact-cta-btn-secondary {
+            background:var(--bg-elevated); color:var(--brand-primary);
+            border-color:var(--border-accent);
+            box-shadow:var(--shadow-sm);
+        }
+        .contact-cta-btn-secondary:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:var(--brand-primary); }
+
+        .contact-divider {
+            display:flex; align-items:center; gap:16px; margin-bottom:52px;
+            max-width:660px; margin-left:auto; margin-right:auto;
+        }
+        .contact-divider-line { flex:1; height:1px; background:var(--border-subtle); }
+        .contact-divider-text { font-size:0.8125rem; color:var(--text-muted); font-weight:500; white-space:nowrap; }
+
+        .contact-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-bottom:52px; }
         .contact-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            border-radius: 18px;
-            padding: 30px 26px;
-            text-align: center;
-            transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+            background:var(--bg-elevated); border:1px solid var(--border-subtle);
+            border-radius:18px; padding:30px 26px; text-align:center;
+            transition:transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
         }
-        .contact-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-md);
-            border-color: var(--border-accent);
-        }
-        .contact-card-icon { font-size: 2.125rem; margin-bottom: 12px; }
-        .contact-card-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 6px;
-        }
-        .contact-card-value { font-size: 0.9375rem; color: var(--brand-primary); font-weight: 500; }
-        .contact-card-value a { color: var(--brand-primary); text-decoration: none; }
-        .contact-card-value a:hover { text-decoration: underline; }
+        .contact-card:hover { transform:translateY(-5px); box-shadow:var(--shadow-md); border-color:var(--border-accent); }
+        .contact-card-icon { font-size:2.125rem; margin-bottom:12px; }
+        .contact-card-title { font-size:1rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; }
+        .contact-card-value { font-size:0.9375rem; color:var(--brand-primary); font-weight:500; }
+        .contact-card-value a { color:var(--brand-primary); text-decoration:none; }
+        .contact-card-value a:hover { text-decoration:underline; }
 
         /* Enquiry form */
         .form-wrapper {
-            max-width: 660px;
-            margin: 0 auto;
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            border-radius: 22px;
-            padding: 44px 44px;
+            max-width:660px; margin:0 auto; background:var(--bg-elevated);
+            border:1px solid var(--border-subtle); border-radius:22px; padding:44px;
         }
-        .form-title {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--text-primary);
-            margin-bottom: 28px;
-            text-align: center;
-            letter-spacing: -0.02em;
+        .form-title { font-size:1.5rem; font-weight:800; color:var(--text-primary); margin-bottom:28px; text-align:center; letter-spacing:-0.02em; }
+        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+        .form-group { margin-bottom:20px; }
+        .form-group label { display:block; font-size:0.9375rem; font-weight:600; color:var(--text-primary); margin-bottom:8px; }
+        .form-group input, .form-group textarea {
+            width:100%; padding:13px 16px;
+            background:var(--bg-card); border:1.5px solid var(--border-subtle);
+            border-radius:12px; font-size:0.9375rem; color:var(--text-primary);
+            font-family:inherit; transition:border-color 0.2s ease, box-shadow 0.2s ease;
+            outline:none; appearance:none;
         }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 18px;
-        }
-        .form-group { margin-bottom: 20px; }
-        .form-group label {
-            display: block;
-            font-size: 0.9375rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 13px 16px;
-            background: var(--bg-card);
-            border: 1.5px solid var(--border-subtle);
-            border-radius: 12px;
-            font-size: 0.9375rem;
-            color: var(--text-primary);
-            font-family: inherit;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-            outline: none;
-            appearance: none;
-        }
-        .form-group input::placeholder,
-        .form-group textarea::placeholder { color: var(--text-muted); }
-        .form-group input:focus,
-        .form-group textarea:focus {
-            border-color: var(--brand-primary);
-            box-shadow: 0 0 0 3px rgba(102,126,234,0.16);
-        }
-        .form-group input.field-error,
-        .form-group textarea.field-error {
-            border-color: #ef4444;
-            box-shadow: 0 0 0 3px rgba(239,68,68,0.12);
-        }
-        .form-group textarea { min-height: 126px; resize: vertical; }
-
+        .form-group input::placeholder, .form-group textarea::placeholder { color:var(--text-muted); }
+        .form-group input:focus, .form-group textarea:focus { border-color:var(--brand-primary); box-shadow:0 0 0 3px rgba(102,126,234,0.16); }
+        .form-group input.field-error, .form-group textarea.field-error { border-color:#ef4444; box-shadow:0 0 0 3px rgba(239,68,68,0.12); }
+        .form-group textarea { min-height:126px; resize:vertical; }
         .btn-submit {
-            width: 100%;
-            padding: 15px;
-            background: var(--brand-gradient);
-            color: #fff;
-            border: none;
-            border-radius: 100px;
-            font-size: 1.0625rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            box-shadow: 0 4px 22px rgba(102,126,234,0.32);
-            letter-spacing: -0.01em;
+            width:100%; padding:15px; background:var(--brand-gradient); color:#fff;
+            border:none; border-radius:100px; font-size:1.0625rem; font-weight:700;
+            cursor:pointer; transition:all 0.25s ease;
+            box-shadow:0 4px 22px rgba(102,126,234,0.32); letter-spacing:-0.01em;
         }
-        .btn-submit:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(102,126,234,0.44);
-        }
-        .btn-submit:active { transform: translateY(0); }
+        .btn-submit:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(102,126,234,0.44); }
+        .btn-submit:active { transform:translateY(0); }
 
-        .success-msg {
-            display: none;
-            text-align: center;
-            padding: 40px 20px;
-        }
-        .success-msg.visible { display: block; }
-        .success-icon { font-size: 3.25rem; margin-bottom: 16px; }
-        .success-title {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--text-primary);
-            margin-bottom: 10px;
-            letter-spacing: -0.02em;
-        }
-        .success-text { font-size: 1rem; color: var(--text-secondary); line-height: 1.65; }
+        .success-msg { display:none; text-align:center; padding:40px 20px; }
+        .success-msg.visible { display:block; }
+        .success-icon { font-size:3.25rem; margin-bottom:16px; }
+        .success-title { font-size:1.5rem; font-weight:800; color:var(--text-primary); margin-bottom:10px; letter-spacing:-0.02em; }
+        .success-text { font-size:1rem; color:var(--text-secondary); line-height:1.65; }
 
         /* ============================================================
            FOOTER
            ============================================================ */
-        .footer {
-            background: var(--footer-bg);
-            color: var(--footer-text);
-            padding: 72px 28px 0;
-        }
-        .footer-inner { max-width: 1200px; margin: 0 auto; }
+        .footer { background:var(--footer-bg); color:var(--footer-text); padding:72px 28px 0; }
+        .footer-inner { max-width:1200px; margin:0 auto; }
+        .footer-grid { display:grid; grid-template-columns:1.6fr 1fr 1fr; gap:52px; padding-bottom:52px; border-bottom:1px solid rgba(255,255,255,0.08); }
+        .footer-logo { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+        .footer-logo .emoji { font-size:1.5rem; }
+        .footer-logo .wordmark { font-size:1.125rem; font-weight:700; color:var(--footer-heading); }
+        .footer-tagline { font-size:0.9375rem; color:var(--footer-text); line-height:1.68; max-width:290px; }
+        .footer-col-heading { font-size:0.8125rem; font-weight:700; text-transform:uppercase; letter-spacing:0.10em; color:var(--footer-heading); margin-bottom:20px; }
+        .footer-links-list { list-style:none; display:flex; flex-direction:column; gap:10px; }
+        .footer-links-list a { color:var(--footer-text); text-decoration:none; font-size:0.9375rem; transition:color 0.2s ease; }
+        .footer-links-list a:hover { color:#fff; }
+        .footer-bottom { max-width:1200px; margin:0 auto; padding:26px 0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+        .footer-copy { font-size:0.875rem; color:var(--footer-text); }
+        .footer-back-top { font-size:0.875rem; color:rgba(255,255,255,0.38); text-decoration:none; transition:color 0.2s ease; }
+        .footer-back-top:hover { color:rgba(255,255,255,0.70); }
+        .footer-strip { background:rgba(0,0,0,0.32); text-align:center; padding:14px 28px; font-size:0.875rem; color:rgba(255,255,255,0.35); }
 
-        .footer-grid {
-            display: grid;
-            grid-template-columns: 1.6fr 1fr 1fr;
-            gap: 52px;
-            padding-bottom: 52px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
+        /* ============================================================
+           STICKY CTA BAR
+           ============================================================ */
+        .sticky-cta {
+            position:fixed; bottom:0; left:0; right:0; z-index:900;
+            background:var(--brand-gradient);
+            padding:14px 28px;
+            display:flex; align-items:center; justify-content:space-between; gap:16px;
+            transform:translateY(100%);
+            transition:transform 0.38s cubic-bezier(0.4,0,0.2,1);
+            box-shadow:0 -4px 28px rgba(102,126,234,0.30);
         }
-
-        .footer-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
+        .sticky-cta.visible { transform:translateY(0); }
+        .sticky-cta-left { display:flex; align-items:center; gap:12px; }
+        .sticky-cta-emoji { font-size:1.25rem; flex-shrink:0; }
+        .sticky-cta-text { color:#fff; font-size:0.9375rem; font-weight:500; }
+        .sticky-cta-text strong { font-weight:800; }
+        .sticky-cta-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+        .sticky-btn-white {
+            background:#fff; color:var(--brand-primary); border:none;
+            padding:9px 22px; border-radius:100px; font-size:0.875rem; font-weight:700;
+            text-decoration:none; cursor:pointer; font-family:inherit;
+            transition:all 0.2s ease; white-space:nowrap;
         }
-        .footer-logo .emoji { font-size: 1.5rem; }
-        .footer-logo .wordmark {
-            font-size: 1.125rem;
-            font-weight: 700;
-            color: var(--footer-heading);
+        .sticky-btn-white:hover { background:#f0f0ff; transform:translateY(-1px); }
+        .sticky-btn-ghost {
+            background:rgba(255,255,255,0.15); color:#fff;
+            border:1.5px solid rgba(255,255,255,0.45);
+            padding:9px 22px; border-radius:100px; font-size:0.875rem; font-weight:600;
+            text-decoration:none; cursor:pointer; font-family:inherit;
+            transition:all 0.2s ease; white-space:nowrap;
         }
-        .footer-tagline {
-            font-size: 0.9375rem;
-            color: var(--footer-text);
-            line-height: 1.68;
-            max-width: 290px;
+        .sticky-btn-ghost:hover { background:rgba(255,255,255,0.24); border-color:#fff; }
+        .sticky-close {
+            background:rgba(255,255,255,0.15); border:1.5px solid rgba(255,255,255,0.30);
+            color:#fff; width:32px; height:32px; border-radius:50%; cursor:pointer;
+            font-size:1rem; display:flex; align-items:center; justify-content:center;
+            transition:all 0.2s ease; flex-shrink:0; font-family:inherit;
         }
-
-        .footer-col-heading {
-            font-size: 0.8125rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.10em;
-            color: var(--footer-heading);
-            margin-bottom: 20px;
-        }
-        .footer-links-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .footer-links-list a {
-            color: var(--footer-text);
-            text-decoration: none;
-            font-size: 0.9375rem;
-            transition: color 0.2s ease;
-        }
-        .footer-links-list a:hover { color: #fff; }
-
-        .footer-bottom {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 26px 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-        .footer-copy { font-size: 0.875rem; color: var(--footer-text); }
-        .footer-back-top {
-            font-size: 0.875rem;
-            color: rgba(255,255,255,0.38);
-            text-decoration: none;
-            transition: color 0.2s ease;
-        }
-        .footer-back-top:hover { color: rgba(255,255,255,0.7); }
-
-        .footer-strip {
-            background: rgba(0,0,0,0.32);
-            text-align: center;
-            padding: 14px 28px;
-            font-size: 0.875rem;
-            color: rgba(255,255,255,0.35);
-        }
+        .sticky-close:hover { background:rgba(255,255,255,0.28); }
 
         /* ============================================================
            RESPONSIVE
            ============================================================ */
-        @media (max-width: 1100px) {
-            .clinicians-grid { grid-template-columns: 1fr; gap: 56px; }
-            .dashboard-mockup { height: 320px; }
+        @media (max-width:1100px) {
+            .clinicians-grid { grid-template-columns:1fr; gap:56px; }
+            .dashboard-mockup { height:320px; }
         }
-
-        @media (max-width: 900px) {
-            .features-grid { grid-template-columns: repeat(2, 1fr); }
-            .testimonials-grid { grid-template-columns: 1fr; }
-            .form-row { grid-template-columns: 1fr; }
+        @media (max-width:900px) {
+            .features-grid { grid-template-columns:repeat(2,1fr); }
+            .testimonials-grid { grid-template-columns:repeat(2,1fr); }
+            .form-row { grid-template-columns:1fr; }
         }
-
-        @media (max-width: 768px) {
-            section { padding: 76px 20px; }
-            .stats { padding: 28px 20px; }
-
-            .nav-inner { padding: 0 20px; }
-            .nav-links { display: none; }
-            .hamburger { display: flex; }
-
-            .stats-inner { grid-template-columns: repeat(2, 1fr); }
-            .steps-container { grid-template-columns: 1fr; gap: 36px; }
-            .steps-connector { display: none; }
-            .contact-cards { grid-template-columns: 1fr; }
-            .footer-grid { grid-template-columns: 1fr; gap: 36px; }
-            .footer-bottom { flex-direction: column; text-align: center; }
-            .form-wrapper { padding: 30px 22px; }
+        @media (max-width:768px) {
+            section { padding:76px 20px; }
+            .stats { padding:28px 20px; }
+            .nav-inner { padding:0 20px; }
+            .nav-links { display:none; }
+            .hamburger { display:flex; }
+            .stats-inner { grid-template-columns:repeat(2,1fr); }
+            .steps-container { grid-template-columns:1fr; gap:36px; }
+            .steps-connector { display:none; }
+            .step { padding:0 8px; }
+            .contact-cards { grid-template-columns:1fr; }
+            .contact-quick { flex-direction:column; align-items:center; }
+            .footer-grid { grid-template-columns:1fr; gap:36px; }
+            .footer-bottom { flex-direction:column; text-align:center; }
+            .form-wrapper { padding:30px 22px; }
+            .sticky-cta { padding:12px 16px; }
+            .sticky-cta-text { font-size:0.8125rem; }
+            .sticky-btn-white, .sticky-btn-ghost { padding:8px 16px; font-size:0.8125rem; }
         }
-
-        @media (max-width: 520px) {
-            .features-grid { grid-template-columns: 1fr; }
-            .hero-ctas { flex-direction: column; align-items: center; }
-            .btn-primary-hero,
-            .btn-secondary-hero { width: 100%; max-width: 320px; justify-content: center; }
-            .stats-inner { grid-template-columns: 1fr; }
+        @media (max-width:600px) {
+            .testimonials-grid { grid-template-columns:1fr; }
+        }
+        @media (max-width:520px) {
+            .features-grid { grid-template-columns:1fr; }
+            .hero-ctas { flex-direction:column; align-items:center; }
+            .btn-primary-hero, .btn-secondary-hero { width:100%; max-width:320px; justify-content:center; }
+            .stats-inner { grid-template-columns:1fr; }
+            .sticky-cta-text span { display:none; }
         }
     </style>
 </head>
 
 <body>
-    <!-- ============================================================
-         SKIP LINK (WCAG)
-         ============================================================ -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
-    <!-- ============================================================
-         NAVIGATION
-         ============================================================ -->
+    <!-- ================================================================
+         NAV
+         ================================================================ -->
     <nav class="nav" id="mainNav" role="navigation" aria-label="Main navigation">
         <div class="nav-inner">
-
-            <!-- Logo -->
-            <a href="/" class="nav-logo" aria-label="Healing Space UK — return to homepage">
+            <a href="/" class="nav-logo" aria-label="Healing Space UK — homepage">
                 <span class="nav-logo-emoji" aria-hidden="true">🌿</span>
                 <span class="nav-logo-wordmark">Healing Space UK</span>
             </a>
-
-            <!-- Centre links (desktop) -->
             <ul class="nav-links" role="list">
                 <li><a href="#features">Features</a></li>
                 <li><a href="#how-it-works">How It Works</a></li>
                 <li><a href="#for-clinicians">For Clinicians</a></li>
+                <li><a href="#faq">FAQ</a></li>
                 <li><a href="#contact">Contact</a></li>
             </ul>
-
-            <!-- Right actions -->
             <div class="nav-actions">
-                <button
-                    class="theme-toggle"
-                    id="themeToggle"
-                    aria-label="Switch to dark mode"
-                    title="Toggle colour theme">
+                <button class="theme-toggle" id="themeToggle" aria-label="Switch to dark mode" title="Toggle colour theme">
                     <span id="themeIcon" aria-hidden="true">🌙</span>
                 </button>
-
-                <a href="/login" class="btn-login" aria-label="Log in to your Healing Space account">
-                    Login
-                </a>
-
-                <button
-                    class="hamburger"
-                    id="hamburger"
-                    aria-label="Open navigation menu"
-                    aria-expanded="false"
-                    aria-controls="mobileMenu">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                <a href="/login" class="btn-login" aria-label="Log in to Healing Space">Login</a>
+                <button class="hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
+                    <span></span><span></span><span></span>
                 </button>
             </div>
         </div>
-
-        <!-- Mobile dropdown -->
         <div class="mobile-menu" id="mobileMenu" role="menu" aria-label="Mobile navigation">
             <a href="#features"       role="menuitem">Features</a>
             <a href="#how-it-works"   role="menuitem">How It Works</a>
             <a href="#for-clinicians" role="menuitem">For Clinicians</a>
+            <a href="#faq"            role="menuitem">FAQ</a>
             <a href="#contact"        role="menuitem">Contact</a>
             <a href="/login" class="btn-login-mobile" role="menuitem">Login →</a>
         </div>
     </nav>
 
-    <!-- ============================================================
+    <!-- ================================================================
          MAIN CONTENT
-         ============================================================ -->
+         ================================================================ -->
     <main id="main-content">
 
         <!-- ==================== HERO ==================== -->
         <section class="hero" aria-label="Welcome to Healing Space UK">
-
-            <!-- Floating CSS particles (decorative, hidden from screen readers) -->
             <div class="particle" aria-hidden="true"></div>
             <div class="particle" aria-hidden="true"></div>
             <div class="particle" aria-hidden="true"></div>
@@ -1285,34 +864,21 @@
                     <span aria-hidden="true">🇬🇧</span>
                     NHS-Aligned &nbsp;·&nbsp; GDPR Compliant &nbsp;·&nbsp; WCAG 2.1 AA
                 </div>
-
-                <h1 class="hero-title">
-                    Your Mental Health Journey,<br>
-                    Supported Every Step
-                </h1>
-
-                <p class="hero-subtitle">
-                    A secure, clinician-led platform combining human expertise with
-                    AI-powered tools — designed for lasting wellbeing.
-                </p>
-
+                <h1 class="hero-title">Your Mental Health Journey,<br>Supported Every Step</h1>
+                <p class="hero-subtitle">A secure, clinician-led platform combining human expertise with AI-powered tools — designed for lasting wellbeing.</p>
                 <div class="hero-ctas">
-                    <a href="#contact" class="btn-primary-hero">
-                        Get Started <span aria-hidden="true">→</span>
-                    </a>
-                    <a href="#features" class="btn-secondary-hero">
-                        Learn More <span aria-hidden="true">↓</span>
-                    </a>
+                    <a href="#contact" class="btn-primary-hero">Get Started <span aria-hidden="true">→</span></a>
+                    <a href="#features" class="btn-secondary-hero">Learn More <span aria-hidden="true">↓</span></a>
                 </div>
             </div>
 
-            <a href="#stats" class="scroll-chevron" aria-label="Scroll down to explore the platform">
+            <a href="#stats" class="scroll-chevron" aria-label="Scroll down to explore">
                 <span class="scroll-chevron-icon" aria-hidden="true"></span>
             </a>
         </section>
 
         <!-- ==================== STATS BAR ==================== -->
-        <div class="stats" id="stats" role="region" aria-label="Platform certifications and standards">
+        <div class="stats" id="stats" role="region" aria-label="Platform certifications">
             <div class="stats-inner">
                 <div class="stat-item fade-in">
                     <div class="stat-icon" aria-hidden="true">🔐</div>
@@ -1338,69 +904,123 @@
             <div class="section-inner">
                 <div class="features-header fade-in">
                     <div class="section-tag" aria-hidden="true">Platform Features</div>
-                    <h2 class="section-title" id="features-heading">
-                        Everything You Need for Your Wellbeing
-                    </h2>
-                    <p class="section-subtitle">
-                        Six powerful tools, thoughtfully designed — all in one secure,
-                        clinician-supervised environment.
-                    </p>
+                    <h2 class="section-title" id="features-heading">Everything You Need for Your Wellbeing</h2>
+                    <p class="section-subtitle">Six powerful tools, thoughtfully designed — all in one secure, clinician-supervised environment. Click any card to learn more.</p>
                 </div>
-
                 <div class="features-grid">
 
                     <div class="feature-card fade-in">
                         <span class="feature-emoji" aria-hidden="true">🧠</span>
                         <h3 class="feature-title">AI Mental Health Companion</h3>
-                        <p class="feature-desc">
-                            24/7 AI-powered conversations, CBT exercises, and psychoeducation,
-                            all clinician-supervised.
-                        </p>
+                        <p class="feature-desc">24/7 AI-powered conversations, CBT exercises, and psychoeducation, all clinician-supervised.</p>
+                        <button class="feature-more-btn" aria-expanded="false" aria-label="Learn more about AI Mental Health Companion">
+                            <span class="more-text">Learn more</span> <span class="more-arrow" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="feature-expand" role="region">
+                            <div class="feature-expand-inner">
+                                <ul>
+                                    <li>Available around the clock, 365 days a year</li>
+                                    <li>Grounded in evidence-based CBT and ACT frameworks</li>
+                                    <li>Every conversation reviewable by your clinician</li>
+                                    <li>Psychoeducation modules on anxiety, depression, sleep &amp; stress</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="feature-card fade-in fade-in-delay-1">
                         <span class="feature-emoji" aria-hidden="true">📊</span>
                         <h3 class="feature-title">Mood &amp; Progress Tracking</h3>
-                        <p class="feature-desc">
-                            Log your mood daily, visualise trends, and share insights
-                            directly with your clinician.
-                        </p>
+                        <p class="feature-desc">Log your mood daily, visualise trends, and share insights directly with your clinician.</p>
+                        <button class="feature-more-btn" aria-expanded="false" aria-label="Learn more about Mood and Progress Tracking">
+                            <span class="more-text">Learn more</span> <span class="more-arrow" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="feature-expand" role="region">
+                            <div class="feature-expand-inner">
+                                <ul>
+                                    <li>Log mood on a 1–10 scale with emotion tags</li>
+                                    <li>Visual trend graphs spanning days, weeks, and months</li>
+                                    <li>Clinician-shareable PDF progress reports</li>
+                                    <li>Automated weekly summaries sent to your care team</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="feature-card fade-in fade-in-delay-2">
                         <span class="feature-emoji" aria-hidden="true">📓</span>
                         <h3 class="feature-title">CBT Workbooks &amp; Journaling</h3>
-                        <p class="feature-desc">
-                            Guided cognitive behavioural therapy tools: thought records,
-                            exposure hierarchies, values exercises, and more.
-                        </p>
+                        <p class="feature-desc">Guided cognitive behavioural therapy tools: thought records, exposure hierarchies, values exercises, and more.</p>
+                        <button class="feature-more-btn" aria-expanded="false" aria-label="Learn more about CBT Workbooks and Journaling">
+                            <span class="more-text">Learn more</span> <span class="more-arrow" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="feature-expand" role="region">
+                            <div class="feature-expand-inner">
+                                <ul>
+                                    <li>Thought Records using the ABC cognitive model</li>
+                                    <li>Behavioural Activation scheduling tools</li>
+                                    <li>Exposure Hierarchy builder for anxiety management</li>
+                                    <li>Core Belief and Values clarification exercises</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="feature-card fade-in fade-in-delay-3">
                         <span class="feature-emoji" aria-hidden="true">🎯</span>
                         <h3 class="feature-title">Goal Setting &amp; Milestones</h3>
-                        <p class="feature-desc">
-                            Set meaningful recovery goals, track milestones, and celebrate
-                            progress with your care team.
-                        </p>
+                        <p class="feature-desc">Set meaningful recovery goals, track milestones, and celebrate progress with your care team.</p>
+                        <button class="feature-more-btn" aria-expanded="false" aria-label="Learn more about Goal Setting and Milestones">
+                            <span class="more-text">Learn more</span> <span class="more-arrow" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="feature-expand" role="region">
+                            <div class="feature-expand-inner">
+                                <ul>
+                                    <li>SMART goal framework with clinician oversight</li>
+                                    <li>Visual milestone timeline and progress celebrations</li>
+                                    <li>Goals visible to both patient and clinician</li>
+                                    <li>Weekly check-in prompts to maintain momentum</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="feature-card fade-in fade-in-delay-4">
                         <span class="feature-emoji" aria-hidden="true">💬</span>
                         <h3 class="feature-title">Secure Clinician Messaging</h3>
-                        <p class="feature-desc">
-                            Direct, GDPR-compliant messaging between patients and their
-                            assigned clinician.
-                        </p>
+                        <p class="feature-desc">Direct, GDPR-compliant messaging between patients and their assigned clinician.</p>
+                        <button class="feature-more-btn" aria-expanded="false" aria-label="Learn more about Secure Clinician Messaging">
+                            <span class="more-text">Learn more</span> <span class="more-arrow" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="feature-expand" role="region">
+                            <div class="feature-expand-inner">
+                                <ul>
+                                    <li>End-to-end encrypted, UK GDPR compliant</li>
+                                    <li>Full message history retained and auditable</li>
+                                    <li>Read receipts and timestamps on all messages</li>
+                                    <li>File and document sharing supported</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="feature-card fade-in fade-in-delay-5">
                         <span class="feature-emoji" aria-hidden="true">🔒</span>
                         <h3 class="feature-title">Safe, Private, Confidential</h3>
-                        <p class="feature-desc">
-                            End-to-end encrypted data, NHS-aligned safeguarding, and full
-                            data control — always yours.
-                        </p>
+                        <p class="feature-desc">End-to-end encrypted data, NHS-aligned safeguarding, and full data control — always yours.</p>
+                        <button class="feature-more-btn" aria-expanded="false" aria-label="Learn more about data privacy and security">
+                            <span class="more-text">Learn more</span> <span class="more-arrow" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="feature-expand" role="region">
+                            <div class="feature-expand-inner">
+                                <ul>
+                                    <li>Data encrypted in transit (TLS 1.3) and at rest (AES-256)</li>
+                                    <li>Your data is never sold to third parties — ever</li>
+                                    <li>Full Data Subject Access Request (DSAR) support</li>
+                                    <li>Right to erasure (right to be forgotten) on request</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -1412,49 +1032,61 @@
             <div class="section-inner">
                 <div class="how-header fade-in">
                     <div class="section-tag" aria-hidden="true">Your Journey</div>
-                    <h2 class="section-title" id="how-heading">
-                        Three Steps to Better Wellbeing
-                    </h2>
-                    <p class="section-subtitle">
-                        Getting started is simple, safe, and clinician-guided from day one.
-                    </p>
+                    <h2 class="section-title" id="how-heading">Three Steps to Better Wellbeing</h2>
+                    <p class="section-subtitle">Getting started is simple, safe, and clinician-guided from day one. Click each step to find out more.</p>
                 </div>
 
                 <div class="steps-container">
                     <div class="steps-connector" aria-hidden="true"></div>
 
                     <div class="step fade-in">
-                        <div class="step-circle" aria-label="Step 1">
+                        <div class="step-circle" aria-label="Step 1: Request Access">
                             <span class="step-circle-emoji" aria-hidden="true">🏥</span>
                         </div>
                         <h3 class="step-title">Request Access</h3>
-                        <p class="step-desc">
-                            Your clinician or care team refers you to the platform.
-                            You'll receive a secure registration link directly to your email.
-                        </p>
+                        <p class="step-desc">Your clinician or care team refers you to the platform. You'll receive a secure registration link directly to your email.</p>
+                        <button class="step-toggle" aria-expanded="false" aria-label="Expand details for Step 1">
+                            What this means → <span class="step-toggle-arrow" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="step-expand" role="region">
+                            <div class="step-expand-inner">
+                                Your GP, psychiatrist, psychologist, or mental health keyworker refers you directly. You'll receive a personalised, time-limited registration link by email. Setup takes under five minutes — no forms, no waiting rooms, no waiting lists.
+                            </div>
+                        </div>
                     </div>
 
                     <div class="step fade-in fade-in-delay-2">
-                        <div class="step-circle" aria-label="Step 2">
+                        <div class="step-circle" aria-label="Step 2: Meet Your Clinician">
                             <span class="step-circle-emoji" aria-hidden="true">🤝</span>
                         </div>
                         <h3 class="step-title">Meet Your Clinician</h3>
-                        <p class="step-desc">
-                            Complete your onboarding, get matched with your clinician,
-                            and set your wellbeing goals together in a safe environment.
-                        </p>
+                        <p class="step-desc">Complete your onboarding, get matched with your clinician, and set your wellbeing goals together in a safe environment.</p>
+                        <button class="step-toggle" aria-expanded="false" aria-label="Expand details for Step 2">
+                            What this means → <span class="step-toggle-arrow" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="step-expand" role="region">
+                            <div class="step-expand-inner">
+                                Complete a short digital onboarding questionnaire covering your current challenges, goals, and preferences. Your assigned clinician reviews this before your first contact, so your very first interaction is already personalised to you.
+                            </div>
+                        </div>
                     </div>
 
                     <div class="step fade-in fade-in-delay-4">
-                        <div class="step-circle" aria-label="Step 3">
+                        <div class="step-circle" aria-label="Step 3: Grow at Your Pace">
                             <span class="step-circle-emoji" aria-hidden="true">🌱</span>
                         </div>
                         <h3 class="step-title">Grow at Your Pace</h3>
-                        <p class="step-desc">
-                            Access your tools anytime. Your clinician monitors your
-                            progress and adjusts your care plan as you grow.
-                        </p>
+                        <p class="step-desc">Access your tools anytime. Your clinician monitors your progress and adjusts your care plan as you grow.</p>
+                        <button class="step-toggle" aria-expanded="false" aria-label="Expand details for Step 3">
+                            What this means → <span class="step-toggle-arrow" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="step-expand" role="region">
+                            <div class="step-expand-inner">
+                                Work through CBT tools at your own speed, log your mood daily, and message your clinician whenever you need. Your clinician reviews your progress data regularly and adjusts your care plan as you grow — support is always calibrated to where you are right now.
+                            </div>
+                        </div>
                     </div>
+
                 </div>
             </div>
         </section>
@@ -1464,34 +1096,96 @@
             <div class="section-inner">
                 <div class="clinicians-grid">
 
-                    <!-- Left: content -->
                     <div class="fade-in">
                         <div class="section-tag" aria-hidden="true">For Clinicians</div>
-                        <h2 class="section-title" id="clinicians-heading">
-                            Built for Clinicians Who Care
-                        </h2>
-                        <p class="section-subtitle">
-                            Healing Space UK gives clinicians a complete digital care
-                            environment — patient dashboards, session notes, risk monitoring,
-                            secure messaging, and AI-assisted insights. Spend less time on
-                            admin and more time on what matters.
-                        </p>
-                        <ul class="clinicians-list" aria-label="Clinician platform features">
-                            <li><span class="check" aria-hidden="true">✅</span> Full patient caseload overview</li>
-                            <li><span class="check" aria-hidden="true">✅</span> Real-time mood &amp; risk indicators</li>
-                            <li><span class="check" aria-hidden="true">✅</span> AI-generated session summaries</li>
-                            <li><span class="check" aria-hidden="true">✅</span> Secure GDPR-compliant messaging</li>
-                            <li><span class="check" aria-hidden="true">✅</span> CBT homework assignment &amp; review</li>
-                            <li><span class="check" aria-hidden="true">✅</span> High-risk patient alerts</li>
-                        </ul>
+                        <h2 class="section-title" id="clinicians-heading">Built for Clinicians Who Care</h2>
+                        <p class="section-subtitle">A complete digital care environment — patient dashboards, session notes, risk monitoring, secure messaging, and AI-assisted insights. Click each feature to learn more.</p>
+
+                        <div class="clin-accordion" role="list" aria-label="Clinician platform features">
+
+                            <div class="clin-item" role="listitem">
+                                <button class="clin-btn" aria-expanded="false">
+                                    <span class="clin-check" aria-hidden="true">✅</span>
+                                    Full patient caseload overview
+                                    <span class="clin-plus" aria-hidden="true">+</span>
+                                </button>
+                                <div class="clin-detail" role="region">
+                                    <div class="clin-detail-inner">
+                                        One unified view of every patient on your caseload. Sort and filter by risk level, last mood entry, outstanding homework, or session recency. Real-time status badges keep you informed at a glance — nothing falls through the cracks.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="clin-item" role="listitem">
+                                <button class="clin-btn" aria-expanded="false">
+                                    <span class="clin-check" aria-hidden="true">✅</span>
+                                    Real-time mood &amp; risk indicators
+                                    <span class="clin-plus" aria-hidden="true">+</span>
+                                </button>
+                                <div class="clin-detail" role="region">
+                                    <div class="clin-detail-inner">
+                                        Colour-coded risk alerts update automatically as patients complete daily check-ins and AI conversations. Set custom thresholds and receive immediate in-platform notifications. View a 30-day mood trajectory for every patient on a single timeline.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="clin-item" role="listitem">
+                                <button class="clin-btn" aria-expanded="false">
+                                    <span class="clin-check" aria-hidden="true">✅</span>
+                                    AI-generated session summaries
+                                    <span class="clin-plus" aria-hidden="true">+</span>
+                                </button>
+                                <div class="clin-detail" role="region">
+                                    <div class="clin-detail-inner">
+                                        Before each session, receive an AI-structured summary of your patient's recent interactions — key themes explored, cognitive distortions identified, homework engagement, and suggested clinical focus areas. More informed sessions, less prep time.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="clin-item" role="listitem">
+                                <button class="clin-btn" aria-expanded="false">
+                                    <span class="clin-check" aria-hidden="true">✅</span>
+                                    Secure GDPR-compliant messaging
+                                    <span class="clin-plus" aria-hidden="true">+</span>
+                                </button>
+                                <div class="clin-detail" role="region">
+                                    <div class="clin-detail-inner">
+                                        Direct, encrypted messaging with each patient. Every message is stored securely under UK GDPR with full audit trails, read receipts, and archiving built in. No third-party access. No data sold. Ever.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="clin-item" role="listitem">
+                                <button class="clin-btn" aria-expanded="false">
+                                    <span class="clin-check" aria-hidden="true">✅</span>
+                                    CBT homework assignment &amp; review
+                                    <span class="clin-plus" aria-hidden="true">+</span>
+                                </button>
+                                <div class="clin-detail" role="region">
+                                    <div class="clin-detail-inner">
+                                        Assign tailored exercises directly from your dashboard — thought records, behavioural activation logs, exposure hierarchies, values clarification, and core belief worksheets. Review completed work with inline clinical notes before your next session.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="clin-item" role="listitem">
+                                <button class="clin-btn" aria-expanded="false">
+                                    <span class="clin-check" aria-hidden="true">✅</span>
+                                    High-risk patient alerts
+                                    <span class="clin-plus" aria-hidden="true">+</span>
+                                </button>
+                                <div class="clin-detail" role="region">
+                                    <div class="clin-detail-inner">
+                                        Immediate alerts — in-platform and by email — when a patient's mood data, AI responses, or safety screeners cross a risk threshold. Includes clear crisis pathway guidance, escalation contacts, and one-click tools to initiate urgent outreach.
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
                     </div>
 
-                    <!-- Right: CSS dashboard illustration -->
-                    <div class="dashboard-mockup fade-in fade-in-delay-2"
-                         aria-hidden="true"
-                         role="presentation">
-
-                        <!-- Main dashboard card -->
+                    <!-- CSS Dashboard Illustration -->
+                    <div class="dashboard-mockup fade-in fade-in-delay-2" aria-hidden="true" role="presentation">
                         <div class="mock-card mock-main">
                             <div class="mock-header-row">
                                 <div class="mock-avatar-circle"></div>
@@ -1501,37 +1195,26 @@
                                 </div>
                             </div>
                             <div class="mock-metrics">
-                                <div class="mock-metric">
-                                    <div class="mock-metric-val"></div>
-                                    <div class="mock-metric-lbl"></div>
-                                </div>
-                                <div class="mock-metric">
-                                    <div class="mock-metric-val"></div>
-                                    <div class="mock-metric-lbl"></div>
-                                </div>
-                                <div class="mock-metric">
-                                    <div class="mock-metric-val"></div>
-                                    <div class="mock-metric-lbl"></div>
-                                </div>
+                                <div class="mock-metric"><div class="mock-metric-val"></div><div class="mock-metric-lbl"></div></div>
+                                <div class="mock-metric"><div class="mock-metric-val"></div><div class="mock-metric-lbl"></div></div>
+                                <div class="mock-metric"><div class="mock-metric-val"></div><div class="mock-metric-lbl"></div></div>
                             </div>
                             <div class="mock-bars">
-                                <div class="mock-bar" style="height: 42%"></div>
-                                <div class="mock-bar" style="height: 66%"></div>
-                                <div class="mock-bar" style="height: 54%"></div>
-                                <div class="mock-bar" style="height: 82%"></div>
-                                <div class="mock-bar" style="height: 71%"></div>
-                                <div class="mock-bar" style="height: 92%"></div>
-                                <div class="mock-bar" style="height: 78%"></div>
+                                <div class="mock-bar" style="height:42%"></div>
+                                <div class="mock-bar" style="height:66%"></div>
+                                <div class="mock-bar" style="height:54%"></div>
+                                <div class="mock-bar" style="height:82%"></div>
+                                <div class="mock-bar" style="height:71%"></div>
+                                <div class="mock-bar" style="height:92%"></div>
+                                <div class="mock-bar" style="height:78%"></div>
                             </div>
                         </div>
-
-                        <!-- Patient list card -->
                         <div class="mock-card mock-patients">
                             <div class="mock-patient-row">
                                 <div class="mock-p-avatar"></div>
                                 <div class="mock-p-info">
                                     <div class="mock-p-line" style="width:70%"></div>
-                                    <div class="mock-p-line" style="width:48%; opacity:0.5"></div>
+                                    <div class="mock-p-line" style="width:48%;opacity:0.5"></div>
                                 </div>
                                 <span class="mock-status mock-status-green">Stable</span>
                             </div>
@@ -1539,7 +1222,7 @@
                                 <div class="mock-p-avatar"></div>
                                 <div class="mock-p-info">
                                     <div class="mock-p-line" style="width:82%"></div>
-                                    <div class="mock-p-line" style="width:55%; opacity:0.5"></div>
+                                    <div class="mock-p-line" style="width:55%;opacity:0.5"></div>
                                 </div>
                                 <span class="mock-status mock-status-amber">Review</span>
                             </div>
@@ -1547,13 +1230,11 @@
                                 <div class="mock-p-avatar"></div>
                                 <div class="mock-p-info">
                                     <div class="mock-p-line" style="width:62%"></div>
-                                    <div class="mock-p-line" style="width:44%; opacity:0.5"></div>
+                                    <div class="mock-p-line" style="width:44%;opacity:0.5"></div>
                                 </div>
                                 <span class="mock-status mock-status-red">Alert</span>
                             </div>
                         </div>
-
-                        <!-- Floating risk card -->
                         <div class="mock-card mock-floating">
                             <div class="mock-float-title"></div>
                             <div class="mock-risk-row">
@@ -1569,8 +1250,8 @@
                                 <div class="mock-risk-line" style="width:28%"></div>
                             </div>
                         </div>
-
                     </div>
+
                 </div>
             </div>
         </section>
@@ -1580,49 +1261,156 @@
             <div class="section-inner">
                 <div class="test-header fade-in">
                     <div class="section-tag" aria-hidden="true">Voices from the Platform</div>
-                    <h2 class="section-title" id="testimonials-heading">
-                        Trusted by Clinicians &amp; Patients
-                    </h2>
-                    <p class="section-subtitle">
-                        Real experiences from the people Healing Space UK is built to serve.
-                    </p>
+                    <h2 class="section-title" id="testimonials-heading">Trusted by Clinicians &amp; Patients</h2>
+                    <p class="section-subtitle">Real experiences from the people Healing Space UK is built to serve.</p>
                 </div>
 
                 <div class="testimonials-grid">
 
                     <div class="testimonial-card fade-in">
                         <span class="quote-mark" aria-hidden="true">&ldquo;</span>
-                        <p class="testimonial-text">
-                            Healing Space has transformed how I manage my caseload.
-                            Everything I need is in one place.
-                        </p>
-                        <div class="testimonial-author">— Sarah K., Clinical Psychologist</div>
-                        <div class="testimonial-note">
-                            *Illustrative quote — representative of clinician feedback
-                        </div>
+                        <p class="testimonial-text">Healing Space has transformed how I manage my caseload. Everything I need is in one place — patient progress, risk levels, and session prep, all without switching systems.</p>
+                        <div class="testimonial-author">— Sarah K.</div>
+                        <div class="testimonial-role">Clinical Psychologist</div>
+                        <div class="testimonial-note">*Illustrative quote — representative of clinician feedback</div>
+                    </div>
+
+                    <div class="testimonial-card fade-in fade-in-delay-1">
+                        <span class="quote-mark" aria-hidden="true">&ldquo;</span>
+                        <p class="testimonial-text">I finally feel like someone is with me between sessions. The AI tools are genuinely helpful, and knowing my clinician can see everything gives me real confidence.</p>
+                        <div class="testimonial-author">— Anonymous</div>
+                        <div class="testimonial-role">Patient</div>
+                        <div class="testimonial-note">*Illustrative quote — representative of patient feedback</div>
                     </div>
 
                     <div class="testimonial-card fade-in fade-in-delay-2">
                         <span class="quote-mark" aria-hidden="true">&ldquo;</span>
-                        <p class="testimonial-text">
-                            I finally feel like someone is with me between sessions.
-                            The AI tools are genuinely helpful.
-                        </p>
-                        <div class="testimonial-author">— Anonymous Patient</div>
-                        <div class="testimonial-note">
-                            *Illustrative quote — representative of patient feedback
-                        </div>
+                        <p class="testimonial-text">The risk monitoring and progress tracking give me genuine confidence in my patients' safety between sessions. It's the oversight tool I didn't know I needed.</p>
+                        <div class="testimonial-author">— Dr. James T.</div>
+                        <div class="testimonial-role">CBT Therapist</div>
+                        <div class="testimonial-note">*Illustrative quote — representative of clinician feedback</div>
+                    </div>
+
+                    <div class="testimonial-card fade-in fade-in-delay-3">
+                        <span class="quote-mark" aria-hidden="true">&ldquo;</span>
+                        <p class="testimonial-text">The CBT workbooks are clinical-grade tools that my patients actually complete. I've tried other apps — none come close to the depth and structure here.</p>
+                        <div class="testimonial-author">— Marcus D.</div>
+                        <div class="testimonial-role">Patient</div>
+                        <div class="testimonial-note">*Illustrative quote — representative of patient feedback</div>
                     </div>
 
                     <div class="testimonial-card fade-in fade-in-delay-4">
                         <span class="quote-mark" aria-hidden="true">&ldquo;</span>
-                        <p class="testimonial-text">
-                            The risk monitoring and progress tracking give me confidence
-                            in my patients' safety.
-                        </p>
-                        <div class="testimonial-author">— Dr. James T., CBT Therapist</div>
-                        <div class="testimonial-note">
-                            *Illustrative quote — representative of clinician feedback
+                        <p class="testimonial-text">Having mood trends and homework completion in one view saves me at least an hour of session prep every week. My patients feel more prepared too.</p>
+                        <div class="testimonial-author">— Dr. Priya S.</div>
+                        <div class="testimonial-role">CBT Therapist</div>
+                        <div class="testimonial-note">*Illustrative quote — representative of clinician feedback</div>
+                    </div>
+
+                    <div class="testimonial-card fade-in fade-in-delay-5">
+                        <span class="quote-mark" aria-hidden="true">&ldquo;</span>
+                        <p class="testimonial-text">The secure messaging means my patients feel supported between appointments. The high-risk alerts give me genuine peace of mind. It's changed how I practise.</p>
+                        <div class="testimonial-author">— Helen M.</div>
+                        <div class="testimonial-role">Clinical Psychologist</div>
+                        <div class="testimonial-note">*Illustrative quote — representative of clinician feedback</div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== FAQ ==================== -->
+        <section class="faq" id="faq" aria-labelledby="faq-heading">
+            <div class="section-inner">
+                <div class="faq-header fade-in">
+                    <div class="section-tag" aria-hidden="true">Common Questions</div>
+                    <h2 class="section-title" id="faq-heading">Frequently Asked Questions</h2>
+                    <p class="section-subtitle">Everything you need to know before getting started.</p>
+                </div>
+
+                <div class="faq-list fade-in fade-in-delay-1">
+
+                    <div class="faq-item">
+                        <button class="faq-btn" aria-expanded="false">
+                            Who can access Healing Space UK?
+                            <span class="faq-chevron" aria-hidden="true">+</span>
+                        </button>
+                        <div class="faq-answer" role="region">
+                            <div class="faq-answer-inner">
+                                Healing Space UK is available to adults (18+) in the UK who are under the care of a registered clinician — including GPs, psychiatrists, clinical psychologists, and CBT therapists. Access is via clinical referral only. It is not a crisis or emergency service. If you are in crisis, please contact NHS 111 or the Samaritans on 116 123.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-btn" aria-expanded="false">
+                            Is the platform free for patients?
+                            <span class="faq-chevron" aria-hidden="true">+</span>
+                        </button>
+                        <div class="faq-answer" role="region">
+                            <div class="faq-answer-inner">
+                                Access pricing is determined by your referring clinician or practice. Some NHS-adjacent partnerships may offer subsidised or fully funded access. Contact your clinical team or reach out to us directly to learn more about pricing and access options for your organisation.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-btn" aria-expanded="false">
+                            How is my personal data protected?
+                            <span class="faq-chevron" aria-hidden="true">+</span>
+                        </button>
+                        <div class="faq-answer" role="region">
+                            <div class="faq-answer-inner">
+                                All data is encrypted in transit using TLS 1.3 and at rest using AES-256. We are fully compliant with UK GDPR and the Data Protection Act 2018. We never sell your data to third parties, and we support full Data Subject Access Requests (DSARs) and the right to erasure at any time.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-btn" aria-expanded="false">
+                            Can I self-refer without a clinician?
+                            <span class="faq-chevron" aria-hidden="true">+</span>
+                        </button>
+                        <div class="faq-answer" role="region">
+                            <div class="faq-answer-inner">
+                                Currently, access requires a clinical referral. This ensures you receive the safest and most effective care — our AI tools are designed to complement clinical oversight, not replace it. We are exploring self-referral pathways and will update this page when available.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-btn" aria-expanded="false">
+                            What devices and browsers are supported?
+                            <span class="faq-chevron" aria-hidden="true">+</span>
+                        </button>
+                        <div class="faq-answer" role="region">
+                            <div class="faq-answer-inner">
+                                The platform works on any modern browser — Chrome, Firefox, Safari, or Edge — on desktop, tablet, or mobile phone. No app download is required. The interface is fully responsive and meets WCAG 2.1 AA accessibility standards.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-btn" aria-expanded="false">
+                            How does the AI companion work safely?
+                            <span class="faq-chevron" aria-hidden="true">+</span>
+                        </button>
+                        <div class="faq-answer" role="region">
+                            <div class="faq-answer-inner">
+                                The AI companion is grounded in clinically-validated CBT and ACT frameworks, and all conversations are stored and reviewable by your assigned clinician. It cannot prescribe medication, make diagnoses, or replace therapeutic care. It is a supportive tool designed for use between sessions, always under clinical supervision.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-btn" aria-expanded="false">
+                            I'm a clinician — how do I refer a patient?
+                            <span class="faq-chevron" aria-hidden="true">+</span>
+                        </button>
+                        <div class="faq-answer" role="region">
+                            <div class="faq-answer-inner">
+                                Clinicians can request practice access by contacting us via email at <strong>r.martin@healing-space.org.uk</strong>. Once your practice is onboarded, you can issue secure registration links to patients directly from your clinician dashboard. Setup for your practice typically takes less than 24 hours.
+                            </div>
                         </div>
                     </div>
 
@@ -1633,24 +1421,39 @@
         <!-- ==================== CONTACT ==================== -->
         <section class="contact" id="contact" aria-labelledby="contact-heading">
             <div class="section-inner">
-
                 <div class="contact-header fade-in">
                     <div class="section-tag" aria-hidden="true">Get in Touch</div>
                     <h2 class="section-title" id="contact-heading">Ready to Begin?</h2>
-                    <p class="section-subtitle">
-                        Healing Space UK is currently available by referral. Contact us
-                        to learn more or request access for your practice.
-                    </p>
+                    <p class="section-subtitle">Healing Space UK is currently available by referral. Log in to your account, register as a patient, or send us an enquiry below.</p>
                 </div>
 
+                <!-- Quick access CTAs -->
+                <div class="contact-quick fade-in">
+                    <a href="/login" class="contact-cta-btn contact-cta-btn-primary" aria-label="Log in to your account">
+                        <span aria-hidden="true">🔑</span> Login to Your Account
+                    </a>
+                    <a href="/login" class="contact-cta-btn contact-cta-btn-secondary" aria-label="Register as a new patient">
+                        <span aria-hidden="true">👤</span> Register as a Patient
+                    </a>
+                    <a href="/login" class="contact-cta-btn contact-cta-btn-secondary" aria-label="Register as a clinician">
+                        <span aria-hidden="true">👨‍⚕️</span> Clinician Registration
+                    </a>
+                </div>
+
+                <div class="contact-divider fade-in">
+                    <div class="contact-divider-line"></div>
+                    <div class="contact-divider-text">or send us an enquiry</div>
+                    <div class="contact-divider-line"></div>
+                </div>
+
+                <!-- Contact info cards -->
                 <div class="contact-cards fade-in">
                     <div class="contact-card">
                         <div class="contact-card-icon" aria-hidden="true">📧</div>
                         <div class="contact-card-title">Email</div>
                         <div class="contact-card-value">
-                            <a href="mailto:hello@healing-space.org.uk"
-                               aria-label="Email us at hello@healing-space.org.uk">
-                                hello@healing-space.org.uk
+                            <a href="mailto:r.martin@healing-space.org.uk" aria-label="Email us at r.martin@healing-space.org.uk">
+                                r.martin@healing-space.org.uk
                             </a>
                         </div>
                     </div>
@@ -1662,108 +1465,65 @@
                     <div class="contact-card">
                         <div class="contact-card-icon" aria-hidden="true">🏢</div>
                         <div class="contact-card-title">Location</div>
-                        <div class="contact-card-value">United Kingdom</div>
+                        <div class="contact-card-value">Lincoln, United Kingdom</div>
                     </div>
                 </div>
 
+                <!-- Enquiry form -->
                 <div class="form-wrapper fade-in fade-in-delay-2">
                     <h3 class="form-title">Send an Enquiry</h3>
-
                     <form id="contactForm" novalidate aria-label="Contact enquiry form">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="fieldName">
-                                    Your Name <span aria-hidden="true">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    id="fieldName"
-                                    name="name"
-                                    placeholder="Jane Smith"
-                                    required
-                                    autocomplete="name"
-                                    aria-required="true">
+                                <label for="fieldName">Your Name <span aria-hidden="true">*</span></label>
+                                <input type="text" id="fieldName" name="name" placeholder="Jane Smith" required autocomplete="name" aria-required="true">
                             </div>
                             <div class="form-group">
-                                <label for="fieldEmail">
-                                    Email Address <span aria-hidden="true">*</span>
-                                </label>
-                                <input
-                                    type="email"
-                                    id="fieldEmail"
-                                    name="email"
-                                    placeholder="jane@example.com"
-                                    required
-                                    autocomplete="email"
-                                    aria-required="true">
+                                <label for="fieldEmail">Email Address <span aria-hidden="true">*</span></label>
+                                <input type="email" id="fieldEmail" name="email" placeholder="jane@example.com" required autocomplete="email" aria-required="true">
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="fieldMessage">
-                                Message <span aria-hidden="true">*</span>
-                            </label>
-                            <textarea
-                                id="fieldMessage"
-                                name="message"
-                                placeholder="Tell us about your practice or how we can help…"
-                                required
-                                aria-required="true"></textarea>
+                            <label for="fieldMessage">Message <span aria-hidden="true">*</span></label>
+                            <textarea id="fieldMessage" name="message" placeholder="Tell us about your practice or how we can help…" required aria-required="true"></textarea>
                         </div>
-                        <button type="submit" class="btn-submit">
-                            Send Enquiry →
-                        </button>
+                        <button type="submit" class="btn-submit">Send Enquiry →</button>
                     </form>
-
-                    <div
-                        class="success-msg"
-                        id="successMsg"
-                        role="alert"
-                        aria-live="polite"
-                        aria-atomic="true">
+                    <div class="success-msg" id="successMsg" role="alert" aria-live="polite" aria-atomic="true">
                         <div class="success-icon" aria-hidden="true">✅</div>
                         <h3 class="success-title">Thank you for reaching out!</h3>
-                        <p class="success-text">
-                            We've received your enquiry and will be in touch within
-                            1–2 business days.
-                        </p>
+                        <p class="success-text">We've received your enquiry and will be in touch within 1–2 business days.</p>
                     </div>
                 </div>
 
             </div>
         </section>
 
-    </main><!-- /main -->
+    </main>
 
-    <!-- ============================================================
+    <!-- ================================================================
          FOOTER
-         ============================================================ -->
+         ================================================================ -->
     <footer class="footer" role="contentinfo">
         <div class="footer-inner">
-
             <div class="footer-grid">
-                <!-- Brand -->
                 <div>
                     <div class="footer-logo">
                         <span class="emoji" aria-hidden="true">🌿</span>
                         <span class="wordmark">Healing Space UK</span>
                     </div>
-                    <p class="footer-tagline">
-                        Empowering mental health recovery, one day at a time.
-                    </p>
+                    <p class="footer-tagline">Empowering mental health recovery, one day at a time.</p>
                 </div>
-
-                <!-- Platform links -->
                 <div>
                     <div class="footer-col-heading">Platform</div>
                     <ul class="footer-links-list" role="list">
                         <li><a href="#features">Features</a></li>
                         <li><a href="#how-it-works">How It Works</a></li>
                         <li><a href="#for-clinicians">For Clinicians</a></li>
+                        <li><a href="#faq">FAQ</a></li>
                         <li><a href="/login">Login</a></li>
                     </ul>
                 </div>
-
-                <!-- Legal links -->
                 <div>
                     <div class="footer-col-heading">Legal</div>
                     <ul class="footer-links-list" role="list">
@@ -1774,86 +1534,83 @@
                     </ul>
                 </div>
             </div>
-
             <div class="footer-bottom">
-                <div class="footer-copy">
-                    &copy; 2026 Healing Space UK. All rights reserved.
-                </div>
-                <a href="#" class="footer-back-top" aria-label="Back to top of page">
-                    Back to top ↑
-                </a>
+                <div class="footer-copy">&copy; 2026 Healing Space UK. All rights reserved.</div>
+                <a href="#" class="footer-back-top" aria-label="Back to top of page">Back to top ↑</a>
             </div>
         </div>
-
-        <div class="footer-strip">
-            Built with care in the United Kingdom 🇬🇧
-        </div>
+        <div class="footer-strip">Built with care in the United Kingdom 🇬🇧</div>
     </footer>
 
-    <!-- ============================================================
-         JAVASCRIPT — vanilla only, no frameworks
-         ============================================================ -->
+    <!-- ================================================================
+         STICKY CTA BAR
+         ================================================================ -->
+    <div class="sticky-cta" id="stickyCta" role="complementary" aria-label="Quick access bar">
+        <div class="sticky-cta-left">
+            <span class="sticky-cta-emoji" aria-hidden="true">🌿</span>
+            <div class="sticky-cta-text">
+                <strong>Healing Space UK</strong>
+                <span> — clinician-led mental health support, available now.</span>
+            </div>
+        </div>
+        <div class="sticky-cta-actions">
+            <a href="#contact" class="sticky-btn-white">Get Started</a>
+            <a href="/login" class="sticky-btn-ghost">Login</a>
+            <button class="sticky-close" id="stickyClose" aria-label="Dismiss this bar">×</button>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         JAVASCRIPT — vanilla only
+         ================================================================ -->
     <script>
-        /* ================================================================
-           THEME — runs immediately (before DOMContentLoaded) to avoid FOUC
-           ================================================================ */
+        /* ---- Theme: apply before paint to avoid FOUC ---- */
         (function () {
             var saved = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', saved);
-            // Icon is updated after DOM is ready (below)
         }());
 
-        /* ================================================================
-           DOM READY
-           ================================================================ */
         document.addEventListener('DOMContentLoaded', function () {
 
-            var html         = document.documentElement;
-            var nav          = document.getElementById('mainNav');
-            var hamburger    = document.getElementById('hamburger');
-            var mobileMenu   = document.getElementById('mobileMenu');
-            var themeToggle  = document.getElementById('themeToggle');
-            var themeIcon    = document.getElementById('themeIcon');
-            var contactForm  = document.getElementById('contactForm');
-            var successMsg   = document.getElementById('successMsg');
+            var html        = document.documentElement;
+            var nav         = document.getElementById('mainNav');
+            var hamburger   = document.getElementById('hamburger');
+            var mobileMenu  = document.getElementById('mobileMenu');
+            var themeToggle = document.getElementById('themeToggle');
+            var themeIcon   = document.getElementById('themeIcon');
+            var stickyCta   = document.getElementById('stickyCta');
+            var stickyClose = document.getElementById('stickyClose');
+            var contactForm = document.getElementById('contactForm');
+            var successMsg  = document.getElementById('successMsg');
 
-            /* ---- Initial theme icon ---- */
+            /* ---- Theme icon sync ---- */
             function syncThemeIcon() {
                 var dark = html.getAttribute('data-theme') === 'dark';
                 themeIcon.textContent = dark ? '☀️' : '🌙';
-                themeToggle.setAttribute('aria-label',
-                    dark ? 'Switch to light mode' : 'Switch to dark mode');
+                themeToggle.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
             }
             syncThemeIcon();
 
-            /* ---- Theme toggle ---- */
             themeToggle.addEventListener('click', function () {
-                var current = html.getAttribute('data-theme');
-                var next    = current === 'dark' ? 'light' : 'dark';
+                var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
                 html.setAttribute('data-theme', next);
                 localStorage.setItem('theme', next);
                 syncThemeIcon();
             });
 
-            /* ---- Navbar scroll effect ---- */
+            /* ---- Navbar scroll ---- */
             function onScroll() {
-                if (window.scrollY > 24) {
-                    nav.classList.add('scrolled');
-                } else {
-                    nav.classList.remove('scrolled');
-                }
+                nav.classList.toggle('scrolled', window.scrollY > 24);
             }
             window.addEventListener('scroll', onScroll, { passive: true });
-            onScroll(); // run once on load
+            onScroll();
 
-            /* ---- Hamburger / mobile menu ---- */
+            /* ---- Hamburger ---- */
             hamburger.addEventListener('click', function () {
                 var open = mobileMenu.classList.toggle('open');
                 hamburger.classList.toggle('open', open);
                 hamburger.setAttribute('aria-expanded', open ? 'true' : 'false');
             });
-
-            // Close mobile menu when any link is clicked
             mobileMenu.querySelectorAll('a').forEach(function (link) {
                 link.addEventListener('click', function () {
                     mobileMenu.classList.remove('open');
@@ -1861,8 +1618,6 @@
                     hamburger.setAttribute('aria-expanded', 'false');
                 });
             });
-
-            // Close mobile menu on Escape key
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape' && mobileMenu.classList.contains('open')) {
                     mobileMenu.classList.remove('open');
@@ -1872,27 +1627,122 @@
                 }
             });
 
-            /* ---- IntersectionObserver — scroll fade-in ---- */
+            /* ---- Intersection Observer (fade-in) ---- */
             var observer = new IntersectionObserver(function (entries) {
                 entries.forEach(function (entry) {
                     if (entry.isIntersecting) {
                         entry.target.classList.add('visible');
-                        observer.unobserve(entry.target); // fire once
+                        observer.unobserve(entry.target);
                     }
                 });
             }, { threshold: 0.10, rootMargin: '0px 0px -48px 0px' });
+            document.querySelectorAll('.fade-in').forEach(function (el) { observer.observe(el); });
 
-            document.querySelectorAll('.fade-in').forEach(function (el) {
-                observer.observe(el);
+            /* ================================================================
+               FEATURE CARD EXPAND / COLLAPSE
+               ================================================================ */
+            document.querySelectorAll('.feature-more-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var card   = this.closest('.feature-card');
+                    var expand = card.querySelector('.feature-expand');
+                    var isOpen = card.classList.contains('expanded');
+
+                    card.classList.toggle('expanded', !isOpen);
+                    expand.style.maxHeight = isOpen ? null : expand.scrollHeight + 'px';
+                    this.querySelector('.more-arrow').textContent  = isOpen ? '▾' : '▴';
+                    this.querySelector('.more-text').textContent   = isOpen ? 'Learn more' : 'Show less';
+                    this.setAttribute('aria-expanded', (!isOpen).toString());
+                });
             });
 
-            /* ---- Contact form — frontend only ---- */
+            /* ================================================================
+               HOW IT WORKS — STEP EXPAND / COLLAPSE
+               ================================================================ */
+            document.querySelectorAll('.step-toggle').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var step   = this.closest('.step');
+                    var expand = step.querySelector('.step-expand');
+                    var isOpen = step.classList.contains('expanded');
+
+                    step.classList.toggle('expanded', !isOpen);
+                    expand.style.maxHeight = isOpen ? null : expand.scrollHeight + 'px';
+                    this.querySelector('.step-toggle-arrow').textContent = isOpen ? '▾' : '▴';
+                    this.setAttribute('aria-expanded', (!isOpen).toString());
+                });
+            });
+
+            /* ================================================================
+               CLINICIAN ACCORDION
+               ================================================================ */
+            document.querySelectorAll('.clin-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var item   = this.closest('.clin-item');
+                    var detail = item.querySelector('.clin-detail');
+                    var isOpen = item.classList.contains('open');
+
+                    /* Close all others */
+                    document.querySelectorAll('.clin-item.open').forEach(function (openItem) {
+                        openItem.classList.remove('open');
+                        openItem.querySelector('.clin-detail').style.maxHeight = null;
+                        openItem.querySelector('.clin-btn').setAttribute('aria-expanded', 'false');
+                    });
+
+                    /* Toggle current */
+                    if (!isOpen) {
+                        item.classList.add('open');
+                        detail.style.maxHeight = detail.scrollHeight + 'px';
+                        this.setAttribute('aria-expanded', 'true');
+                    }
+                });
+            });
+
+            /* ================================================================
+               FAQ ACCORDION
+               ================================================================ */
+            document.querySelectorAll('.faq-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var item   = this.closest('.faq-item');
+                    var answer = item.querySelector('.faq-answer');
+                    var isOpen = item.classList.contains('open');
+
+                    /* Close all others */
+                    document.querySelectorAll('.faq-item.open').forEach(function (openItem) {
+                        openItem.classList.remove('open');
+                        openItem.querySelector('.faq-answer').style.maxHeight = null;
+                        openItem.querySelector('.faq-btn').setAttribute('aria-expanded', 'false');
+                    });
+
+                    /* Toggle current */
+                    if (!isOpen) {
+                        item.classList.add('open');
+                        answer.style.maxHeight = answer.scrollHeight + 'px';
+                        this.setAttribute('aria-expanded', 'true');
+                    }
+                });
+            });
+
+            /* ================================================================
+               STICKY CTA BAR
+               ================================================================ */
+            var stickyClosed = sessionStorage.getItem('stickyClosed');
+            if (!stickyClosed) {
+                window.addEventListener('scroll', function () {
+                    stickyCta.classList.toggle('visible', window.scrollY > window.innerHeight * 0.85);
+                }, { passive: true });
+            }
+            stickyClose.addEventListener('click', function () {
+                stickyCta.classList.remove('visible');
+                sessionStorage.setItem('stickyClosed', '1');
+            });
+
+            /* ================================================================
+               CONTACT FORM
+               ================================================================ */
             var fieldName    = document.getElementById('fieldName');
             var fieldEmail   = document.getElementById('fieldEmail');
             var fieldMessage = document.getElementById('fieldMessage');
             var fields       = [fieldName, fieldEmail, fieldMessage];
 
-            // Clear error state on input
             fields.forEach(function (field) {
                 field.addEventListener('input', function () {
                     field.classList.remove('field-error');
@@ -1902,8 +1752,8 @@
 
             contactForm.addEventListener('submit', function (e) {
                 e.preventDefault();
-
                 var valid = true;
+
                 fields.forEach(function (field) {
                     if (!field.value.trim()) {
                         field.classList.add('field-error');
@@ -1912,7 +1762,6 @@
                     }
                 });
 
-                // Basic email format check
                 if (fieldEmail.value.trim() && !/\S+@\S+\.\S+/.test(fieldEmail.value)) {
                     fieldEmail.classList.add('field-error');
                     fieldEmail.setAttribute('aria-invalid', 'true');
@@ -1920,19 +1769,17 @@
                 }
 
                 if (!valid) {
-                    // Focus first invalid field
-                    var firstInvalid = contactForm.querySelector('[aria-invalid="true"]');
-                    if (firstInvalid) firstInvalid.focus();
+                    var first = contactForm.querySelector('[aria-invalid="true"]');
+                    if (first) first.focus();
                     return;
                 }
 
-                // Swap form for success message
                 contactForm.style.display = 'none';
                 successMsg.classList.add('visible');
                 successMsg.focus();
             });
 
-        }); // end DOMContentLoaded
+        }); /* end DOMContentLoaded */
     </script>
 </body>
 </html>
