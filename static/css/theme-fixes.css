@@ -431,3 +431,68 @@ p, span, div, label {
     background: var(--primary-color, #667eea) !important;
     color: #ffffff !important;
 }
+
+/* ============================================
+   NOTIFICATIONS - DARK MODE FIXES
+   ============================================ */
+
+[data-theme="dark"] .notification-panel {
+    background: var(--bg-card, #2d3748) !important;
+    border-color: var(--border-color, #4a5568) !important;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important;
+}
+
+[data-theme="dark"] .notification-item {
+    border-bottom-color: var(--border-color, #4a5568) !important;
+    color: var(--text-primary, #f7fafc) !important;
+}
+
+[data-theme="dark"] .notification-item:hover {
+    background: var(--bg-hover, #3a4a5c) !important;
+}
+
+[data-theme="dark"] .notification-item.unread {
+    background: rgba(102, 126, 234, 0.15) !important;
+    border-left: 3px solid var(--accent-primary, #667eea) !important;
+}
+
+[data-theme="dark"] .notification-item strong {
+    color: var(--accent-primary, #667eea) !important;
+}
+
+[data-theme="dark"] .notification-item p {
+    color: var(--text-primary, #f7fafc) !important;
+}
+
+[data-theme="dark"] .notification-item small {
+    color: var(--text-muted, #718096) !important;
+}
+
+[data-theme="dark"] .notification-body {
+    background: var(--bg-card, #2d3748) !important;
+}
+
+/* ============================================
+   TERMINAL & CONSOLE - ALWAYS DARK WITH LIGHT TEXT
+   ============================================ */
+
+/* Terminal and QA console must always appear as dark terminals
+   regardless of the current light/dark theme. Exclude them from
+   the global color override so their inline green text is visible. */
+#terminalOutput,
+#terminalOutput *,
+#qaTestOutput,
+#qaTestOutput * {
+    color: unset !important;
+}
+
+/* Ensure the terminal containers themselves keep their dark backgrounds */
+#terminalOutput {
+    background: #1e1e1e !important;
+    color: #00ff00 !important;
+}
+
+#qaTestOutput {
+    background: #1e1e1e !important;
+    color: #00ff00 !important;
+}
