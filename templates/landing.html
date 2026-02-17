@@ -872,10 +872,72 @@
         .pricing-note a { color:var(--brand-primary); text-decoration:none; }
         .pricing-note a:hover { text-decoration:underline; }
 
+        /* Patient banner */
+        .patient-banner {
+            display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
+            background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(16,185,129,0.08));
+            border:1px solid rgba(34,197,94,0.22); border-radius:14px;
+            padding:16px 28px; margin-bottom:40px; text-align:center;
+        }
+        .patient-banner-icon { font-size:1.25rem; flex-shrink:0; }
+        .patient-banner-text { font-size:0.9375rem; color:var(--text-secondary); }
+        .patient-banner-text strong { color:#16a34a; font-weight:700; }
+        [data-theme="dark"] .patient-banner-text strong { color:#4ade80; }
+
+        /* Tab toggle */
+        .pricing-tabs {
+            display:flex; justify-content:center; margin-bottom:52px; gap:0;
+            background:var(--bg-elevated); border:1px solid var(--border-subtle);
+            border-radius:100px; padding:4px; width:fit-content; margin-left:auto; margin-right:auto;
+        }
+        .pricing-tab-btn {
+            padding:11px 32px; border-radius:100px; font-size:0.9375rem; font-weight:700;
+            border:none; cursor:pointer; font-family:inherit;
+            transition:all 0.25s ease; color:var(--text-muted); background:transparent;
+        }
+        .pricing-tab-btn.active {
+            background:var(--brand-gradient); color:#fff;
+            box-shadow:0 4px 18px rgba(102,126,234,0.35);
+        }
+        .pricing-tab-btn:not(.active):hover { color:var(--text-primary); }
+
+        .pricing-panel[hidden] { display:none; }
+
+        /* Annual toggle */
+        .billing-toggle {
+            display:flex; align-items:center; justify-content:center; gap:12px;
+            margin-bottom:44px;
+        }
+        .billing-label {
+            font-size:0.9rem; font-weight:600; color:var(--text-muted);
+            transition:color 0.2s;
+        }
+        .billing-label.active { color:var(--text-primary); }
+        .billing-switch {
+            width:44px; height:24px; background:var(--border-subtle);
+            border-radius:100px; border:none; cursor:pointer; position:relative;
+            transition:background 0.25s ease; flex-shrink:0;
+        }
+        .billing-switch.on { background:var(--brand-gradient); }
+        .billing-switch::after {
+            content:''; position:absolute;
+            top:3px; left:3px;
+            width:18px; height:18px; border-radius:50%; background:#fff;
+            transition:transform 0.25s ease;
+            box-shadow:0 1px 4px rgba(0,0,0,0.20);
+        }
+        .billing-switch.on::after { transform:translateX(20px); }
+        .billing-save-badge {
+            background:#f59e0b; color:#fff;
+            padding:2px 10px; border-radius:100px;
+            font-size:0.6875rem; font-weight:800; letter-spacing:0.05em;
+        }
+
         @media (max-width:900px) {
             .pricing-grid { grid-template-columns:1fr; gap:20px; }
             .pricing-card.featured { transform:scale(1); }
             .pricing-card.featured:hover { transform:translateY(-6px); }
+            .pricing-tab-btn { padding:10px 20px; font-size:0.875rem; }
         }
 
         /* ============================================================
@@ -1769,95 +1831,212 @@
 
                 <div class="pricing-header fade-in">
                     <div class="section-tag" aria-hidden="true">Transparent Pricing</div>
-                    <h2 class="section-title" id="pricing-heading">Simple, Honest Plans</h2>
-                    <p class="section-subtitle">Whether you're a patient, a solo clinician, or running a whole practice — there's a plan built for you. No hidden fees.</p>
+                    <h2 class="section-title" id="pricing-heading">Plans Built for Clinical Practice</h2>
+                    <p class="section-subtitle">Honest, tiered pricing for solo clinicians and whole practices. No hidden fees. Patient access always included.</p>
                 </div>
 
-                <div class="pricing-grid">
-
-                    <!-- Patient -->
-                    <div class="pricing-card fade-in">
-                        <div class="pricing-plan-label">For Patients</div>
-                        <div class="pricing-name">Patient Access</div>
-                        <div class="pricing-desc">Included with your clinician's subscription — no charge to you.</div>
-                        <div class="pricing-price-row">
-                            <div class="price-currency">£</div>
-                            <div class="price-amount">0</div>
-                            <div class="price-period-block">
-                                <div class="price-period">/ month</div>
-                                <div class="price-vat">via referral</div>
-                            </div>
-                        </div>
-                        <div class="pricing-divider"></div>
-                        <ul class="pricing-features" aria-label="Patient plan features">
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Full AI companion access (24/7)</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> CBT workbooks &amp; journaling tools</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Daily mood tracking &amp; trend graphs</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Secure messaging with your clinician</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Goal setting &amp; milestone tracking</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Requires a clinical referral to register</li>
-                        </ul>
-                        <a href="/login" class="pricing-cta pricing-cta-gradient" aria-label="Register as a patient">Register as Patient →</a>
+                <!-- Patient access banner -->
+                <div class="patient-banner fade-in">
+                    <div class="patient-banner-icon" aria-hidden="true">💚</div>
+                    <div class="patient-banner-text">
+                        <strong>Patient access is always £0</strong> — included in every clinician plan, no separate subscription required. Patients register free via clinical referral.
                     </div>
+                </div>
 
-                    <!-- Solo Clinician — FEATURED -->
-                    <div class="pricing-card featured fade-in fade-in-delay-2">
-                        <div class="pricing-badge" aria-label="Most popular plan">⭐ Most Popular</div>
-                        <div class="pricing-plan-label">For Solo Clinicians</div>
-                        <div class="pricing-name">Clinician Pro</div>
-                        <div class="pricing-desc">Everything you need to run a modern digital caseload.</div>
-                        <div class="pricing-price-row">
-                            <div class="price-currency">£</div>
-                            <div class="price-amount">49</div>
-                            <div class="price-period-block">
-                                <div class="price-period">/ month</div>
-                                <div class="price-vat">+ VAT</div>
+                <!-- Annual billing toggle -->
+                <div class="billing-toggle fade-in" role="group" aria-label="Billing period">
+                    <span class="billing-label active" id="monthlyLabel">Monthly</span>
+                    <button class="billing-switch" id="billingSwitch" aria-pressed="false" aria-label="Toggle annual billing">
+                    </button>
+                    <span class="billing-label" id="annualLabel">
+                        Annual &nbsp;<span class="billing-save-badge">Save 2 months</span>
+                    </span>
+                </div>
+
+                <!-- Tab toggle: Clinicians / Practices -->
+                <div class="pricing-tabs fade-in" role="tablist" aria-label="Pricing plan type">
+                    <button class="pricing-tab-btn active" id="tabClinician" role="tab" aria-selected="true" aria-controls="panelClinician">
+                        For Clinicians
+                    </button>
+                    <button class="pricing-tab-btn" id="tabPractice" role="tab" aria-selected="false" aria-controls="panelPractice">
+                        For Practices
+                    </button>
+                </div>
+
+                <!-- ===== CLINICIAN PANEL ===== -->
+                <div class="pricing-panel" id="panelClinician" role="tabpanel" aria-labelledby="tabClinician">
+                    <div class="pricing-grid">
+
+                        <!-- Starter -->
+                        <div class="pricing-card fade-in">
+                            <div class="pricing-plan-label">Starter</div>
+                            <div class="pricing-name">Clinician Starter</div>
+                            <div class="pricing-desc">For clinicians beginning their digital-first practice.</div>
+                            <div class="pricing-price-row">
+                                <div class="price-currency">£</div>
+                                <div class="price-amount" data-monthly="89" data-annual="74">89</div>
+                                <div class="price-period-block">
+                                    <div class="price-period">/ month</div>
+                                    <div class="price-vat">+ VAT</div>
+                                </div>
                             </div>
+                            <div class="pricing-divider"></div>
+                            <ul class="pricing-features">
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Up to 10 active patients</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Patient caseload dashboard</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Mood &amp; wellness tracking</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Basic risk indicators</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Secure in-platform messaging</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> CBT homework assignment</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Email support (2 business days)</li>
+                            </ul>
+                            <a href="#contact" class="pricing-cta pricing-cta-gradient">Get Started →</a>
                         </div>
-                        <div class="pricing-divider"></div>
-                        <ul class="pricing-features" aria-label="Solo clinician plan features">
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Up to 25 active patients included</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Full patient caseload dashboard</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Real-time mood &amp; risk indicators</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> AI-generated session summaries</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> CBT homework assignment &amp; review</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> High-risk patient alerts</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Secure GDPR-compliant messaging</li>
-                        </ul>
-                        <a href="#contact" class="pricing-cta pricing-cta-gradient" aria-label="Get started with Clinician Pro">Get Started →</a>
-                    </div>
 
-                    <!-- Clinic / Practice -->
-                    <div class="pricing-card fade-in fade-in-delay-4">
-                        <div class="pricing-plan-label">For Clinics &amp; Practices</div>
-                        <div class="pricing-name">Practice Plan</div>
-                        <div class="pricing-desc">Multi-clinician teams with shared admin and unlimited patients.</div>
-                        <div class="pricing-price-row">
-                            <div class="price-currency">£</div>
-                            <div class="price-amount">129</div>
-                            <div class="price-period-block">
-                                <div class="price-period">/ month</div>
-                                <div class="price-vat">+ VAT</div>
+                        <!-- Professional — FEATURED -->
+                        <div class="pricing-card featured fade-in fade-in-delay-2">
+                            <div class="pricing-badge">⭐ Most Popular</div>
+                            <div class="pricing-plan-label">Professional</div>
+                            <div class="pricing-name">Clinician Pro</div>
+                            <div class="pricing-desc">The complete clinical toolkit for an active caseload.</div>
+                            <div class="pricing-price-row">
+                                <div class="price-currency">£</div>
+                                <div class="price-amount" data-monthly="169" data-annual="141">169</div>
+                                <div class="price-period-block">
+                                    <div class="price-period">/ month</div>
+                                    <div class="price-vat">+ VAT</div>
+                                </div>
                             </div>
+                            <div class="pricing-divider"></div>
+                            <ul class="pricing-features">
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Up to 30 active patients</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Everything in Starter</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> AI-generated session summaries</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Advanced real-time risk alerts</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Clinical assessment tools</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> PDF &amp; FHIR data export</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Clinician session notes</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Priority email support (1 business day)</li>
+                            </ul>
+                            <a href="#contact" class="pricing-cta pricing-cta-gradient">Get Started →</a>
                         </div>
-                        <div class="pricing-divider"></div>
-                        <ul class="pricing-features" aria-label="Practice plan features">
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Up to 5 clinicians included</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Unlimited patient accounts</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Everything in Clinician Pro</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Shared admin dashboard &amp; reporting</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Team performance analytics</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Dedicated onboarding support</li>
-                            <li><span class="pf-check" aria-hidden="true">✓</span> Priority email &amp; phone support</li>
-                        </ul>
-                        <a href="#contact" class="pricing-cta pricing-cta-gradient" aria-label="Get started with the Practice Plan">Contact Us →</a>
-                    </div>
 
+                        <!-- Elite -->
+                        <div class="pricing-card fade-in fade-in-delay-4">
+                            <div class="pricing-plan-label">Elite</div>
+                            <div class="pricing-name">Clinician Elite</div>
+                            <div class="pricing-desc">Unlimited capacity and priority access for busy clinicians.</div>
+                            <div class="pricing-price-row">
+                                <div class="price-currency">£</div>
+                                <div class="price-amount" data-monthly="269" data-annual="224">269</div>
+                                <div class="price-period-block">
+                                    <div class="price-period">/ month</div>
+                                    <div class="price-vat">+ VAT</div>
+                                </div>
+                            </div>
+                            <div class="pricing-divider"></div>
+                            <ul class="pricing-features">
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Unlimited active patients</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Everything in Professional</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> API access for integrations</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Dedicated onboarding call</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Priority phone &amp; email support (4hr)</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Early access to new features</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Custom clinical note templates</li>
+                            </ul>
+                            <a href="#contact" class="pricing-cta pricing-cta-gradient">Get Started →</a>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ===== PRACTICE PANEL ===== -->
+                <div class="pricing-panel" id="panelPractice" role="tabpanel" aria-labelledby="tabPractice" hidden>
+                    <div class="pricing-grid">
+
+                        <!-- Team -->
+                        <div class="pricing-card fade-in">
+                            <div class="pricing-plan-label">Team</div>
+                            <div class="pricing-name">Practice Team</div>
+                            <div class="pricing-desc">For small practices bringing their team onto the platform.</div>
+                            <div class="pricing-price-row">
+                                <div class="price-currency">£</div>
+                                <div class="price-amount" data-monthly="399" data-annual="332">399</div>
+                                <div class="price-period-block">
+                                    <div class="price-period">/ month</div>
+                                    <div class="price-vat">+ VAT</div>
+                                </div>
+                            </div>
+                            <div class="pricing-divider"></div>
+                            <ul class="pricing-features">
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Up to 4 clinicians</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Up to 80 active patients</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Everything in Clinician Elite</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Shared admin dashboard</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Practice-level reporting</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Dedicated onboarding session</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Priority email support</li>
+                            </ul>
+                            <a href="#contact" class="pricing-cta pricing-cta-gradient">Contact Us →</a>
+                        </div>
+
+                        <!-- Practice Pro — FEATURED -->
+                        <div class="pricing-card featured fade-in fade-in-delay-2">
+                            <div class="pricing-badge">⭐ Best Value</div>
+                            <div class="pricing-plan-label">Practice Pro</div>
+                            <div class="pricing-name">Practice Pro</div>
+                            <div class="pricing-desc">The full-featured platform for established multi-clinician practices.</div>
+                            <div class="pricing-price-row">
+                                <div class="price-currency">£</div>
+                                <div class="price-amount" data-monthly="749" data-annual="624">749</div>
+                                <div class="price-period-block">
+                                    <div class="price-period">/ month</div>
+                                    <div class="price-vat">+ VAT</div>
+                                </div>
+                            </div>
+                            <div class="pricing-divider"></div>
+                            <ul class="pricing-features">
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Up to 12 clinicians</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Unlimited patients</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Everything in Team</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Advanced team analytics</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Multi-admin access controls</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Custom branding</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> API access &amp; integrations</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Priority phone support (4hr)</li>
+                            </ul>
+                            <a href="#contact" class="pricing-cta pricing-cta-gradient">Contact Us →</a>
+                        </div>
+
+                        <!-- Enterprise -->
+                        <div class="pricing-card fade-in fade-in-delay-4">
+                            <div class="pricing-plan-label">Enterprise</div>
+                            <div class="pricing-name">Enterprise</div>
+                            <div class="pricing-desc">For NHS trusts, IAPT services, and large group practices.</div>
+                            <div class="pricing-price-row" style="margin-bottom:4px;">
+                                <div class="price-amount" style="font-size:2rem;letter-spacing:-0.02em;" data-monthly="Custom" data-annual="Custom">Custom</div>
+                            </div>
+                            <div class="pricing-desc" style="margin-bottom:0;">Pricing based on clinician count &amp; contract length.</div>
+                            <div class="pricing-divider"></div>
+                            <ul class="pricing-features">
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Unlimited clinicians &amp; patients</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Everything in Practice Pro</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> White-label option</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> NHS contract support</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Dedicated account manager</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> Custom SLA &amp; uptime guarantee</li>
+                                <li><span class="pf-check" aria-hidden="true">✓</span> On-site staff training</li>
+                            </ul>
+                            <a href="#contact" class="pricing-cta pricing-cta-gradient">Talk to Us →</a>
+                        </div>
+
+                    </div>
                 </div>
 
                 <p class="pricing-note fade-in">
-                    All prices exclude VAT. Patient access is included in all clinician plans — no separate patient charge.
-                    Need more than 5 clinicians? <a href="#contact">Contact us for Enterprise pricing</a> — custom plans available for NHS trusts and large group practices.
+                    All prices exclude VAT. Annual billing saves the equivalent of 2 months.
+                    Switching plans or cancelling is always straightforward — no lengthy contracts on monthly plans.
+                    <a href="#contact">Contact us</a> with any questions.
                 </p>
 
             </div>
@@ -2224,6 +2403,60 @@
                 successMsg.classList.add('visible');
                 successMsg.focus();
             });
+
+            /* ================================================================
+               PRICING — TAB TOGGLE (Clinicians / Practices)
+               ================================================================ */
+            var tabClinician  = document.getElementById('tabClinician');
+            var tabPractice   = document.getElementById('tabPractice');
+            var panelClinician = document.getElementById('panelClinician');
+            var panelPractice  = document.getElementById('panelPractice');
+
+            if (tabClinician && tabPractice) {
+                tabClinician.addEventListener('click', function () {
+                    tabClinician.classList.add('active');
+                    tabClinician.setAttribute('aria-selected', 'true');
+                    tabPractice.classList.remove('active');
+                    tabPractice.setAttribute('aria-selected', 'false');
+                    panelClinician.removeAttribute('hidden');
+                    panelPractice.setAttribute('hidden', '');
+                });
+
+                tabPractice.addEventListener('click', function () {
+                    tabPractice.classList.add('active');
+                    tabPractice.setAttribute('aria-selected', 'true');
+                    tabClinician.classList.remove('active');
+                    tabClinician.setAttribute('aria-selected', 'false');
+                    panelPractice.removeAttribute('hidden');
+                    panelClinician.setAttribute('hidden', '');
+                });
+            }
+
+            /* ================================================================
+               PRICING — ANNUAL BILLING TOGGLE
+               ================================================================ */
+            var billingSwitch  = document.getElementById('billingSwitch');
+            var monthlyLabel   = document.getElementById('monthlyLabel');
+            var annualLabel    = document.getElementById('annualLabel');
+            var isAnnual       = false;
+
+            if (billingSwitch) {
+                billingSwitch.addEventListener('click', function () {
+                    isAnnual = !isAnnual;
+                    billingSwitch.classList.toggle('on', isAnnual);
+                    billingSwitch.setAttribute('aria-pressed', isAnnual.toString());
+                    monthlyLabel.classList.toggle('active', !isAnnual);
+                    annualLabel.classList.toggle('active', isAnnual);
+
+                    /* Update all price amounts */
+                    document.querySelectorAll('.price-amount[data-monthly]').forEach(function (el) {
+                        var monthly = el.getAttribute('data-monthly');
+                        var annual  = el.getAttribute('data-annual');
+                        if (monthly === 'Custom') { return; }
+                        el.textContent = isAnnual ? annual : monthly;
+                    });
+                });
+            }
 
         }); /* end DOMContentLoaded */
     </script>
