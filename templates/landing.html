@@ -345,6 +345,91 @@
         .fade-in-delay-6 { transition-delay:0.60s; }
 
         /* ============================================================
+           AI INTELLIGENCE SECTION
+           ============================================================ */
+        .ai-section { background:var(--bg-surface); padding:104px 28px; }
+        .ai-header { text-align:center; margin-bottom:64px; }
+        .ai-header .section-subtitle { margin:0 auto; }
+
+        .ai-pillars {
+            display:grid; grid-template-columns:repeat(3,1fr); gap:28px; margin-bottom:56px;
+        }
+        .ai-pillar {
+            background:var(--bg-elevated); border:1px solid var(--border-subtle);
+            border-radius:22px; padding:36px 30px;
+            box-shadow:var(--shadow-sm);
+            transition:transform 0.3s ease, box-shadow 0.3s ease;
+            position:relative; overflow:hidden;
+        }
+        .ai-pillar::after {
+            content:'';
+            position:absolute; bottom:0; left:0; right:0; height:3px;
+            background:var(--brand-gradient); opacity:0;
+            transition:opacity 0.3s ease;
+        }
+        .ai-pillar:hover { transform:translateY(-6px); box-shadow:var(--card-hover-shadow); }
+        .ai-pillar:hover::after { opacity:1; }
+        .ai-pillar-icon {
+            width:64px; height:64px; border-radius:18px; margin-bottom:22px;
+            background:var(--brand-gradient);
+            display:flex; align-items:center; justify-content:center;
+            font-size:1.875rem;
+            box-shadow:0 6px 24px rgba(102,126,234,0.30);
+        }
+        .ai-pillar-title {
+            font-size:1.1875rem; font-weight:800; color:var(--text-primary);
+            letter-spacing:-0.02em; margin-bottom:12px;
+        }
+        .ai-pillar-desc {
+            font-size:0.9375rem; color:var(--text-secondary); line-height:1.72;
+        }
+
+        .ai-callout {
+            background:var(--brand-gradient);
+            border-radius:24px; padding:52px 56px;
+            display:grid; grid-template-columns:1fr auto;
+            gap:48px; align-items:center;
+            box-shadow:0 12px 48px rgba(102,126,234,0.30);
+        }
+        .ai-callout-quote {
+            font-size:1.25rem; color:rgba(255,255,255,0.95);
+            line-height:1.70; font-style:italic; font-weight:400;
+        }
+        .ai-callout-quote strong {
+            font-style:normal; font-weight:800; color:#fff;
+            display:block; font-size:1.375rem; margin-bottom:12px; letter-spacing:-0.02em;
+        }
+        .ai-callout-quote::before {
+            content:'\201C';
+            font-size:3rem; color:rgba(255,255,255,0.40);
+            line-height:0.8; display:block; margin-bottom:10px;
+            font-family:Georgia,serif; font-style:normal;
+        }
+        .ai-callout-cta {
+            display:flex; flex-direction:column; gap:12px;
+            align-items:center; flex-shrink:0;
+        }
+        .ai-callout-btn {
+            background:#fff; color:var(--brand-primary);
+            border:none; padding:14px 32px; border-radius:100px;
+            font-size:1rem; font-weight:800; cursor:pointer;
+            text-decoration:none; text-align:center; white-space:nowrap;
+            transition:all 0.25s ease;
+            box-shadow:0 4px 20px rgba(0,0,0,0.18);
+        }
+        .ai-callout-btn:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,0,0,0.28); background:#f0f0ff; }
+        .ai-callout-note {
+            font-size:0.8125rem; color:rgba(255,255,255,0.65);
+            text-align:center; font-weight:500;
+        }
+        @media (max-width:900px) {
+            .ai-pillars { grid-template-columns:1fr; }
+            .ai-callout { grid-template-columns:1fr; gap:28px; text-align:center; padding:36px 28px; }
+            .ai-callout-quote::before { display:none; }
+            .ai-callout-cta { flex-direction:row; flex-wrap:wrap; justify-content:center; }
+        }
+
+        /* ============================================================
            FEATURES
            ============================================================ */
         .features { background:var(--bg-page); }
@@ -685,6 +770,115 @@
         }
 
         /* ============================================================
+           PRICING
+           ============================================================ */
+        .pricing { background:var(--bg-surface); padding:104px 28px; }
+        .pricing-header { text-align:center; margin-bottom:68px; }
+        .pricing-header .section-subtitle { margin:0 auto; }
+
+        .pricing-grid {
+            display:grid; grid-template-columns:repeat(3,1fr);
+            gap:24px; align-items:start; margin-bottom:44px;
+        }
+        .pricing-card {
+            background:var(--bg-card); border:1px solid var(--border-subtle);
+            border-radius:24px; padding:38px 34px;
+            box-shadow:var(--shadow-sm); position:relative;
+            transition:transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .pricing-card:hover { transform:translateY(-6px); box-shadow:var(--shadow-lg); }
+        .pricing-card.featured {
+            background:var(--brand-gradient); border-color:transparent;
+            box-shadow:0 12px 48px rgba(102,126,234,0.38);
+            transform:scale(1.04);
+        }
+        .pricing-card.featured:hover { transform:scale(1.04) translateY(-6px); }
+
+        .pricing-badge {
+            position:absolute; top:-15px; left:50%; transform:translateX(-50%);
+            background:#f59e0b; color:#fff;
+            padding:5px 18px; border-radius:100px;
+            font-size:0.6875rem; font-weight:800;
+            letter-spacing:0.07em; text-transform:uppercase;
+            box-shadow:0 3px 12px rgba(245,158,11,0.45);
+            white-space:nowrap;
+        }
+        .pricing-plan-label {
+            font-size:0.75rem; font-weight:700; color:var(--brand-primary);
+            text-transform:uppercase; letter-spacing:0.09em; margin-bottom:8px;
+        }
+        .pricing-card.featured .pricing-plan-label { color:rgba(255,255,255,0.75); }
+        .pricing-name {
+            font-size:1.5rem; font-weight:800; color:var(--text-primary);
+            letter-spacing:-0.02em; margin-bottom:8px;
+        }
+        .pricing-card.featured .pricing-name { color:#fff; }
+        .pricing-desc {
+            font-size:0.9rem; color:var(--text-muted); margin-bottom:24px; line-height:1.55;
+        }
+        .pricing-card.featured .pricing-desc { color:rgba(255,255,255,0.65); }
+
+        .pricing-price-row { display:flex; align-items:flex-end; gap:4px; margin-bottom:4px; }
+        .price-currency { font-size:1.375rem; font-weight:700; color:var(--text-primary); padding-bottom:6px; }
+        .pricing-card.featured .price-currency { color:#fff; }
+        .price-amount { font-size:3.25rem; font-weight:900; color:var(--text-primary); line-height:1; letter-spacing:-0.04em; }
+        .pricing-card.featured .price-amount { color:#fff; }
+        .price-period-block { display:flex; flex-direction:column; padding-bottom:6px; gap:1px; }
+        .price-period { font-size:0.8125rem; color:var(--text-muted); font-weight:500; }
+        .pricing-card.featured .price-period { color:rgba(255,255,255,0.65); }
+        .price-vat { font-size:0.6875rem; color:var(--text-muted); }
+        .pricing-card.featured .price-vat { color:rgba(255,255,255,0.50); }
+
+        .pricing-divider {
+            height:1px; background:var(--border-subtle); margin:22px 0;
+        }
+        .pricing-card.featured .pricing-divider { background:rgba(255,255,255,0.22); }
+
+        .pricing-features {
+            list-style:none; display:flex; flex-direction:column; gap:11px; margin-bottom:32px;
+        }
+        .pricing-features li {
+            display:flex; align-items:flex-start; gap:10px;
+            font-size:0.9rem; color:var(--text-secondary); line-height:1.5;
+        }
+        .pricing-card.featured .pricing-features li { color:rgba(255,255,255,0.88); }
+        .pf-check { flex-shrink:0; color:#22c55e; font-size:0.9375rem; margin-top:1px; }
+        .pricing-card.featured .pf-check { color:#86efac; }
+
+        .pricing-cta {
+            display:block; text-align:center; padding:14px 20px;
+            border-radius:100px; font-size:0.9375rem; font-weight:700;
+            text-decoration:none; transition:all 0.25s ease; border:2px solid transparent;
+        }
+        .pricing-cta-gradient {
+            background:var(--brand-gradient); color:#fff;
+            box-shadow:0 4px 20px rgba(102,126,234,0.30);
+        }
+        .pricing-cta-gradient:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(102,126,234,0.44); }
+        .pricing-card.featured .pricing-cta-gradient {
+            background:#fff; color:var(--brand-primary);
+            box-shadow:0 4px 20px rgba(0,0,0,0.16);
+        }
+        .pricing-card.featured .pricing-cta-gradient:hover { background:#f0f0ff; box-shadow:0 8px 28px rgba(0,0,0,0.22); }
+        .pricing-cta-outline {
+            background:transparent; color:var(--brand-primary);
+            border-color:var(--border-accent);
+        }
+        .pricing-cta-outline:hover { border-color:var(--brand-primary); background:rgba(102,126,234,0.06); }
+
+        .pricing-note {
+            text-align:center; font-size:0.875rem; color:var(--text-muted); line-height:1.65;
+        }
+        .pricing-note a { color:var(--brand-primary); text-decoration:none; }
+        .pricing-note a:hover { text-decoration:underline; }
+
+        @media (max-width:900px) {
+            .pricing-grid { grid-template-columns:1fr; gap:20px; }
+            .pricing-card.featured { transform:scale(1); }
+            .pricing-card.featured:hover { transform:translateY(-6px); }
+        }
+
+        /* ============================================================
            CONTACT
            ============================================================ */
         .contact { background:var(--bg-surface); }
@@ -888,6 +1082,7 @@
                 <li><a href="#features">Features</a></li>
                 <li><a href="#how-it-works">How It Works</a></li>
                 <li><a href="#for-clinicians">For Clinicians</a></li>
+                <li><a href="#pricing">Pricing</a></li>
                 <li><a href="#faq">FAQ</a></li>
                 <li><a href="#contact">Contact</a></li>
             </ul>
@@ -905,6 +1100,7 @@
             <a href="#features"       role="menuitem">Features</a>
             <a href="#how-it-works"   role="menuitem">How It Works</a>
             <a href="#for-clinicians" role="menuitem">For Clinicians</a>
+            <a href="#pricing"        role="menuitem">Pricing</a>
             <a href="#faq"            role="menuitem">FAQ</a>
             <a href="#contact"        role="menuitem">Contact</a>
             <a href="/login" class="btn-login-mobile" role="menuitem">Login →</a>
@@ -933,7 +1129,7 @@
                     NHS-Aligned &nbsp;·&nbsp; GDPR Compliant &nbsp;·&nbsp; WCAG 2.1 AA
                 </div>
                 <h1 class="hero-title">Your Mental Health Journey,<br>Supported Every Step</h1>
-                <p class="hero-subtitle">A secure, clinician-led platform combining human expertise with AI-powered tools — designed for lasting wellbeing.</p>
+                <p class="hero-subtitle">An AI companion that listens, remembers, and grows with you — always guided by a real clinician who shapes every step of your care.</p>
                 <div class="hero-ctas">
                     <a href="#contact" class="btn-primary-hero">Get Started <span aria-hidden="true">→</span></a>
                     <a href="#features" class="btn-secondary-hero">Learn More <span aria-hidden="true">↓</span></a>
@@ -966,6 +1162,70 @@
                 </div>
             </div>
         </div>
+
+        <!-- ==================== AI INTELLIGENCE ==================== -->
+        <section class="ai-section" id="ai" aria-labelledby="ai-heading">
+            <div class="section-inner">
+
+                <div class="ai-header fade-in">
+                    <div class="section-tag" aria-hidden="true">Adaptive Intelligence</div>
+                    <h2 class="section-title" id="ai-heading">An AI That Truly Gets to Know You</h2>
+                    <p class="section-subtitle">
+                        Most mental health apps give everyone the same experience. Healing Space does the opposite —
+                        an AI that listens deeply, builds understanding over time, and grows smarter alongside your clinician.
+                    </p>
+                </div>
+
+                <div class="ai-pillars">
+
+                    <div class="ai-pillar fade-in">
+                        <div class="ai-pillar-icon" aria-hidden="true">👂</div>
+                        <h3 class="ai-pillar-title">Listens Without Judgement</h3>
+                        <p class="ai-pillar-desc">
+                            The AI engages with you the way a trusted confidant might — openly, patiently, without agenda.
+                            It picks up on your language, your emotional patterns, and the things that matter to you most,
+                            creating a space where you can speak freely at any hour of the day.
+                        </p>
+                    </div>
+
+                    <div class="ai-pillar fade-in fade-in-delay-2">
+                        <div class="ai-pillar-icon" aria-hidden="true">🧠</div>
+                        <h3 class="ai-pillar-title">Remembers What Matters</h3>
+                        <p class="ai-pillar-desc">
+                            Unlike a one-size-fits-all chatbot, our AI builds a longitudinal picture of your journey.
+                            It knows your history, your triggers, your breakthroughs, and your setbacks — and uses that
+                            accumulated context every single time you return, so you never have to start from scratch.
+                        </p>
+                    </div>
+
+                    <div class="ai-pillar fade-in fade-in-delay-4">
+                        <div class="ai-pillar-icon" aria-hidden="true">🔄</div>
+                        <h3 class="ai-pillar-title">Grows With Your Clinician</h3>
+                        <p class="ai-pillar-desc">
+                            Your clinician reviews, guides, and actively shapes the AI's approach to your care.
+                            Each clinical insight refines how the AI supports you — a continuous feedback loop where
+                            human expertise and machine intelligence strengthen each other over time.
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- Full-width callout -->
+                <div class="ai-callout fade-in">
+                    <div class="ai-callout-quote">
+                        <strong>Care that compounds.</strong>
+                        The more you engage, the better the AI understands you. The more your clinician contributes,
+                        the smarter the system becomes. Healing Space isn't just a tool — it's a clinical relationship
+                        that deepens with every conversation, building a version of support that is uniquely, precisely yours.
+                    </div>
+                    <div class="ai-callout-cta">
+                        <a href="#contact" class="ai-callout-btn">Start Your Journey →</a>
+                        <div class="ai-callout-note">Available by clinical referral</div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
 
         <!-- ==================== FEATURES ==================== -->
         <section class="features" id="features" aria-labelledby="features-heading">
@@ -1503,6 +1763,106 @@
             </div>
         </section>
 
+        <!-- ==================== PRICING ==================== -->
+        <section class="pricing" id="pricing" aria-labelledby="pricing-heading">
+            <div class="section-inner">
+
+                <div class="pricing-header fade-in">
+                    <div class="section-tag" aria-hidden="true">Transparent Pricing</div>
+                    <h2 class="section-title" id="pricing-heading">Simple, Honest Plans</h2>
+                    <p class="section-subtitle">Whether you're a patient, a solo clinician, or running a whole practice — there's a plan built for you. No hidden fees.</p>
+                </div>
+
+                <div class="pricing-grid">
+
+                    <!-- Patient -->
+                    <div class="pricing-card fade-in">
+                        <div class="pricing-plan-label">For Patients</div>
+                        <div class="pricing-name">Patient Access</div>
+                        <div class="pricing-desc">Included with your clinician's subscription — no charge to you.</div>
+                        <div class="pricing-price-row">
+                            <div class="price-currency">£</div>
+                            <div class="price-amount">0</div>
+                            <div class="price-period-block">
+                                <div class="price-period">/ month</div>
+                                <div class="price-vat">via referral</div>
+                            </div>
+                        </div>
+                        <div class="pricing-divider"></div>
+                        <ul class="pricing-features" aria-label="Patient plan features">
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Full AI companion access (24/7)</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> CBT workbooks &amp; journaling tools</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Daily mood tracking &amp; trend graphs</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Secure messaging with your clinician</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Goal setting &amp; milestone tracking</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Requires a clinical referral to register</li>
+                        </ul>
+                        <a href="/login" class="pricing-cta pricing-cta-gradient" aria-label="Register as a patient">Register as Patient →</a>
+                    </div>
+
+                    <!-- Solo Clinician — FEATURED -->
+                    <div class="pricing-card featured fade-in fade-in-delay-2">
+                        <div class="pricing-badge" aria-label="Most popular plan">⭐ Most Popular</div>
+                        <div class="pricing-plan-label">For Solo Clinicians</div>
+                        <div class="pricing-name">Clinician Pro</div>
+                        <div class="pricing-desc">Everything you need to run a modern digital caseload.</div>
+                        <div class="pricing-price-row">
+                            <div class="price-currency">£</div>
+                            <div class="price-amount">49</div>
+                            <div class="price-period-block">
+                                <div class="price-period">/ month</div>
+                                <div class="price-vat">+ VAT</div>
+                            </div>
+                        </div>
+                        <div class="pricing-divider"></div>
+                        <ul class="pricing-features" aria-label="Solo clinician plan features">
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Up to 25 active patients included</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Full patient caseload dashboard</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Real-time mood &amp; risk indicators</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> AI-generated session summaries</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> CBT homework assignment &amp; review</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> High-risk patient alerts</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Secure GDPR-compliant messaging</li>
+                        </ul>
+                        <a href="#contact" class="pricing-cta pricing-cta-gradient" aria-label="Get started with Clinician Pro">Get Started →</a>
+                    </div>
+
+                    <!-- Clinic / Practice -->
+                    <div class="pricing-card fade-in fade-in-delay-4">
+                        <div class="pricing-plan-label">For Clinics &amp; Practices</div>
+                        <div class="pricing-name">Practice Plan</div>
+                        <div class="pricing-desc">Multi-clinician teams with shared admin and unlimited patients.</div>
+                        <div class="pricing-price-row">
+                            <div class="price-currency">£</div>
+                            <div class="price-amount">129</div>
+                            <div class="price-period-block">
+                                <div class="price-period">/ month</div>
+                                <div class="price-vat">+ VAT</div>
+                            </div>
+                        </div>
+                        <div class="pricing-divider"></div>
+                        <ul class="pricing-features" aria-label="Practice plan features">
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Up to 5 clinicians included</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Unlimited patient accounts</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Everything in Clinician Pro</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Shared admin dashboard &amp; reporting</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Team performance analytics</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Dedicated onboarding support</li>
+                            <li><span class="pf-check" aria-hidden="true">✓</span> Priority email &amp; phone support</li>
+                        </ul>
+                        <a href="#contact" class="pricing-cta pricing-cta-gradient" aria-label="Get started with the Practice Plan">Contact Us →</a>
+                    </div>
+
+                </div>
+
+                <p class="pricing-note fade-in">
+                    All prices exclude VAT. Patient access is included in all clinician plans — no separate patient charge.
+                    Need more than 5 clinicians? <a href="#contact">Contact us for Enterprise pricing</a> — custom plans available for NHS trusts and large group practices.
+                </p>
+
+            </div>
+        </section>
+
         <!-- ==================== CONTACT ==================== -->
         <section class="contact" id="contact" aria-labelledby="contact-heading">
             <div class="section-inner">
@@ -1605,6 +1965,7 @@
                         <li><a href="#features">Features</a></li>
                         <li><a href="#how-it-works">How It Works</a></li>
                         <li><a href="#for-clinicians">For Clinicians</a></li>
+                        <li><a href="#pricing">Pricing</a></li>
                         <li><a href="#faq">FAQ</a></li>
                         <li><a href="/login">Login</a></li>
                     </ul>
