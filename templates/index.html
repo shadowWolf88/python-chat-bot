@@ -5926,9 +5926,9 @@
                                 <div style="font-size: 36px; font-weight: bold;" id="activePatientsCount">-</div>
                                 <div style="opacity: 0.9;">Active (7 days) 👁️</div>
                             </div>
-                            <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 12px; text-align: center;">
+                            <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 12px; text-align: center; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.35)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" onclick="goToHighRiskPatients()" title="Click to view High Risk patients">
                                 <div style="font-size: 36px; font-weight: bold; color: #ffeb3b;" id="highRiskCount">-</div>
-                                <div style="opacity: 0.9;">🚨 High Risk</div>
+                                <div style="opacity: 0.9;">🚨 High Risk ↗</div>
                             </div>
                         </div>
                     </div>
@@ -10217,6 +10217,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
         
+        // Navigate to Risk Monitor with High filter pre-selected
+        function goToHighRiskPatients() {
+            var riskBtn = document.querySelector('.clinical-subtab-btn[onclick*="riskmonitor"]');
+            switchClinicalTab('riskmonitor', riskBtn);
+            // Apply High filter after tab loads
+            setTimeout(function() { filterRiskPatients('high'); }, 300);
+        }
+
         // Clinical Dashboard Subtab Switching
         function switchClinicalTab(subtabName, buttonEl) {
             // Hide all clinical subtabs
