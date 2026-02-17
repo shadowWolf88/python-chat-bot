@@ -875,6 +875,20 @@ class MessageService:
             VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
         """, (message_id, recipient_username, notification_type))
     
+    def mark_conversation_as_read(self, other_username: str) -> None:
+        """Mark all messages from a specific user as read"""
+        if not self.username:
+            return
+        self.cur.execute("""
+            UPDATE messages
+            SET is_read = 1, read_at = CURRENT_TIMESTAMP
+            WHERE recipient_username = %s
+            AND sender_username = %s
+            AND is_read = 0
+            AND deleted_at IS NULL
+        """, (self.username, other_username))
+        self.conn.commit()
+
     def get_unread_count(self) -> int:
         """Get total unread message count for user"""
         if not self.username:
