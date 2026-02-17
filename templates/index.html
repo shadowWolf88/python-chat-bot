@@ -2662,6 +2662,29 @@
             display: none;
         }
 
+        /* Developer messages sub-tabs */
+        .dev-msg-tab-btn {
+            background: transparent;
+            color: var(--accent-primary, #667eea);
+            border: 2px solid var(--accent-primary, #667eea);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .dev-msg-tab-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        .dev-msg-tab-btn.active {
+            background: var(--accent-primary, #667eea);
+            color: #fff;
+        }
+        .dev-msg-panel {
+            display: block;
+        }
+
         .stat-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -6329,7 +6352,7 @@
                     <button class="dev-subtab-btn" onclick="switchDevTab('ai', this)">
                         🤖 AI Assistant
                     </button>
-                    <button class="dev-subtab-btn" onclick="switchDevTab('messages', this)">
+                    <button class="dev-subtab-btn" id="devMessagesSubtabBtn" onclick="switchDevTab('messages', this)">
                         📨 Messages
                     </button>
                     <button class="dev-subtab-btn" onclick="switchDevTab('feedback', this)">
@@ -6419,11 +6442,67 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
                 <!-- Messages Subtab -->
                 <div id="devMessagesTab" class="dev-subtab-content" style="display: none;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <!-- Send Message -->
-                        <div class="card">
-                            <h4>📤 Send Message</h4>
 
+                    <!-- Messages sub-navigation -->
+                    <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color, #e0e0e0); padding-bottom: 10px; flex-wrap: wrap;">
+                        <button class="dev-msg-tab-btn active" id="devMsgInboxBtn" onclick="switchDevMsgTab('inbox', this)">
+                            📬 Inbox <span id="devMsgUnreadBadge" style="display:none; background:#e74c3c; color:#fff; border-radius:999px; padding:0 7px; font-size:11px; margin-left:4px; font-weight:700;"></span>
+                        </button>
+                        <button class="dev-msg-tab-btn" onclick="switchDevMsgTab('sent', this)">📤 Sent</button>
+                        <button class="dev-msg-tab-btn" onclick="switchDevMsgTab('compose', this)">✏️ Compose</button>
+                        <button class="dev-msg-tab-btn" onclick="switchDevMsgTab('broadcast', this)">📢 Broadcast</button>
+                        <button class="dev-msg-tab-btn" onclick="switchDevMsgTab('postupdate', this)">📝 Post Update</button>
+                    </div>
+
+                    <!-- Inbox Panel -->
+                    <div id="devMsgInboxPanel" class="dev-msg-panel">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="margin: 0;">📬 Your Inbox</h4>
+                            <button class="btn btn-secondary" onclick="loadDevInbox(true)" style="padding: 8px 16px;">🔄 Refresh</button>
+                        </div>
+                        <div id="devMsgInboxContainer" style="max-height: 500px; overflow-y: auto;">
+                            <div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading messages...</p></div>
+                        </div>
+                    </div>
+
+                    <!-- Sent Panel -->
+                    <div id="devMsgSentPanel" class="dev-msg-panel" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="margin: 0;">📤 Sent Messages</h4>
+                            <button class="btn btn-secondary" onclick="loadDevSent(true)" style="padding: 8px 16px;">🔄 Refresh</button>
+                        </div>
+                        <div id="devMsgSentContainer" style="max-height: 500px; overflow-y: auto;">
+                            <div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading...</p></div>
+                        </div>
+                    </div>
+
+                    <!-- Compose Panel -->
+                    <div id="devMsgComposePanel" class="dev-msg-panel" style="display: none;">
+                        <div class="card">
+                            <h4 style="margin-top: 0;">✏️ New Message</h4>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>To (username)</label>
+                                <input type="text" id="devMsgRecipient" placeholder="Enter username..." style="width: 100%; padding: 12px; border: 2px solid var(--border-color, #e0e0e0); border-radius: 8px; box-sizing: border-box;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Subject <span style="font-weight:400; color:var(--text-muted,#999);">(optional)</span></label>
+                                <input type="text" id="devMsgSubject" placeholder="What's this about?" style="width: 100%; padding: 12px; border: 2px solid var(--border-color, #e0e0e0); border-radius: 8px; box-sizing: border-box;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Message</label>
+                                <textarea id="devMsgContent" rows="6" placeholder="Type your message..." style="width: 100%; padding: 12px; border: 2px solid var(--border-color, #e0e0e0); border-radius: 8px; resize: vertical; box-sizing: border-box;"></textarea>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <button class="btn" onclick="sendDevCompose()">📤 Send Message</button>
+                                <span id="devMsgComposeStatus" style="font-size: 13px; display: none;"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Broadcast Panel -->
+                    <div id="devMsgBroadcastPanel" class="dev-msg-panel" style="display: none;">
+                        <div class="card">
+                            <h4 style="margin-top: 0;">📢 Broadcast / Send to User</h4>
                             <div class="form-group">
                                 <label>Recipient</label>
                                 <select id="messageRecipient" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
@@ -6432,7 +6511,6 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                 </select>
                                 <small style="color: #666; display: block; margin-top: 5px;">Users loaded dynamically</small>
                             </div>
-
                             <div class="form-group">
                                 <label>Type</label>
                                 <select id="messageType" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
@@ -6442,24 +6520,50 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                     <option value="system">⚙️ System</option>
                                 </select>
                             </div>
-
                             <div class="form-group">
                                 <label>Message</label>
                                 <textarea id="messageContent" rows="4" placeholder="Enter your message..."
                                     style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;"></textarea>
                             </div>
-
-                            <button class="btn" onclick="sendDevMessage()">📤 Send Message</button>
+                            <button class="btn" onclick="sendDevMessage()">📤 Send</button>
                         </div>
+                    </div>
 
-                        <!-- Message Thread -->
-                        <div class="card" style="max-height: 600px; overflow-y: auto; background: var(--bg-card); color: var(--text-primary);">
-                            <h4>💬 Message Thread</h4>
-                            <div id="messageThread">
-                                <p style="color: #999; text-align: center; padding: 40px;">Loading messages...</p>
+                    <!-- Post Update Panel -->
+                    <div id="devMsgPostUpdatePanel" class="dev-msg-panel" style="display: none;">
+                        <div class="card">
+                            <h4 style="margin-top: 0;">📝 Post Platform Update</h4>
+                            <p style="color: var(--text-secondary, #666); font-size: 14px; margin-bottom: 15px;">
+                                Updates posted here appear in the "What's New" tab for all users.
+                            </p>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Title</label>
+                                <input type="text" id="devUpdateTitle" placeholder="e.g. New feature: improved messaging" style="width: 100%; padding: 12px; border: 2px solid var(--border-color, #e0e0e0); border-radius: 8px; box-sizing: border-box;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Version <span style="font-weight:400; color:var(--text-muted,#999);">(optional, e.g. 23.1)</span></label>
+                                <input type="text" id="devUpdateVersion" placeholder="23.1" style="width: 200px; padding: 12px; border: 2px solid var(--border-color, #e0e0e0); border-radius: 8px;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label>Changes <span style="font-weight:400; color:var(--text-muted,#999);">(one per line)</span></label>
+                                <textarea id="devUpdateChanges" rows="6" placeholder="- Fixed login issue&#10;- Added dark mode&#10;- Improved performance" style="width: 100%; padding: 12px; border: 2px solid var(--border-color, #e0e0e0); border-radius: 8px; resize: vertical; box-sizing: border-box;"></textarea>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <button class="btn" onclick="postAppUpdate()">📝 Post Update</button>
+                                <span id="devUpdateStatus" style="font-size: 13px; display: none;"></span>
+                            </div>
+                        </div>
+                        <div class="card" style="margin-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h4 style="margin: 0;">📋 Previously Posted Updates</h4>
+                                <button class="btn btn-secondary" onclick="loadPostedUpdates()" style="padding: 8px 16px;">🔄 Refresh</button>
+                            </div>
+                            <div id="devPostedUpdatesContainer" style="max-height: 400px; overflow-y: auto;">
+                                <p style="color: var(--text-muted, #999); text-align: center; padding: 20px;">Loading...</p>
                             </div>
                         </div>
                     </div>
+
                 </div>
 
                 <!-- Feedback Subtab -->
@@ -8994,15 +9098,36 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
 
 
-        function renderUpdatesLog() {
+        async function renderUpdatesLog() {
             const container = document.getElementById('updatesContainer');
             if (!container) return;
 
-            container.innerHTML = APP_UPDATES.map(update => `
+            container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading updates...</p></div>';
+
+            let allUpdates = APP_UPDATES.slice();
+
+            // Fetch developer-posted updates from DB and prepend
+            try {
+                const res = await fetch('/api/dev/updates', { credentials: 'include' });
+                const data = await res.json();
+                const dbUpdates = (data.updates || []).map(function(u) {
+                    return {
+                        date: u.created_at ? u.created_at.substring(0, 10) : new Date().toISOString().substring(0, 10),
+                        version: u.version || '',
+                        title: u.title,
+                        changes: Array.isArray(u.changes) ? u.changes : [u.changes]
+                    };
+                });
+                allUpdates = dbUpdates.concat(allUpdates);
+            } catch (e) {
+                // Silently fall back to hardcoded updates
+            }
+
+            container.innerHTML = allUpdates.map(update => `
                 <div class="card" style="margin-bottom: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <h4 style="margin: 0; color: #667eea;">${update.title}</h4>
-                        <span style="color: #999; font-size: 13px;">v${update.version} • ${formatUpdateDate(update.date)}</span>
+                        <span style="color: #999; font-size: 13px;">${update.version ? 'v' + update.version + ' • ' : ''}${formatUpdateDate(update.date)}</span>
                     </div>
                     <ul style="margin: 0; padding-left: 20px; color: #555;">
                         ${update.changes.map(change => `<li style="margin-bottom: 5px;">${change}</li>`).join('')}
@@ -9951,10 +10076,18 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                 emoji = '✅';
                             } else if (n.notification_type === 'dev_message') {
                                 emoji = '📨';
-                                onClick = `markNotificationRead(${n.id}); switchTab('${currentUserRole === 'clinician' ? 'professional' : currentUserRole === 'developer' ? 'developer' : 'home'}', null); setTimeout(() => switchMessageTab('inbox', null), 100)`;
+                                if (currentUserRole === 'developer') {
+                                    onClick = `markNotificationRead(${n.id}); switchTab('developer', null); setTimeout(() => { switchDevTab('messages', document.getElementById('devMessagesSubtabBtn')); switchDevMsgTab('inbox', document.getElementById('devMsgInboxBtn')); }, 200)`;
+                                } else {
+                                    onClick = `markNotificationRead(${n.id}); switchTab('${currentUserRole === 'clinician' ? 'professional' : 'home'}', null); setTimeout(() => switchMessageTab('inbox', null), 100)`;
+                                }
                             } else if (n.notification_type === 'message') {
                                 emoji = '💬';
-                                onClick = `markNotificationRead(${n.id}); switchTab('${currentUserRole === 'clinician' ? 'professional' : currentUserRole === 'developer' ? 'developer' : 'home'}', null); setTimeout(() => switchMessageTab('inbox', null), 100)`;
+                                if (currentUserRole === 'developer') {
+                                    onClick = `markNotificationRead(${n.id}); switchTab('developer', null); setTimeout(() => { switchDevTab('messages', document.getElementById('devMessagesSubtabBtn')); switchDevMsgTab('inbox', document.getElementById('devMsgInboxBtn')); }, 200)`;
+                                } else {
+                                    onClick = `markNotificationRead(${n.id}); switchTab('${currentUserRole === 'clinician' ? 'professional' : 'home'}', null); setTimeout(() => switchMessageTab('inbox', null), 100)`;
+                                }
                             }
 
                             return `
@@ -14832,7 +14965,7 @@ ${reportText}
 
             if (subtabName === 'messages') {
                 loadMessageRecipients();
-                loadMessageThread();
+                loadDevInbox();
             } else if (subtabName === 'feedback') {
                 loadFeedback();
             } else if (subtabName === 'stats') {
@@ -15339,61 +15472,215 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
 
-        async function loadMessageThread() {
+        // ===== DEVELOPER MESSAGES INBOX =====
+        var devMsgCache = { inbox: null, sent: null, lastLoad: {} };
+
+        function switchDevMsgTab(tabName, btn) {
+            document.querySelectorAll('.dev-msg-panel').forEach(function(p) { p.style.display = 'none'; });
+            document.querySelectorAll('.dev-msg-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            var panelMap = {
+                inbox: 'devMsgInboxPanel',
+                sent: 'devMsgSentPanel',
+                compose: 'devMsgComposePanel',
+                broadcast: 'devMsgBroadcastPanel',
+                postupdate: 'devMsgPostUpdatePanel'
+            };
+            var panel = document.getElementById(panelMap[tabName]);
+            if (panel) panel.style.display = 'block';
+            if (btn) btn.classList.add('active');
+            if (tabName === 'inbox') loadDevInbox();
+            else if (tabName === 'sent') loadDevSent();
+            else if (tabName === 'broadcast') loadMessageRecipients();
+            else if (tabName === 'postupdate') loadPostedUpdates();
+        }
+
+        async function loadDevInbox(force) {
+            var container = document.getElementById('devMsgInboxContainer');
+            if (!container) return;
+            var CACHE_TTL = 30000;
+            var age = devMsgCache.lastLoad.inbox ? Date.now() - devMsgCache.lastLoad.inbox : Infinity;
+            if (!force && devMsgCache.inbox && age < CACHE_TTL) { renderDevInbox(devMsgCache.inbox); return; }
+            container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading...</p></div>';
             try {
-                const response = await fetch(`/api/developer/messages/list?username=${currentUser}`);
-                const data = await response.json();
-
-                const thread = document.getElementById('messageThread');
-
-                if (data.messages.length === 0) {
-                    thread.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No messages yet</p>';
-                    return;
-                }
-
-                thread.innerHTML = data.messages.map(msg => {
-                    const isFromDev = msg.from_username === currentUser;
-                    const icon = msg.message_type === 'warning' ? '⚠️' :
-                                msg.message_type === 'alert' ? '🚨' :
-                                msg.message_type === 'system' ? '⚙️' : 'ℹ️';
-
-                    return `
-                        <div style="background: ${isFromDev ? '#e8f4fd' : '#f8f9fa'}; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid ${isFromDev ? '#2196F3' : '#667eea'};">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <strong>${icon} ${sanitizeHTML(msg.from_username)} → ${sanitizeHTML(msg.to_username)}</strong>
-                                <span style="color: #999; font-size: 12px;">${new Date(msg.created_at).toLocaleString()}</span>
-                            </div>
-                            <div>${sanitizeWithLineBreaks(msg.message)}</div>
-                            ${!isFromDev ? `<button onclick="replyToMessage(${msg.id})" style="margin-top: 8px; padding: 5px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Reply</button>` : ''}
-                        </div>
-                    `;
-                }).join('');
-
-            } catch (error) {
-                console.error('Failed to load messages:', error);
+                var res = await fetch('/api/messages/inbox', { credentials: 'include' });
+                var data = await res.json();
+                devMsgCache.inbox = data;
+                devMsgCache.lastLoad.inbox = Date.now();
+                renderDevInbox(data);
+                var unread = (data.conversations || []).reduce(function(s, c) { return s + (c.unread_count || 0); }, 0);
+                var badge = document.getElementById('devMsgUnreadBadge');
+                if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? 'inline' : 'none'; }
+            } catch (e) {
+                container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⚠️</div><p>Error loading inbox</p></div>';
             }
         }
 
-        function replyToMessage(messageId) {
-            const reply = prompt('Enter your reply:');
-            if (!reply) return;
+        function renderDevInbox(data) {
+            var container = document.getElementById('devMsgInboxContainer');
+            if (!container) return;
+            var convs = data.conversations || [];
+            if (convs.length === 0) {
+                container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">📬</div><p>No messages yet</p></div>';
+                return;
+            }
+            container.innerHTML = convs.map(function(conv) {
+                var initial = getMsgInitial(conv.other_username);
+                var unreadHtml = conv.unread_count > 0 ? '<span class="msg-unread-badge">' + conv.unread_count + '</span>' : '';
+                return '<div class="msg-card' + (conv.unread_count > 0 ? ' unread' : '') + '" onclick="openConversation(\'' + sanitizeHTML(conv.other_username) + '\')">' +
+                    '<div class="msg-avatar default">' + initial + '</div>' +
+                    '<div class="msg-content">' +
+                        '<div class="msg-header">' +
+                            '<span class="msg-sender">' + sanitizeHTML(conv.other_username) + '</span>' +
+                            '<span class="msg-time">' + (conv.last_message_time ? formatMsgTime(conv.last_message_time) : '') + '</span>' +
+                        '</div>' +
+                        '<div class="msg-preview">' + sanitizeHTML((conv.last_message || 'No messages').substring(0, 100)) + unreadHtml + '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
 
-            fetch('/api/developer/messages/reply', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    from_username: currentUser,
-                    parent_message_id: messageId,
-                    message: reply
-                })
-            }).then(response => {
-                if (response.ok) {
-                    alert('Reply sent!');
-                    loadMessageThread();
+        async function loadDevSent(force) {
+            var container = document.getElementById('devMsgSentContainer');
+            if (!container) return;
+            var CACHE_TTL = 30000;
+            var age = devMsgCache.lastLoad.sent ? Date.now() - devMsgCache.lastLoad.sent : Infinity;
+            if (!force && devMsgCache.sent && age < CACHE_TTL) { renderDevSent(devMsgCache.sent); return; }
+            container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading...</p></div>';
+            try {
+                var res = await fetch('/api/messages/sent', { credentials: 'include' });
+                var data = await res.json();
+                devMsgCache.sent = data;
+                devMsgCache.lastLoad.sent = Date.now();
+                renderDevSent(data);
+            } catch (e) {
+                container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⚠️</div><p>Error loading sent messages</p></div>';
+            }
+        }
+
+        function renderDevSent(data) {
+            var container = document.getElementById('devMsgSentContainer');
+            if (!container) return;
+            var msgs = data.messages || [];
+            if (msgs.length === 0) {
+                container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">📤</div><p>No sent messages</p></div>';
+                return;
+            }
+            container.innerHTML = msgs.map(function(msg) {
+                var initial = getMsgInitial(msg.recipient);
+                return '<div class="msg-card" onclick="openConversation(\'' + sanitizeHTML(msg.recipient) + '\')">' +
+                    '<div class="msg-avatar default">' + initial + '</div>' +
+                    '<div class="msg-content">' +
+                        '<div class="msg-header">' +
+                            '<span class="msg-sender">To: ' + sanitizeHTML(msg.recipient) + '</span>' +
+                            '<span class="msg-time">' + formatMsgTime(msg.sent_at) + '</span>' +
+                        '</div>' +
+                        (msg.subject ? '<div style="font-size:12px;font-weight:600;color:var(--text-secondary,#555);margin-bottom:2px;">' + sanitizeHTML(msg.subject) + '</div>' : '') +
+                        '<div class="msg-preview">' + sanitizeHTML((msg.content || '').substring(0, 120)) + '</div>' +
+                        '<div class="msg-status ' + (msg.is_read ? 'read' : 'sent') + '">' + (msg.is_read ? '✓✓ Read' : '✓ Sent') + '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        async function sendDevCompose() {
+            var recipient = document.getElementById('devMsgRecipient').value.trim();
+            var subject = document.getElementById('devMsgSubject').value.trim();
+            var content = document.getElementById('devMsgContent').value.trim();
+            var statusEl = document.getElementById('devMsgComposeStatus');
+            if (!recipient) { alert('Please enter a recipient username'); return; }
+            if (!content) { alert('Please enter a message'); return; }
+            statusEl.style.display = 'inline';
+            statusEl.style.color = 'var(--text-muted, #666)';
+            statusEl.textContent = 'Sending...';
+            try {
+                var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+                var res = await fetch('/api/messages/send', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ recipient_username: recipient, subject: subject, content: content })
+                });
+                var data = await res.json();
+                if (res.ok) {
+                    statusEl.style.color = 'var(--status-success, #27ae60)';
+                    statusEl.textContent = '✓ Sent!';
+                    document.getElementById('devMsgRecipient').value = '';
+                    document.getElementById('devMsgSubject').value = '';
+                    document.getElementById('devMsgContent').value = '';
+                    devMsgCache.sent = null;
+                    setTimeout(function() { statusEl.style.display = 'none'; }, 3000);
                 } else {
-                    alert('Failed to send reply');
+                    statusEl.style.color = 'var(--status-error, #e74c3c)';
+                    statusEl.textContent = '✗ ' + (data.error || 'Failed to send');
                 }
-            });
+            } catch (e) {
+                statusEl.style.color = 'var(--status-error, #e74c3c)';
+                statusEl.textContent = '✗ Network error';
+            }
+        }
+
+        async function postAppUpdate() {
+            var title = document.getElementById('devUpdateTitle').value.trim();
+            var version = document.getElementById('devUpdateVersion').value.trim();
+            var changesRaw = document.getElementById('devUpdateChanges').value.trim();
+            var statusEl = document.getElementById('devUpdateStatus');
+            if (!title) { alert('Please enter a title'); return; }
+            if (!changesRaw) { alert('Please enter at least one change'); return; }
+            var changes = changesRaw.split('\n').map(function(l) { return l.replace(/^[-•*]\s*/, '').trim(); }).filter(function(l) { return l.length > 0; });
+            statusEl.style.display = 'inline';
+            statusEl.style.color = 'var(--text-muted, #666)';
+            statusEl.textContent = 'Posting...';
+            try {
+                var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+                var res = await fetch('/api/dev/updates', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ title: title, version: version, changes: changes })
+                });
+                var data = await res.json();
+                if (res.ok) {
+                    statusEl.style.color = 'var(--status-success, #27ae60)';
+                    statusEl.textContent = '✓ Posted!';
+                    document.getElementById('devUpdateTitle').value = '';
+                    document.getElementById('devUpdateVersion').value = '';
+                    document.getElementById('devUpdateChanges').value = '';
+                    loadPostedUpdates();
+                    setTimeout(function() { statusEl.style.display = 'none'; }, 3000);
+                } else {
+                    statusEl.style.color = 'var(--status-error, #e74c3c)';
+                    statusEl.textContent = '✗ ' + (data.error || 'Failed to post');
+                }
+            } catch (e) {
+                statusEl.style.color = 'var(--status-error, #e74c3c)';
+                statusEl.textContent = '✗ Network error';
+            }
+        }
+
+        async function loadPostedUpdates() {
+            var container = document.getElementById('devPostedUpdatesContainer');
+            if (!container) return;
+            container.innerHTML = '<p style="color: var(--text-muted, #999); text-align: center; padding: 20px;">Loading...</p>';
+            try {
+                var res = await fetch('/api/dev/updates', { credentials: 'include' });
+                var data = await res.json();
+                var updates = data.updates || [];
+                if (updates.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted, #999); text-align: center; padding: 20px;">No updates posted yet</p>';
+                    return;
+                }
+                container.innerHTML = updates.map(function(u) {
+                    return '<div style="border: 1px solid var(--border-color, #e0e0e0); border-radius: 8px; padding: 15px; margin-bottom: 10px;">' +
+                        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
+                            '<strong style="color: var(--accent-primary, #667eea);">' + sanitizeHTML(u.title) + '</strong>' +
+                            '<span style="font-size: 12px; color: var(--text-muted, #999);">' + (u.version ? 'v' + sanitizeHTML(u.version) + ' • ' : '') + new Date(u.created_at).toLocaleDateString('en-GB') + '</span>' +
+                        '</div>' +
+                        '<ul style="margin: 0; padding-left: 20px;">' +
+                            u.changes.map(function(c) { return '<li style="margin-bottom: 4px; font-size: 14px;">' + sanitizeHTML(c) + '</li>'; }).join('') +
+                        '</ul>' +
+                    '</div>';
+                }).join('');
+            } catch (e) {
+                container.innerHTML = '<p style="color: var(--status-error, #e74c3c); text-align: center; padding: 20px;">Error loading updates</p>';
+            }
         }
 
         // System Stats Functions

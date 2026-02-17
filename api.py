@@ -3885,6 +3885,7 @@ def init_db():
             cursor.execute("CREATE TABLE IF NOT EXISTS safety_plans (username TEXT PRIMARY KEY, triggers TEXT, coping TEXT, contacts TEXT)")
             cursor.execute("CREATE TABLE IF NOT EXISTS ai_memory (username TEXT PRIMARY KEY, memory_summary TEXT, last_updated TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, sender_username TEXT NOT NULL, recipient_username TEXT NOT NULL, subject TEXT, content TEXT NOT NULL, is_read INTEGER DEFAULT 0, read_at TIMESTAMP, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP, is_deleted_by_sender INTEGER DEFAULT 0, is_deleted_by_recipient INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS app_updates (id SERIAL PRIMARY KEY, title TEXT NOT NULL, version TEXT, changes JSONB NOT NULL DEFAULT '[]', posted_by TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             
             # Community tables
             cursor.execute("CREATE TABLE IF NOT EXISTS community_posts (id SERIAL PRIMARY KEY, username TEXT NOT NULL, message TEXT NOT NULL, category TEXT DEFAULT 'general', likes INTEGER DEFAULT 0, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_pinned INTEGER DEFAULT 0, FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE)")
@@ -6717,6 +6718,67 @@ def reply_dev_message():
 
         return jsonify({'success': True}), 200
 
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/dev/updates', methods=['GET'])
+def get_app_updates():
+    """Get all app updates (public - any logged-in user can read)"""
+    try:
+        if 'username' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        rows = cur.execute(
+            "SELECT id, title, version, changes, posted_by, created_at FROM app_updates ORDER BY created_at DESC"
+        ).fetchall()
+        conn.close()
+        import json as _json
+        updates = []
+        for row in rows:
+            changes = row[3]
+            if isinstance(changes, str):
+                try:
+                    changes = _json.loads(changes)
+                except Exception:
+                    changes = [changes]
+            updates.append({
+                'id': row[0],
+                'title': row[1],
+                'version': row[2] or '',
+                'changes': changes if isinstance(changes, list) else [changes],
+                'posted_by': row[4],
+                'created_at': row[5].isoformat() if row[5] else ''
+            })
+        return jsonify({'updates': updates}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+@CSRFProtection.require_csrf
+@app.route('/api/dev/updates', methods=['POST'])
+def post_app_update():
+    """Post a new platform update (developer only)"""
+    try:
+        if session.get('role') != 'developer':
+            return jsonify({'error': 'Unauthorized'}), 403
+        data = request.json
+        title = (data.get('title') or '').strip()
+        version = (data.get('version') or '').strip() or None
+        changes = data.get('changes') or []
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+        if not changes or not isinstance(changes, list):
+            return jsonify({'error': 'At least one change is required'}), 400
+        import json as _json
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute(
+            "INSERT INTO app_updates (title, version, changes, posted_by) VALUES (%s, %s, %s::jsonb, %s)",
+            (title, version, _json.dumps(changes), session.get('username'))
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True}), 201
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
 
