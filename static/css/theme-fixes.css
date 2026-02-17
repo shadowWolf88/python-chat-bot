@@ -393,3 +393,41 @@ p, span, div, label {
 [data-theme="dark"] h6 {
     color: var(--text-primary) !important;
 }
+
+/* ============================================
+   CLINICIAN SUBTAB BUTTONS
+   ============================================ */
+
+/* Inactive clinician subtab buttons - high contrast in both themes */
+.clinical-subtab-btn {
+    color: var(--text-secondary, #4a5568) !important;
+    background: var(--bg-secondary, #f7fafc) !important;
+    border-color: var(--border-color, #e2e8f0) !important;
+}
+
+.clinical-subtab-btn:hover {
+    color: var(--text-primary, #1a202c) !important;
+    background: var(--bg-hover, #edf2f7) !important;
+}
+
+/* Active clinician subtab button */
+.clinical-subtab-btn.active,
+.clinical-subtab-btn[style*="background: #667eea"],
+.clinical-subtab-btn[style*="background:#667eea"] {
+    background: var(--primary-color, #667eea) !important;
+    color: #ffffff !important;
+    border-color: var(--primary-color, #667eea) !important;
+}
+
+[data-theme="dark"] .clinical-subtab-btn {
+    color: var(--text-primary, #f7fafc) !important;
+    background: var(--bg-secondary, #2d3748) !important;
+    border-color: var(--border-color, #4a5568) !important;
+}
+
+[data-theme="dark"] .clinical-subtab-btn.active,
+[data-theme="dark"] .clinical-subtab-btn[style*="background: #667eea"],
+[data-theme="dark"] .clinical-subtab-btn[style*="background:#667eea"] {
+    background: var(--primary-color, #667eea) !important;
+    color: #ffffff !important;
+}
