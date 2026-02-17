@@ -5623,10 +5623,6 @@
                 <h3 style="margin-bottom: 4px;">Messages</h3>
                 <p style="color: var(--text-muted, #666); margin-bottom: 16px; font-size: 14px;">Communicate with your care team and the development team.</p>
 
-                <div style="background: #ff0000; color: white; padding: 10px; margin-bottom: 10px; font-weight: bold; text-align: center;">
-                    🚀 TEMPLATE UPDATED 2026-02-16 19:45 🚀
-                </div>
-
                 <!-- Messages Navigation Tabs -->
                 <div class="msg-tabs">
                     <button class="msg-tab-btn active" onclick="switchMessageTab('inbox', this)">
@@ -15796,9 +15792,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         // --- Render Inbox ---
         function renderInbox(data) {
-            console.log('[renderInbox] Called with data:', data);
             const container = document.getElementById('messagesInboxContainer');
-            console.log('[renderInbox] Container found:', !!container);
 
             if (!container) {
                 console.error('[renderInbox] Container not found!');
@@ -15806,12 +15800,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
 
             if (!data || !data.conversations || data.conversations.length === 0) {
-                console.log('[renderInbox] No conversations to display');
                 container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">📭</div><p>No messages yet</p><p style="font-size:13px;margin-top:8px;">Click <strong>Compose</strong> to start a conversation</p></div>';
                 return;
             }
 
-            console.log('[renderInbox] Rendering', data.conversations.length, 'conversations');
 
             try {
                 container.innerHTML = data.conversations.map(function(conv) {
@@ -15832,19 +15824,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         '</div>' +
                     '</div>';
                 }).join('');
-                console.log('[renderInbox] Successfully rendered HTML, length:', container.innerHTML.length);
 
-                // Verify container is still visible and has content
-                setTimeout(function() {
-                    var checkContainer = document.getElementById('messagesInboxContainer');
-                    console.log('[renderInbox] Post-render check:', {
-                        exists: !!checkContainer,
-                        hasContent: checkContainer ? checkContainer.innerHTML.length : 0,
-                        isVisible: checkContainer ? (checkContainer.offsetHeight > 0) : false,
-                        parentTab: checkContainer ? checkContainer.closest('.message-subtab-content') : null,
-                        parentVisible: checkContainer ? (checkContainer.closest('.message-subtab-content')?.style.display !== 'none') : false
-                    });
-                }, 100);
 
                 updateUnreadBadge(data);
             } catch (e) {
@@ -15858,9 +15838,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         // --- Render Sent ---
         function renderSent(data) {
-            console.log('[renderSent] Called with data:', data);
             const container = document.getElementById('messagesSentContainer');
-            console.log('[renderSent] Container found:', !!container);
 
             if (!container) {
                 console.error('[renderSent] Container not found!');
@@ -15868,12 +15846,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
 
             if (!data || !data.messages || data.messages.length === 0) {
-                console.log('[renderSent] No messages to display');
                 container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">📤</div><p>No sent messages</p></div>';
                 return;
             }
 
-            console.log('[renderSent] Rendering', data.messages.length, 'messages');
 
             try {
                 container.innerHTML = data.messages.map(function(msg) {
@@ -15891,19 +15867,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         '</div>' +
                     '</div>';
                 }).join('');
-                console.log('[renderSent] Successfully rendered HTML, length:', container.innerHTML.length);
 
-                // Verify container is still visible and has content
-                setTimeout(function() {
-                    var checkContainer = document.getElementById('messagesSentContainer');
-                    console.log('[renderSent] Post-render check:', {
-                        exists: !!checkContainer,
-                        hasContent: checkContainer ? checkContainer.innerHTML.length : 0,
-                        isVisible: checkContainer ? (checkContainer.offsetHeight > 0) : false,
-                        parentTab: checkContainer ? checkContainer.closest('.message-subtab-content') : null,
-                        parentVisible: checkContainer ? (checkContainer.closest('.message-subtab-content')?.style.display !== 'none') : false
-                    });
-                }, 100);
             } catch (e) {
                 console.error('[renderSent] Error rendering:', {
                     message: e.message,
@@ -15916,7 +15880,6 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         // --- Tab Switching ---
         function switchMessageTab(tabName, buttonEl) {
             try {
-                console.log('[switchMessageTab] Switching to:', tabName);
 
                 // Hide all tabs
                 document.querySelectorAll('.message-subtab-content').forEach(function(t) { t.style.display = 'none'; });
@@ -15927,7 +15890,6 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 var tabId = 'messages' + capitalizedTab + 'TabPatient';
                 var tab = document.getElementById(tabId) || document.getElementById('messages' + capitalizedTab + 'Tab');
 
-                console.log('[switchMessageTab] Looking for tab ID:', tabId, 'Found:', !!tab);
 
                 if (tab) {
                     tab.style.display = 'block';
@@ -15937,47 +15899,21 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     var age = messageTabCache.lastLoadTime[tabName] ? now - messageTabCache.lastLoadTime[tabName] : Infinity;
                     var CACHE_TTL = 30000;
 
-                    console.log('[switchMessageTab] Cache status:', {
-                        tabName: tabName,
-                        hasCachedData: tabName === 'inbox' ? !!messageTabCache.inbox : !!messageTabCache.sent,
-                        age: age,
-                        cacheExpired: age > CACHE_TTL
-                    });
 
                     if (tabName === 'inbox') {
                         if (!messageTabCache.inbox || age > CACHE_TTL) {
-                            console.log('[switchMessageTab] Loading fresh inbox data');
                             loadMessagesInbox();
                         } else {
-                            console.log('[switchMessageTab] Rendering inbox from cache');
                             renderInbox(messageTabCache.inbox);
                         }
                     } else if (tabName === 'sent') {
                         if (!messageTabCache.sent || age > CACHE_TTL) {
-                            console.log('[switchMessageTab] Loading fresh sent data');
                             loadMessagesSent();
                         } else {
-                            console.log('[switchMessageTab] Rendering sent from cache');
                             renderSent(messageTabCache.sent);
                         }
                     }
 
-                    // Final state check after render/load
-                    setTimeout(function() {
-                        var containerId = tabName === 'inbox' ? 'messagesInboxContainer' :
-                                         tabName === 'sent' ? 'messagesSentContainer' : null;
-                        if (containerId) {
-                            var finalContainer = document.getElementById(containerId);
-                            console.log('[switchMessageTab] Final state check:', {
-                                tab: tabName,
-                                tabVisible: tab.style.display,
-                                containerExists: !!finalContainer,
-                                containerHasContent: finalContainer ? finalContainer.innerHTML.length : 0,
-                                containerVisible: finalContainer ? (finalContainer.offsetHeight > 0) : false,
-                                containerHTML: finalContainer ? finalContainer.innerHTML.substring(0, 200) : 'N/A'
-                            });
-                        }
-                    }, 200);
                 } else {
                     console.error('[switchMessageTab] Tab not found! ID:', tabId);
                 }
@@ -15992,9 +15928,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         // --- Load Inbox ---
         async function loadMessagesInbox() {
-            console.log('[loadMessagesInbox] Starting...');
             var container = document.getElementById('messagesInboxContainer');
-            console.log('[loadMessagesInbox] Container found:', !!container);
 
             if (!container) {
                 console.error('[loadMessagesInbox] Container not found!');
@@ -16004,9 +15938,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading messages...</p></div>';
 
             try {
-                console.log('[loadMessagesInbox] Fetching from API...');
                 var response = await fetch('/api/messages/inbox', { method: 'GET', credentials: 'include' });
-                console.log('[loadMessagesInbox] API response status:', response.status);
 
                 if (response.status === 401) {
                     console.warn('[loadMessagesInbox] Unauthorized - session expired');
@@ -16017,11 +15949,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 if (!response.ok) throw new Error('Failed to load inbox (status: ' + response.status + ')');
 
                 var data = await response.json();
-                console.log('[loadMessagesInbox] Data received:', data);
 
                 messageTabCache.inbox = data;
                 messageTabCache.lastLoadTime.inbox = Date.now();
-                console.log('[loadMessagesInbox] Cached data, calling renderInbox...');
 
                 renderInbox(data);
             } catch (e) {
@@ -16035,9 +15965,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         // --- Load Sent ---
         async function loadMessagesSent() {
-            console.log('[loadMessagesSent] Starting...');
             var container = document.getElementById('messagesSentContainer');
-            console.log('[loadMessagesSent] Container found:', !!container);
 
             if (!container) {
                 console.error('[loadMessagesSent] Container not found!');
@@ -16047,9 +15975,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             container.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">⏳</div><p>Loading sent messages...</p></div>';
 
             try {
-                console.log('[loadMessagesSent] Fetching from API...');
                 var response = await fetch('/api/messages/sent', { method: 'GET', credentials: 'include' });
-                console.log('[loadMessagesSent] API response status:', response.status);
 
                 if (response.status === 401) {
                     console.warn('[loadMessagesSent] Unauthorized - session expired');
@@ -16060,11 +15986,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 if (!response.ok) throw new Error('Failed to load sent messages (status: ' + response.status + ')');
 
                 var data = await response.json();
-                console.log('[loadMessagesSent] Data received:', data);
 
                 messageTabCache.sent = data;
                 messageTabCache.lastLoadTime.sent = Date.now();
-                console.log('[loadMessagesSent] Cached data, calling renderSent...');
 
                 renderSent(data);
             } catch (e) {
@@ -16384,12 +16308,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         // --- Load messages when switching to messages tab ---
         function checkAndLoadMessages() {
-            console.log('🚀🚀🚀 NEW TEMPLATE DEPLOYED 2026-02-16 19:35 🚀🚀🚀');
-            console.log('[checkAndLoadMessages] Called - loading inbox');
             loadMessagesInbox();
         }
         function loadUserMessages() {
-            console.log('[loadUserMessages] Called - loading inbox');
             loadMessagesInbox();
         }
 
