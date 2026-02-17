@@ -1,1100 +1,1075 @@
-# HEALING SPACE UK - MASTER ROADMAP
-## Complete Priority-Ordered Development Plan
-### Audit #2: February 8, 2026 | Full 7-Phase Codebase Audit
+# HEALING SPACE UK — MASTER PRODUCT ROADMAP
+## World-Class Mental Health Platform: The Definitive Plan
+### Audit Date: February 17, 2026 | Full Platform Audit + Strategic Vision
 
 ---
 
-## ⚡ IMPLEMENTATION STATUS (Feb 10, 2026 - UPDATED)
-
-**TIER 0**: ✅ **100% COMPLETE** - All 8 critical security fixes implemented and tested (Feb 8, 2026)
-
-**TIER 1**: ✅ **100% SECURITY HARDENING COMPLETE** - All 9 items done + TIER 1.1 starting (70+ hours invested):
-- ✅ **1.2 CSRF Protection** (COMPLETE Feb 8, 4 hrs, commit 736168b)
-- ✅ **1.3 Rate Limiting** (COMPLETE Feb 8, 3 hrs, commit 0953f14)
-- ✅ **1.4 Input Validation** (COMPLETE Feb 8, 2.5 hrs, commit 46a02ed)
-- ✅ **1.5 Session Management** (COMPLETE Feb 9, 3.5 hrs, commit 041b2ce)
-- ✅ **1.6 Error Handling & Logging** (COMPLETE Feb 9, 1.5 hrs, commit e1ee48e)
-- ✅ **1.7 Access Control** (COMPLETE Feb 9, 2.5 hrs, commits e1ee48e + 3a686e2)
-- ✅ **1.9 Database Connection Pooling** (COMPLETE Feb 9, 2 hrs, commit 75a337c)
-- ✅ **1.10 Anonymization Salt Hardening** (COMPLETE Feb 9, 2 hrs, commit ef4ba5e)
-- ✅ **1.8 XSS Prevention** (COMPLETE Feb 10, 12 hrs, commits 46e3fd8 + 5a346d8, merged to main)
-- ⏳ **1.1 Clinician Dashboard** (IN PROGRESS Feb 10, Est. 20-25 hrs, completion Feb 14-17)
-
-**Progress**: 70+ hours invested, 180+ tests PASSING | Test Results: **All security items 100% tested** ✅
-- TIER 1.2-1.4: 60+/60 ✅ | TIER 1.5: 20/20 ✅ | TIER 1.6: 6/6 ✅ | TIER 1.7: 7/7 ✅ | TIER 1.8: 25/25 ✅ | TIER 1.9: 34/34 ✅ | TIER 1.10: 14/14 ✅
-
-**Timeline**: TIER 1 Security Hardening ✅ COMPLETE as of Feb 10, 2026. NOW STARTING TIER 1.1 (Clinician Dashboard - 20-25 hours).
-
-**Detailed Progress**: [TIER_1_5_TO_1_10_TRACKER.md](../../TIER_1_5_TO_1_10_TRACKER.md) | [TIER_1_8_COMPLETION_REPORT.md](../../TIER_1_8_COMPLETION_REPORT.md)
+> **Vision**: Healing Space UK becomes the most clinically rigorous, technologically advanced, and genuinely human mental health platform in the UK — the tool that clinicians choose because it makes them better at their jobs, that patients love because it meets them where they are, and that sets the standard for what digital mental health care should be.
 
 ---
 
-## AUDIT ITERATION LOG
+## CURRENT STATE SNAPSHOT (Feb 17, 2026)
 
-| Audit # | Date | Tier 0 | Tier 1 | Tier 2 | Total | Fixed | New |
-|---------|------|--------|--------|--------|-------|-------|-----|
-| 1 | Feb 8, 2026 | 7 | 10 | 7 | 60+ | N/A | N/A |
-| 2 | Feb 8, 2026 | 11 | 14 | 10 | 85+ | 0 | 25+ |
-
----
-
-## PROJECT STATUS SNAPSHOT
-
-| Metric | Value |
-|--------|-------|
-| **Backend** | api.py - 16,689 lines, Flask/PostgreSQL/Groq AI (TIER 0 SECURE ✅) |
-| **Frontend** | index.html - 16,687 lines, monolithic SPA (762KB) |
-| **Supporting Modules** | 16 Python files, 2 JS files, 3 SQL schemas, 43 DB tables |
-| **Test Coverage** | 12/13 passing (92%) - but major gaps in clinical features |
-| **Security Status** | ✅ TIER 0 COMPLETE: All 8 critical fixes implemented (Feb 8, 2026) |
-| **NHS Readiness** | 0/8 mandatory compliance items complete (TIER 3) |
-| **Clinical Features** | Schema exists, C-SSRS scoring non-standard, dashboard broken (TIER 1-2) |
-| **Files flagged for removal** | .env (live secrets), 33MB pandoc.deb, 4MB debug APK, 12 .db.bak files, signup_audit.log, cleanenv/ |
+| Dimension | Status |
+|-----------|--------|
+| **Security** | ✅ TIER 0-1 complete — 180+ tests passing, production-grade |
+| **Backend** | api.py ~17,000 lines, Flask/PostgreSQL/Groq, 310 endpoints |
+| **Frontend** | index.html ~16,500 lines, monolithic SPA |
+| **Database** | 50+ tables, PostgreSQL on Railway |
+| **Patient Features** | 14 tabs, 17 CBT tools, AI therapy, pet, community, messaging |
+| **Clinician Features** | Dashboard live, patient caseload, risk monitor, messaging |
+| **Developer Features** | Terminal, AI chat, inbox, broadcast, QA, user mgmt, Post Update |
+| **AI** | Groq-powered therapy chat, AI memory, risk detection, summaries |
+| **Compliance** | GDPR foundations in place, NHS compliance not yet started |
+| **Mobile** | Capacitor configured, not production-ready |
+| **Tests** | 180+ passing, gaps in clinical logic coverage |
 
 ---
 
-## 🚀 WEEK 1 IMPLEMENTATION (Feb 11, 2026) - QUICK WINS SPRINT ✅ COMPLETE
+## WHAT HAS BEEN COMPLETED ✅
 
-**Status**: ✅ **COMPLETE & DEPLOYED TO MAIN** (Feb 11, 2026 - 12 hours work)  
-**Delivered**: 4 API endpoints + 2 database tables + 18 tests (13 passing, 72%)  
-**Code Added**: 730+ lines (api.py, tests, helpers)  
-**Commit**: c4bd818 "feat: Week 1 Quick Wins - Progress %, Badges, Homework, Patient Search"  
-**Production Ready**: ✅ YES - Zero breaking changes, backward compatible  
-
-### Features Implemented (4 High-Impact Quick Wins):
-
-#### 1. Progress % Display ✅ LIVE
-- **Endpoint**: `GET /api/patient/progress/mood` (line 12514-12595)
-- **Purpose**: Show patients their mood improvement journey
-- **Calculation**: ((latest_mood - first_mood) / 10) * 100
-- **Trend Analysis**: 7-day moving average (improving/declining/stable)
-- **Impact**: Visual motivation, engagement driver
-- **Test**: Passing (line 32-60 in test_week1_quickwins.py)
-
-#### 2. Achievement Badges ✅ LIVE
-- **Endpoints**: 
-  - `GET /api/patient/achievements` (line 12596-12655)
-  - `POST /api/patient/achievements/check-unlocks` (line 12656-12750)
-- **Badges**: first_log (🎯), streak_7 (🔥), streak_30 (⭐)
-- **Database**: `achievements` table with UNIQUE(username, badge_name)
-- **Lock Prevention**: Prevents duplicate unlock attempts
-- **Impact**: Gamification boost, engagement +25%
-- **Test**: 4 tests passing (line 133-216)
-
-#### 3. Homework Visibility ✅ LIVE
-- **Endpoint**: `GET /api/patient/homework` (line 12751-12803)
-- **Purpose**: Display assignments from past 7 days with completion status
-- **Data Source**: CBT records + wellness_logs.homework_completed
-- **Features**: Due date tracking, completion rate, clinician feedback display
-- **Impact**: Accountability, homework compliance +30%
-- **Test**: Passing (line 217-245)
-
-#### 4. Patient Search & Filtering (Clinician) ✅ LIVE
-- **Endpoint**: `GET /api/clinician/patients/search` (line 17174-17337)
-- **Query Params**: q, risk_level, status, sort_by, page, limit
-- **Filtering**: By name, diagnosis, risk level (low/moderate/high/critical), activity status
-- **Sorting**: By name, risk level (DESC), last activity (DESC)
-- **Pagination**: 5-50 results per page, cursor-based
-- **Security**: Role check (clinician only), patient_approvals verification
-- **Performance**: <100ms with indexes
-- **Test**: 5 tests, 4 passing (pagination mock issue)
-
-### Database Schema Changes:
-```sql
--- New Table 1: achievements
-CREATE TABLE achievements (
-    id SERIAL PRIMARY KEY,
-    username TEXT FK users(username) ON DELETE CASCADE,
-    badge_name TEXT NOT NULL,
-    badge_type TEXT,
-    description TEXT,
-    icon_emoji TEXT,
-    earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(username, badge_name)
-);
-CREATE INDEX idx_achievements_username ON achievements(username);
-CREATE INDEX idx_achievements_earned_at ON achievements(earned_at);
-
--- New Table 2: notification_preferences
-CREATE TABLE notification_preferences (
-    id SERIAL PRIMARY KEY,
-    username TEXT UNIQUE FK users(username) ON DELETE CASCADE,
-    preferred_time_of_day TEXT DEFAULT '09:00',
-    notification_frequency TEXT DEFAULT 'daily',
-    topics_enabled JSONB DEFAULT '{"mood_reminder": true, "achievement": true, "homework": true}',
-    smart_timing_enabled BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX idx_notification_prefs_username ON notification_preferences(username);
-```
-
-### Test Results:
-- **Total Tests**: 18 cases
-- **Passing**: 13/18 (72%)
-- **Framework**: pytest with mock database
-- **Coverage**:
-  - Authentication (401 tests): 5/5 ✅
-  - Authorization (403 tests): 2/2 ✅
-  - Success cases: 4/5 ✅ (1 mock data issue)
-  - Integration scenarios: 2/4 (mock datetime format)
-- **File**: `tests/test_week1_quickwins.py` (387 lines)
-
-### Security Verification (TIER 0-1):
-- ✅ Authentication on all endpoints (session.get('username'))
-- ✅ Role-based access control (clinician role validation)
-- ✅ SQL injection prevention (parameterized queries, %s placeholders)
-- ✅ CSRF protection ready (Flask middleware enforced)
-- ✅ Input validation (query length limits, filter whitelisting)
-- ✅ Audit logging on all actions (log_event calls)
-- ✅ Error handling without info leakage (handle_exception wrapper)
-
-### Code Quality:
-- **PEP 8**: ✅ Compliant (4-space indents, 80-char lines)
-- **Error Handling**: ✅ Try/finally blocks for DB connections
-- **Logging**: ✅ All user actions audited via log_event()
-- **Documentation**: ✅ Docstrings on all endpoints
-- **Reusability**: ✅ Helper functions (_calculate_achievement_progress, _check_mood_streak)
-
-### Documentation:
-- ✅ DOCUMENTATION/8-PROGRESS/WEEK1_QUICK_WINS_IMPLEMENTATION_REPORT.md (800+ lines)
-  - Complete implementation details
-  - API endpoint specifications with line numbers
-  - Database schema documentation
-  - Security verification checklist
-  - Performance benchmarks
-  - Deployment instructions
-
-### Backward Compatibility:
-- ✅ **Zero Breaking Changes**: All new features are additive
-- ✅ **Existing Endpoints**: Untouched (no modifications)
-- ✅ **Database**: Non-destructive migrations (CREATE TABLE IF NOT EXISTS)
-- ✅ **API Clients**: Old versions continue working
-- ✅ **Rollback**: Simple (revert commit, drop 2 tables)
-
-### Production Deployment:
-1. Push to main branch
-2. Railway auto-deploys
-3. init_db() auto-creates new tables on startup
-4. Endpoints immediately available
-5. Frontend can integrate via API docs
-
-**Status**: ✅ READY FOR PRODUCTION
+- Full TIER 0-1 security hardening (CSRF, rate limiting, XSS, session management, access control, connection pooling, anonymization, input validation, audit logging)
+- Clinician dashboard with patient caseload, risk monitor, messaging, approvals
+- Patient: 17 CBT tools, AI therapy with crisis detection, pet, community, mood/wellness logging, C-SSRS, safety planning, appointments, FHIR export
+- Full internal messaging system (inbox, sent, compose, conversation threads, templates, scheduling, group messaging, search)
+- Developer dashboard with terminal, AI assistant, inbox, broadcast, post updates, QA, user management, feedback, stats
+- Dark/light theme system with full CSS variable coverage
+- Notification system with dark mode support
+- Remember Me sessions, developer inbox, Post Update feature (all Feb 17, 2026)
+- Community forum, achievements/badges, gratitude logging, pet system
+- FHIR data export, AI training data manager (GDPR-compliant)
 
 ---
 
-### Frontend Integration (Next Phase - Week 2):
-- [ ] Progress % Display Component (React)
-- [ ] Achievement Badges UI with animations
-- [ ] Homework Dashboard Section
-- [ ] Clinician Patient Search Interface
-- [ ] E2E testing on staging
-
-### Next Sprint (Week 2-3 - 40-50 hours):
-1. **Appointment Calendar** (8-10 hrs)
-   - Full calendar view (month/week/day)
-   - Drag-drop rescheduling
-   - Patient confirmation notifications
-
-2. **Outcome Reporting Dashboard** (10-12 hrs)
-   - PHQ-9 & GAD-7 trend charts
-   - Recovery curve visualization
-   - Multi-patient benchmarking
-   - PDF export
-
-3. **Task Management** (6-8 hrs)
-   - Clinician action items board
-   - Assignment tracking
-   - Priority filtering
-
-4. **Mobile Responsiveness** (6-8 hrs)
-   - Responsive design audit
-   - Touch-friendly controls
-   - Mobile optimization
+## PHASE 1 — FOUNDATION POLISH & QUICK WINS
+### Timeline: Weeks 1–4 | Focus: Fix gaps, complete half-built features, establish quality baseline
 
 ---
 
----
+### 1.1 CLINICIAN: Session Notes System
+**Priority: CRITICAL — This is the #1 thing clinicians need that's missing**
 
-## TIER 1.5-1.10: SECURITY HARDENING PACKAGE ✅ 80% COMPLETE (5 of 6 Items)
+Clinicians cannot do their jobs without session documentation. Every clinical session needs notes.
 
-### TIER 1.5: Session Management ✅ COMPLETE
-**Status**: ✅ DONE (Feb 9, 2026 - 3.5 hours, commit 041b2ce)
+- **SOAP Notes** (Subjective, Objective, Assessment, Plan) — standard clinical format
+- **BIRP Notes** (Behaviour, Intervention, Response, Plan) — alternative format
+- **Free-text with structured prompts** — hybrid approach
+- **Session note templates** per presenting problem (depression, anxiety, trauma, OCD, eating disorders)
+- **Quick note entry** from patient detail view — one click to start
+- **Note history** — full chronological log per patient
+- **Sign-off / lock mechanism** — notes locked after 24 hours for audit purposes
+- **Clinician can view their own notes history** with search and filter
+- **Patient cannot see session notes** (clinical confidentiality by default)
+- **Export session notes** as PDF for supervision, referral, or records requests
 
-**What Was Implemented**:
-- Session lifetime reduced from 30 days → 7 days
-- Inactivity timeout: 30 minutes (auto-logout)
-- Session rotation on login: `session.clear()` prevents fixation attacks
-- Password invalidation: All sessions deleted on password change (forces re-auth everywhere)
-- Verification: 20/20 tests passing, all auth flows verified
-
-**Code Location**: [api.py](api.py#L500-L600) - `login_required`, `password_reset` routes
-
-**Security Impact**: Medium (Session hijacking risk reduced by 75%)
-
----
-
-### TIER 1.6: Error Handling & Logging ✅ COMPLETE
-**Status**: ✅ DONE (Feb 9, 2026 - 1.5 hours, commit e1ee48e)
-
-**What Was Implemented**:
-- Python logging module configured (DEBUG/INFO levels, RotatingFileHandler 10MB)
-- All 127 print() statements replaced with `app.logger` calls
-- Exception handling: Specific exception types (psycopg2.Error, ValueError, etc.)
-- Stack traces logged with `exc_info=True` (full context)
-- Removed debug prints from endpoints (prevents information leakage)
-- Verification: 6/6 tests passing, logging validated on all error paths
-
-**Code Location**: [api.py](api.py#L100-L150) - Logger initialization, [lines 2000+](api.py#L2000) - Error handlers
-
-**Security Impact**: Low (Better incident response, prevents debug info exposure)
+**Backend**: `session_notes` table, `GET/POST/PUT /api/clinician/session-notes/<patient>` endpoints
+**Frontend**: New subtab in patient detail view, rich text editor with templates
 
 ---
 
-### TIER 1.7: Access Control ✅ COMPLETE
-**Status**: ✅ DONE (Feb 9, 2026 - 2.5 hours, commits e1ee48e + 3a686e2)
+### 1.2 CLINICIAN: Treatment Plan Builder
+**Priority: CRITICAL — Required for clinical governance**
 
-**What Was Implemented**:
-- Professional endpoints: Session-only identity (never request.json username)
-- Role verification: Explicit clinician/admin checks before privileged ops
-- Patient relationship verification via `patient_approvals` table
-- Audit logging on all access denials (via `log_event()` calls)
-- Removed 3 auth bypass vulnerabilities (X-Username header, body-derived identity)
-- Verification: 7/7 tests passing, all role checks validated
+Every patient needs a documented, co-produced treatment plan.
 
-**Code Location**: [api.py](api.py#L600-L700) - `@professional_required` decorator, [audit.py](audit.py#L5) - `log_event()`
+- **Goals** — SMART goals tied to presenting problems, with target dates
+- **Interventions** — which CBT approaches, tools, or techniques will be used
+- **Frequency & Duration** — planned session cadence
+- **Review dates** — automatic reminders when a review is due
+- **Patient co-signature** — patient can view and agree to their plan
+- **Treatment plan versioning** — previous versions preserved
+- **Link to outcomes** — PHQ-9/GAD-7/CORE-OM targets explicitly stated
+- **Discharge criteria** — what success looks like (so clinician and patient both know when therapy ends)
+- **Export to PDF** — for referrals, supervision, records
 
-**Security Impact**: High (Access control now enforced, audit trail complete)
-
----
-
-### TIER 1.10: Anonymization Salt Hardening ✅ COMPLETE
-**Status**: ✅ DONE (Feb 9, 2026 - 2 hours, commit ef4ba5e)
-
-**What Was Implemented**:
-- Environment-based salt configuration: `ANONYMIZATION_SALT` env var (required)
-- Auto-generation in DEBUG mode: `secrets.token_hex(32)` for development
-- Fail-closed in production: Raises RuntimeError if not set (prevents unsafe defaults)
-- Minimum 32-character validation (enforces strength)
-- Updated `training_data_manager.py`: `get_anonymization_salt()` function (41 lines)
-- Verification: 14/14 tests passing, all credential paths validated
-
-**Code Location**: [training_data_manager.py](training_data_manager.py#L27-L68) - Salt retrieval, [api.py](api.py#L3600+) - init_db validation
-
-**Security Impact**: Medium (GDPR anonymization now cryptographically sound)
+**Backend**: `treatment_plans` table
+**Frontend**: New "Treatment Plan" subtab in patient detail view
 
 ---
 
-### TIER 1.9: Database Connection Pooling ✅ COMPLETE
-**Status**: ✅ DONE (Feb 9, 2026 - 2 hours, commit 75a337c)
+### 1.3 CLINICIAN: CORE-OM / WEMWBS Outcome Measures
+**Priority: HIGH — Standard in UK mental health services**
 
-**What Was Implemented**:
-- `psycopg2.pool.ThreadedConnectionPool` integration (minconn=2, maxconn=20, timeout=30s)
-- Thread-safe singleton pattern: Global `_db_pool` with `threading.Lock`
-- Context manager: `get_db_connection_pooled()` for automatic cleanup (try/finally)
-- Backward compatible: Existing `get_db_connection()` now uses pool internally
-- Flask integration: `@app.teardown_appcontext` hook auto-returns connections after requests
-- Added pool infrastructure: 75+ lines, credential resolution (DATABASE_URL or env vars)
-- Verification: 34/34 tests passing, pool configuration + thread safety verified
+PHQ-9 and GAD-7 exist but are insufficient. Add:
 
-**Code Location**: [api.py](api.py#L1-L25) - imports, [api.py](api.py#L175-L258) - pool infrastructure, [api.py](api.py#L2285-L2310) - get_db_connection, [api.py](api.py#L288-L318) - teardown hook
+- **CORE-OM** (Clinical Outcomes in Routine Evaluation — 34-item) — the UK standard
+- **CORE-10** — brief version for session-by-session tracking
+- **WEMWBS** (Warwick-Edinburgh Mental Wellbeing Scale) — positive wellbeing
+- **ORS** (Outcome Rating Scale) — 4-item ultra-brief session check-in
+- **SRS** (Session Rating Scale) — therapeutic alliance measurement per session
+- **Pre/post comparison** — change scores with clinical significance thresholds
+- **Recovery trajectories** — is this patient on a recovery path?
+- **Reliable Change Index** — has this person changed beyond measurement error?
+- **Clinician dashboard** showing all patients' latest scores in one view
 
-**Test Coverage**: [tests/test_tier1_9.py](tests/test_tier1_9.py) - 10 test classes, 34 tests
-- Pool creation (5/5): Module imported, globals exist, functions exist
-- Pool configuration (5/5): ThreadedConnectionPool, minconn=2, maxconn=20, timeout=30
-- Context manager (3/3): Generator pattern, correct signature, documented
-- Backward compatibility (4/4): Function exists, parameter maintained, pool used internally
-- Thread safety (3/3): Lock exists, singleton pattern verified
-- Error handling (2/2): Exception handling, logging configured
-- Documentation (3/3): Comments present, docstrings explain pool sizing
-- Integration (3/3): Imports correct, pool creation logged, teardown hook exists
-- Code quality (3/3): No hardcoded settings, credentials from env only
-- Performance (3/3): Connections reused, prevents exhaustion, maintains min ready
-
-**Security Impact**: High (Prevents connection exhaustion DoS, supports 100+ concurrent users)
+**Backend**: Extend `clinical_scales` table with new scale types
+**Frontend**: Add to patient assessments tab, add to clinician overview
 
 ---
 
-### TIER 1.8: XSS Prevention ✅ COMPLETE
-**Status**: ✅ DONE (Feb 10, 2026 - 12 hours, commits 46e3fd8 + 5a346d8, merged to main)
+### 1.4 CLINICIAN: Waiting List Management
+**Priority: HIGH — Every service has a waiting list**
 
-**What Was Implemented**:
-- ✅ Audited all 138 innerHTML instances in templates/index.html
-- ✅ Replaced with textContent for 45+ high-risk user-generated content locations
-- ✅ Integrated DOMPurify v3.0.6 (CDN) for rich content sanitization
-- ✅ Created comprehensive frontend test suite: 25 XSS prevention tests
-- ✅ Validated end-to-end XSS protection with integration tests
-- ✅ All 25 tests PASSING (100% success rate)
-
-**Code Location**: [templates/index.html](templates/index.html) - 20+ sanitization fixes applied
-
-**Test Coverage**: [tests/backend/test_xss_prevention.py](tests/backend/test_xss_prevention.py) - 25/25 ✅
-
-**Security Impact**: High (User-generated content now safely rendered, XSS attack surface eliminated)
+- **Referral intake form** — capture referral source, presenting problem, urgency rating
+- **Waiting list queue** — ordered by urgency, date received, risk level
+- **Automated waiting time estimates** — based on current caseload capacity
+- **Patient on waiting list portal** — patient sees their position, can do CBT self-help while waiting
+- **First appointment allocation** — one-click to move from waiting list to active caseload
+- **Capacity dashboard** — clinician's current caseload vs. max capacity
+- **Referral source tracking** — GP, self-referral, IAPT, inpatient discharge
 
 ---
 
-## CUMULATIVE PROGRESS SUMMARY
+### 1.5 PATIENT: Medication Tracker & Reminders
+**Priority: HIGH — Medication adherence is a major outcome predictor**
 
-| Tier | Status | Hours | Tests | Commits | Impact |
-|------|--------|-------|-------|---------|--------|
-| **1.2** | ✅ Complete | 4 | 60+/60 | 1 | CSRF protected on 60 endpoints |
-| **1.3** | ✅ Complete | 3 | 20+/20 | 1 | Rate limiting on 11 critical endpoints |
-| **1.4** | ✅ Complete | 2.5 | 25+/25 | 1 | Input validation on 4 auth endpoints |
-| **1.5** | ✅ Complete | 3.5 | 20/20 | 1 | Session timeout + rotation |
-| **1.6** | ✅ Complete | 1.5 | 6/6 | 1 | Structured logging, no debug leakage |
-| **1.7** | ✅ Complete | 2.5 | 7/7 | 2 | Access control enforced |
-| **1.9** | ✅ Complete | 2 | 34/34 | 1 | Connection pooling (20 concurrent) |
-| **1.10** | ✅ Complete | 2 | 14/14 | 1 | Anonymization salt hardened |
-| **1.8** | ✅ Complete | 12 | 25/25 | 2 | XSS prevention on all user content |
-| **TOTAL SECURITY** | **✅ 100%** | **70+ hrs** | **180+/180 ✅** | **10 commits** | **All TIER 1 security complete** |
+- **Medication list management** — add medications with dose, frequency, prescriber
+- **Daily reminder system** — configurable notification times
+- **Taken/missed log** — patient marks each dose
+- **Side effect journal** — link side effects to mood data
+- **Adherence chart** — weekly/monthly adherence rate
+- **Clinician visibility** — clinician can see adherence data (with consent)
+- **Refill reminder** — alert when medication supply is running low (based on dose + quantity)
+- **'About my medication' info** — general educational info (not prescribing advice)
 
-**Next Item**: TIER 1.1 (Clinician Dashboard fixes, 20-25 hours remaining)
-
-**Estimated Completion**: Feb 14-17, 2026
-
-
-> All 8 active vulnerabilities fixed. Production-ready security posture achieved.
-
-| Item | Description | Status | Commit | Hours |
-|------|-------------|--------|--------|-------|
-| **0.0** | Live credentials in git (.env exposure) | ✅ DONE | 85774d7 | 2 |
-| **0.1** | Auth bypass via X-Username header | ✅ DONE | 85774d7 | 1 |
-| **0.2** | Hardcoded DB credentials (healing_space_dev_pass) | ✅ DONE | 85774d7 | 1 |
-| **0.3** | Weak SECRET_KEY (hostname-derived) | ✅ DONE | 85774d7 | 1 |
-| **0.4** | SQL placeholder errors (12 fixes in training_data_manager.py) | ✅ DONE | 743aaa3 | 3 |
-| **0.5** | CBT tools SQLite→PostgreSQL migration | ✅ DONE | 0e3af3b | 4 |
-| **0.6** | Activity tracking without GDPR consent | ✅ DONE | 2afbff5 | 3 |
-| **0.7** | Prompt injection in TherapistAI (PromptInjectionSanitizer) | ✅ DONE | a5378fb | 6 |
-| **TIER 0 TOTAL** | **All 8 critical fixes implemented** | **✅ 100% (8/8)** | **6 commits** | **~19 hours** |
-
-### Completion Details
-
-**What Was Fixed:**
-- ✅ All credentials now environment-only (fail-closed validation, no defaults)
-- ✅ Session-only authentication (no X-Username header fallback)
-- ✅ Strong SECRET_KEY generation (32+ random chars required)
-- ✅ All 12 SQL placeholder errors corrected (training_data_manager.py)
-- ✅ CBT tools fully migrated to PostgreSQL with blueprint registration
-- ✅ Activity tracking requires explicit GDPR consent (default: opt-in)
-- ✅ PromptInjectionSanitizer class (280+ lines, 5 defense layers) integrated
-- ✅ All code syntax validated and committed to git
-
-**Testing & Validation:**
-- ✅ Python syntax validation: `python3 -m py_compile api.py cbt_tools/*.py`
-- ✅ Git commits: 6 clean commits with detailed messages
-- ✅ Code review: All TIER 0 code manually reviewed for completeness
-- ✅ Test coverage: Ready for TIER 1 integration tests
-
-**Next Steps: TIER 1**
-When starting TIER 1 implementation, please:
-1. Create `tests/test_tier1_blockers.py` with unit/integration tests
-2. Create `TIER_1_TESTING_GUIDE.md` with test scenarios
-3. Create `TIER_1_IMPLEMENTATION_CHECKLIST.md` to track progress
-4. After each fix: run `pytest tests/ -v` (verify all tests pass)
-5. Update relevant docs: `docs/API_SECURITY.md`, `docs/DEPLOYMENT.md`
-6. Push changes with detailed commits (one per item)
+**Note**: Existing `patient_medications` table exists. This builds the full UI and reminder system.
 
 ---
 
-## TIER 1: PRODUCTION BLOCKERS (Required Before Any Real Users)
-> Structural issues that make the app unsafe or non-functional for clinical use
+### 1.6 PATIENT: Permanent SOS / Crisis Button
+**Priority: CRITICAL — Safety feature that should have been Day 1**
 
-### TIER 1.1 Fix Clinician Dashboard (20+ Broken Features) ⏳ IN PROGRESS
-**Status**: ⏳ IN PROGRESS (Start Feb 10, Est. 20-25 hours, completion Feb 14-17)
-- **Source**: docs/DEV_TO_DO.md - documented by developer
-- **Broken items**: AI summary endpoint, charts tab, patient profile, mood logs, therapy assessments, therapy history, risk alerts, appointment booking system, and ~12 more
-- **Current work**: Analyzing dashboard failures, creating debugging documentation
-- **Fix approach**: Systematically debug each feature with test coverage; fix one feature per commit
-- **Estimated subtasks**: 20+ features × (debug + fix + test) ≈ 20-25 hours
+- **Persistent red SOS button** visible on EVERY screen, every tab, always accessible
+- **Crisis resource overlay** — immediate display of:
+  - Samaritans: 116 123
+  - Crisis text line: Text SHOUT to 85258
+  - NHS 111 (option 2 for mental health)
+  - Patient's personal emergency contacts (from safety plan)
+  - Patient's clinician's emergency contact
+  - Their safety plan — displayed immediately
+- **One-tap call** links to crisis lines
+- **Alert clinician** — optional button to send immediate alert to assigned clinician
+- **Grounding exercises** — quick-access breathing, 5-4-3-2-1, box breathing
+- **This is not** a replacement for 999 — always display "Call 999 if you or someone else is in immediate danger"
 
-### 1.2 CSRF Protection - Apply Consistently ✅ COMPLETE
-- **File**: api.py:351-380
-- **Risk**: Only 1 endpoint uses `@CSRFProtection.require_csrf`; DEBUG mode disables CSRF entirely
-- **Fix**: Apply CSRF decorator to ALL state-changing endpoints; remove DEBUG bypass
-- **Effort**: 4 hours
-- **Status**: ✅ COMPLETE (Feb 8, 2026)
-- **Changes**:
-  - Added @CSRFProtection.require_csrf to 60 state-changing endpoints (8 → 68 total decorators)
-  - Removed DEBUG bypass for CSRF validation (line 406)
-  - Removed DISABLE_CSRF environment variable bypass (line 1938)
-  - All POST/PUT/DELETE endpoints now require valid CSRF tokens
-- **Impact**: Eliminates entire CSRF attack surface (52 previously unprotected endpoints now secured)
-- **Verification**: ✅ Syntax valid, 68 CSRF decorators applied, commit: 736168b
-
-### 1.3 Rate Limiting on Critical Endpoints ✅ COMPLETE
-- **File**: api.py:1995-2006, 4530, 5115, 5284, 5353, 9235, 9317
-- **Status**: ✅ COMPLETE (Feb 8, 2026)
-- **Changes Made**:
-  - Enhanced RateLimiter class with 6 new rate limit configurations
-  - Applied @check_rate_limit decorator to 7 critical endpoints (was 4)
-  - Total rate limiting decorators: 11 (4 original + 7 new)
-  - Added CSRF protection to clinical assessments (PHQ-9, GAD-7)
-  - Sliding-window strategy: Already in place, optimized
-  - Dual-level rate limiting: By IP address AND username
-- **Protected Endpoints**:
-  - Auth: login (5/min), register (3/5min), send-verification (3/5min), verify-code (10/min), forgot-password (3/5min), confirm-reset (5/5min), clinician-register (2/hr), developer-register (1/hr)
-  - Clinical: phq9 (2/14days), gad7 (2/14days)
-  - Chat: ai_chat (30/min)
-- **Impact**: 
-  - Prevents brute force attacks on login, password reset
-  - Prevents user enumeration on forgot-password
-  - Prevents registration spam
-  - Enforces fortnightly clinical assessment limits
-  - Dual-level protection against distributed attacks
-- **Verification**: ✅ Syntax valid, 11 decorators applied, commit: 0953f14
-
-### 1.4 Input Validation Consistency ✅ COMPLETE
-- **File**: api.py lines 334-412, 4722-4763, 5084-5103, 5399-5423, 7437-7448
-- **Status**: ✅ COMPLETE (Feb 8, 2026)
-- **Changes Made**:
-  - Enhanced InputValidator class with 5 new validation methods
-  - Added: `validate_email()` - RFC 5322 format validation
-  - Added: `validate_phone()` - Phone number format and digit count validation
-  - Added: `validate_exercise_minutes()` - Range validation 0-1440 minutes
-  - Added: `validate_water_intake()` - Range validation 0-20 pints
-  - Added: `validate_outside_time()` - Range validation 0-1440 minutes
-  - Applied validation to /api/auth/register (email, phone)
-  - Applied validation to /api/auth/forgot-password (email)
-  - Applied validation to /api/auth/clinician/register (email, phone)
-  - Refactored /api/therapy/log-mood to use InputValidator methods
-- **Coverage**:
-  - Email format: RFC 5322 simplified pattern
-  - Phone format: Digits + formatting chars, min 10 digits
-  - Numeric ranges: Properly bounded 0-X with appropriate maximums
-  - Type checking: All validators return (value, error) tuple
-- **Impact**:
-  - Prevents invalid email/phone from being stored
-  - Prevents enumeration attacks on password reset
-  - Consistent validation patterns across all endpoints
-  - Type safety on numeric fields (prevents overflow)
-  - Early rejection prevents downstream processing errors
-- **Verification**: ✅ Syntax valid, 5 new validators, 4 endpoints enhanced, commit: 46a02ed
-
-### 1.5 Session Management Hardening ✅
-- **File**: api.py:147-165
-- **Issues**: 30-day session lifetime (too long for health data), no session rotation on login, no concurrent session controls, no inactivity timeout
-- **Fix**: Reduce to 7 days max; rotate session ID on login; add 30-min inactivity timeout; invalidate sessions on password change
-- **Status**: ✅ COMPLETE (Feb 9, 2026) - Commit 041b2ce - 3.5 hours (20/20 tests passing)
-
-### 1.6 Error Handling & Debug Cleanup 🔄
-- **Files**: api.py (100+ bare `except Exception: pass`), audit.py, secrets_manager.py
-- **Risk**: Silent failures hide bugs and security issues; debug print statements expose usernames/params in logs
-- **Fix**: Replace bare exceptions with specific handlers; remove debug prints; add structured logging (Python logging module)
-- **Status**: 🔄 IN PROGRESS - (10 hours) - See detailed implementation below
-
-### 1.7 Broken Access Control on Professional Endpoints 🔄
-- **File**: api.py:10189-10221
-- **Risk**: `/api/professional/ai-summary` takes `clinician_username` from request body (forgeable)
-- **Fix**: Always derive clinician identity from session; never trust request body for identity
-- **Status**: 🔄 IN PROGRESS - (4 hours) - See detailed implementation below
-
-### 1.8 XSS via innerHTML (138 Instances in Frontend)
-- **File**: templates/index.html
-- **Risk**: User-generated content (community posts, messages, pet names, safety plan entries) rendered via innerHTML
-- **Fix**: Use textContent for user data; sanitize with DOMPurify for rich content; audit all 138 innerHTML uses
-- **Effort**: 12 hours
-
-### 1.9 Database Connection Pooling
-- **File**: api.py (100+ individual `get_db_connection()` calls without pooling)
-- **Risk**: Connection exhaustion under load; no connection reuse
-- **Fix**: Implement psycopg2.pool.ThreadedConnectionPool; use context managers
-- **Effort**: 6 hours
-
-### 1.10 Anonymization Salt Hardcoded
-- **File**: training_data_manager.py
-- **Risk**: Default salt in source code undermines anonymization
-- **Fix**: Generate random salt on first run; store securely; document rotation
-- **Effort**: 2 hours
-
-**TIER 1 TOTAL: ~76-81 hours**
+**Design**: Small floating button bottom-right of every view, expands to full overlay.
 
 ---
 
-### ⏳ TIER 1 PROMPT (Ready to Implement)
+### 1.7 PATIENT: Recovery Milestones & Progress Dashboard
+**Priority: HIGH — Patients need to see their journey**
 
-**When you are ready to start TIER 1, follow this process:**
-
-1. **Create test infrastructure:**
-   - Create `tests/test_tier1_blockers.py` with unit/integration test cases
-   - Create `docs/TIER_1_TESTING_GUIDE.md` with test scenarios and expected results
-   - Create `docs/TIER_1_IMPLEMENTATION_CHECKLIST.md` to track each item
-
-2. **For each TIER 1 item (1.1-1.10):**
-   - Read and understand the requirement
-   - Write tests FIRST (test-driven development)
-   - Implement the fix
-   - Run `pytest tests/ -v` after each fix (verify no regressions)
-   - Update documentation
-   - Make a git commit with clear message
-
-3. **Update documentation files:**
-   - `docs/API_SECURITY.md`: Add section on TIER 1 fixes
-   - `docs/DEPLOYMENT.md`: Add configuration for rate limiting, session timeouts
-   - `docs/ERROR_HANDLING.md`: Document structured logging approach
-   - `docs/DATABASE.md`: Document connection pooling strategy
-
-4. **Testing requirements:**
-   - Dashboard functionality tests (20+ scenarios)
-   - CSRF protection tests (valid/invalid/missing tokens)
-   - Rate limiting tests (test all limits, edge cases)
-   - Input validation tests (type/range/format)
-   - Session management tests (timeout, rotation, invalidation)
-   - Access control tests (permission verification)
-   - Error handling tests (verify no debug leakage)
-   - XSS prevention tests (validate sanitization)
-
-5. **Before moving to TIER 2:**
-   - All 13 original tests PLUS new TIER 1 tests passing
-   - Documentation updated
-   - All code committed with detailed messages
-   - Run syntax check: `python3 -m py_compile api.py *.py`
+- **Visual recovery timeline** — from first session to now
+- **Milestone celebrations** — "You've been tracking your mood for 30 days", "First week without a red day", "PHQ-9 score dropped below 10 (mild range)" etc.
+- **Progress chart** — mood trend over time with rolling average
+- **CBT tool usage stats** — how many times they've used each tool
+- **Streak tracking** — daily check-in streak, therapy session streak
+- **Comparison to baseline** — "Your average mood is 2.3 points higher than when you started"
+- **Clinician can send personal milestone messages** — e.g., "I noticed your PHQ-9 has improved significantly — well done"
+- **Shareable summary card** — patient can download/share their recovery summary
 
 ---
 
-## TIER 2: CLINICAL FEATURE COMPLETION (Required for Clinical Deployment)
-> Features that have schema/docs but missing implementation
+### 1.8 DEVELOPER DASHBOARD: Real-Time System Monitoring
+**Priority: HIGH — Currently flying blind**
 
-### 2.1 C-SSRS Assessment - Backend Implementation
-- **Status**: Database schema exists (8 tables), frontend UI exists, NO API endpoints
-- **Tables ready**: risk_assessments, risk_alerts, risk_keywords, crisis_contacts, risk_reviews, enhanced_safety_plans, ai_monitoring_consent
-- **Need**: POST/GET/PUT endpoints for assessment CRUD, scoring algorithm, clinician notification
-- **Clinical requirement**: Scoring must be validated against published C-SSRS protocol
-- **Effort**: 20-30 hours
-
-### 2.2 Crisis Alert System
-- **Status**: CRISIS_RESPONSE_PROTOCOL.md documents 3-tier alert system; NO code implements it
-- **Need**: Real-time alert pipeline (within 1 minute for critical), email/SMS/webhook notifications, clinician acknowledgment tracking, escalation if unacknowledged
-- **Effort**: 15-20 hours
-
-### 2.3 Safety Planning Workflow
-- **Status**: Frontend has safety plan builder; backend storage incomplete
-- **Need**: Full CRUD for safety plans, versioning, clinician review workflow, safety plan enforcement (require plan after high-risk assessment)
-- **Effort**: 10-15 hours
-
-### 2.4 Treatment Goals Module
-- **Status**: Listed in roadmap, NOT started
-- **Need**: SMART goal creation, progress tracking, clinician collaboration, milestone celebrations
-- **Effort**: 15-20 hours
-
-### 2.5 Session Notes & Homework
-- **Status**: Listed in roadmap, NOT started
-- **Need**: Clinician session note templates, homework assignment/tracking, patient acknowledgment, outcome measurement
-- **Effort**: 18-24 hours
-
-### 2.6 CORE-OM/ORS Outcome Measures
-- **Status**: Listed in roadmap, NOT started
-- **Need**: Validated outcome measurement tools, pre/post comparison, clinical change detection, graphing
-- **Effort**: 12-18 hours
-
-### 2.7 Relapse Prevention Planning
-- **Status**: Listed in roadmap, NOT started
-- **Need**: Relapse warning signs tracker, early intervention triggers, maintenance plan, support network mapping
-- **Effort**: 16-20 hours
-
-**TIER 2 TOTAL: ~106-147 hours**
+- **Live error feed** — real-time display of Python exceptions and 500 errors
+- **API latency dashboard** — response times for every endpoint, P50/P95/P99
+- **Active users** — how many users are currently logged in and on which tab
+- **Database performance** — slow query detection, connection pool status
+- **Health check history** — uptime timeline, deployment markers
+- **Error rate trends** — errors per hour/day with alerting thresholds
+- **Memory & CPU** — Railway container metrics
+- **Failed login attempts** — potential attack detection
+- **API call volume** — which endpoints are hit most frequently
 
 ---
 
-### ⏳ TIER 2 PROMPT (Ready After TIER 1 Complete)
+### 1.9 DEVELOPER DASHBOARD: User Journey Analytics
+**Priority: HIGH — You can't improve what you don't measure**
 
-**When you are ready to start TIER 2, follow this process:**
-
-1. **Create test infrastructure:**
-   - Create `tests/test_tier2_clinical_features.py` with clinical feature tests
-   - Create `docs/TIER_2_CLINICAL_VALIDATION.md` with clinical validation scenarios
-   - Create `docs/TIER_2_IMPLEMENTATION_CHECKLIST.md` to track each feature
-
-2. **For each TIER 2 item (2.1-2.7):**
-   - Write clinical validation tests FIRST
-   - Implement the feature with clinical accuracy as priority
-   - Test against published clinical protocols (e.g., C-SSRS scoring)
-   - Run `pytest tests/ -v` after each feature (verify no regressions)
-   - Update documentation with clinical workflows
-   - Make a git commit with clear message
-
-3. **Update documentation files:**
-   - `docs/CLINICAL_FEATURES.md`: Complete feature documentation
-   - `docs/CLINICIAN_GUIDE.md`: Workflow instructions for each feature
-   - `docs/PATIENT_GUIDE.md`: Patient-facing instructions
-   - `docs/API_REFERENCE.md`: Document all new endpoints
-   - `docs/SAFETY_PROCEDURES.md`: Document crisis response workflows
-
-4. **Clinical testing requirements:**
-   - C-SSRS scoring validation (test against published reference data)
-   - Crisis alert pipeline tests (latency, delivery, escalation)
-   - Safety plan CRUD and enforcement tests
-   - Goal progress tracking and milestone tests
-   - Session notes and homework tracking tests
-   - Outcome measure pre/post comparison tests
-   - Relapse prevention trigger detection tests
-
-5. **Before moving to TIER 3:**
-   - All TIER 1 + TIER 2 tests passing
-   - Clinical workflows documented and tested
-   - All clinical calculations validated
-   - All code committed with detailed messages
+- **Funnel analysis** — where do users drop off? (Registration → First mood log → First therapy session → 7-day streak)
+- **Feature usage heatmap** — which tabs/tools are used most/least
+- **Session duration** — how long do users spend per session
+- **Retention cohorts** — day 1, 7, 30, 90 retention rates
+- **Patient engagement score** — composite metric of activity, diversity of tools used, streak
+- **Clinician efficiency metrics** — notes per session, time to respond to messages, caseload size
+- **Outcome correlation dashboard** — which features correlate with best PHQ-9/GAD-7 improvement?
 
 ---
 
-## TIER 3: COMPLIANCE & GOVERNANCE (Required for NHS/University Deployment)
-> Regulatory requirements that BLOCK deployment
+### 1.10 DEVELOPER DASHBOARD: Feature Flag & A/B Testing
+**Priority: MEDIUM — Essential for iterating without risk**
 
-### 3.1 Clinical Governance Structure
-- **Status**: NHS_COMPLIANCE_FRAMEWORK.md documents requirements; NONE in place
-- **Need**: Recruit Clinical Lead (OVERDUE - was due Feb 10), appoint DPO, ISS Officer, Patient Safety Lead
-- **Effort**: Ongoing organizational (not code)
-
-### 3.2 Legal Review & Insurance
-- **Status**: NOT started (was due Feb 14)
-- **Need**: NHS solicitor engagement, Professional Indemnity Insurance, Data Processing Agreements
-- **Effort**: Ongoing organizational
-
-### 3.3 Ethics Approval
-- **Status**: DPIA is DRAFT; Clinical Safety Case unsigned; no REC submission
-- **Need**: Finalize DPIA with DPO sign-off, complete Clinical Safety Case, submit to Research Ethics Committee
-- **Effort**: 20-30 hours documentation + review cycles
-
-### 3.4 GDPR Implementation Gaps
-- **Current gaps**:
-  - No comprehensive data export (Article 20) - missing AI insights, clinician notes, risk assessments from export
-  - No data retention policies enforced (chat history indefinite)
-  - No breach notification mechanism
-  - Consent tracking only for training data (not activity tracking, clinician access, research)
-  - PII stripping patterns only cover en-US formats (need UK formats)
-- **Fix**: Implement auto-deletion schedules, comprehensive export, consent management UI, breach logging
-- **Effort**: 20-30 hours
-
-### 3.5 Field-Level Encryption for Sensitive Data
-- **Status**: Fernet encryption available but not applied to clinical data
-- **Need**: Encrypt at rest: C-SSRS responses, therapy chat content, diagnoses, safety plans
-- **Effort**: 15-20 hours
-
-### 3.6 Comprehensive Audit Logging
-- **Status**: audit.py exists but silently swallows exceptions
-- **Need**: Structured logging (who accessed what data when), 7-year retention, tamper-evident logs, regulatory reporting capability
-- **Effort**: 10-15 hours
-
-### 3.7 CI/CD Pipeline
-- **Status**: No automated testing/deployment pipeline
-- **Need**: GitHub Actions for linting, tests, security scans (pip-audit, bandit), automated staging deployment, test coverage reporting
-- **Effort**: 8-12 hours
-
-**TIER 3 TOTAL: ~73-107 hours (code) + ongoing organizational work**
+- **Feature flag management** — toggle features on/off per role, per user, or % rollout
+- **A/B test creation** — define variants, split traffic, measure outcomes
+- **Rollout controls** — gradual rollout (5% → 25% → 50% → 100%)
+- **Instant rollback** — disable any feature immediately
+- **A/B results dashboard** — statistical significance, conversion rates
 
 ---
 
-### ⏳ TIER 3 PROMPT (Ready After TIER 2 Complete)
-
-**When you are ready to start TIER 3, follow this process:**
-
-1. **Create test infrastructure:**
-   - Create `tests/test_tier3_compliance.py` with compliance validation tests
-   - Create `docs/TIER_3_COMPLIANCE_VALIDATION.md` with all regulatory checks
-   - Create `docs/TIER_3_IMPLEMENTATION_CHECKLIST.md` to track progress
-
-2. **For each TIER 3 item (3.1-3.7):**
-   - **3.1**: Organizational (recruit Clinical Lead, DPO, etc.) - coordinate separately
-   - **3.2**: Organizational (legal review, insurance) - coordinate separately
-   - **3.3**: Document-focused (DPIA, Ethics submission) - work with DPO/ethics committee
-   - **3.4-3.7**: Code-based compliance items (implement and test)
-
-3. **Compliance implementation (3.4-3.7):**
-   - Write compliance validation tests FIRST
-   - Implement required features
-   - Run `pytest tests/ -v` after each item (verify no regressions)
-   - Update documentation with compliance evidence
-   - Make git commits with clear messages
-
-4. **Update documentation files:**
-   - `docs/REGULATORY_COMPLIANCE.md`: Complete regulatory evidence
-   - `docs/NHS_COMPLIANCE.md`: NHS compliance checklist and evidence
-   - `docs/DATA_PROTECTION.md`: GDPR/DPA compliance documentation
-   - `docs/GDPR_PROCEDURES.md`: Data subject rights procedures
-   - `docs/AUDIT_LOGGING.md`: Audit logging procedures
-   - `docs/SECURITY_INCIDENT_RESPONSE.md`: Breach notification procedures
-
-5. **Compliance testing requirements:**
-   - GDPR compliance tests (consent, retention, deletion, portability)
-   - NHS Information Governance tests (IG44 requirements)
-   - Data encryption at rest tests
-   - Audit logging immutability tests
-   - Retention policy enforcement tests
-   - Breach notification mechanism tests
-   - Field-level encryption tests
-
-6. **Before NHS deployment:**
-   - All TIER 1 + TIER 2 + TIER 3 tests passing
-   - All regulatory documentation complete
-   - Clinical Leadership sign-offs obtained
-   - DPO approval obtained
-   - Legal review completed
-   - Ethics approval (if required) obtained
-   - All code committed with detailed messages
+## PHASE 2 — CLINICAL EXCELLENCE
+### Timeline: Months 1–3 | Focus: Make this the best clinical tool available
 
 ---
 
-## TIER 4: ARCHITECTURE & QUALITY (Production Maturity)
-> Technical debt and architecture improvements for long-term sustainability
+### 2.1 AI-POWERED PREDICTIVE CRISIS DETECTION
+**Priority: CRITICAL — Could save lives**
 
-### 4.1 Frontend Architecture Refactor
-- **Current**: 15,800-line monolithic HTML file with all JS/CSS inline
-- **Need**: Component-based architecture (React/Vue/Svelte or Web Components), CSS modules, bundling (Vite/webpack), code splitting
-- **Impact**: Maintainability, performance, testability, developer experience
-- **Effort**: 80-120 hours (major refactor)
+The current safety monitor detects crisis in real-time chat. Extend this to predictive detection BEFORE crisis happens.
 
-### 4.2 Backend Modularization
-- **Current**: 13,600-line api.py monolith
-- **Need**: Flask blueprints per domain (auth, therapy, clinical, community, admin), service layer, repository pattern, proper ORM (SQLAlchemy)
-- **Impact**: Maintainability, testability, onboarding new developers
-- **Effort**: 60-80 hours
+**Signals to analyze** (with consent):
+- Sudden drop in mood logging frequency (patient going quiet)
+- Rapid deterioration in PHQ-9/GAD-7 scores
+- Language patterns in therapy chat changing (increased hopelessness language)
+- Reduced engagement with positive tools (pet, gratitude, community)
+- Missed appointments combined with mood decline
+- Social withdrawal patterns in community forum activity
+- Time of day changes (logging only at 3am)
+- Decreased message response time (to clinician messages)
 
-### 4.3 Test Coverage Expansion
-- **Current**: 12/13 tests passing, but NO tests for: C-SSRS, crisis response, safety planning, clinician dashboard, GDPR operations
-- **Need**: Unit tests for all clinical logic, integration tests for critical flows, E2E tests for user journeys, target >90% coverage on critical paths
-- **Effort**: 40-60 hours
+**Output**:
+- **Yellow flag** — "Patient engagement has dropped significantly. Consider reaching out."
+- **Orange flag** — "Multiple risk indicators detected. Review recommended within 24 hours."
+- **Red flag** — Immediate alert to clinician + duty team (same as current crisis system)
+- **AI reasoning** — why the system flagged this patient (transparent, explainable)
+- **Recommended clinician action** — suggested response based on patient history
 
-### 4.4 Database Schema Cleanup
-- **Issues**: Inconsistent timestamp columns (entrestamp vs entry_timestamp vs created_at), TEXT fields for JSON data (should be JSONB), username as PK instead of UUID, no soft delete on all tables, denormalized like counts
-- **Fix**: Migration to normalize naming, add proper types, implement UUID PKs
-- **Effort**: 20-30 hours
-
-### 4.5 API Documentation
-- **Current**: No OpenAPI/Swagger documentation
-- **Need**: Auto-generated API docs, request/response schemas, authentication docs, rate limit docs
-- **Effort**: 10-15 hours
-
-### 4.6 Remove Dead Code & Unused Modules
-- **Dead code identified**: fhir_export.py (deprecated), ai_trainer.py (non-functional SQLite), cbt_tools/utils.py (unused), training_config.py (unclear purpose), multiple fix_*.py scripts, 30+ orphaned .md files in root
-- **Fix**: Archive or delete; clean requirements.txt (remove customtkinter, pygame, plyer)
-- **Effort**: 4-6 hours
-
-### 4.7 Performance Optimization
-- **Issues**: N+1 query patterns (patient detail endpoint runs 5+ queries), no pagination on list endpoints, safety_monitor regex performance, no caching layer, 762KB page load
-- **Fix**: Query optimization with JOINs/CTEs, add pagination, add Redis cache for frequent reads, lazy-load frontend tabs
-- **Effort**: 20-30 hours
-
-**TIER 4 TOTAL: ~234-341 hours**
+**Key principle**: AI flags, humans decide. No automated actions without clinician review.
 
 ---
 
-## TIER 5: FEATURE ENHANCEMENTS (Competitive Advantage)
-> Features that elevate the app beyond basic functionality
+### 2.2 AI CLINICAL INTELLIGENCE LAYER FOR CLINICIANS
 
-### 5.1 Accessibility (WCAG 2.1 AA)
-- **Current**: 290+ interactive elements missing ARIA labels, no keyboard navigation, no focus management in modals, no skip links, contrast failures on secondary text
-- **Need**: Full WCAG audit and remediation, screen reader testing (NVDA/JAWS), keyboard navigation throughout
-- **Effort**: 30-40 hours
+Give clinicians superpowers with AI that does the heavy lifting:
 
-### 5.2 Multi-Language Support (i18n)
-- **Status**: Not started
-- **Need**: Translation framework, RTL support, locale-aware date/number formatting, clinical terminology translation review
-- **Effort**: 20-30 hours
+**2.2a Weekly AI Patient Summary**
+- Auto-generated every Monday for each patient
+- Covers: mood trends (7-day), therapy chat themes, CBT tool usage, risk changes, any flags
+- Plain English narrative + key stats
+- One-click to review or dismiss
+- Clinician can add their own notes to summary
 
-### 5.3 Native Mobile Apps
-- **Status**: Capacitor config exists, debug APK generated, but not production-ready
-- **Need**: iOS + Android builds, push notifications, offline mode, biometric auth
-- **Effort**: 6-8 weeks
+**2.2b AI Session Preparation Brief**
+- Before each appointment, auto-generate a "session prep" document
+- Last session notes (brief), since-last-session activity, mood trend, open homework items
+- Suggested topics/themes based on patient's current state
+- Evidence-based suggestions ("Patient's PHQ-9 rose 4 points — consider reviewing medication adherence")
 
-### 5.4 Advanced AI Features
-- **Ideas**:
-  - Sentiment trend analysis over time
-  - Predictive risk modeling (early warning)
-  - Personalized coping strategy recommendations
-  - Natural language understanding for mood logging
-  - AI-powered session summaries for clinicians
-  - Therapeutic alliance measurement
-- **Effort**: 40-60 hours
+**2.2c AI Session Notes Assist**
+- After a session, clinician types rough bullet points
+- AI formats them into proper SOAP/BIRP structure
+- Clinician reviews, edits, signs off
+- AI suggests follow-up homework based on session themes
 
-### 5.5 Enhanced Community Features
-- **Ideas**:
-  - AI-powered content moderation
-  - Peer support matching
-  - Group therapy coordination
-  - Resource library with clinician-curated content
-  - Anonymous mode for sensitive topics
-- **Effort**: 30-40 hours
+**2.2d Caseload Intelligence Dashboard**
+- Which patients haven't been contacted in X days?
+- Which patients' outcomes are stagnating?
+- Which patients have had recent risk escalations?
+- "Patients who may need a check-in" — AI-ranked list
+- Caseload risk heatmap — visual overview of entire caseload by risk level
 
-### 5.6 Integration Ecosystem
-- **Ideas**:
-  - NHS Spine integration (patient demographics)
-  - GP Connect (appointment sharing)
-  - Electronic Health Record (EHR) export/import
-  - Wearable device data (Fitbit, Apple Health)
-  - External crisis helpline API integration
-  - Calendar sync (Google Calendar, Outlook)
-- **Effort**: 40-60 hours
-
-### 5.7 Trauma-Informed Design Improvements
-- **Current gaps**: Alert() used for errors (jarring), auto-advance on C-SSRS (removes agency), artificial AI thinking delay (patronizing to some), crisis messaging could be warmer
-- **Need**: Grounding exercises accessible from anywhere, content warnings before sensitive topics, user-controlled pacing, customizable UI (colors, fonts, density), session wind-down prompts
-- **Effort**: 15-20 hours
-
-### 5.8 Offline & Progressive Web App (PWA)
-- **Need**: Service worker for offline access, local data sync, install prompt, background sync for mood logs
-- **Effort**: 15-20 hours
-
-### 5.9 Analytics & Reporting Dashboard
-- **Need**: Admin analytics (usage patterns, engagement metrics, outcome trends), clinician caseload reports, organizational compliance reports, exportable summaries
-- **Effort**: 20-30 hours
-
-### 5.10 Video/Voice Therapy Sessions
-- **Need**: WebRTC integration, session recording (with consent), transcription, AI-assisted note-taking
-- **Effort**: 40-60 hours
-
-**TIER 5 TOTAL: ~256-368 hours**
+**2.2e Treatment Recommendation Engine**
+- Based on presenting problem, PHQ-9/GAD-7 scores, previous treatment response
+- Suggest evidence-based interventions (NICE guidelines aligned)
+- "Patients with similar profiles responded well to Behavioural Activation + Thought Records"
+- Not prescriptive — always "consider" rather than "must"
 
 ---
 
-## TIER 6: INFRASTRUCTURE & OPERATIONS
-> DevOps, monitoring, and operational excellence
+### 2.3 GROUP THERAPY MODULE
+**Priority: HIGH — Major missing clinical capability**
 
-### 6.1 Monitoring & Alerting
-- **Need**: Application performance monitoring (APM), error tracking (Sentry), uptime monitoring, database performance dashboards, clinical alert delivery confirmation
-- **Effort**: 10-15 hours
-
-### 6.2 Backup & Disaster Recovery
-- **Need**: Automated database backups (hourly), point-in-time recovery, tested restore procedures, geo-redundancy for NHS
-- **Effort**: 8-12 hours
-
-### 6.3 Load Testing
-- **Need**: Define capacity requirements, load test critical paths (chat, mood logging, assessments), identify breaking points, document scaling strategy
-- **Effort**: 8-12 hours
-
-### 6.4 Security Hardening
-- **Need**: Regular dependency scanning, penetration testing, security headers (CSP, HSTS, X-Frame-Options), certificate pinning for mobile, vulnerability disclosure program
-- **Effort**: 15-20 hours
-
-### 6.5 Documentation Site
-- **Need**: Consolidated docs site (MkDocs/Docusaurus), user guides, clinician training materials, API reference, architecture decision records
-- **Effort**: 15-20 hours
-
-**TIER 6 TOTAL: ~56-79 hours**
+- **Clinician can create a therapy group** — name, type (CBT, DBT, bereavement, anxiety etc.), max size, schedule
+- **Group session facilitation** — in-app group messaging thread for between-session communication
+- **Group CBT exercises** — shared worksheets that group members complete and share
+- **Group mood check-in** — clinician can see aggregate mood of the group before a session
+- **Group resources library** — clinician uploads/shares resources with the group
+- **Individual vs. group tracking** — clinician sees both individual progress and group trends
+- **Group alumni** — past members can maintain access to resources they found helpful
 
 ---
 
-## GRAND TOTAL ESTIMATE
+### 2.4 PEER SUPPORT & MENTORING
+**Priority: MEDIUM — Powerful adjunct to therapy**
 
-| Tier | Description | Hours | Priority |
-|------|-------------|-------|----------|
-| **0** | Critical Security Fixes | ~19 | **THIS WEEK** |
-| **1** | Production Blockers | ~76-81 | **Next 2-3 weeks** |
-| **2** | Clinical Feature Completion | ~106-147 | **Next 1-2 months** |
-| **3** | Compliance & Governance | ~73-107 + org work | **Next 2-3 months** |
-| **4** | Architecture & Quality | ~234-341 | **Next 3-6 months** |
-| **5** | Feature Enhancements | ~256-368 | **Next 6-12 months** |
-| **6** | Infrastructure & Operations | ~56-79 | **Ongoing** |
-| **TOTAL** | | **~820-1,142 hours** | **6-12 months** |
+- **Peer mentor matching** — patients who have made significant recovery can opt-in as peer mentors
+- **Mentor matching algorithm** — by presentation, age range, experience
+- **Structured peer conversations** — safe, supported interaction with matched peer
+- **Peer mentor training resources** — psychoeducation, how to support, what to do in crisis
+- **Clinician oversight** — clinician sees peer support activity, can intervene if needed
+- **Testimonials** — anonymized recovery stories from consenting users (inspiration)
 
 ---
 
-## RECOMMENDED EXECUTION ORDER (Week by Week)
+### 2.5 DISCHARGE & OUTCOME REPORTING
+**Priority: HIGH — Required for governance**
 
-### Week 1 (Feb 8-14): Emergency Security
-- [ ] Tier 0: All critical security fixes (19 hours)
-- [ ] Start: Clinical governance recruitment
-
-### Week 2-3 (Feb 15-28): Stabilization
-- [ ] Tier 1.1: Fix clinician dashboard (20-25 hours)
-- [ ] Tier 1.2-1.5: CSRF, rate limiting, validation, sessions (22 hours)
-
-### Week 4-5 (Mar 1-14): Hardening
-- [ ] Tier 1.6-1.10: Error handling, access control, XSS, DB pooling, anonymization (34 hours)
-- [ ] Tier 4.6: Remove dead code (4-6 hours)
-
-### Month 2-3 (Mar 15 - Apr 30): Clinical Features
-- [ ] Tier 2.1-2.3: C-SSRS, crisis alerts, safety planning (45-65 hours)
-- [ ] Tier 3.3-3.4: Ethics prep, GDPR fixes (40-60 hours)
-
-### Month 3-4 (May - Jun): Compliance
-- [ ] Tier 2.4-2.7: Treatment goals, session notes, outcomes, relapse prevention (61-82 hours)
-- [ ] Tier 3.5-3.7: Encryption, audit logging, CI/CD (33-47 hours)
-
-### Month 4-8 (Jul - Oct): Architecture
-- [ ] Tier 4.1-4.5: Frontend refactor, backend modularization, tests, schema, API docs
-- [ ] Tier 5.1-5.2: Accessibility, i18n
-
-### Month 8-12 (Nov - Feb 2027): Enhancement
-- [ ] Tier 5.3-5.10: Mobile apps, AI features, community, integrations
-- [ ] Tier 6: Full infrastructure & operations
+- **Discharge planning workflow** — clinician and patient agree discharge criteria upfront (linked to Treatment Plan)
+- **Discharge summary generator** — AI-assisted summary of treatment, outcomes, ongoing recommendations
+- **Post-discharge check-in schedule** — automatic 1-month, 3-month, 6-month follow-up nudges
+- **Stepped care recommendations** — on discharge, recommend appropriate step-up/step-down services
+- **Referral letter generator** — if patient needs higher-level care, generate referral letter draft
+- **Anonymized outcome reporting** — aggregate data for service reports, NHS reporting, CQC
+- **Comparative effectiveness** — which treatment approaches yield best outcomes? (anonymized)
 
 ---
 
-## SYSTEM TEST BAY INFRASTRUCTURE
+### 2.6 CLINICAL SUPERVISION MODULE
+**Priority: MEDIUM — Essential for professional standards**
 
-**Purpose**: Organized test structure to support TIER 1-3 implementation with confidence
-
-### Test Directory Structure (Create This)
-
-```
-tests/
-├── __init__.py
-├── conftest.py                          # Pytest fixtures & test database setup
-├── test_tier1_blockers.py              # TIER 1: Production blockers (20+ tests)
-│   ├── test_dashboard_features         # 1.1: Dashboard (20+ scenarios)
-│   ├── test_csrf_protection            # 1.2: CSRF (valid/invalid/missing tokens)
-│   ├── test_rate_limiting              # 1.3: Rate limits (all protected endpoints)
-│   ├── test_input_validation           # 1.4: Input validation (type/range/format)
-│   ├── test_session_management         # 1.5: Session timeout/rotation/invalidation
-│   ├── test_error_handling             # 1.6: Error logging (no debug leakage)
-│   ├── test_access_control             # 1.7: Permission checks
-│   ├── test_xss_prevention             # 1.8: XSS mitigation (DOMPurify, textContent)
-│   └── test_db_pooling                 # 1.9-1.10: Connection pooling, anonymization
-│
-├── test_tier2_clinical_features.py     # TIER 2: Clinical features (30+ tests)
-│   ├── test_c_ssrs_scoring             # 2.1: C-SSRS accuracy
-│   ├── test_crisis_alerts              # 2.2: Alert pipeline, delivery, escalation
-│   ├── test_safety_planning            # 2.3: Safety plan CRUD & enforcement
-│   ├── test_treatment_goals            # 2.4: SMART goals, progress tracking
-│   ├── test_session_notes              # 2.5: Notes, homework, outcome tracking
-│   ├── test_outcome_measures           # 2.6: CORE-OM/ORS pre/post comparison
-│   └── test_relapse_prevention         # 2.7: Trigger detection, early intervention
-│
-├── test_tier3_compliance.py            # TIER 3: Compliance (15+ tests)
-│   ├── test_gdpr_requirements          # 3.4: Consent, retention, deletion, portability
-│   ├── test_nhs_ig44                   # 3.5: NHS Information Governance (44 items)
-│   ├── test_data_encryption            # 3.5: Field-level encryption at rest
-│   ├── test_audit_logging              # 3.6: Logging, retention, tamper-proofing
-│   └── test_breach_notification        # 3.7: Incident response procedures
-│
-├── test_existing.py                    # Original 13 tests (keep all passing)
-│   ├── test_authentication.py
-│   ├── test_api_endpoints.py
-│   └── ... (existing tests)
-│
-└── fixtures/
-    ├── patient_data.json               # Mock patient data
-    ├── clinician_data.json             # Mock clinician data
-    └── assessment_data.json            # Mock C-SSRS/GAD-7 responses
-```
-
-### Test Execution Commands
-
-```bash
-# Run all tests
-pytest tests/ -v
-
-# Run with coverage report
-pytest tests/ -v --cov=api --cov=cbt_tools --cov=secrets_manager --cov-report=term-missing
-
-# Run TIER 1 only
-pytest tests/test_tier1_blockers.py -v
-
-# Run TIER 2 only
-pytest tests/test_tier2_clinical_features.py -v
-
-# Run TIER 3 only
-pytest tests/test_tier3_compliance.py -v
-
-# Run specific test class
-pytest tests/test_tier1_blockers.py::TestDashboardFeatures -v
-
-# Run with markers (add @pytest.mark.tier1, @pytest.mark.tier2, etc. to tests)
-pytest -m tier1 -v
-pytest -m tier2 -v
-pytest -m tier3 -v
-```
-
-### conftest.py Template (Create This)
-
-```python
-import pytest
-import os
-import psycopg2
-from app import app, get_db_connection, init_db
-
-@pytest.fixture(scope='session')
-def test_db():
-    """Create test database before running tests"""
-    os.environ['DEBUG'] = '1'
-    # Use test database (e.g., test_healing_space)
-    # Initialize schema
-    conn = get_db_connection()
-    init_db()
-    yield conn
-    conn.close()
-
-@pytest.fixture
-def client(test_db):
-    """Flask test client"""
-    app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
-
-@pytest.fixture
-def authenticated_client(client):
-    """Client with authenticated session"""
-    # Create test user
-    # Start session
-    yield client
-    # Cleanup
-
-@pytest.fixture
-def test_patient_data():
-    """Mock patient data"""
-    return {
-        'username': 'testpatient',
-        'email': 'patient@test.com',
-        'age': 28,
-        # ... more fields
-    }
-
-@pytest.fixture
-def test_clinician_data():
-    """Mock clinician data"""
-    return {
-        'username': 'testclinician',
-        'email': 'clinician@test.com',
-        'license': 'BPS00001',
-        # ... more fields
-    }
-```
-
-### Documentation Files to Create
-
-1. **`docs/TIER_1_TESTING_GUIDE.md`** - Detailed test scenarios for each TIER 1 item
-2. **`docs/TIER_1_IMPLEMENTATION_CHECKLIST.md`** - Tracking checklist (copy/paste progress)
-3. **`docs/TIER_2_CLINICAL_VALIDATION.md`** - Clinical validation procedures
-4. **`docs/TIER_2_IMPLEMENTATION_CHECKLIST.md`** - Tracking checklist
-5. **`docs/TIER_3_COMPLIANCE_VALIDATION.md`** - Regulatory test procedures
-6. **`docs/TIER_3_IMPLEMENTATION_CHECKLIST.md`** - Tracking checklist
-
-### Test Execution Flow for TIER Implementation
-
-```
-For each TIER (1, 2, 3):
-  For each Item in TIER:
-    1. Write test FIRST (test-driven development)
-    2. Run test (should FAIL - red)
-    3. Implement feature/fix
-    4. Run test (should PASS - green)
-    5. Run all tests: pytest tests/ -v
-    6. Verify no regressions (all pass)
-    7. Commit changes
-    8. Update docs/checklist
-```
-
-### Success Metrics
-
-- All original 13 tests passing ✅
-- New TIER 1 tests: 20+ (all passing)
-- New TIER 2 tests: 30+ (all passing)
-- New TIER 3 tests: 15+ (all passing)
-- Test coverage: >90% on critical paths
-- No syntax errors: `python3 -m py_compile api.py *.py`
-- All commits with clear messages
-- Documentation fully updated
+- **Supervision booking** — clinicians can book supervision sessions within the platform
+- **Case discussion threads** — anonymized patient discussions between clinician and supervisor
+- **Supervision log** — mandatory supervision records (regulatory requirement)
+- **Reflective journal** — clinician's private reflective practice notes
+- **CPD tracking** — log continuing professional development hours
+- **Peer case consultation** — with consent, brief anonymized case presentations for peer review
 
 ---
 
-| # | Contradiction | Impact |
-|---|--------------|--------|
-| 1 | README says "Clinician Features: Complete" but DEV_TO_DO lists 20+ broken features | Stakeholders misled about readiness |
-| 2 | ROADMAP Phase 4 = Clinical Features (not started) vs ACTIVE_STATUS Phase 4 = Database Constraints (complete) | Naming collision causes confusion |
-| 3 | Privacy panel says conversations NOT used for training, but training_data_manager.py collects them (with consent) | User trust issue |
-| 4 | C-SSRS has schema (8 tables) + docs + frontend UI, but no backend endpoints | Feature appears complete but isn't |
-| 5 | NHS compliance blocking items were due Feb 10-17, none are started | Timeline slipping without acknowledgment |
+### 2.7 APPOINTMENT SYSTEM UPGRADE
+**Priority: HIGH — Current system is basic**
+
+Current state: appointments exist in DB, basic display. Need:
+
+- **Full calendar view** — month/week/day, colour-coded by type
+- **Clinician availability slots** — clinician sets available times
+- **Patient self-booking** — patient picks from available slots (no more manual booking)
+- **Video call integration** — built-in video or Whereby/Zoom link generation
+- **Appointment reminders** — 48 hours, 24 hours, 1 hour before (SMS/email/in-app)
+- **Did Not Attend (DNA) tracking** — record and alert on repeated DNAs
+- **Waitlist buffer** — if appointment cancelled, automatically notify next patient on list
+- **Recurring appointment patterns** — weekly, fortnightly slots
+- **Cancellation policy enforcement** — 24-hour cancellation notice, reason capture
+- **Telehealth vs. in-person tracking**
 
 ---
 
-*This roadmap was generated from a full codebase audit of every file in the project. It should be re-run after each major milestone to track progress and discover new issues.*
+### 2.8 SAFEGUARDING & DUTY OF CARE WORKFLOW
+**Priority: CRITICAL — Legal obligation**
+
+- **Safeguarding concern logging** — structured recording of any child/adult protection concerns
+- **Multi-agency referral form** — generate completed MASH/safeguarding referral documentation
+- **Duty clinician system** — out-of-hours coverage assignment and contact
+- **Escalation protocol** — step-by-step workflow when risk becomes critical
+- **Legal/ethical decision log** — record Gillick competency decisions, capacity assessments
+- **Mandatory reporting tracker** — legal obligations met and documented
+- **Secure information sharing** — encrypted channel for inter-agency communication
+
+---
+
+## PHASE 3 — PATIENT EMPOWERMENT & ENGAGEMENT
+### Timeline: Months 2–4 | Focus: Make patients want to come back every day
+
+---
+
+### 3.1 PERSONALIZED DAILY RITUAL ENGINE
+**Priority: HIGH — Engagement depends on habit formation**
+
+Instead of generic tabs, each patient gets a personalized daily experience:
+
+- **Morning check-in ritual** — customized 2-minute daily opener (mood, sleep, one intention)
+- **Daily challenge** — AI-selected based on their goals and progress ("Today's challenge: Go outside for 10 minutes")
+- **Evening wind-down** — brief gratitude, day reflection, tomorrow's intention
+- **Habit streaks** — personalized to their specific habits (not generic)
+- **Personalized reminders** — learn when this patient is most responsive and send notifications then
+- **Ritual builder** — patient designs their own morning/evening routine with tools from the platform
+
+---
+
+### 3.2 PSYCHOEDUCATION LIBRARY
+**Priority: HIGH — Therapy works better when patients understand the model**
+
+- **Video library** — short (3-5 min) evidence-based psychoeducation videos
+- **Articles** — clinical-quality plain-English articles on mental health topics
+- **Topics**: depression, anxiety, OCD, trauma, bipolar, personality disorders, sleep, relationships, medication
+- **Clinician curated** — clinician can assign specific articles to a patient ("Please read this before our next session")
+- **Reading history** — clinician can see what patient has read
+- **Progress quizzes** — optional understanding checks
+- **Downloadable resources** — worksheets, guides to take offline
+
+---
+
+### 3.3 MINDFULNESS & MEDITATION CENTRE
+**Priority: MEDIUM — Major evidence base, expected feature**
+
+- **Guided meditation library** — 5 to 30 minute sessions, voice-guided
+- **Sleep meditations** — specifically for insomnia and sleep anxiety
+- **Breathwork library** — beyond box breathing: 4-7-8, Wim Hof, trauma-sensitive breathwork
+- **Body scan exercises** — MBCT/MBSR aligned
+- **Progressive muscle relaxation** — audio guided
+- **Completion tracking** — streaks, minutes practiced, favourite sessions
+- **Clinician prescription** — assign specific practices as homework
+- **Mindfulness check-in** — 5-second pre-session mindfulness moment before therapy chat
+
+---
+
+### 3.4 WEARABLE & HEALTH DATA INTEGRATION
+**Priority: MEDIUM — Future standard of care**
+
+- **Apple Health / HealthKit** — steps, sleep, heart rate, HRV
+- **Google Fit** — Android equivalent
+- **Fitbit API** — sleep stages, activity, resting heart rate
+- **Oura Ring** — readiness, sleep quality
+- **Automatic mood-health correlation** — "On days you sleep <6 hours, your mood is 2.1 points lower on average"
+- **Clinician insights** — anonymized data visible with patient consent
+- **Interventions based on data** — low sleep detected → automatic sleep hygiene resource suggestion
+
+---
+
+### 3.5 FAMILY & CARER PORTAL
+**Priority: MEDIUM — Carers are critical in recovery**
+
+- **Carer account type** — linked to patient with explicit consent
+- **Carer view** — limited, patient-controlled visibility (not session notes — never clinical content)
+- **Shared goals** — patient can share specific goals with carer
+- **Carer resources** — how to support someone with depression/anxiety/trauma
+- **Crisis plan sharing** — patient can share their safety plan with carer
+- **Carer messaging** — message clinician directly (if patient consents)
+- **Carer wellbeing check** — brief carer burden assessment (caring takes a toll)
+
+---
+
+### 3.6 GAMIFICATION 2.0
+**Priority: MEDIUM — Existing pet system can be significantly extended**
+
+Current state: Basic pet system with some achievements. Extend:
+
+- **Full achievement system** — 50+ achievements across all platform areas
+- **Recovery badges** — meaningful clinical milestone badges (not just streaks)
+- **Pet evolution** — pet grows, changes, unlocks new environments as patient progresses
+- **Challenges** — weekly CBT challenges with rewards
+- **XP system** — unified XP across all activities
+- **Leaderboards** — opt-in community leaderboards (anonymized) for weekly challenges
+- **Seasonal events** — holiday-themed challenges and special pet accessories
+- **Reward shop expansion** — more items, themes, customizations
+- **Friend system** — patients can add recovery buddies (opt-in, anonymized)
+
+---
+
+### 3.7 VOICE MOOD LOGGING
+**Priority: MEDIUM — Accessibility and engagement**
+
+- **Voice note mood logging** — speak your mood instead of typing
+- **Transcription** — convert to text for analysis
+- **Tone analysis** — detect emotional valence from voice (requires explicit consent)
+- **Voice therapy journaling** — record voice journal entries
+- **Voice commands** — "Log my mood as 7", "Start breathing exercise"
+- **Accessibility** — critical for users with motor difficulties or dyslexia
+
+---
+
+### 3.8 PEER RECOVERY COMMUNITY 2.0
+**Priority: MEDIUM — Current community is basic**
+
+Current state: Community posts exist but basic. Extend:
+
+- **Themed rooms** — separate spaces for different presentations (anxiety room, depression room, general)
+- **Anonymous posting mode** — post without username visible
+- **Moderation tools** — AI content moderation + human moderator role
+- **Community challenges** — group challenges (e.g., "7-day outdoor challenge")
+- **Recovery stories** — dedicated section for sharing recovery journeys
+- **Community events** — virtual group mindfulness sessions, Q&A with professionals
+- **Crisis detection in community** — safety monitor extended to community posts
+- **Resource sharing** — community-curated helpful resources
+
+---
+
+### 3.9 PERSONALIZED RELAPSE PREVENTION PLAN
+**Priority: HIGH — Critical for sustained recovery**
+
+- **Warning signs identification** — patient documents their personal early warning signs
+- **Personal triggers** — what makes things worse for this patient specifically
+- **Coping strategy ranking** — which strategies work best for them (learned from usage data)
+- **Social support map** — who they can call, what they can ask for
+- **Graded response plan** — "If I notice X, I will do Y. If Y doesn't help, I will do Z"
+- **Clinician co-produced** — clinician and patient complete it together
+- **Living document** — updated throughout therapy as patient learns more about themselves
+- **Crisis plan integration** — seamlessly connects to safety plan
+
+---
+
+## PHASE 4 — ADVANCED AI & INTELLIGENCE
+### Timeline: Months 3–6 | Focus: AI that genuinely improves clinical outcomes
+
+---
+
+### 4.1 CONVERSATIONAL AI THERAPY EVOLUTION
+**Priority: HIGH — Core differentiator**
+
+Current state: AI therapy chat with crisis detection and memory. Evolve to:
+
+- **Therapeutic modality specialization** — AI adapts approach based on clinician's chosen modality (CBT, ACT, DBT, CFT, EMDR-informed)
+- **Session arc** — AI structures longer conversations with a beginning, middle, end
+- **Homework generation** — AI suggests personalized homework based on session content
+- **Formulation awareness** — AI incorporates the clinician's case formulation into responses
+- **Between-session AI therapist** — available 24/7, but clearly positioned as supplement not replacement
+- **Tone calibration** — patient can adjust AI's communication style (warmer/more direct/more validating)
+- **Crisis moment protocol** — special mode when in acute distress, different from regular therapy mode
+- **Session summaries** — after each AI therapy session, auto-generate a summary for the patient to keep
+- **Therapy skill practice** — AI drills CBT skills (thought challenging, behavioural experiments) in conversation form
+
+---
+
+### 4.2 MOOD PREDICTION ENGINE
+**Priority: HIGH — Genuinely innovative**
+
+Using accumulated patient data (with consent):
+
+- **7-day mood forecast** — predicted mood trajectory based on patterns
+- **Risk factor identification** — "Historically, your mood drops on Mondays and after poor sleep"
+- **Proactive intervention** — predicted bad day → app suggests extra support that morning
+- **Seasonality detection** — SAD patterns, anniversary reactions
+- **Menstrual cycle tracking** (opt-in, for applicable users) — correlation with mood patterns
+- **Pattern disruption alerts** — "Your pattern is breaking in an unusual way — want to talk about it?"
+
+---
+
+### 4.3 AI INTAKE & ASSESSMENT
+**Priority: HIGH — Transforms the onboarding experience**
+
+Currently: manual registration then immediate therapy access. Replace with:
+
+- **Conversational intake assessment** — AI conducts a warm, structured initial assessment
+- **Presenting problem identification** — through natural conversation, not checkbox forms
+- **Automatic PHQ-9/GAD-7 completion** — embedded naturally in intake conversation
+- **Risk screening** — C-SSRS style questions woven into natural dialogue
+- **Formulation hypothesis** — AI generates a provisional formulation for clinician review
+- **Treatment matching** — based on intake, suggest appropriate treatment approach and intensity
+- **Clinician assignment** — match patient to most suitable clinician based on speciality and availability
+- **Waiting list intelligent placement** — based on urgency from intake assessment
+
+---
+
+### 4.4 NATURAL LANGUAGE CLINICAL DOCUMENTATION
+**Priority: HIGH — Clinician efficiency multiplier**
+
+- **Voice-to-notes** — clinician speaks after session, AI generates structured notes
+- **Meeting transcription** — with consent, transcribe and summarise clinical conversations
+- **Bulk note generation** — clinician reviews week of sessions, AI drafts notes from voice/text prompts
+- **Letter drafting** — AI drafts GP letters, referral letters, court reports from clinical notes
+- **SNOMED coding** — AI suggests SNOMED CT codes for diagnoses and presentations
+- **ICD-11 code suggestion** — based on assessment data, suggest ICD-11 diagnostic codes
+- **Audit extraction** — pull clinical data for service audits automatically
+
+---
+
+### 4.5 THERAPEUTIC ALLIANCE MEASUREMENT
+**Priority: MEDIUM — Research-backed outcome predictor**
+
+- **Alliance tracking** — embed Session Rating Scale (SRS) at end of every session
+- **Alliance trend** — is the relationship strengthening or weakening over time?
+- **Rupture detection** — sudden alliance drop flagged to supervisor/clinician
+- **Patient-clinician fit score** — based on alliance data, predict compatibility
+- **Micro-moment analysis** — in AI therapy conversations, detect moments of connection vs. disconnection
+
+---
+
+### 4.6 ANONYMIZED POPULATION INSIGHTS
+**Priority: MEDIUM — Research gold mine**
+
+With appropriate consent and rigorous anonymization:
+
+- **Outcome benchmarking** — how does this patient's trajectory compare to similar cases?
+- **Treatment effectiveness data** — which interventions work best for which presentations?
+- **Service-level reporting** — aggregate data for NHS reporting, commissioning evidence
+- **Research partnerships** — anonymized dataset for academic mental health research
+- **National benchmarking** — compare outcomes to IAPT national dataset
+
+---
+
+## PHASE 5 — PLATFORM SCALE & INTEGRATIONS
+### Timeline: Months 4–8 | Focus: Enterprise-ready, NHS-compatible, market leadership
+
+---
+
+### 5.1 NHS & SYSTEM INTEGRATIONS
+**Priority: HIGH — Required for NHS adoption**
+
+- **NHS Login** — integrate with NHS Login for patient authentication (no separate registration)
+- **NHS Spine** — patient demographics, GP registration, NHS number
+- **GP Connect** — read GP records (medications, allergies, past medical history)
+- **EMIS / SystmOne / Rio** — two-way data sharing with primary and secondary care EPRs
+- **IAPT IDS** — IAPT Integrated Dataset submission (mandatory for NHS IAPT services)
+- **SNOMED CT coding** — all clinical entries coded to NHS standard
+- **HL7 FHIR R4** — full compliance for interoperability (existing FHIR export upgraded to R4)
+- **NHS 111 / Crisis Care** — direct referral pathway integration
+
+---
+
+### 5.2 MULTI-TENANCY ARCHITECTURE
+**Priority: HIGH — Required for commercial scale**
+
+Currently: Single-tenant (one organization). Evolve to:
+
+- **Organization model** — each NHS Trust / private practice / university is an isolated tenant
+- **Custom branding** — logo, colour scheme, name, custom domain
+- **Tenant admin** — organization admin can manage their own clinicians and settings
+- **Data isolation** — tenant A cannot see tenant B's data (GDPR critical)
+- **Subscription tiers** — per-clinician pricing, per-patient pricing, enterprise unlimited
+- **Usage analytics per tenant** — organization gets their own analytics dashboard
+- **SSO integration** — NHS email, university SSO, practice Active Directory
+
+---
+
+### 5.3 MOBILE APPS (iOS & ANDROID)
+**Priority: HIGH — Patients expect this**
+
+Current state: Capacitor configured but not production-ready.
+
+- **Full native wrapper** (Capacitor or React Native)
+- **Push notifications** — crisis alerts, appointment reminders, daily check-in nudges
+- **Biometric authentication** — Face ID / fingerprint for quick, secure access
+- **Offline mode** — core CBT tools available without internet (safety plan always accessible)
+- **Background sync** — mood logs sync when connectivity returns
+- **Home screen widgets** — quick mood log without opening app
+- **Apple Health / Google Fit integration** — automatic data pull
+- **App Store & Play Store** deployment
+- **WCAG 2.1 AA compliant** throughout
+
+---
+
+### 5.4 VIDEO THERAPY INTEGRATION
+**Priority: HIGH — Standard of care post-COVID**
+
+- **Built-in video sessions** (Daily.co or Jitsi self-hosted for NHS data requirements)
+- **Session recording** (with explicit consent) — encrypted, clinician-controlled
+- **AI transcription** — automatic session transcript for notes
+- **Waiting room** — patient waits while clinician finishes previous session
+- **Technical check page** — camera/mic test before session
+- **Low-bandwidth mode** — audio-only option for poor connections
+- **Session notes panel** — clinician can take notes in split-screen during session
+- **Screen share** — for reviewing worksheets together
+
+---
+
+### 5.5 PROGRESSIVE WEB APP (PWA)
+**Priority: MEDIUM — Before mobile apps land**
+
+- **Service worker** — offline caching of critical resources
+- **Install prompt** — "Add to Home Screen" for iOS/Android
+- **Offline CBT tools** — safety plan, breathing, grounding always available
+- **Background sync** — offline entries sync on reconnect
+- **Push notifications** via Web Push API
+
+---
+
+### 5.6 CALENDAR & EXTERNAL INTEGRATIONS
+**Priority: MEDIUM**
+
+- **Google Calendar sync** — appointments appear in patient/clinician Google calendar
+- **Outlook / Microsoft 365** — same for NHS staff using Office
+- **iCal** — universal calendar support
+- **Zapier / Make.com** — enable custom automations for non-technical admins
+- **Webhook system** — clinicians/orgs can subscribe to events (new assessment, crisis alert)
+- **Slack integration** — duty clinician alerts to Slack channel
+- **Email digest** — weekly summary email (patient and clinician versions)
+
+---
+
+## PHASE 6 — COMPLIANCE, GOVERNANCE & CERTIFICATION
+### Timeline: Ongoing | Focus: NHS readiness, legal robustness, regulatory excellence
+
+---
+
+### 6.1 NHS DIGITAL CERTIFICATION (DTAC)
+**Priority: CRITICAL for NHS — Digital Technology Assessment Criteria**
+
+- **Clinical Safety (DCB0129/DCB0160)** — Clinical Risk Management File, Clinical Safety Officer, Hazard Log
+- **Data Protection (DSPT)** — Data Security & Protection Toolkit — mandatory for NHS
+- **Cyber Essentials Plus** — NCSC certification
+- **DTAC Assessment** — pass the Digital Technology Assessment Criteria
+- **NICE Evidence Standards** — evidence for clinical effectiveness claims
+- **CQC registration** (if applicable) — Care Quality Commission
+
+---
+
+### 6.2 GDPR COMPLETE IMPLEMENTATION
+**Priority: HIGH**
+
+Gaps identified:
+- Comprehensive data export (Article 20) — include ALL data: AI insights, session notes, risk assessments, safety plans
+- Automated data retention policies — chat history not indefinite (7 year max then auto-delete)
+- Breach notification mechanism — 72-hour ICO notification procedure
+- Consent management UI — granular consent per data use (treatment, research, AI training, analytics)
+- UK-format PII stripping — NHS numbers, UK postcodes, National Insurance numbers
+- GDPR audit trail — who exported, deleted, or viewed sensitive data and when
+- **Right to erasure** — complete, verified deletion including backups
+- **Data minimisation** — only collect what's clinically necessary
+
+---
+
+### 6.3 FIELD-LEVEL ENCRYPTION
+**Priority: HIGH — Clinical data requires maximum protection**
+
+Fernet encryption available but not applied. Encrypt at rest:
+- Therapy chat content
+- C-SSRS responses
+- Safety plans
+- Session notes
+- Diagnoses
+- Safeguarding records
+
+---
+
+### 6.4 COMPREHENSIVE AUDIT LOGGING
+**Priority: HIGH — Required for NHS and CQC**
+
+- Every access to patient data logged (who, what, when, from where)
+- 7-year retention (NHS standard)
+- Tamper-evident logs (hash-chained)
+- Audit log viewer in developer dashboard
+- Automated compliance reports — "Show all access to Patient X's records in the last 90 days"
+- Clinician access audit — visible to patient on request
+
+---
+
+### 6.5 CI/CD PIPELINE & QUALITY GATES
+**Priority: HIGH — Production maturity**
+
+- **GitHub Actions pipeline**:
+  - Automated tests on every PR
+  - Security scanning (pip-audit, bandit, Trivy)
+  - Code coverage check (fail if <80%)
+  - Staging deployment on merge to main
+  - Production deployment gated on manual approval
+  - SAST (Static Application Security Testing)
+- **Dependabot** — automated dependency updates
+- **Pre-commit hooks** — linting, formatting, secret scanning
+- **OpenAPI spec** — auto-generated and validated in CI
+
+---
+
+### 6.6 PENETRATION TESTING & SECURITY PROGRAMME
+**Priority: HIGH**
+
+- Annual CREST-certified penetration test
+- Continuous vulnerability scanning (Snyk, GitHub security alerts)
+- Bug bounty programme — responsible disclosure
+- Security headers audit (CSP, HSTS, X-Frame-Options, Permissions-Policy)
+- Web Application Firewall (WAF)
+- DDoS protection (Cloudflare)
+- Certificate pinning for mobile apps
+
+---
+
+## PHASE 7 — ARCHITECTURE EXCELLENCE
+### Timeline: Months 6–12 | Focus: Technical foundation for the next 5 years
+
+---
+
+### 7.1 FRONTEND ARCHITECTURE MODERNISATION
+**Priority: HIGH — Current monolith is unsustainable**
+
+Current: 16,500-line monolithic HTML with all JS/CSS inline.
+
+Target:
+- **Component-based architecture** (React or Svelte — chosen for stability and ecosystem)
+- **Vite build system** — fast development, optimized production bundles
+- **CSS modules** — scoped styles, no leakage
+- **Code splitting** — lazy-load tabs and features
+- **TypeScript** — type safety, better IDE support, fewer bugs
+- **Storybook** — component library with visual testing
+- **Playwright** — E2E testing
+- **Bundle size target**: Core load <200KB gzipped (currently ~762KB)
+
+---
+
+### 7.2 BACKEND MODULARISATION
+**Priority: HIGH — api.py at 17,000 lines is unmaintainable**
+
+Target:
+- **Flask Blueprints** per domain: `auth`, `therapy`, `clinical`, `messaging`, `community`, `admin`, `developer`, `pet`, `wellness`, `cbt`
+- **Service layer** — business logic separated from route handlers
+- **Repository pattern** — data access abstracted from business logic
+- **SQLAlchemy ORM** — replace raw psycopg2 for most queries
+- **Pydantic models** — request/response validation with auto-documentation
+- **Async endpoints** (FastAPI migration consideration for high-throughput routes)
+
+---
+
+### 7.3 DATABASE SCHEMA NORMALISATION
+**Priority: MEDIUM**
+
+Issues identified:
+- Inconsistent timestamp naming (entry_timestamp vs created_at vs entrestamp)
+- TEXT fields storing JSON (should be JSONB)
+- Username as primary key (should be UUID)
+- Missing soft delete on several tables
+- No foreign key constraints on some relationships
+- Missing indexes on frequently-queried columns
+
+Migration strategy: Zero-downtime migrations, backward-compatible.
+
+---
+
+### 7.4 CACHING LAYER
+**Priority: MEDIUM**
+
+- **Redis** — session storage, rate limiting, caching
+- **Cache frequent reads**: clinician caseload, patient profile, app updates, notification counts
+- **Cache invalidation strategy** — event-driven (patient logs mood → invalidate their cache)
+- **Response caching** for static-ish API responses (CBT tools list, meditation library)
+
+---
+
+### 7.5 OPENAPI DOCUMENTATION
+**Priority: MEDIUM**
+
+- Auto-generated API docs (Swagger UI / Redoc)
+- Request/response schemas
+- Authentication documentation
+- Rate limit documentation
+- Changelog per endpoint version
+- SDK generation for future mobile and third-party integrations
+
+---
+
+### 7.6 ACCESSIBILITY (WCAG 2.1 AA)
+**Priority: HIGH — Legal requirement (Equality Act 2010), also right thing to do**
+
+- Full WCAG 2.1 AA audit across every view
+- ARIA labels on all interactive elements (290+ currently missing)
+- Keyboard navigation throughout (no mouse required)
+- Screen reader testing (NVDA, JAWS, VoiceOver)
+- Focus management in modals and dynamic content
+- Colour contrast compliance (all text combinations)
+- Skip links and landmark regions
+- Form error announcement
+- Audio descriptions for any visual-only content
+
+---
+
+## PHASE 8 — MARKET LEADERSHIP & FUTURE VISION
+### Timeline: Months 9–18 | Focus: Establishing Healing Space UK as the category leader
+
+---
+
+### 8.1 CLINICIAN MARKETPLACE
+**Priority: HIGH — Business model and access**
+
+- **Public-facing clinician directory** — patients can find and request a specific clinician
+- **Clinician profiles** — specialities, approaches, availability, fee structure
+- **Patient-clinician matching** — AI-assisted matching based on presenting problem and clinician speciality
+- **Waitlist self-management** — patients join a clinician's waitlist directly
+- **Review system** (anonymized, moderated) — patient feedback on their experience
+- **Clinician verification** — BACP/UKCP/BPS registration validation via API
+
+---
+
+### 8.2 RESEARCH MODULE
+**Priority: MEDIUM — Revenue and impact**
+
+- **Anonymized research dataset** — with rigorous consent and ethics approval
+- **Research API** — for approved academic partners to access aggregated, anonymized data
+- **Randomized Controlled Trial (RCT) support** — randomization engine for embedded studies
+- **Patient recruitment platform** — patients can opt-in to relevant research studies
+- **Outcome data contribution** — contribute to IAPT national dataset
+- **Publication-ready reporting** — export data in formats for academic papers
+
+---
+
+### 8.3 INTERNATIONAL EXPANSION
+**Priority: MEDIUM — Post-UK**
+
+- **Multi-language support** — Welsh (legal requirement for NHS Wales), then Spanish, Arabic, Urdu, Polish (UK population needs)
+- **RTL language support** — Arabic, Farsi
+- **Cultural adaptation** — not just translation but cultural relevance of CBT examples
+- **EU GDPR compliance** — for European expansion
+- **US HIPAA compliance** — if expanding to US market
+- **Australia / New Zealand** — similar regulatory landscape to UK
+
+---
+
+### 8.4 AI THERAPIST V2 — AUTONOMOUS SUPPORT CAPABILITY
+**Priority: MEDIUM-HIGH — The future of scalable mental health care**
+
+Important: This is a *support tool*, always with human oversight. For:
+- Between-session support only
+- Step 2 (low-intensity) presentations only
+- Always with a named clinician supervisor
+- Clear boundaries: AI cannot diagnose, prescribe, or replace therapy
+
+Features:
+- **Structured CBT protocol delivery** — AI can guide through full CBT programme (e.g., Beating the Blues equivalent)
+- **Automated progress monitoring** — PHQ-9 every 2 weeks automatically, alerts clinician to deterioration
+- **Personalised between-session exercises** — AI sets and follows up on homework
+- **Outcome equivalent to low-intensity human IAPT** — the clinical bar to reach
+
+---
+
+### 8.5 PLATFORM API & DEVELOPER ECOSYSTEM
+**Priority: MEDIUM — For long-term growth**
+
+- **Public API** — allow third-party apps to integrate (with patient consent)
+- **Webhook system** — real-time events for integrations
+- **Developer portal** — documentation, API keys, sandbox environment
+- **App marketplace** — approved third-party extensions (e.g., a specialist trauma tool that integrates with the platform)
+- **White-label SDK** — for other organisations to build on Healing Space infrastructure
+
+---
+
+### 8.6 REAL-WORLD EVIDENCE PLATFORM
+**Priority: MEDIUM — NHS funding lever**
+
+- **Real-world outcome data** — continuously improving, published annually
+- **Health economic analysis** — cost per quality-adjusted life year (QALY) improvement
+- **NHS commissioning support pack** — everything a CCG/ICB needs to commission the platform
+- **NICE submission** — evidence submission for NICE recommendation (transformational for NHS adoption)
+- **Academic partnerships** — UCL, King's, Oxford mental health research groups
+
+---
+
+## DEVELOPER DASHBOARD — COMPLETE VISION
+### Everything a developer should be able to do without leaving the platform
+
+**Current**: Terminal, AI chat, inbox, broadcast, QA tests, user management, feedback, stats, Post Update
+
+**To Add**:
+
+| Feature | Purpose |
+|---------|---------|
+| Real-time error feed | See Python exceptions as they happen |
+| API latency heatmap | P50/P95/P99 for every endpoint |
+| Database query analyser | Slow queries, explain plans |
+| Active session viewer | Who's logged in right now |
+| Deployment timeline | Git commits mapped to usage/error changes |
+| Feature flag manager | Toggle features without code changes |
+| A/B test dashboard | Results and statistical significance |
+| Audit log viewer | Who accessed what, when |
+| GDPR compliance dashboard | Consent rates, deletion requests, export requests |
+| User journey funnel | Where users drop off |
+| Cohort analysis | Retention by registration cohort |
+| Feature usage heatmap | Which tools/tabs are used most |
+| Outcome analytics | Which features correlate with best outcomes |
+| System health monitor | CPU, memory, DB connections, Railway metrics |
+| Backup manager | Create, list, restore database backups |
+| Environment variable manager | View (not edit) active config |
+| Scheduled job manager | View/manage cron jobs and scheduled tasks |
+| Email delivery dashboard | Track notification delivery rates |
+| GitHub Actions status | CI/CD pipeline status embedded |
+
+---
+
+## CLINICIAN DASHBOARD — COMPLETE VISION
+### Everything a clinician needs, nothing they don't
+
+**Current**: Patient caseload, risk monitor, messages, appointments, approvals, AI summary
+
+**To Complete**:
+
+| Feature | Status |
+|---------|--------|
+| Session notes (SOAP/BIRP) | Missing |
+| Treatment plan builder | Missing |
+| CORE-OM / WEMWBS | Missing |
+| Waiting list management | Missing |
+| Discharge workflow | Missing |
+| Referral letter generator | Missing |
+| Group therapy module | Missing |
+| Clinical supervision log | Missing |
+| Safeguarding workflow | Missing |
+| AI weekly patient summaries | Missing |
+| AI session prep brief | Missing |
+| Predictive crisis alerts | Missing |
+| Caseload capacity dashboard | Missing |
+| Outcome trajectory charts | Missing |
+| Video therapy integration | Missing |
+| Peer consultation forum | Missing |
+| CPD tracker | Missing |
+| Reflective journal | Missing |
+
+---
+
+## PATIENT EXPERIENCE — COMPLETE VISION
+### Every feature a patient could need on their recovery journey
+
+**Current**: AI therapy, 17 CBT tools, mood tracking, pet, community, messaging, safety plan, appointments
+
+**To Complete**:
+
+| Feature | Status |
+|---------|--------|
+| SOS / Crisis button (always visible) | Missing |
+| Medication tracker & reminders | Missing |
+| Recovery milestones dashboard | Missing |
+| Psychoeducation library | Missing |
+| Mindfulness & meditation library | Missing |
+| Personalized daily ritual | Missing |
+| Relapse prevention plan | Missing |
+| Wearable data integration | Missing |
+| Family/carer portal | Missing |
+| Voice mood logging | Missing |
+| Video therapy sessions | Missing |
+| Peer mentor matching | Missing |
+| Personalized homework from clinician | Missing |
+| Treatment plan visibility | Missing |
+| PWA / offline mode | Missing |
+| Native mobile apps | Missing |
+| Weekly progress email digest | Missing |
+
+---
+
+## EFFORT & PRIORITY MATRIX
+
+| Phase | Priority | Effort | Impact |
+|-------|----------|--------|--------|
+| 1 — Foundation Polish | **NOW** | Medium | High |
+| 2 — Clinical Excellence | **Q2 2026** | High | Very High |
+| 3 — Patient Engagement | **Q2-Q3 2026** | Medium | High |
+| 4 — AI & Intelligence | **Q3 2026** | High | Very High |
+| 5 — Scale & Integrations | **Q3-Q4 2026** | Very High | Very High |
+| 6 — Compliance | **Ongoing** | Medium | Critical |
+| 7 — Architecture | **Q3-Q4 2026** | Very High | Medium (long-term) |
+| 8 — Market Leadership | **2027** | Very High | Transformational |
+
+---
+
+## THE NON-NEGOTIABLES (Must happen before clinical deployment)
+
+1. ✅ Security hardening (complete)
+2. ⏳ SOS crisis button on every screen
+3. ⏳ Session notes system
+4. ⏳ Treatment plan documentation
+5. ⏳ CORE-OM outcome measures
+6. ⏳ Safeguarding workflow
+7. ⏳ Field-level encryption for clinical data
+8. ⏳ GDPR comprehensive implementation
+9. ⏳ Clinical risk management documentation (DCB0129)
+10. ⏳ DSPT/DTAC compliance
+
+---
+
+## ON AUTOMATIC GITHUB → UPDATES TAB INTEGRATION
+
+*The developer asked about this during roadmap creation (Feb 17, 2026).*
+
+**Yes, this is achievable**. Implementation:
+
+1. Add a GitHub Actions workflow on push to `main`
+2. Action calls `POST /api/dev/updates` with the commit message, author, and auto-incremented version
+3. The update appears in all users' "What's New" tab automatically
+4. Filtering: Only pushes with commit messages starting with specific prefixes trigger updates (e.g., `feat:`, `fix:`, `improve:`)
+5. The API endpoint already exists — only the GitHub Action needs to be added
+
+This is a small task (~1 hour) that can be added any time.
+
+---
+
+## GUIDING PRINCIPLES FOR EVERYTHING WE BUILD
+
+1. **Clinical first** — every feature must be defensible to a clinician reviewer
+2. **Privacy by design** — assume the most sensitive data, protect accordingly
+3. **Trauma-informed** — no jarring alerts, no clinical language without explanation, no time pressure
+4. **Evidence-based** — tie features to NICE guidelines, published literature
+5. **Accessible** — WCAG 2.1 AA minimum, designed for cognitive load, not just visual accessibility
+6. **AI assists, humans decide** — AI never acts without clinician review on clinical matters
+7. **Transparent** — patients know how their data is used, clinicians know how AI decisions are made
+8. **Sustainable** — build for the long term, not the quick win
+9. **World class** — the question is always "would this be at home in the best mental health platform in the world?"
+
+---
+
+*Roadmap generated: February 17, 2026. Next review: April 2026.*
+*This document should be reviewed quarterly and updated after each major milestone.*
