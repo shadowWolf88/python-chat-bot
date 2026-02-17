@@ -5057,7 +5057,12 @@ except Exception as e:
 
 @app.route('/')
 def index():
-    """Serve simple web interface"""
+    """Serve public landing page"""
+    return render_template('landing.html')
+
+@app.route('/login')
+def login_page():
+    """Serve login/app page"""
     return render_template('index.html')
 
 @app.route('/api/admin/wipe')
@@ -5071,7 +5076,7 @@ def developer_dashboard():
     # Check authentication
     username = get_authenticated_username()
     if not username:
-        return redirect('/login.html')
+        return redirect('/login')
 
     # Verify user is a developer
     conn = get_db_connection()
