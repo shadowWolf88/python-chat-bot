@@ -7,6 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Healing Space UK – Mental Health Companion [v2026.01.17]</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/images/logo-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo-192.png">
     <!-- TIER 1.8: XSS Prevention -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -946,6 +950,16 @@
             color: var(--accent-color);
             margin-bottom: 10px;
             text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .auth-logo-img {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 4px rgba(102,126,234,0.25));
         }
 
         .auth-box .subtitle {
@@ -1036,6 +1050,15 @@
 
         .app-header h2 {
             color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-logo-img {
+            width: 34px;
+            height: 34px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 3px rgba(102,126,234,0.2));
         }
 
         .user-info {
@@ -3888,7 +3911,7 @@
             <a href="/" style="display:inline-flex;align-items:center;gap:6px;font-size:0.875rem;font-weight:600;color:var(--primary-color);text-decoration:none;opacity:0.75;margin-bottom:16px;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.75'" aria-label="Return to Healing Space UK homepage">
                 ← Back to Home
             </a>
-            <h1>🌿 Healing Space UK</h1>
+            <h1><img src="/static/images/logo-64.png" alt="" class="auth-logo-img" aria-hidden="true"> Healing Space UK</h1>
             <p class="subtitle">Complete Mental Health Companion</p>
             
             <!-- Landing Page -->
@@ -4561,7 +4584,7 @@
             <button id="sidebarToggle" aria-label="Open navigation menu" aria-controls="sidebarNav" aria-expanded="false" style="display:none; background:transparent; border:none; font-size:2rem; margin-right:15px; cursor:pointer;">
                 ☰
             </button>
-            <h2>🌿 Healing Space UK</h2>
+            <h2><img src="/static/images/logo-64.png" alt="" class="header-logo-img" aria-hidden="true"> Healing Space UK</h2>
             <div class="user-info">
                 <button onclick="showNotifications()" style="position: relative; background: transparent; border: 2px solid var(--accent-color); color: var(--accent-color); padding: 8px 15px; border-radius: 8px; cursor: pointer; margin-right: 10px; font-size: 18px;">
                     🔔

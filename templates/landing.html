@@ -6,6 +6,10 @@
     <meta name="description" content="Healing Space UK — A secure, clinician-led mental health platform combining human expertise with AI-powered tools for lasting wellbeing.">
     <meta name="theme-color" content="#667eea">
     <title>Healing Space UK — Your Mental Health Journey, Supported Every Step</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/images/logo-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -120,7 +124,12 @@
             display: flex; align-items: center; gap: 10px;
             text-decoration: none; flex-shrink: 0;
         }
-        .nav-logo-emoji { font-size: 1.5rem; line-height: 1; }
+        .nav-logo-img {
+            width: 36px; height: 36px; object-fit: contain;
+            filter: drop-shadow(0 1px 3px rgba(0,0,0,0.15));
+            transition: transform 0.2s ease;
+        }
+        .nav-logo:hover .nav-logo-img { transform: scale(1.05); }
         .nav-logo-wordmark {
             font-size: 1.125rem; font-weight: 700; color: #fff;
             letter-spacing: -0.02em; transition: color 0.3s ease;
@@ -1030,7 +1039,7 @@
         .footer-inner { max-width:1200px; margin:0 auto; }
         .footer-grid { display:grid; grid-template-columns:1.6fr 1fr 1fr; gap:52px; padding-bottom:52px; border-bottom:1px solid rgba(255,255,255,0.08); }
         .footer-logo { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
-        .footer-logo .emoji { font-size:1.5rem; }
+        .footer-logo-img { width:32px; height:32px; object-fit:contain; filter:brightness(1.1); }
         .footer-logo .wordmark { font-size:1.125rem; font-weight:700; color:var(--footer-heading); }
         .footer-tagline { font-size:0.9375rem; color:var(--footer-text); line-height:1.68; max-width:290px; }
         .footer-col-heading { font-size:0.8125rem; font-weight:700; text-transform:uppercase; letter-spacing:0.10em; color:var(--footer-heading); margin-bottom:20px; }
@@ -1137,7 +1146,7 @@
     <nav class="nav" id="mainNav" role="navigation" aria-label="Main navigation">
         <div class="nav-inner">
             <a href="/" class="nav-logo" aria-label="Healing Space UK — homepage">
-                <span class="nav-logo-emoji" aria-hidden="true">🌿</span>
+                <img src="/static/images/logo-64.png" alt="" class="nav-logo-img" aria-hidden="true">
                 <span class="nav-logo-wordmark">Healing Space UK</span>
             </a>
             <ul class="nav-links" role="list">
@@ -2133,7 +2142,7 @@
             <div class="footer-grid">
                 <div>
                     <div class="footer-logo">
-                        <span class="emoji" aria-hidden="true">🌿</span>
+                        <img src="/static/images/logo-64.png" alt="" class="footer-logo-img" aria-hidden="true">
                         <span class="wordmark">Healing Space UK</span>
                     </div>
                     <p class="footer-tagline">Empowering mental health recovery, one day at a time.</p>

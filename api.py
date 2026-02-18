@@ -5056,6 +5056,11 @@ try:
 except Exception as e:
     print(f"Pet database initialization: {e}")
 
+@app.route('/favicon.ico')
+def favicon():
+    """Serve favicon from project root"""
+    return send_from_directory(app.root_path, 'favicon.ico', mimetype='image/x-icon')
+
 @app.route('/')
 def index():
     """Serve public landing page"""

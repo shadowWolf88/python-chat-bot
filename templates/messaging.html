@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Messaging - Healing Space</title>
-    
+    <title>Messaging - Healing Space UK</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/images/logo-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo-192.png">
     <!-- Stylesheets -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/messaging.css') }}">
@@ -24,7 +27,7 @@
     <nav class="navbar">
         <div class="navbar-container">
             <a href="/" class="navbar-logo">
-                <span class="logo-icon">🧘</span> Healing Space
+                <img src="/static/images/logo-64.png" alt="" class="logo-icon" aria-hidden="true"> Healing Space UK
             </a>
             <ul class="navbar-menu">
                 <li><a href="/dashboard">Dashboard</a></li>
@@ -332,7 +335,10 @@
         }
 
         .logo-icon {
-            font-size: 24px;
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 3px rgba(0,0,0,0.15));
         }
 
         .navbar-menu {
