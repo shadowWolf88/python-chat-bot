@@ -27,7 +27,7 @@
         }
 
         .dashboard-card {
-            background-color: white;
+            background-color: var(--bg-card, white);
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -40,7 +40,7 @@
 
         .dashboard-card h3 {
             margin: 10px 0 5px;
-            color: #2d3436;
+            color: var(--text-primary);
             font-size: 14px;
         }
 
@@ -53,7 +53,7 @@
 
         .dashboard-card .subtitle {
             font-size: 12px;
-            color: #636e72;
+            color: var(--text-secondary);
         }
 
         .patients-grid {
@@ -63,7 +63,7 @@
         }
 
         .patient-card {
-            background-color: white;
+            background-color: var(--bg-card, white);
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -80,7 +80,7 @@
         .patient-name {
             font-size: 16px;
             font-weight: 700;
-            color: #2d3436;
+            color: var(--text-primary);
         }
 
         .patient-status {
@@ -103,7 +103,7 @@
 
         .patient-info {
             font-size: 13px;
-            color: #636e72;
+            color: var(--text-secondary);
             margin-bottom: 10px;
             line-height: 1.6;
         }
@@ -136,7 +136,7 @@
 
         .btn-view-notes {
             background-color: #f0f0f0;
-            color: #2d3436;
+            color: var(--text-primary);
         }
 
         .btn-view-notes:hover {
@@ -177,7 +177,7 @@
         .filter-btn {
             padding: 8px 16px;
             border: 1px solid #dfe6e9;
-            background-color: white;
+            background-color: var(--bg-card, white);
             border-radius: 6px;
             cursor: pointer;
             font-size: 13px;
@@ -195,7 +195,7 @@
         }
 
         .analytics-section {
-            background-color: white;
+            background-color: var(--bg-card, white);
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -219,7 +219,7 @@
         .analytics-item h4 {
             margin: 0 0 10px;
             font-size: 13px;
-            color: #636e72;
+            color: var(--text-secondary);
         }
 
         .analytics-value {
@@ -230,7 +230,7 @@
 
         .analytics-trend {
             font-size: 11px;
-            color: #636e72;
+            color: var(--text-secondary);
             margin-top: 5px;
         }
 
@@ -389,24 +389,24 @@
         </div>
 
         <!-- Conversation Templates -->
-        <div style="margin-top: 30px; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+        <div style="margin-top: 30px; background-color: var(--bg-card, white); padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
             <h2>Quick Message Templates</h2>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
                 <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;" class="template-shortcut" data-template="greeting">
                     <strong>Check-in</strong>
-                    <p style="margin: 5px 0 0; font-size: 12px; color: #636e72;">Send a quick check-in message</p>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: var(--text-secondary);">Send a quick check-in message</p>
                 </div>
                 <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;" class="template-shortcut" data-template="appointment">
                     <strong>Appointment</strong>
-                    <p style="margin: 5px 0 0; font-size: 12px; color: #636e72;">Schedule or confirm appointment</p>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: var(--text-secondary);">Schedule or confirm appointment</p>
                 </div>
                 <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;" class="template-shortcut" data-template="follow-up">
                     <strong>Follow-up</strong>
-                    <p style="margin: 5px 0 0; font-size: 12px; color: #636e72;">Follow up on previous conversation</p>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: var(--text-secondary);">Follow up on previous conversation</p>
                 </div>
                 <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;" class="template-shortcut" data-template="crisis">
                     <strong>Crisis Support</strong>
-                    <p style="margin: 5px 0 0; font-size: 12px; color: #636e72;">Provide immediate support resources</p>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: var(--text-secondary);">Provide immediate support resources</p>
                 </div>
             </div>
         </div>

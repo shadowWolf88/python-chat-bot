@@ -65,7 +65,7 @@
         }
 
         .broadcast-section {
-            background-color: white;
+            background-color: var(--bg-card, white);
             padding: 25px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -74,7 +74,7 @@
 
         .broadcast-section h2 {
             margin: 0 0 20px;
-            color: #2d3436;
+            color: var(--text-primary);
             font-size: 22px;
         }
 
@@ -92,7 +92,7 @@
         .form-group label {
             margin-bottom: 8px;
             font-weight: 600;
-            color: #2d3436;
+            color: var(--text-primary);
             font-size: 13px;
         }
 
@@ -104,8 +104,8 @@
             border-radius: 6px;
             font-family: inherit;
             font-size: 14px;
-            color: #2d3436;
-            background-color: white;
+            color: var(--text-primary);
+            background-color: var(--bg-card, white);
         }
 
         .form-group input:focus,
@@ -130,7 +130,7 @@
 
         .broadcast-preview {
             padding: 15px;
-            background-color: #f5f6fa;
+            background-color: var(--bg-surface, #f5f6fa);
             border-radius: 6px;
             border-left: 4px solid #6366f1;
             margin-top: 15px;
@@ -138,17 +138,17 @@
 
         .broadcast-preview h4 {
             margin: 0 0 10px;
-            color: #2d3436;
+            color: var(--text-primary);
         }
 
         .preview-item {
             font-size: 13px;
             margin-bottom: 5px;
-            color: #636e72;
+            color: var(--text-secondary);
         }
 
         .logs-section {
-            background-color: white;
+            background-color: var(--bg-card, white);
             padding: 25px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -177,18 +177,18 @@
         }
 
         .logs-table th {
-            background-color: #f5f6fa;
+            background-color: var(--bg-surface, #f5f6fa);
             padding: 12px;
             text-align: left;
             font-weight: 600;
-            color: #2d3436;
+            color: var(--text-primary);
             border-bottom: 2px solid #dfe6e9;
         }
 
         .logs-table td {
             padding: 12px;
             border-bottom: 1px solid #dfe6e9;
-            color: #636e72;
+            color: var(--text-secondary);
         }
 
         .logs-table tr:hover {
@@ -221,7 +221,7 @@
         .chart-container {
             margin-top: 20px;
             padding: 20px;
-            background-color: white;
+            background-color: var(--bg-card, white);
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
@@ -234,7 +234,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #636e72;
+            color: var(--text-secondary);
             font-style: italic;
             border: 2px dashed #dfe6e9;
         }
@@ -247,8 +247,8 @@
 
         .btn-export {
             padding: 10px 16px;
-            background-color: #f5f6fa;
-            color: #2d3436;
+            background-color: var(--bg-surface, #f5f6fa);
+            color: var(--text-primary);
             border: 1px solid #dfe6e9;
             border-radius: 6px;
             cursor: pointer;
@@ -470,7 +470,7 @@
                     </thead>
                     <tbody id="logs-body">
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 20px; color: #636e72;">Loading logs...</td>
+                            <td colspan="7" style="text-align: center; padding: 20px; color: var(--text-secondary);">Loading logs...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -490,24 +490,24 @@
             <h2>System Health</h2>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
                 <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px;">
-                    <div style="font-weight: 600; color: #2d3436; margin-bottom: 8px;">Message Queue</div>
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Message Queue</div>
                     <div style="font-size: 24px; font-weight: 700; color: #6366f1;" id="queue-size">0</div>
-                    <div style="font-size: 12px; color: #636e72;">pending messages</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">pending messages</div>
                 </div>
                 <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px;">
-                    <div style="font-weight: 600; color: #2d3436; margin-bottom: 8px;">API Response Time</div>
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">API Response Time</div>
                     <div style="font-size: 24px; font-weight: 700; color: #00b894;" id="api-latency">--</div>
-                    <div style="font-size: 12px; color: #636e72;">milliseconds</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">milliseconds</div>
                 </div>
                 <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px;">
-                    <div style="font-weight: 600; color: #2d3436; margin-bottom: 8px;">Database Status</div>
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Database Status</div>
                     <div style="font-size: 18px; font-weight: 700; color: #00b894;" id="db-status">Connected</div>
-                    <div style="font-size: 12px; color: #636e72;">operational</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">operational</div>
                 </div>
                 <div style="padding: 15px; border: 1px solid #dfe6e9; border-radius: 6px;">
-                    <div style="font-weight: 600; color: #2d3436; margin-bottom: 8px;">Uptime</div>
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Uptime</div>
                     <div style="font-size: 18px; font-weight: 700; color: #6366f1;" id="uptime">--</div>
-                    <div style="font-size: 12px; color: #636e72;">hours</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">hours</div>
                 </div>
             </div>
         </div>
@@ -621,7 +621,7 @@
                 const tbody = document.getElementById('logs-body');
                 
                 if (logs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #636e72;">No logs found</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-secondary);">No logs found</td></tr>';
                     return;
                 }
 
