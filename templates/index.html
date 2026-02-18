@@ -11,6 +11,15 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/images/logo-16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo-192.png">
+    <style>
+        .page-watermark-fixed {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(520px, 65vw); height: auto;
+            opacity: 0.045; pointer-events: none;
+            z-index: 0; user-select: none;
+        }
+    </style>
     <!-- TIER 1.8: XSS Prevention -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -3900,6 +3909,7 @@
     </style>
 </head>
 <body>
+    <img src="/static/images/logo-512.png" alt="" class="page-watermark-fixed" aria-hidden="true" draggable="false">
     <!-- Auth Screen -->
     <div id="authScreen" class="auth-container">
         <!-- Theme Toggle for Login Page -->

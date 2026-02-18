@@ -20,9 +20,17 @@
             padding: 0;
             background-color: #f5f6fa;
         }
+        .page-watermark-fixed {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(480px, 60vw); height: auto;
+            opacity: 0.045; pointer-events: none;
+            z-index: 0; user-select: none;
+        }
     </style>
 </head>
 <body>
+    <img src="/static/images/logo-512.png" alt="" class="page-watermark-fixed" aria-hidden="true" draggable="false">
     <!-- Navigation (from main layout) -->
     <nav class="navbar">
         <div class="navbar-container">
