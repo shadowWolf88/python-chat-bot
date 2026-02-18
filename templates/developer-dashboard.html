@@ -398,9 +398,23 @@
                 width: 100%;
             }
         }
+        .page-watermark-fixed {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(720px, 85vmin); height: auto;
+            opacity: 0.07;
+            filter: brightness(0) invert(1);
+            pointer-events: none;
+            z-index: 0; user-select: none;
+        }
     </style>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/images/logo-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo-192.png">
 </head>
 <body>
+    <img src="/static/images/logo-512.png" alt="" class="page-watermark-fixed" aria-hidden="true" draggable="false">
     <div class="dashboard-container">
         <!-- Header -->
         <div class="dashboard-header">

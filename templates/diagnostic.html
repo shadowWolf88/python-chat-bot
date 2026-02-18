@@ -40,9 +40,29 @@
             margin: 5px;
         }
         button:hover { background: #357abd; }
+        .page-watermark-fixed {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(600px, 80vmin); height: auto;
+            opacity: 0.06;
+            filter: none;
+            pointer-events: none;
+            z-index: 0; user-select: none;
+        }
+        @media (prefers-color-scheme: dark) {
+            .page-watermark-fixed {
+                filter: brightness(0) invert(1);
+                opacity: 0.09;
+            }
+        }
     </style>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/images/logo-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo-192.png">
 </head>
 <body>
+    <img src="/static/images/logo-512.png" alt="" class="page-watermark-fixed" aria-hidden="true" draggable="false">
     <div class="test-box">
         <h1>🔧 Healing Space Diagnostic Test</h1>
         <p>This page tests if JavaScript functions load correctly.</p>

@@ -24,10 +24,16 @@
             position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: min(680px, 82vmin); height: auto;
-            opacity: 0.08;
-            filter: brightness(0) invert(1);
+            opacity: 0.06;
+            filter: none;
             pointer-events: none;
             z-index: 0; user-select: none;
+        }
+        @media (prefers-color-scheme: dark) {
+            .page-watermark-fixed {
+                filter: brightness(0) invert(1);
+                opacity: 0.09;
+            }
         }
     </style>
 </head>
@@ -348,7 +354,7 @@
             width: 30px;
             height: 30px;
             object-fit: contain;
-            filter: drop-shadow(0 1px 3px rgba(0,0,0,0.15));
+            filter: brightness(0) invert(1);
         }
 
         .navbar-menu {

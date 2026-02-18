@@ -62,6 +62,15 @@
             background: #ccc;
             cursor: not-allowed;
         }
+        .page-watermark-fixed {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(720px, 85vmin); height: auto;
+            opacity: 0.07;
+            filter: brightness(0) invert(1);
+            pointer-events: none;
+            z-index: 0; user-select: none;
+        }
         .result {
             margin-top: 20px;
             padding: 15px;
@@ -88,9 +97,23 @@
             max-height: 300px;
             overflow-y: auto;
         }
+        .page-watermark-fixed {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(640px, 82vmin); height: auto;
+            opacity: 0.08;
+            filter: brightness(0) invert(1);
+            pointer-events: none;
+            z-index: 0; user-select: none;
+        }
     </style>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/images/logo-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo-192.png">
 </head>
 <body>
+    <img src="/static/images/logo-512.png" alt="" class="page-watermark-fixed" aria-hidden="true" draggable="false">
     <div class="container">
         <h1>🗑️ Admin Database Wipe</h1>
         <p style="color: #666;">This tool will permanently delete all user data from the database.</p>
