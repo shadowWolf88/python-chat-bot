@@ -1,8 +1,16 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Inline theme init — must run before CSS to prevent FOUC -->
+    <script>
+        (function () {
+            var saved = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+        }());
+    </script>
     <meta name="description" content="Healing Space UK — A secure, clinician-led mental health platform combining human expertise with AI-powered tools for lasting wellbeing.">
     <meta name="theme-color" content="#667eea">
     <title>Healing Space UK — Your Mental Health Journey, Supported Every Step</title>
@@ -228,6 +236,9 @@
             min-height: 100vh; background: var(--brand-gradient);
             display: flex; align-items: center; justify-content: center;
             position: relative; overflow: hidden; padding: 110px 28px 96px;
+        }
+        [data-theme="dark"] .hero {
+            background: linear-gradient(135deg, #1e2a6e 0%, #2d1554 100%);
         }
         .particle {
             position: absolute; border-radius: 50%;
@@ -2786,11 +2797,6 @@
             if (btn) { btn.classList.add('active'); btn.setAttribute('aria-selected','true'); }
         }
 
-        /* ---- Theme: apply before paint to avoid FOUC ---- */
-        (function () {
-            var saved = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', saved);
-        }());
 
         document.addEventListener('DOMContentLoaded', function () {
 
