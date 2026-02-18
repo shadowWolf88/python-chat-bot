@@ -5894,54 +5894,71 @@ def forgot_password():
         return handle_exception(e, 'password_reset')
 
 def send_reset_email(to_email, username, reset_token):
-    """Send password reset email via SMTP"""
+    """Send branded password reset email via SMTP"""
     try:
-        # Get SMTP credentials from environment
         smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
         smtp_port = int(os.getenv('SMTP_PORT', '587'))
         smtp_user = os.getenv('SMTP_USER')
         smtp_password = os.getenv('SMTP_PASSWORD')
         from_email = os.getenv('FROM_EMAIL', smtp_user)
-        
-        if not smtp_user or not smtp_password:
-            error_msg = "SMTP credentials not configured. Set SMTP_USER and SMTP_PASSWORD environment variables."
-            print(error_msg)
-            raise Exception(error_msg)
-        
-        # Create message
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = 'python-chat-bot - Password Reset'
-        msg['From'] = from_email
-        msg['To'] = to_email
-        
-        # Reset URL (use Railway URL or localhost)
         base_url = os.getenv('APP_URL', 'http://localhost:5000')
-        reset_url = f"{base_url}/reset-password%stoken={reset_token}&username={username}"
-        
+
+        if not smtp_user or not smtp_password:
+            raise Exception("SMTP credentials not configured. Set SMTP_USER and SMTP_PASSWORD environment variables.")
+
+        reset_url = f"{base_url}/reset-password?token={reset_token}&username={username}"
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'Healing Space UK — Password Reset'
+        msg['From'] = f'Healing Space UK <{from_email}>'
+        msg['To'] = to_email
+
         html = f"""
         <html>
-          <body>
-            <h2>Password Reset Request</h2>
-            <p>Hello {username},</p>
-            <p>You requested to reset your password. Click the link below to reset it:</p>
-            <p><a href="{reset_url}">Reset Password</a></p>
-            <p>This link expires in 1 hour.</p>
-            <p>If you didn't request this, please ignore this email.</p>
-            <br>
-            <p>Best regards,<br>python-chat-bot Team</p>
+          <body style="font-family:Inter,Arial,sans-serif;background:#f9fafb;padding:32px 0;margin:0;">
+            <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+              <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:24px 32px;">
+                <h1 style="color:#fff;margin:0;font-size:1.25rem;font-weight:700;">Healing Space UK</h1>
+                <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:0.875rem;">Secure Mental Health Platform</p>
+              </div>
+              <div style="padding:32px;">
+                <h2 style="margin:0 0 8px;color:#111827;font-size:1.1rem;">Password Reset Request</h2>
+                <p style="color:#6b7280;margin:0 0 24px;font-size:0.9rem;">
+                  Hello <strong style="color:#374151;">{username}</strong>,
+                </p>
+                <p style="color:#374151;margin:0 0 24px;font-size:0.9rem;">
+                  We received a request to reset your password. Click the button below to choose a new one.
+                  This link expires in <strong>1 hour</strong>.
+                </p>
+                <a href="{reset_url}" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:0.95rem;">
+                  Reset My Password &rarr;
+                </a>
+                <p style="margin:24px 0 0;font-size:0.85rem;color:#6b7280;">
+                  If the button doesn't work, copy and paste this link into your browser:
+                </p>
+                <p style="margin:4px 0 0;font-size:0.8rem;color:#667eea;word-break:break-all;">{reset_url}</p>
+                <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+                <p style="margin:0;font-size:0.8rem;color:#9ca3af;">
+                  If you didn't request a password reset, you can safely ignore this email.
+                  Your password will not change.
+                </p>
+                <p style="margin:16px 0 0;font-size:0.8rem;color:#9ca3af;">
+                  &mdash; The Healing Space UK Team<br>
+                  <a href="https://healing-space.org.uk" style="color:#667eea;text-decoration:none;">healing-space.org.uk</a>
+                </p>
+              </div>
+            </div>
           </body>
         </html>
         """
-        
+
         msg.attach(MIMEText(html, 'html'))
-        
-        # Send email
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
-        server.login(smtp_user, smtp_password)
-        server.send_message(msg)
-        server.quit()
-        
+
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+
         print(f"✅ Password reset email sent to {to_email}")
         return True
 
@@ -6140,31 +6157,43 @@ def send_verification_code(identifier, code, method='email'):
                 return False
             
             msg = MIMEMultipart('alternative')
-            msg['Subject'] = 'python-chat-bot - Verification Code'
-            msg['From'] = from_email
+            msg['Subject'] = 'Healing Space UK — Your Verification Code'
+            msg['From'] = f'Healing Space UK <{from_email}>'
             msg['To'] = identifier
-            
+
             html = f"""
             <html>
-              <body>
-                <h2>Welcome to python-chat-bot!</h2>
-                <p>Your verification code is:</p>
-                <h1 style="color: #667eea; font-size: 32px; letter-spacing: 5px;">{code}</h1>
-                <p>This code expires in 10 minutes.</p>
-                <p>If you didn't request this, please ignore this email.</p>
-                <br>
-                <p>Best regards,<br>python-chat-bot Team</p>
+              <body style="font-family:Inter,Arial,sans-serif;background:#f9fafb;padding:32px 0;margin:0;">
+                <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                  <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:24px 32px;">
+                    <h1 style="color:#fff;margin:0;font-size:1.25rem;font-weight:700;">Healing Space UK</h1>
+                    <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:0.875rem;">Secure Mental Health Platform</p>
+                  </div>
+                  <div style="padding:32px;">
+                    <h2 style="margin:0 0 8px;color:#111827;font-size:1.1rem;">Verify your account</h2>
+                    <p style="color:#6b7280;margin:0 0 28px;font-size:0.9rem;">Use the code below to complete your sign-in. It expires in <strong>10 minutes</strong>.</p>
+                    <div style="background:#f3f4f6;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
+                      <div style="font-size:2.5rem;font-weight:700;letter-spacing:12px;color:#667eea;font-family:monospace;">{code}</div>
+                    </div>
+                    <p style="margin:0;font-size:0.8rem;color:#9ca3af;">
+                      If you didn't request this code, you can safely ignore this email.
+                    </p>
+                    <p style="margin:16px 0 0;font-size:0.8rem;color:#9ca3af;">
+                      &mdash; The Healing Space UK Team<br>
+                      <a href="https://healing-space.org.uk" style="color:#667eea;text-decoration:none;">healing-space.org.uk</a>
+                    </p>
+                  </div>
+                </div>
               </body>
             </html>
             """
-            
+
             msg.attach(MIMEText(html, 'html'))
-            
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
-            server.login(smtp_user, smtp_password)
-            server.send_message(msg)
-            server.quit()
+
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+                server.send_message(msg)
             
             print(f"✅ Verification code sent to {identifier}")
             return True
@@ -6184,7 +6213,7 @@ def send_verification_code(identifier, code, method='email'):
                 
                 client = Client(account_sid, auth_token)
                 message = client.messages.create(
-                    body=f"Your python-chat-bot verification code is: {code}. Valid for 10 minutes.",
+                    body=f"Your Healing Space UK verification code is: {code}. Valid for 10 minutes.",
                     from_=from_phone,
                     to=identifier
                 )
@@ -12497,7 +12526,7 @@ def export_patient_summary():
     {'<table><tr><th>Date</th><th>Mood</th><th>Sleep</th><th>Exercise</th><th>Notes</th></tr>' + ''.join([f'<tr><td>{m[4][:10]}</td><td>{m[0]}/10</td><td>{m[1] or 0}h</td><td>{m[2] or 0}min</td><td style="max-width:200px;">{(m[3] or "-")[:50]}</td></tr>' for m in moods[:30]]) + '</table>' if moods else '<p>No mood entries in this period</p>'}
     
     <hr style="margin-top: 40px;">
-    <p style="text-align: center; color: #999; font-size: 11px;">Confidential - Generated by python-chat-bot Therapy App for {clinician_username}</p>
+    <p style="text-align: center; color: #999; font-size: 11px;">Confidential - Generated by Healing Space UK for {clinician_username}</p>
 </body>
 </html>"""
         
