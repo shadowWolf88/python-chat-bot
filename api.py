@@ -4009,6 +4009,10 @@ def init_db():
         cursor.execute("CREATE TABLE IF NOT EXISTS data_consent (user_hash TEXT PRIMARY KEY, consent_given INTEGER DEFAULT 0, consent_date TIMESTAMP, consent_withdrawn INTEGER DEFAULT 0, withdrawal_date TIMESTAMP)")
         cursor.execute("CREATE TABLE IF NOT EXISTS developer_test_runs (id SERIAL PRIMARY KEY, username TEXT, test_output TEXT, exit_code INTEGER, passed_count INTEGER DEFAULT 0, failed_count INTEGER DEFAULT 0, error_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         cursor.execute("CREATE TABLE IF NOT EXISTS dev_ai_chats (id SERIAL PRIMARY KEY, username TEXT, session_id TEXT, role TEXT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        # Dev tables that may not exist on databases initialised before these features were added
+        cursor.execute("CREATE TABLE IF NOT EXISTS dev_jobs (id SERIAL PRIMARY KEY, title TEXT NOT NULL, description TEXT, status VARCHAR(50) DEFAULT 'open', priority VARCHAR(50) DEFAULT 'medium', source VARCHAR(50) DEFAULT 'manual', feedback_id INTEGER, reported_by TEXT, notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS dev_terminal_logs (id SERIAL PRIMARY KEY, username TEXT, command TEXT, output TEXT, exit_code INTEGER, duration_ms INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS dev_messages (id SERIAL PRIMARY KEY, from_username TEXT, to_username TEXT, message TEXT, message_type TEXT DEFAULT 'message', read INTEGER DEFAULT 0, parent_message_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         conn.commit()
 
         # Apply migrations for existing databases
