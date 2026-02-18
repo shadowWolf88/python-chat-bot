@@ -646,6 +646,104 @@ def get_last_insert_id(cursor):
     except Exception:
         return None
 
+# ================== OUTCOME MEASURE SCORING (Section 1.3) ==================
+
+def score_core10(responses):
+    """Score CORE-10. responses = list of 10 integers (0-4)."""
+    if not responses or len(responses) != 10:
+        raise ValueError("CORE-10 requires exactly 10 responses (0-4 each)")
+    total = sum(int(r) for r in responses)
+    if total <= 5:
+        severity = 'low'
+    elif total <= 11:
+        severity = 'low-moderate'
+    elif total <= 17:
+        severity = 'moderate'
+    elif total <= 22:
+        severity = 'moderate-severe'
+    else:
+        severity = 'severe'
+    return {'score': total, 'severity': severity}
+
+
+def score_core_om(responses):
+    """Score CORE-OM. responses = list of 34 integers (0-4). Items 1,2,12,17 are positively worded (reverse scored)."""
+    if not responses or len(responses) != 34:
+        raise ValueError("CORE-OM requires exactly 34 responses (0-4 each)")
+    items = [int(r) for r in responses]
+    # Positive items (1-indexed): 1, 2, 12, 17 → reverse score
+    for idx in [0, 1, 11, 16]:
+        items[idx] = 4 - items[idx]
+    total = sum(items)
+    mean = round(total / 34, 2)
+    # Domain scores (simplified standard mapping)
+    wellbeing = [items[i] for i in [0, 1, 11, 16]]
+    problems = [items[i] for i in [3, 4, 5, 7, 8, 9, 13, 14, 15, 18, 20, 22]]
+    functioning = [items[i] for i in [2, 6, 10, 12, 17, 19, 21, 23, 24, 25, 28, 30]]
+    risk = [items[i] for i in [26, 27, 29, 31, 32, 33]]
+    domain_scores = {
+        'wellbeing': round(sum(wellbeing) / len(wellbeing), 2),
+        'problems': round(sum(problems) / len(problems), 2),
+        'functioning': round(sum(functioning) / len(functioning), 2),
+        'risk': round(sum(risk) / len(risk), 2),
+    }
+    if mean < 1.0:
+        severity = 'low'
+    elif mean < 1.5:
+        severity = 'low-moderate'
+    elif mean < 2.0:
+        severity = 'moderate'
+    elif mean < 2.5:
+        severity = 'moderate-severe'
+    else:
+        severity = 'severe'
+    return {'score': total, 'mean': mean, 'severity': severity, 'domain_scores': domain_scores}
+
+
+def score_wemwbs(responses):
+    """Score WEMWBS. responses = list of 14 integers (1-5)."""
+    if not responses or len(responses) != 14:
+        raise ValueError("WEMWBS requires exactly 14 responses (1-5 each)")
+    total = sum(int(r) for r in responses)
+    if total < 41:
+        severity = 'low'
+    elif total < 59:
+        severity = 'moderate'
+    else:
+        severity = 'high'
+    return {'score': total, 'severity': severity}
+
+
+def score_ors(responses):
+    """Score ORS. responses = dict with keys: individual, interpersonal, social, overall (0-10 each)."""
+    keys = ['individual', 'interpersonal', 'social', 'overall']
+    total = round(sum(float(responses.get(k, 0)) for k in keys), 1)
+    severity = 'clinical' if total < 25 else 'non-clinical'
+    return {'score': total, 'severity': severity}
+
+
+def score_srs(responses):
+    """Score SRS. responses = dict with keys: relationship, goals, approach, overall (0-10 each)."""
+    keys = ['relationship', 'goals', 'approach', 'overall']
+    total = round(sum(float(responses.get(k, 0)) for k in keys), 1)
+    severity = 'alliance_concern' if total < 36 else 'good_alliance'
+    return {'score': total, 'severity': severity}
+
+
+def compute_scale_score(scale_name, responses):
+    """Dispatch to the correct scoring function based on scale name."""
+    scorers = {
+        'CORE-10': score_core10,
+        'CORE-OM': score_core_om,
+        'WEMWBS': score_wemwbs,
+        'ORS': score_ors,
+        'SRS': score_srs,
+    }
+    if scale_name not in scorers:
+        raise ValueError(f"Unknown scale: {scale_name}")
+    return scorers[scale_name](responses)
+
+
 @CSRFProtection.require_csrf
 @app.route('/api/cbt/goals', methods=['POST'])
 def create_goal():
@@ -3888,6 +3986,14 @@ def init_db():
             cursor.execute("CREATE TABLE IF NOT EXISTS app_updates (id SERIAL PRIMARY KEY, title TEXT NOT NULL, version TEXT, changes JSONB NOT NULL DEFAULT '[]', posted_by TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS dev_jobs (id SERIAL PRIMARY KEY, title TEXT NOT NULL, description TEXT, status VARCHAR(50) DEFAULT 'open', priority VARCHAR(50) DEFAULT 'medium', source VARCHAR(50) DEFAULT 'manual', feedback_id INTEGER, reported_by TEXT, notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             
+            # Clinical documentation tables (1.1 Session Notes, 1.2 Treatment Plans)
+            cursor.execute("CREATE TABLE IF NOT EXISTS session_notes (id SERIAL PRIMARY KEY, clinician_username TEXT NOT NULL, patient_username TEXT NOT NULL, note_format TEXT NOT NULL DEFAULT 'soap', session_date DATE NOT NULL, session_duration_minutes INTEGER, session_type TEXT DEFAULT 'individual', soap_subjective TEXT, soap_objective TEXT, soap_assessment TEXT, soap_plan TEXT, birp_behaviour TEXT, birp_intervention TEXT, birp_response TEXT, birp_plan TEXT, freetext_content TEXT, template_name TEXT, status TEXT DEFAULT 'draft', signed_off_at TIMESTAMP, locked_at TIMESTAMP, risk_flags TEXT, homework_assigned TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_session_notes_clinician ON session_notes(clinician_username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_session_notes_patient ON session_notes(patient_username)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS treatment_plans (id SERIAL PRIMARY KEY, clinician_username TEXT NOT NULL, patient_username TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, is_active BOOLEAN DEFAULT TRUE, presenting_problems TEXT, goals TEXT, interventions TEXT, frequency_per_week NUMERIC(4,1), session_duration_minutes INTEGER DEFAULT 50, planned_total_sessions INTEGER, planned_end_date DATE, phq9_target_score INTEGER, gad7_target_score INTEGER, core10_target_score INTEGER, other_outcome_targets TEXT, discharge_criteria TEXT, review_frequency_weeks INTEGER DEFAULT 6, next_review_date DATE, clinician_signed_at TIMESTAMP, patient_signed_at TIMESTAMP, patient_declined_signature BOOLEAN DEFAULT FALSE, status TEXT DEFAULT 'draft', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_treatment_plans_clinician ON treatment_plans(clinician_username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_treatment_plans_patient ON treatment_plans(patient_username)")
+
             # Community tables
             cursor.execute("CREATE TABLE IF NOT EXISTS community_posts (id SERIAL PRIMARY KEY, username TEXT NOT NULL, message TEXT NOT NULL, category TEXT DEFAULT 'general', likes INTEGER DEFAULT 0, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_pinned INTEGER DEFAULT 0, FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE)")
             cursor.execute("CREATE TABLE IF NOT EXISTS community_likes (id SERIAL PRIMARY KEY, post_id INTEGER NOT NULL, username TEXT NOT NULL, reaction_type TEXT DEFAULT 'like', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(post_id) REFERENCES community_posts(id) ON DELETE CASCADE, FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE)")
@@ -4009,6 +4115,29 @@ def init_db():
         cursor.execute("CREATE TABLE IF NOT EXISTS data_consent (user_hash TEXT PRIMARY KEY, consent_given INTEGER DEFAULT 0, consent_date TIMESTAMP, consent_withdrawn INTEGER DEFAULT 0, withdrawal_date TIMESTAMP)")
         cursor.execute("CREATE TABLE IF NOT EXISTS developer_test_runs (id SERIAL PRIMARY KEY, username TEXT, test_output TEXT, exit_code INTEGER, passed_count INTEGER DEFAULT 0, failed_count INTEGER DEFAULT 0, error_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         cursor.execute("CREATE TABLE IF NOT EXISTS dev_ai_chats (id SERIAL PRIMARY KEY, username TEXT, session_id TEXT, role TEXT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        # Clinical documentation tables (1.1 & 1.2) — may not exist on older databases
+        cursor.execute("CREATE TABLE IF NOT EXISTS session_notes (id SERIAL PRIMARY KEY, clinician_username TEXT NOT NULL, patient_username TEXT NOT NULL, note_format TEXT NOT NULL DEFAULT 'soap', session_date DATE NOT NULL, session_duration_minutes INTEGER, session_type TEXT DEFAULT 'individual', soap_subjective TEXT, soap_objective TEXT, soap_assessment TEXT, soap_plan TEXT, birp_behaviour TEXT, birp_intervention TEXT, birp_response TEXT, birp_plan TEXT, freetext_content TEXT, template_name TEXT, status TEXT DEFAULT 'draft', signed_off_at TIMESTAMP, locked_at TIMESTAMP, risk_flags TEXT, homework_assigned TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_session_notes_clinician ON session_notes(clinician_username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_session_notes_patient ON session_notes(patient_username)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS treatment_plans (id SERIAL PRIMARY KEY, clinician_username TEXT NOT NULL, patient_username TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, is_active BOOLEAN DEFAULT TRUE, presenting_problems TEXT, goals TEXT, interventions TEXT, frequency_per_week NUMERIC(4,1), session_duration_minutes INTEGER DEFAULT 50, planned_total_sessions INTEGER, planned_end_date DATE, phq9_target_score INTEGER, gad7_target_score INTEGER, core10_target_score INTEGER, other_outcome_targets TEXT, discharge_criteria TEXT, review_frequency_weeks INTEGER DEFAULT 6, next_review_date DATE, clinician_signed_at TIMESTAMP, patient_signed_at TIMESTAMP, patient_declined_signature BOOLEAN DEFAULT FALSE, status TEXT DEFAULT 'draft', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_treatment_plans_clinician ON treatment_plans(clinician_username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_treatment_plans_patient ON treatment_plans(patient_username)")
+        # Extend clinical_scales for 1.3 outcome measures (idempotent ALTER TABLE)
+        try:
+            cursor.execute("ALTER TABLE clinical_scales ADD COLUMN IF NOT EXISTS responses JSONB")
+            cursor.execute("ALTER TABLE clinical_scales ADD COLUMN IF NOT EXISTS domain_scores JSONB")
+            cursor.execute("ALTER TABLE clinical_scales ADD COLUMN IF NOT EXISTS administered_by TEXT DEFAULT 'patient'")
+            conn.commit()
+        except Exception as e:
+            print(f"clinical_scales migration note: {e}")
+            conn.rollback()
+        # Lock session notes that were signed off >24 hours ago
+        try:
+            cursor.execute("UPDATE session_notes SET status = 'locked', locked_at = NOW() WHERE status = 'signed_off' AND signed_off_at < NOW() - INTERVAL '24 hours'")
+            conn.commit()
+        except Exception as e:
+            print(f"Session notes lock note: {e}")
+            conn.rollback()
         # Dev tables that may not exist on databases initialised before these features were added
         cursor.execute("CREATE TABLE IF NOT EXISTS dev_jobs (id SERIAL PRIMARY KEY, title TEXT NOT NULL, description TEXT, status VARCHAR(50) DEFAULT 'open', priority VARCHAR(50) DEFAULT 'medium', source VARCHAR(50) DEFAULT 'manual', feedback_id INTEGER, reported_by TEXT, notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         cursor.execute("CREATE TABLE IF NOT EXISTS dev_terminal_logs (id SERIAL PRIMARY KEY, username TEXT, command TEXT, output TEXT, exit_code INTEGER, duration_ms INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
@@ -21617,6 +21746,691 @@ def startup_security_checks():
         print(f"🚨 CRITICAL STARTUP ERROR: {e}")
         print("TIER 0: Security validation failed - app will not start")
         raise
+
+
+# ================== SECTION 1.1: SESSION NOTES ENDPOINTS ==================
+
+@app.route('/api/clinician/session-notes/<patient_username>', methods=['GET'])
+def get_session_notes(patient_username):
+    """Get all session notes written by this clinician for the given patient."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        notes = cur.execute("""
+            SELECT id, note_format, session_date, session_duration_minutes, session_type,
+                   soap_subjective, soap_objective, soap_assessment, soap_plan,
+                   birp_behaviour, birp_intervention, birp_response, birp_plan,
+                   freetext_content, template_name, status, signed_off_at, locked_at,
+                   risk_flags, homework_assigned, created_at, updated_at
+            FROM session_notes
+            WHERE clinician_username = %s AND patient_username = %s
+            ORDER BY session_date DESC, created_at DESC
+        """, (clinician_username, patient_username)).fetchall()
+        conn.close()
+        result = []
+        for n in notes:
+            result.append({
+                'id': n[0], 'note_format': n[1],
+                'session_date': n[2].isoformat() if n[2] else None,
+                'session_duration_minutes': n[3], 'session_type': n[4],
+                'soap_subjective': n[5], 'soap_objective': n[6],
+                'soap_assessment': n[7], 'soap_plan': n[8],
+                'birp_behaviour': n[9], 'birp_intervention': n[10],
+                'birp_response': n[11], 'birp_plan': n[12],
+                'freetext_content': n[13], 'template_name': n[14],
+                'status': n[15],
+                'signed_off_at': n[16].isoformat() if n[16] else None,
+                'locked_at': n[17].isoformat() if n[17] else None,
+                'risk_flags': n[18], 'homework_assigned': n[19],
+                'created_at': n[20].isoformat() if n[20] else None,
+                'updated_at': n[21].isoformat() if n[21] else None,
+            })
+        return jsonify({'notes': result, 'total': len(result)}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_session_notes')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/session-notes', methods=['POST'])
+def create_session_note():
+    """Create a new session note."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        data = request.get_json() or {}
+        patient_username = data.get('patient_username', '').strip()
+        note_format = data.get('note_format', 'soap')
+        session_date = data.get('session_date')
+        if not patient_username or not session_date:
+            return jsonify({'error': 'patient_username and session_date are required'}), 400
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute("""
+            INSERT INTO session_notes (
+                clinician_username, patient_username, note_format, session_date,
+                session_duration_minutes, session_type,
+                soap_subjective, soap_objective, soap_assessment, soap_plan,
+                birp_behaviour, birp_intervention, birp_response, birp_plan,
+                freetext_content, template_name, status, risk_flags, homework_assigned
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id
+        """, (
+            clinician_username, patient_username, note_format, session_date,
+            data.get('session_duration_minutes'), data.get('session_type', 'individual'),
+            data.get('soap_subjective'), data.get('soap_objective'),
+            data.get('soap_assessment'), data.get('soap_plan'),
+            data.get('birp_behaviour'), data.get('birp_intervention'),
+            data.get('birp_response'), data.get('birp_plan'),
+            data.get('freetext_content'), data.get('template_name'),
+            data.get('status', 'draft'),
+            data.get('risk_flags'), data.get('homework_assigned')
+        ))
+        new_id = cur.fetchone()[0]
+        if data.get('status') == 'signed_off':
+            cur.execute("UPDATE session_notes SET signed_off_at = NOW() WHERE id = %s", (new_id,))
+        conn.commit()
+        conn.close()
+        log_event(clinician_username, 'clinical', 'session_note_created', f'patient={patient_username}')
+        return jsonify({'id': new_id, 'success': True}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_session_note')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/session-notes/<int:note_id>', methods=['PUT'])
+def update_session_note(note_id):
+    """Update a session note. Locked notes cannot be edited."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        note = cur.execute(
+            "SELECT status, clinician_username FROM session_notes WHERE id = %s",
+            (note_id,)
+        ).fetchone()
+        if not note:
+            conn.close()
+            return jsonify({'error': 'Note not found'}), 404
+        if note[1] != clinician_username:
+            conn.close()
+            return jsonify({'error': 'Access denied'}), 403
+        if note[0] == 'locked':
+            conn.close()
+            return jsonify({'error': 'Note is locked and cannot be edited'}), 403
+        data = request.get_json() or {}
+        new_status = data.get('status', note[0])
+        signed_off_at_sql = "NOW()" if new_status == 'signed_off' and note[0] != 'signed_off' else "signed_off_at"
+        cur.execute(f"""
+            UPDATE session_notes SET
+                note_format = COALESCE(%s, note_format),
+                session_date = COALESCE(%s, session_date),
+                session_duration_minutes = COALESCE(%s, session_duration_minutes),
+                session_type = COALESCE(%s, session_type),
+                soap_subjective = %s, soap_objective = %s,
+                soap_assessment = %s, soap_plan = %s,
+                birp_behaviour = %s, birp_intervention = %s,
+                birp_response = %s, birp_plan = %s,
+                freetext_content = %s, template_name = COALESCE(%s, template_name),
+                status = %s,
+                signed_off_at = CASE WHEN %s = 'signed_off' AND signed_off_at IS NULL THEN NOW() ELSE signed_off_at END,
+                risk_flags = %s, homework_assigned = %s, updated_at = NOW()
+            WHERE id = %s
+        """, (
+            data.get('note_format'), data.get('session_date'),
+            data.get('session_duration_minutes'), data.get('session_type'),
+            data.get('soap_subjective'), data.get('soap_objective'),
+            data.get('soap_assessment'), data.get('soap_plan'),
+            data.get('birp_behaviour'), data.get('birp_intervention'),
+            data.get('birp_response'), data.get('birp_plan'),
+            data.get('freetext_content'), data.get('template_name'),
+            new_status, new_status,
+            data.get('risk_flags'), data.get('homework_assigned'), note_id
+        ))
+        conn.commit()
+        conn.close()
+        log_event(clinician_username, 'clinical', 'session_note_updated', f'note_id={note_id}')
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_session_note')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/session-notes/<int:note_id>/sign-off', methods=['POST'])
+def sign_off_session_note(note_id):
+    """Sign off a session note."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        note = cur.execute(
+            "SELECT status, clinician_username FROM session_notes WHERE id = %s",
+            (note_id,)
+        ).fetchone()
+        if not note:
+            conn.close()
+            return jsonify({'error': 'Note not found'}), 404
+        if note[1] != clinician_username:
+            conn.close()
+            return jsonify({'error': 'Access denied'}), 403
+        if note[0] == 'locked':
+            conn.close()
+            return jsonify({'error': 'Note is already locked'}), 403
+        cur.execute(
+            "UPDATE session_notes SET status = 'signed_off', signed_off_at = NOW(), updated_at = NOW() WHERE id = %s",
+            (note_id,)
+        )
+        conn.commit()
+        conn.close()
+        log_event(clinician_username, 'clinical', 'session_note_signed_off', f'note_id={note_id}')
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, 'sign_off_session_note')
+
+
+# ================== SECTION 1.2: TREATMENT PLAN ENDPOINTS ==================
+
+@app.route('/api/clinician/treatment-plan/<patient_username>', methods=['GET'])
+def get_treatment_plan(patient_username):
+    """Get the active treatment plan for this clinician-patient pair."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        plan = cur.execute("""
+            SELECT id, version, is_active, presenting_problems, goals, interventions,
+                   frequency_per_week, session_duration_minutes, planned_total_sessions,
+                   planned_end_date, phq9_target_score, gad7_target_score,
+                   core10_target_score, other_outcome_targets, discharge_criteria,
+                   review_frequency_weeks, next_review_date, clinician_signed_at,
+                   patient_signed_at, patient_declined_signature, status,
+                   created_at, updated_at
+            FROM treatment_plans
+            WHERE clinician_username = %s AND patient_username = %s AND is_active = TRUE
+            ORDER BY created_at DESC LIMIT 1
+        """, (clinician_username, patient_username)).fetchone()
+        conn.close()
+        if not plan:
+            return jsonify({'plan': None}), 200
+        result = {
+            'id': plan[0], 'version': plan[1], 'is_active': plan[2],
+            'presenting_problems': plan[3],
+            'goals': plan[4],
+            'interventions': plan[5],
+            'frequency_per_week': float(plan[6]) if plan[6] else None,
+            'session_duration_minutes': plan[7],
+            'planned_total_sessions': plan[8],
+            'planned_end_date': plan[9].isoformat() if plan[9] else None,
+            'phq9_target_score': plan[10], 'gad7_target_score': plan[11],
+            'core10_target_score': plan[12], 'other_outcome_targets': plan[13],
+            'discharge_criteria': plan[14],
+            'review_frequency_weeks': plan[15],
+            'next_review_date': plan[16].isoformat() if plan[16] else None,
+            'clinician_signed_at': plan[17].isoformat() if plan[17] else None,
+            'patient_signed_at': plan[18].isoformat() if plan[18] else None,
+            'patient_declined_signature': plan[19],
+            'status': plan[20],
+            'created_at': plan[21].isoformat() if plan[21] else None,
+            'updated_at': plan[22].isoformat() if plan[22] else None,
+        }
+        return jsonify({'plan': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_treatment_plan')
+
+
+@app.route('/api/clinician/treatment-plan/<patient_username>/history', methods=['GET'])
+def get_treatment_plan_history(patient_username):
+    """Get all archived treatment plans for this patient."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        plans = cur.execute("""
+            SELECT id, version, status, created_at, updated_at
+            FROM treatment_plans
+            WHERE clinician_username = %s AND patient_username = %s AND is_active = FALSE
+            ORDER BY version DESC
+        """, (clinician_username, patient_username)).fetchall()
+        conn.close()
+        result = [{'id': p[0], 'version': p[1], 'status': p[2],
+                   'created_at': p[3].isoformat() if p[3] else None,
+                   'updated_at': p[4].isoformat() if p[4] else None} for p in plans]
+        return jsonify({'history': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_treatment_plan_history')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/treatment-plan', methods=['POST'])
+def create_treatment_plan():
+    """Create a new treatment plan, archiving any existing active one."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        data = request.get_json() or {}
+        patient_username = data.get('patient_username', '').strip()
+        if not patient_username:
+            return jsonify({'error': 'patient_username is required'}), 400
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        # Archive any existing active plan and get the next version number
+        existing = cur.execute(
+            "SELECT id, version FROM treatment_plans WHERE clinician_username = %s AND patient_username = %s AND is_active = TRUE",
+            (clinician_username, patient_username)
+        ).fetchone()
+        next_version = 1
+        if existing:
+            cur.execute("UPDATE treatment_plans SET is_active = FALSE, status = 'archived', updated_at = NOW() WHERE id = %s", (existing[0],))
+            next_version = existing[1] + 1
+        # Calculate next review date
+        review_weeks = int(data.get('review_frequency_weeks', 6))
+        cur.execute("""
+            INSERT INTO treatment_plans (
+                clinician_username, patient_username, version,
+                presenting_problems, goals, interventions,
+                frequency_per_week, session_duration_minutes, planned_total_sessions,
+                planned_end_date, phq9_target_score, gad7_target_score,
+                core10_target_score, other_outcome_targets, discharge_criteria,
+                review_frequency_weeks, next_review_date, status
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
+                      NOW() + (%s || ' weeks')::INTERVAL, 'draft')
+            RETURNING id
+        """, (
+            clinician_username, patient_username, next_version,
+            data.get('presenting_problems'), data.get('goals'), data.get('interventions'),
+            data.get('frequency_per_week'), data.get('session_duration_minutes', 50),
+            data.get('planned_total_sessions'), data.get('planned_end_date'),
+            data.get('phq9_target_score'), data.get('gad7_target_score'),
+            data.get('core10_target_score'), data.get('other_outcome_targets'),
+            data.get('discharge_criteria'), review_weeks, str(review_weeks)
+        ))
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        conn.close()
+        log_event(clinician_username, 'clinical', 'treatment_plan_created', f'patient={patient_username} v{next_version}')
+        return jsonify({'id': new_id, 'version': next_version, 'success': True}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_treatment_plan')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/treatment-plan/<int:plan_id>', methods=['PUT'])
+def update_treatment_plan(plan_id):
+    """Update a treatment plan."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        data = request.get_json() or {}
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        plan = cur.execute(
+            "SELECT clinician_username FROM treatment_plans WHERE id = %s",
+            (plan_id,)
+        ).fetchone()
+        if not plan or plan[0] != clinician_username:
+            conn.close()
+            return jsonify({'error': 'Plan not found or access denied'}), 404
+        review_weeks = data.get('review_frequency_weeks')
+        cur.execute("""
+            UPDATE treatment_plans SET
+                presenting_problems = COALESCE(%s, presenting_problems),
+                goals = COALESCE(%s, goals),
+                interventions = COALESCE(%s, interventions),
+                frequency_per_week = COALESCE(%s, frequency_per_week),
+                session_duration_minutes = COALESCE(%s, session_duration_minutes),
+                planned_total_sessions = COALESCE(%s, planned_total_sessions),
+                planned_end_date = COALESCE(%s, planned_end_date),
+                phq9_target_score = COALESCE(%s, phq9_target_score),
+                gad7_target_score = COALESCE(%s, gad7_target_score),
+                core10_target_score = COALESCE(%s, core10_target_score),
+                other_outcome_targets = COALESCE(%s, other_outcome_targets),
+                discharge_criteria = COALESCE(%s, discharge_criteria),
+                review_frequency_weeks = COALESCE(%s, review_frequency_weeks),
+                next_review_date = CASE WHEN %s IS NOT NULL THEN NOW() + (%s || ' weeks')::INTERVAL ELSE next_review_date END,
+                updated_at = NOW()
+            WHERE id = %s
+        """, (
+            data.get('presenting_problems'), data.get('goals'), data.get('interventions'),
+            data.get('frequency_per_week'), data.get('session_duration_minutes'),
+            data.get('planned_total_sessions'), data.get('planned_end_date'),
+            data.get('phq9_target_score'), data.get('gad7_target_score'),
+            data.get('core10_target_score'), data.get('other_outcome_targets'),
+            data.get('discharge_criteria'), review_weeks,
+            str(review_weeks) if review_weeks else None,
+            str(review_weeks) if review_weeks else None,
+            plan_id
+        ))
+        conn.commit()
+        conn.close()
+        log_event(clinician_username, 'clinical', 'treatment_plan_updated', f'plan_id={plan_id}')
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_treatment_plan')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/treatment-plan/<int:plan_id>/sign', methods=['POST'])
+def clinician_sign_treatment_plan(plan_id):
+    """Clinician signs the treatment plan."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        plan = cur.execute(
+            "SELECT clinician_username, patient_signed_at FROM treatment_plans WHERE id = %s",
+            (plan_id,)
+        ).fetchone()
+        if not plan or plan[0] != clinician_username:
+            conn.close()
+            return jsonify({'error': 'Plan not found or access denied'}), 404
+        new_status = 'active' if plan[1] else 'draft'
+        cur.execute(
+            "UPDATE treatment_plans SET clinician_signed_at = NOW(), status = %s, updated_at = NOW() WHERE id = %s",
+            (new_status, plan_id)
+        )
+        conn.commit()
+        conn.close()
+        log_event(clinician_username, 'clinical', 'treatment_plan_signed_clinician', f'plan_id={plan_id}')
+        return jsonify({'success': True, 'status': new_status}), 200
+    except Exception as e:
+        return handle_exception(e, 'clinician_sign_treatment_plan')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/patient/treatment-plan/sign', methods=['POST'])
+def patient_sign_treatment_plan():
+    """Patient co-signs their treatment plan."""
+    try:
+        patient_username = get_authenticated_username()
+        if not patient_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'patient':
+            return jsonify({'error': 'Patient access required'}), 403
+        data = request.get_json() or {}
+        plan_id = data.get('plan_id')
+        if not plan_id:
+            return jsonify({'error': 'plan_id is required'}), 400
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        plan = cur.execute(
+            "SELECT patient_username, clinician_signed_at FROM treatment_plans WHERE id = %s",
+            (plan_id,)
+        ).fetchone()
+        if not plan or plan[0] != patient_username:
+            conn.close()
+            return jsonify({'error': 'Plan not found or access denied'}), 404
+        new_status = 'active' if plan[1] else 'draft'
+        cur.execute(
+            "UPDATE treatment_plans SET patient_signed_at = NOW(), status = %s, updated_at = NOW() WHERE id = %s",
+            (new_status, plan_id)
+        )
+        conn.commit()
+        conn.close()
+        log_event(patient_username, 'clinical', 'treatment_plan_signed_patient', f'plan_id={plan_id}')
+        return jsonify({'success': True, 'status': new_status}), 200
+    except Exception as e:
+        return handle_exception(e, 'patient_sign_treatment_plan')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/patient/treatment-plan/decline', methods=['POST'])
+def patient_decline_treatment_plan():
+    """Patient declines to co-sign their treatment plan."""
+    try:
+        patient_username = get_authenticated_username()
+        if not patient_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'patient':
+            return jsonify({'error': 'Patient access required'}), 403
+        data = request.get_json() or {}
+        plan_id = data.get('plan_id')
+        if not plan_id:
+            return jsonify({'error': 'plan_id is required'}), 400
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        plan = cur.execute(
+            "SELECT patient_username FROM treatment_plans WHERE id = %s",
+            (plan_id,)
+        ).fetchone()
+        if not plan or plan[0] != patient_username:
+            conn.close()
+            return jsonify({'error': 'Plan not found or access denied'}), 404
+        cur.execute(
+            "UPDATE treatment_plans SET patient_declined_signature = TRUE, updated_at = NOW() WHERE id = %s",
+            (plan_id,)
+        )
+        conn.commit()
+        conn.close()
+        log_event(patient_username, 'clinical', 'treatment_plan_declined_patient', f'plan_id={plan_id}')
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, 'patient_decline_treatment_plan')
+
+
+@app.route('/api/patient/treatment-plan', methods=['GET'])
+def get_patient_treatment_plan():
+    """Patient reads their own active treatment plan (read-only)."""
+    try:
+        patient_username = get_authenticated_username()
+        if not patient_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'patient':
+            return jsonify({'error': 'Patient access required'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        plan = cur.execute("""
+            SELECT id, clinician_username, version, goals, interventions,
+                   planned_end_date, discharge_criteria, clinician_signed_at,
+                   patient_signed_at, patient_declined_signature, status,
+                   presenting_problems, review_frequency_weeks, next_review_date
+            FROM treatment_plans
+            WHERE patient_username = %s AND is_active = TRUE
+            ORDER BY created_at DESC LIMIT 1
+        """, (patient_username,)).fetchone()
+        conn.close()
+        if not plan:
+            return jsonify({'plan': None}), 200
+        result = {
+            'id': plan[0], 'clinician_username': plan[1], 'version': plan[2],
+            'goals': plan[3], 'interventions': plan[4],
+            'planned_end_date': plan[5].isoformat() if plan[5] else None,
+            'discharge_criteria': plan[6],
+            'clinician_signed_at': plan[7].isoformat() if plan[7] else None,
+            'patient_signed_at': plan[8].isoformat() if plan[8] else None,
+            'patient_declined_signature': plan[9], 'status': plan[10],
+            'presenting_problems': plan[11],
+            'review_frequency_weeks': plan[12],
+            'next_review_date': plan[13].isoformat() if plan[13] else None,
+        }
+        return jsonify({'plan': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_patient_treatment_plan')
+
+
+# ================== SECTION 1.3: OUTCOME MEASURES ENDPOINTS ==================
+
+@CSRFProtection.require_csrf
+@app.route('/api/patient/outcome-measure', methods=['POST'])
+def patient_submit_outcome_measure():
+    """Patient submits a completed outcome measure. Server scores it."""
+    try:
+        patient_username = get_authenticated_username()
+        if not patient_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'patient':
+            return jsonify({'error': 'Patient access required'}), 403
+        data = request.get_json() or {}
+        scale_name = data.get('scale_name', '').strip()
+        responses = data.get('responses')
+        if not scale_name or responses is None:
+            return jsonify({'error': 'scale_name and responses are required'}), 400
+        try:
+            scored = compute_scale_score(scale_name, responses)
+        except ValueError as ve:
+            return jsonify({'error': str(ve)}), 400
+        domain_scores = scored.get('domain_scores')
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute("""
+            INSERT INTO clinical_scales (username, scale_name, score, severity, responses, domain_scores, administered_by)
+            VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb, 'patient')
+            RETURNING id, entry_timestamp
+        """, (
+            patient_username, scale_name, scored['score'], scored['severity'],
+            __import__('json').dumps(responses),
+            __import__('json').dumps(domain_scores) if domain_scores else None
+        ))
+        row = cur.fetchone()
+        conn.commit()
+        conn.close()
+        log_event(patient_username, 'clinical', 'outcome_measure_submitted', f'scale={scale_name} score={scored["score"]}')
+        return jsonify({'id': row[0], 'score': scored['score'], 'severity': scored['severity'],
+                        'domain_scores': domain_scores,
+                        'timestamp': row[1].isoformat() if row[1] else None}), 201
+    except Exception as e:
+        return handle_exception(e, 'patient_submit_outcome_measure')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/outcome-measure', methods=['POST'])
+def clinician_record_outcome_measure():
+    """Clinician records an outcome measure for a patient (e.g. SRS after a session)."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        data = request.get_json() or {}
+        patient_username = data.get('patient_username', '').strip()
+        scale_name = data.get('scale_name', '').strip()
+        responses = data.get('responses')
+        if not patient_username or not scale_name or responses is None:
+            return jsonify({'error': 'patient_username, scale_name and responses are required'}), 400
+        try:
+            scored = compute_scale_score(scale_name, responses)
+        except ValueError as ve:
+            return jsonify({'error': str(ve)}), 400
+        domain_scores = scored.get('domain_scores')
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute("""
+            INSERT INTO clinical_scales (username, scale_name, score, severity, responses, domain_scores, administered_by)
+            VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb, 'clinician')
+            RETURNING id, entry_timestamp
+        """, (
+            patient_username, scale_name, scored['score'], scored['severity'],
+            __import__('json').dumps(responses),
+            __import__('json').dumps(domain_scores) if domain_scores else None
+        ))
+        row = cur.fetchone()
+        conn.commit()
+        conn.close()
+        log_event(clinician_username, 'clinical', 'outcome_measure_recorded', f'patient={patient_username} scale={scale_name} score={scored["score"]}')
+        return jsonify({'id': row[0], 'score': scored['score'], 'severity': scored['severity'],
+                        'domain_scores': domain_scores}), 201
+    except Exception as e:
+        return handle_exception(e, 'clinician_record_outcome_measure')
+
+
+@app.route('/api/clinician/patient/<patient_username>/outcome-measures', methods=['GET'])
+def get_patient_outcome_measures_clinician(patient_username):
+    """Get full outcome measures history for a patient (clinician view)."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        rows = cur.execute("""
+            SELECT id, scale_name, score, severity, entry_timestamp, administered_by,
+                   responses, domain_scores
+            FROM clinical_scales
+            WHERE username = %s
+            ORDER BY entry_timestamp ASC
+        """, (patient_username,)).fetchall()
+        conn.close()
+        measures = {}
+        for r in rows:
+            scale = r[1]
+            if scale not in measures:
+                measures[scale] = []
+            measures[scale].append({
+                'id': r[0], 'scale_name': scale, 'score': r[2], 'severity': r[3],
+                'timestamp': r[4].isoformat() if r[4] else None,
+                'administered_by': r[5], 'responses': r[6], 'domain_scores': r[7]
+            })
+        return jsonify({'measures': measures}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_patient_outcome_measures_clinician')
+
+
+@app.route('/api/patient/outcome-measures', methods=['GET'])
+def get_patient_outcome_measures():
+    """Patient views their own outcome measures history."""
+    try:
+        patient_username = get_authenticated_username()
+        if not patient_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'patient':
+            return jsonify({'error': 'Patient access required'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        rows = cur.execute("""
+            SELECT id, scale_name, score, severity, entry_timestamp, administered_by
+            FROM clinical_scales
+            WHERE username = %s
+            ORDER BY entry_timestamp ASC
+        """, (patient_username,)).fetchall()
+        conn.close()
+        measures = {}
+        for r in rows:
+            scale = r[1]
+            if scale not in measures:
+                measures[scale] = []
+            measures[scale].append({
+                'id': r[0], 'scale_name': scale, 'score': r[2], 'severity': r[3],
+                'timestamp': r[4].isoformat() if r[4] else None,
+                'administered_by': r[5]
+            })
+        return jsonify({'measures': measures}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_patient_outcome_measures')
 
 
 # Run startup checks before first request

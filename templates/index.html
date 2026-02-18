@@ -5797,8 +5797,37 @@
                         <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 10px;">7-question screening for anxiety severity.</p>
                         <button class="btn" onclick="startGAD7()">Start GAD-7</button>
                     </div>
+                    <div style="border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
+                        <h4>CORE-10</h4>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 10px;">10-item measure of psychological distress and wellbeing.</p>
+                        <button class="btn" onclick="startCORE10()">Start CORE-10</button>
+                    </div>
+                    <div style="border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
+                        <h4>WEMWBS (Wellbeing)</h4>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 10px;">14-item Warwick-Edinburgh Mental Wellbeing Scale.</p>
+                        <button class="btn" onclick="startWEMWBS()">Start WEMWBS</button>
+                    </div>
                 </div>
-                
+
+                <!-- Patient Treatment Plan -->
+                <div style="margin-top: 30px;">
+                    <h4>🗺️ My Treatment Plan</h4>
+                    <button class="btn btn-secondary" onclick="loadPatientTreatmentPlanView()" style="margin-bottom: 16px;">Load My Treatment Plan</button>
+                    <div id="patientTreatmentPlanView"></div>
+                </div>
+
+                <!-- Outcome Measure Modal -->
+                <div id="omModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;justify-content:center;align-items:center;z-index:10001;">
+                    <div style="background:var(--bg-card);padding:30px;border-radius:16px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;">
+                        <h3 id="omModalTitle" style="margin-top:0;"></h3>
+                        <div id="omModalQuestions"></div>
+                        <div style="display:flex;gap:10px;margin-top:20px;">
+                            <button class="btn" onclick="submitOutcomeMeasureModal()">Submit</button>
+                            <button class="btn btn-secondary" onclick="closeOmModal()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="assessmentModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 10000;">
                     <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
                         <h3 id="assessmentTitle"></h3>
@@ -6491,6 +6520,15 @@
                         <button class="patient-subtab-btn" onclick="switchPatientTab('alerts', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             🚨 Alerts
                         </button>
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('sessionnotes', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                            📝 Session Notes
+                        </button>
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('treatmentplan', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                            🗺️ Treatment Plan
+                        </button>
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('outcomemeasures', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                            📈 Outcomes
+                        </button>
                     </div>
                     
                     <!-- Summary Subtab -->
@@ -6574,6 +6612,18 @@
                         <div id="patientAlertsContent">
                             <!-- Content will be loaded here -->
                         </div>
+                    </div>
+                    <!-- Session Notes Subtab -->
+                    <div id="patientSessionnotesTab" class="patient-subtab-content" style="display: none;">
+                        <div id="patientSessionnotesContent"></div>
+                    </div>
+                    <!-- Treatment Plan Subtab -->
+                    <div id="patientTreatmentplanTab" class="patient-subtab-content" style="display: none;">
+                        <div id="patientTreatmentplanContent"></div>
+                    </div>
+                    <!-- Outcome Measures Subtab -->
+                    <div id="patientOutcomemeasuresTab" class="patient-subtab-content" style="display: none;">
+                        <div id="patientOutcomemeasuresContent"></div>
                     </div>
                 </div>
             </div>
@@ -12694,6 +12744,143 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             assessmentScores = [];
             currentAssessment = null;
         }
+
+        // CORE-10 and WEMWBS patient self-report
+        const CORE10_QUESTIONS = [
+            "I have felt terribly alone and isolated",
+            "I have felt tense, anxious or nervous",
+            "I have felt I have someone to turn to for support when needed",
+            "I have felt O.K. about myself",
+            "I have felt totally lacking in energy and enthusiasm",
+            "I have been physically violent to others",
+            "I have felt able to cope when things go wrong",
+            "I have been troubled by aches, pains or other physical problems",
+            "I have thought of hurting myself",
+            "Talking to people has felt too much for me"
+        ];
+        const WEMWBS_QUESTIONS = [
+            "I've been feeling optimistic about the future",
+            "I've been feeling useful",
+            "I've been feeling relaxed",
+            "I've been feeling interested in other people",
+            "I've had energy to spare",
+            "I've been dealing with problems well",
+            "I've been thinking clearly",
+            "I've been feeling good about myself",
+            "I've been feeling close to other people",
+            "I've been feeling confident",
+            "I've been able to make up my own mind about things",
+            "I've been feeling loved",
+            "I've been interested in new things",
+            "I've been feeling cheerful"
+        ];
+        let omModalScale = null;
+        let omModalScores = [];
+
+        function startCORE10() {
+            omModalScale = 'CORE-10';
+            omModalScores = [];
+            showOmModal('CORE-10 — Psychological Distress', CORE10_QUESTIONS, ['Not at all','Only occasionally','Sometimes','Often','Most or all the time'], 0);
+        }
+
+        function startWEMWBS() {
+            omModalScale = 'WEMWBS';
+            omModalScores = [];
+            showOmModal('WEMWBS — Mental Wellbeing', WEMWBS_QUESTIONS, ['None of the time','Rarely','Some of the time','Often','All of the time'], 1);
+        }
+
+        function showOmModal(title, questions, optionLabels, startValue) {
+            document.getElementById('omModalTitle').textContent = title;
+            const container = document.getElementById('omModalQuestions');
+            container.innerHTML = questions.map((q, idx) => '<div style="margin:16px 0;padding:12px;border:1px solid var(--border-color);border-radius:8px;">'
+                + '<p style="margin:0 0 10px;font-weight:600;">' + (idx+1) + '. ' + q + '</p>'
+                + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+                + optionLabels.map((label, vi) => '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;min-width:120px;"><input type="radio" name="omq' + idx + '" value="' + (startValue+vi) + '" onchange="omModalScores[' + idx + ']=' + (startValue+vi) + '"> ' + label + '</label>').join('')
+                + '</div></div>').join('');
+            document.getElementById('omModal').style.display = 'flex';
+        }
+
+        function closeOmModal() {
+            document.getElementById('omModal').style.display = 'none';
+            omModalScores = [];
+            omModalScale = null;
+        }
+
+        async function submitOutcomeMeasureModal() {
+            const expected = omModalScale === 'WEMWBS' ? 14 : 10;
+            if (omModalScores.filter(s => s !== undefined).length < expected) { alert('Please answer all questions.'); return; }
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            try {
+                const resp = await fetch('/api/patient/outcome-measure', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ scale_name: omModalScale, responses: omModalScores })
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    const scoreMsg = data.score !== undefined ? '\nScore: ' + data.score + (data.severity ? '\nSeverity: ' + data.severity : '') : '';
+                    alert('Assessment submitted!' + scoreMsg);
+                    closeOmModal();
+                } else { alert('Error: ' + (data.error || 'Submission failed')); }
+            } catch (err) { alert('Error: ' + err.message); }
+        }
+
+        async function loadPatientTreatmentPlanView() {
+            const container = document.getElementById('patientTreatmentPlanView');
+            if (!container) return;
+            container.innerHTML = '<p style="color:var(--text-muted);padding:20px;text-align:center;">Loading...</p>';
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            try {
+                const resp = await fetch('/api/patient/treatment-plan', { credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+                const data = await resp.json();
+                if (!resp.ok || !data.plan) {
+                    container.innerHTML = '<p style="color:var(--text-muted);padding:20px;">No treatment plan has been created for you yet.</p>';
+                    return;
+                }
+                const plan = data.plan;
+                const goals = plan.goals ? (typeof plan.goals === 'string' ? JSON.parse(plan.goals) : plan.goals) : [];
+                const interventions = plan.interventions ? (typeof plan.interventions === 'string' ? JSON.parse(plan.interventions) : plan.interventions) : [];
+                const statusBadge = plan.status === 'active' ? '<span style="background:#28a745;color:white;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">● Active</span>'
+                    : '<span style="background:#ffc107;color:#333;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">✏️ Draft</span>';
+                const goalsHtml = goals.length ? goals.map((g,i) => {
+                    const txt = typeof g === 'object' ? g.text : g;
+                    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px;border-left:3px solid #6366f1;margin-top:6px;"><span style="background:#6366f1;color:white;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">' + (i+1) + '</span><span>' + (txt||'') + '</span></div>';
+                }).join('') : '<p style="color:var(--text-muted);">No goals set yet.</p>';
+                const signSection = !plan.patient_signed_at
+                    ? (!plan.patient_declined_signature
+                        ? '<div style="margin-top:16px;padding:16px;background:#e8f5e9;border-radius:8px;border-left:4px solid #28a745;"><p style="margin:0 0 10px;font-weight:600;">Your clinician has prepared this treatment plan for you. Please review and sign below.</p><div style="display:flex;gap:10px;"><button onclick="signPatientTreatmentPlan()" style="padding:10px 20px;background:#28a745;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">✅ I agree — Sign Plan</button><button onclick="declinePatientTreatmentPlan()" style="padding:10px 20px;background:var(--bg-secondary);color:var(--text-secondary);border:1px solid var(--border-color);border-radius:8px;cursor:pointer;">Decline</button></div></div>'
+                        : '<p style="color:#dc3545;margin-top:12px;">You have previously declined to sign this treatment plan. Contact your clinician to discuss.</p>')
+                    : '<p style="color:#28a745;font-weight:600;margin-top:12px;">✅ You signed this plan on ' + new Date(plan.patient_signed_at).toLocaleDateString('en-GB') + '</p>';
+                container.innerHTML = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h5 style="margin:0;">Treatment Plan ' + statusBadge + '</h5><span style="font-size:12px;color:var(--text-muted);">v' + (plan.version||1) + ' · Created ' + new Date(plan.created_at).toLocaleDateString('en-GB') + '</span></div>'
+                    + (plan.presenting_problems ? '<div style="margin-bottom:14px;"><strong style="font-size:13px;color:var(--text-secondary);">FOCUS</strong><p style="margin:4px 0;">' + plan.presenting_problems + '</p></div>' : '')
+                    + '<div style="margin-bottom:14px;"><strong style="font-size:13px;color:var(--text-secondary);">GOALS</strong>' + goalsHtml + '</div>'
+                    + (interventions.length ? '<div style="margin-bottom:14px;"><strong style="font-size:13px;color:var(--text-secondary);">APPROACH</strong><div style="margin-top:6px;">' + interventions.map(iv => '<span style="display:inline-block;padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:4px;font-size:13px;margin:3px;">' + iv + '</span>').join('') + '</div></div>' : '')
+                    + (plan.planned_end_date ? '<p style="font-size:13px;color:var(--text-muted);">📅 Planned end: ' + new Date(plan.planned_end_date).toLocaleDateString('en-GB') + '</p>' : '')
+                    + signSection + '</div>';
+            } catch (err) { container.innerHTML = '<p style="color:#dc3545;">Error loading treatment plan.</p>'; }
+        }
+
+        async function signPatientTreatmentPlan() {
+            if (!confirm('Sign your treatment plan? This records your agreement to the goals and approach outlined.')) return;
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            try {
+                const resp = await fetch('/api/patient/treatment-plan/sign', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken } });
+                const data = await resp.json();
+                if (resp.ok) { alert('Treatment plan signed.'); loadPatientTreatmentPlanView(); }
+                else { alert('Error: ' + (data.error || 'Sign failed')); }
+            } catch (err) { alert('Error: ' + err.message); }
+        }
+
+        async function declinePatientTreatmentPlan() {
+            if (!confirm('Are you sure you want to decline signing this treatment plan? Your clinician will be notified.')) return;
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            try {
+                const resp = await fetch('/api/patient/treatment-plan/decline', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken } });
+                const data = await resp.json();
+                if (resp.ok) { alert('Response recorded.'); loadPatientTreatmentPlanView(); }
+                else { alert('Error: ' + (data.error || 'Failed')); }
+            } catch (err) { alert('Error: ' + err.message); }
+        }
         
         // History
         async function loadHistory() {
@@ -14022,6 +14209,15 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 showPatientTab('therapy');
             } else if (subtabName === 'alerts') {
                 showPatientTab('alerts');
+            } else if (subtabName === 'sessionnotes') {
+                const patientUsername = document.getElementById('patientDetailName').textContent.trim();
+                if (patientUsername) loadSessionNotes(patientUsername);
+            } else if (subtabName === 'treatmentplan') {
+                const patientUsername = document.getElementById('patientDetailName').textContent.trim();
+                if (patientUsername) loadTreatmentPlan(patientUsername);
+            } else if (subtabName === 'outcomemeasures') {
+                const patientUsername = document.getElementById('patientDetailName').textContent.trim();
+                if (patientUsername) loadOutcomeMeasures(patientUsername);
             }
         }
         
@@ -14295,6 +14491,424 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
         
+        // ============================================================
+        // SESSION NOTES — Section 1.1
+        // ============================================================
+
+        const SESSION_NOTE_TEMPLATES = {
+            depression: {
+                soap: { subjective: 'Patient reports low mood, reduced energy and motivation. Sleep and appetite changes noted.', objective: 'Presented as flat affect, slow speech. PHQ-9 reviewed.', assessment: 'Consistent with moderate depression. Monitoring risk factors.', plan: 'Continue CBT interventions. Review antidepressant efficacy with GP if appropriate.' },
+                birp: { behaviour: 'Reports persistent low mood, anhedonia and withdrawal from activities.', intervention: 'Behavioural activation scheduling. Activity monitoring introduced.', response: 'Engaged with intervention. Some ambivalence about scheduling.', plan: 'Complete activity log between sessions. Target 1 pleasurable activity per day.' },
+                freetext: 'Depression-focused session. Reviewed mood diary, explored negative cognitions, introduced BA scheduling.'
+            },
+            anxiety: {
+                soap: { subjective: 'Patient reports persistent worry, physical tension, and avoidance behaviours.', objective: 'Visible tension during session. GAD-7 reviewed.', assessment: 'Generalised anxiety presentation. Cognitive avoidance maintaining cycle.', plan: 'Continue CBT worry management. Introduce controlled breathing practice.' },
+                birp: { behaviour: 'Presents with excessive worry, somatic symptoms, and avoidance of triggers.', intervention: 'Psychoeducation on anxiety cycle. Progressive muscle relaxation practised.', response: 'Good engagement. Reported feeling calmer during relaxation exercise.', plan: 'Practise PMR daily. Begin exposure hierarchy next session.' },
+                freetext: 'Anxiety-focused session. Reviewed worry record, discussed cognitive distortions, practised grounding techniques.'
+            },
+            trauma: {
+                soap: { subjective: 'Patient reports intrusive memories, hypervigilance, and sleep disturbance.', objective: 'Some emotional activation when discussing triggers. PCL-5 reviewed.', assessment: 'PTSD symptoms present. Phase 1 stabilisation ongoing.', plan: 'Continue grounding and stabilisation. Not yet ready for trauma processing.' },
+                birp: { behaviour: 'Reports flashbacks, nightmares, and avoidance of trauma-related cues.', intervention: 'Grounding techniques practised (5-4-3-2-1). Safe place visualisation.', response: 'Responded well to grounding. Able to return to window of tolerance.', plan: 'Use grounding techniques when triggered. Continue building stabilisation toolkit.' },
+                freetext: 'Trauma stabilisation session. Grounding techniques, psychoeducation on trauma response, window of tolerance work.'
+            },
+            ocd: {
+                soap: { subjective: 'Patient reports intrusive thoughts and compulsive rituals consuming significant time.', objective: 'Y-BOCS reviewed. Described specific obsession-compulsion cycles.', assessment: 'OCD with moderate severity. ERP indicated.', plan: 'Introduce ERP rationale. Begin hierarchy construction.' },
+                birp: { behaviour: 'Engaging in repeated checking behaviours in response to intrusive contamination thoughts.', intervention: 'ERP psychoeducation. Discussed habituation curve and response prevention.', response: 'Some resistance to ERP concept. Agreed to try with lower-distress item.', plan: 'Delay first compulsion by 5 minutes per day. Record distress ratings.' },
+                freetext: 'OCD-focused session. ERP rationale, hierarchy development, response prevention planning.'
+            },
+            eating: {
+                soap: { subjective: 'Patient reports restrictive eating, preoccupation with weight, body image distress.', objective: 'Medical stability confirmed with GP. EDE-Q reviewed.', assessment: 'Restrictive eating presentation with cognitive distortions around food/body.', plan: 'Collaborative meal planning. Challenge weight-related beliefs using cognitive restructuring.' },
+                birp: { behaviour: 'Skipping meals, rigid food rules, frequent body checking behaviours.', intervention: 'Collaborative nutritional rehabilitation planning. Explored values around health and life.', response: 'Ambivalent but willing to attempt structured eating. Values clarification helpful.', plan: 'Introduce structured eating plan 3 meals + 2 snacks. Monitor mood around eating.' },
+                freetext: 'Eating disorder session. Nutritional rehabilitation, cognitive restructuring of food rules, values work.'
+            },
+            generic: {
+                soap: { subjective: '', objective: '', assessment: '', plan: '' },
+                birp: { behaviour: '', intervention: '', response: '', plan: '' },
+                freetext: ''
+            }
+        };
+
+        async function loadSessionNotes(patientUsername) {
+            const container = document.getElementById('patientSessionnotesContent');
+            if (!container) return;
+            container.innerHTML = '<div class="card"><p style="color:var(--text-muted);text-align:center;padding:20px;">Loading session notes...</p></div>';
+            try {
+                const resp = await fetch(`/api/clinician/session-notes/${encodeURIComponent(patientUsername)}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Failed to load notes');
+                const notes = data.notes || [];
+                const today = new Date().toISOString().split('T')[0];
+                container.innerHTML = `
+                    <div class="card">
+                        <h4 style="margin-top:0;">📝 New Session Note</h4>
+                        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+                            <div style="flex:1;min-width:140px;"><label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px;">Date</label><input type="date" id="snDate" value="${today}" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;"></div>
+                            <div style="flex:1;min-width:120px;"><label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px;">Duration (min)</label><input type="number" id="snDuration" value="50" min="15" max="180" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;"></div>
+                            <div style="flex:1;min-width:140px;"><label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px;">Session Type</label><select id="snType" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);"><option value="individual">Individual</option><option value="couples">Couples</option><option value="group">Group</option><option value="family">Family</option><option value="phone">Phone</option><option value="video">Video</option></select></div>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+                            <label style="font-size:13px;color:var(--text-secondary);">Format:</label>
+                            <button onclick="switchNoteFormat('soap')" id="fmtSoap" style="padding:6px 14px;border-radius:6px;border:2px solid #6366f1;background:#6366f1;color:white;cursor:pointer;font-size:13px;font-weight:600;">SOAP</button>
+                            <button onclick="switchNoteFormat('birp')" id="fmtBirp" style="padding:6px 14px;border-radius:6px;border:2px solid #6366f1;background:transparent;color:#6366f1;cursor:pointer;font-size:13px;font-weight:600;">BIRP</button>
+                            <button onclick="switchNoteFormat('freetext')" id="fmtFree" style="padding:6px 14px;border-radius:6px;border:2px solid #6366f1;background:transparent;color:#6366f1;cursor:pointer;font-size:13px;font-weight:600;">Free Text</button>
+                            <label style="font-size:13px;color:var(--text-secondary);margin-left:12px;">Template:</label>
+                            <select id="snTemplate" onchange="applyNoteTemplate(this.value)" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">
+                                <option value="">-- Select --</option><option value="depression">Depression</option><option value="anxiety">Anxiety</option><option value="trauma">Trauma/PTSD</option><option value="ocd">OCD</option><option value="eating">Eating Disorder</option><option value="generic">Generic</option>
+                            </select>
+                        </div>
+                        <div id="snFormatSoap">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                                <div><label style="font-size:13px;color:var(--text-secondary);font-weight:600;">S — Subjective</label><textarea id="snSoapS" rows="4" placeholder="Patient's reported experience..." style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);resize:vertical;box-sizing:border-box;margin-top:4px;"></textarea></div>
+                                <div><label style="font-size:13px;color:var(--text-secondary);font-weight:600;">O — Objective</label><textarea id="snSoapO" rows="4" placeholder="Clinician's observations..." style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);resize:vertical;box-sizing:border-box;margin-top:4px;"></textarea></div>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                                <div><label style="font-size:13px;color:var(--text-secondary);font-weight:600;">A — Assessment</label><textarea id="snSoapA" rows="4" placeholder="Clinical assessment..." style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);resize:vertical;box-sizing:border-box;margin-top:4px;"></textarea></div>
+                                <div><label style="font-size:13px;color:var(--text-secondary);font-weight:600;">P — Plan</label><textarea id="snSoapP" rows="4" placeholder="Treatment plan / next steps..." style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);resize:vertical;box-sizing:border-box;margin-top:4px;"></textarea></div>
+                            </div>
+                        </div>
+                        <div id="snFormatBirp" style="display:none;">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                                <div><label style="font-size:13px;color:var(--text-secondary);font-weight:600;">B — Behaviour</label><textarea id="snBirpB" rows="4" placeholder="Observed / reported behaviour..." style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);resize:vertical;box-sizing:border-box;margin-top:4px;"></textarea></div>
+                                <div><label style="font-size:13px;color:var(--text-secondary);font-weight:600;">I — Intervention</label><textarea id="snBirpI" rows="4" placeholder="Interventions used..." style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);resize:vertical;box-sizing:border-box;margin-top:4px;"></textarea></div>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                                <div><label style="font-size:13px;color:var(--text-secondary);font-weight:600;">R — Response</label><textarea id="snBirpR" rows="4" placeholder="Patient's response to intervention..." style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);resize:vertical;box-sizing:border-box;margin-top:4px;"></textarea></div>
+                                <div><label style="font-size:13px;color:var(--text-secondary);font-weight:600;">P — Plan</label><textarea id="snBirpP" rows="4" placeholder="Plan for next session..." style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);resize:vertical;box-sizing:border-box;margin-top:4px;"></textarea></div>
+                            </div>
+                        </div>
+                        <div id="snFormatFree" style="display:none;">
+                            <label style="font-size:13px;color:var(--text-secondary);font-weight:600;">Session Notes</label>
+                            <textarea id="snFreeText" rows="10" placeholder="Session notes..." style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);resize:vertical;box-sizing:border-box;margin-top:4px;"></textarea>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;margin-top:12px;">
+                            <div><label style="font-size:13px;color:var(--text-secondary);">Risk Flags (optional)</label><input type="text" id="snRisk" placeholder="e.g. suicidal ideation, self-harm" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;"></div>
+                            <div><label style="font-size:13px;color:var(--text-secondary);">Homework Assigned (optional)</label><input type="text" id="snHomework" placeholder="e.g. thought record, mood diary" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;"></div>
+                        </div>
+                        <div style="display:flex;gap:10px;">
+                            <button onclick="saveSessionNote('${patientUsername}', false)" style="padding:10px 20px;background:var(--bg-secondary);color:var(--text-primary);border:2px solid var(--border-color);border-radius:8px;cursor:pointer;font-weight:600;">💾 Save Draft</button>
+                            <button onclick="saveSessionNote('${patientUsername}', true)" style="padding:10px 20px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">✅ Save &amp; Sign Off</button>
+                        </div>
+                        <input type="hidden" id="snFormat" value="soap">
+                    </div>
+                    <div class="card">
+                        <h4 style="margin-top:0;">📋 Note History (${notes.length})</h4>
+                        ${notes.length === 0 ? '<p style="color:var(--text-muted);text-align:center;padding:20px;">No session notes yet.</p>' : notes.map(n => {
+                            const statusBadge = n.status === 'locked' ? '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">🔒 Locked</span>'
+                                : n.status === 'signed_off' ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">✅ Signed Off</span>'
+                                : '<span style="background:#ffc107;color:#333;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">✏️ Draft</span>';
+                            const fmtBadge = '<span style="background:var(--bg-secondary);color:var(--text-secondary);padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid var(--border-color);">' + (n.note_format || 'soap').toUpperCase() + '</span>';
+                            const locked = n.status === 'locked';
+                            return '<div style="border:1px solid var(--border-color);border-radius:8px;margin-bottom:12px;overflow:hidden;">'
+                                + '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--bg-secondary);cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">'
+                                + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><span style="font-weight:600;color:var(--text-primary);">📅 ' + new Date(n.session_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + '</span>' + fmtBadge + ' ' + statusBadge + (n.session_type ? '<span style="font-size:12px;color:var(--text-muted);">' + n.session_type + '</span>' : '') + (n.session_duration_minutes ? '<span style="font-size:12px;color:var(--text-muted);">' + n.session_duration_minutes + 'min</span>' : '') + '</div>'
+                                + '<span style="color:var(--text-muted);font-size:12px;">▼</span></div>'
+                                + '<div style="display:none;padding:16px;">'
+                                + (n.note_format === 'soap' ? (n.soap_subjective ? '<p><strong>S:</strong> ' + n.soap_subjective + '</p>' : '') + (n.soap_objective ? '<p><strong>O:</strong> ' + n.soap_objective + '</p>' : '') + (n.soap_assessment ? '<p><strong>A:</strong> ' + n.soap_assessment + '</p>' : '') + (n.soap_plan ? '<p><strong>P:</strong> ' + n.soap_plan + '</p>' : '')
+                                    : n.note_format === 'birp' ? (n.birp_behaviour ? '<p><strong>B:</strong> ' + n.birp_behaviour + '</p>' : '') + (n.birp_intervention ? '<p><strong>I:</strong> ' + n.birp_intervention + '</p>' : '') + (n.birp_response ? '<p><strong>R:</strong> ' + n.birp_response + '</p>' : '') + (n.birp_plan ? '<p><strong>P:</strong> ' + n.birp_plan + '</p>' : '')
+                                    : '<p style="white-space:pre-wrap;">' + (n.freetext_content || '') + '</p>')
+                                + (n.risk_flags ? '<p style="background:#fff3f3;border-left:3px solid #dc3545;padding:8px;border-radius:4px;margin-top:8px;"><strong>⚠️ Risk:</strong> ' + n.risk_flags + '</p>' : '')
+                                + (n.homework_assigned ? '<p style="background:#f0f4ff;border-left:3px solid #6366f1;padding:8px;border-radius:4px;margin-top:8px;"><strong>📌 Homework:</strong> ' + n.homework_assigned + '</p>' : '')
+                                + (!locked && n.status === 'draft' ? '<button onclick="signOffSessionNote(' + n.id + ',\'' + patientUsername + '\')" style="padding:8px 16px;background:#28a745;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;margin-top:8px;">✅ Sign Off</button>' : '')
+                                + (locked ? '<p style="font-size:12px;color:var(--text-muted);margin-top:8px;">🔒 Locked ' + (n.locked_at ? new Date(n.locked_at).toLocaleString() : '') + '</p>' : '')
+                                + '</div></div>';
+                        }).join('')}
+                    </div>`;
+            } catch (err) {
+                const c = document.getElementById('patientSessionnotesContent');
+                if (c) c.innerHTML = '<div class="card"><p style="color:#dc3545;">Error loading notes: ' + err.message + '</p></div>';
+            }
+        }
+
+        function switchNoteFormat(fmt) {
+            document.getElementById('snFormat').value = fmt;
+            document.getElementById('snFormatSoap').style.display = fmt === 'soap' ? 'block' : 'none';
+            document.getElementById('snFormatBirp').style.display = fmt === 'birp' ? 'block' : 'none';
+            document.getElementById('snFormatFree').style.display = fmt === 'freetext' ? 'block' : 'none';
+            ['fmtSoap','fmtBirp','fmtFree'].forEach(id => { const el = document.getElementById(id); if (el) { el.style.background = 'transparent'; el.style.color = '#6366f1'; } });
+            const activeId = fmt === 'soap' ? 'fmtSoap' : fmt === 'birp' ? 'fmtBirp' : 'fmtFree';
+            const ae = document.getElementById(activeId);
+            if (ae) { ae.style.background = '#6366f1'; ae.style.color = 'white'; }
+        }
+
+        function applyNoteTemplate(key) {
+            if (!key || !SESSION_NOTE_TEMPLATES[key]) return;
+            const t = SESSION_NOTE_TEMPLATES[key];
+            const fmt = (document.getElementById('snFormat') || {}).value || 'soap';
+            if (fmt === 'soap' && t.soap) {
+                ['S','O','A','P'].forEach((l,i) => { const f = ['snSoapS','snSoapO','snSoapA','snSoapP'][i]; const el = document.getElementById(f); if (el) el.value = [t.soap.subjective,t.soap.objective,t.soap.assessment,t.soap.plan][i] || ''; });
+            } else if (fmt === 'birp' && t.birp) {
+                ['snBirpB','snBirpI','snBirpR','snBirpP'].forEach((f,i) => { const el = document.getElementById(f); if (el) el.value = [t.birp.behaviour,t.birp.intervention,t.birp.response,t.birp.plan][i] || ''; });
+            } else if (fmt === 'freetext' && t.freetext) {
+                const el = document.getElementById('snFreeText'); if (el) el.value = t.freetext;
+            }
+        }
+
+        async function saveSessionNote(patientUsername, signOff) {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            const fmt = (document.getElementById('snFormat') || {}).value || 'soap';
+            const payload = {
+                patient_username: patientUsername, note_format: fmt,
+                session_date: (document.getElementById('snDate') || {}).value,
+                session_duration_minutes: parseInt((document.getElementById('snDuration') || {}).value) || 50,
+                session_type: (document.getElementById('snType') || {}).value,
+                risk_flags: ((document.getElementById('snRisk') || {}).value || '').trim() || null,
+                homework_assigned: ((document.getElementById('snHomework') || {}).value || '').trim() || null,
+                status: signOff ? 'signed_off' : 'draft'
+            };
+            if (fmt === 'soap') { payload.soap_subjective = (document.getElementById('snSoapS') || {}).value || ''; payload.soap_objective = (document.getElementById('snSoapO') || {}).value || ''; payload.soap_assessment = (document.getElementById('snSoapA') || {}).value || ''; payload.soap_plan = (document.getElementById('snSoapP') || {}).value || ''; }
+            else if (fmt === 'birp') { payload.birp_behaviour = (document.getElementById('snBirpB') || {}).value || ''; payload.birp_intervention = (document.getElementById('snBirpI') || {}).value || ''; payload.birp_response = (document.getElementById('snBirpR') || {}).value || ''; payload.birp_plan = (document.getElementById('snBirpP') || {}).value || ''; }
+            else { payload.freetext_content = (document.getElementById('snFreeText') || {}).value || ''; }
+            try {
+                const resp = await fetch('/api/clinician/session-notes', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify(payload) });
+                const data = await resp.json();
+                if (!resp.ok) { alert('Error: ' + (data.error || 'Save failed')); return; }
+                await loadSessionNotes(patientUsername);
+            } catch (err) { alert('Error saving note: ' + err.message); }
+        }
+
+        async function signOffSessionNote(noteId, patientUsername) {
+            if (!confirm('Sign off this note? You will have 24 hours to make changes before it locks.')) return;
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            try {
+                const resp = await fetch('/api/clinician/session-notes/' + noteId + '/sign-off', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken } });
+                const data = await resp.json();
+                if (!resp.ok) { alert('Error: ' + (data.error || 'Sign-off failed')); return; }
+                await loadSessionNotes(patientUsername);
+            } catch (err) { alert('Error: ' + err.message); }
+        }
+
+        // ============================================================
+        // TREATMENT PLAN — Section 1.2
+        // ============================================================
+
+        let _tpGoals = [];
+
+        async function loadTreatmentPlan(patientUsername) {
+            const container = document.getElementById('patientTreatmentplanContent');
+            if (!container) return;
+            container.innerHTML = '<div class="card"><p style="color:var(--text-muted);text-align:center;padding:20px;">Loading treatment plan...</p></div>';
+            try {
+                const resp = await fetch('/api/clinician/treatment-plan/' + encodeURIComponent(patientUsername), { credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+                const data = await resp.json();
+                if (!resp.ok && resp.status !== 404) throw new Error(data.error || 'Failed to load');
+                const plan = data.plan || null;
+                if (!plan) {
+                    _tpGoals = [];
+                    container.innerHTML = '<div class="card"><h4 style="margin-top:0;">🗺️ Treatment Plan</h4><p style="color:var(--text-muted);margin-bottom:20px;">No treatment plan exists yet for this patient.</p>' + renderTreatmentPlanForm(patientUsername, null) + '</div>';
+                } else {
+                    _tpGoals = plan.goals ? (typeof plan.goals === 'string' ? JSON.parse(plan.goals) : plan.goals) : [];
+                    const interventions = plan.interventions ? (typeof plan.interventions === 'string' ? JSON.parse(plan.interventions) : plan.interventions) : [];
+                    const statusBadge = plan.status === 'active' ? '<span style="background:#28a745;color:white;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">● Active</span>'
+                        : plan.status === 'draft' ? '<span style="background:#ffc107;color:#333;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">✏️ Draft</span>'
+                        : '<span style="background:var(--bg-secondary);color:var(--text-secondary);padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">Archived</span>';
+                    const goalsHtml = _tpGoals.length ? _tpGoals.map((g,i) => {
+                        const txt = typeof g === 'object' ? g.text : g;
+                        const cat = typeof g === 'object' ? g.category : '';
+                        const td = typeof g === 'object' ? g.target_date : '';
+                        const st = typeof g === 'object' ? g.status : '';
+                        return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px;border-left:3px solid #6366f1;margin-top:6px;"><span style="background:#6366f1;color:white;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">' + (i+1) + '</span><div><p style="margin:0;font-weight:600;">' + (txt||'') + '</p>' + (cat ? '<span style="font-size:11px;color:var(--text-muted);">' + cat + '</span>' : '') + (td ? '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">Target: ' + new Date(td).toLocaleDateString('en-GB') + '</span>' : '') + (st ? '<span style="font-size:11px;padding:1px 6px;border-radius:3px;margin-left:8px;background:' + (st==='achieved'?'#28a745':'#e0e0e0') + ';color:' + (st==='achieved'?'white':'#333') + ';">' + st + '</span>' : '') + '</div></div>';
+                    }).join('') : '<p style="color:var(--text-muted);font-size:13px;">No goals set.</p>';
+                    container.innerHTML = `
+                        <div class="card">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                                <h4 style="margin:0;">🗺️ Treatment Plan ${statusBadge}</h4>
+                                <div style="display:flex;gap:10px;align-items:center;">
+                                    <span style="font-size:12px;color:var(--text-muted);">v${plan.version||1} · ${new Date(plan.created_at).toLocaleDateString('en-GB')}</span>
+                                    <button onclick="document.getElementById('tpEditSection').style.display='block';this.style.display='none';" style="padding:6px 14px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">✏️ Edit</button>
+                                </div>
+                            </div>
+                            ${plan.presenting_problems ? '<div style="margin-bottom:16px;"><strong style="color:var(--text-secondary);font-size:13px;">PRESENTING PROBLEMS</strong><p style="margin:6px 0;">' + plan.presenting_problems + '</p></div>' : ''}
+                            <div style="margin-bottom:16px;"><strong style="color:var(--text-secondary);font-size:13px;">GOALS</strong>${goalsHtml}</div>
+                            ${interventions.length ? '<div style="margin-bottom:16px;"><strong style="color:var(--text-secondary);font-size:13px;">INTERVENTIONS</strong><div style="margin-top:6px;">' + interventions.map(iv => '<span style="display:inline-block;padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:4px;font-size:13px;margin:3px;">' + iv + '</span>').join('') + '</div></div>' : ''}
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;">
+                                ${plan.frequency_per_week ? '<div style="text-align:center;padding:10px;background:var(--bg-secondary);border-radius:6px;"><div style="font-size:20px;font-weight:700;color:#6366f1;">' + plan.frequency_per_week + 'x</div><div style="font-size:12px;color:var(--text-muted);">per week</div></div>' : ''}
+                                ${plan.planned_total_sessions ? '<div style="text-align:center;padding:10px;background:var(--bg-secondary);border-radius:6px;"><div style="font-size:20px;font-weight:700;color:#6366f1;">' + plan.planned_total_sessions + '</div><div style="font-size:12px;color:var(--text-muted);">sessions planned</div></div>' : ''}
+                                ${plan.planned_end_date ? '<div style="text-align:center;padding:10px;background:var(--bg-secondary);border-radius:6px;"><div style="font-size:13px;font-weight:700;color:#6366f1;">' + new Date(plan.planned_end_date).toLocaleDateString('en-GB') + '</div><div style="font-size:12px;color:var(--text-muted);">planned end</div></div>' : ''}
+                            </div>
+                            <div style="display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--border-color);">
+                                <span style="font-size:13px;">🖊️ Clinician: ${plan.clinician_signed_at ? '<span style="color:#28a745;font-weight:600;">Signed ' + new Date(plan.clinician_signed_at).toLocaleDateString('en-GB') + '</span>' : '<span style="color:#ffc107;">Unsigned</span>'}</span>
+                                <span style="font-size:13px;">👤 Patient: ${plan.patient_signed_at ? '<span style="color:#28a745;font-weight:600;">Signed ' + new Date(plan.patient_signed_at).toLocaleDateString('en-GB') + '</span>' : plan.patient_declined_signature ? '<span style="color:#dc3545;">Declined</span>' : '<span style="color:var(--text-muted);">Awaiting</span>'}</span>
+                            </div>
+                            ${!plan.clinician_signed_at ? '<button onclick="signTreatmentPlan(' + plan.id + ',\'' + patientUsername + '\')" style="margin-top:12px;padding:10px 20px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">🖊️ Sign Treatment Plan</button>' : ''}
+                            <div id="tpEditSection" style="display:none;margin-top:20px;border-top:1px solid var(--border-color);padding-top:20px;">
+                                <h5 style="margin-top:0;">Edit Treatment Plan</h5>
+                                ${renderTreatmentPlanForm(patientUsername, plan)}
+                            </div>
+                        </div>`;
+                }
+            } catch (err) {
+                const c = document.getElementById('patientTreatmentplanContent');
+                if (c) c.innerHTML = '<div class="card"><p style="color:#dc3545;">Error: ' + err.message + '</p></div>';
+            }
+        }
+
+        function renderTreatmentPlanForm(patientUsername, plan) {
+            const INTERVENTIONS = ['CBT','DBT','ACT','EMDR','Person-Centred','Psychodynamic','Mindfulness','Solution-Focused','Schema Therapy','Narrative Therapy','Behavioural Activation','Exposure/ERP','Motivational Interviewing','Psychoeducation','Family Therapy'];
+            const existingIv = plan && plan.interventions ? (typeof plan.interventions === 'string' ? JSON.parse(plan.interventions) : plan.interventions) : [];
+            const goalsHtml = _tpGoals.map((g,i) => {
+                const txt = typeof g === 'object' ? (g.text || '') : g;
+                return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;"><span style="padding:4px 8px;background:#6366f1;color:white;border-radius:4px;font-size:12px;">' + (i+1) + '</span><input type="text" value="' + txt.replace(/"/g,'&quot;') + '" placeholder="Goal (SMART)" onchange="window._tpGoals[' + i + ']=Object.assign(typeof window._tpGoals[' + i + ']===\'object\'?window._tpGoals[' + i + ']:{text:\'\',category:\'\',target_date:\'\',status:\'active\'},{text:this.value})" style="flex:1;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);"><button onclick="window._tpGoals.splice(' + i + ',1);loadTreatmentPlan(\'' + patientUsername + '\')" style="padding:4px 10px;background:#dc3545;color:white;border:none;border-radius:4px;cursor:pointer;">✕</button></div>';
+            }).join('');
+            return '<div>'
+                + '<label style="font-size:13px;color:var(--text-secondary);font-weight:600;">Presenting Problems</label><textarea id="tpProblems" rows="3" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;margin-bottom:12px;">' + (plan ? (plan.presenting_problems||'') : '') + '</textarea>'
+                + '<label style="font-size:13px;color:var(--text-secondary);font-weight:600;">Goals (SMART)</label><div id="tpGoalsList" style="margin:8px 0;">' + goalsHtml + '</div>'
+                + '<button onclick="window._tpGoals.push({text:\'\',category:\'\',target_date:\'\',status:\'active\'});loadTreatmentPlan(\'' + patientUsername + '\')" style="padding:6px 14px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;cursor:pointer;font-size:13px;margin-bottom:16px;">+ Add Goal</button>'
+                + '<label style="font-size:13px;color:var(--text-secondary);font-weight:600;display:block;margin-bottom:8px;">Interventions</label><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">' + INTERVENTIONS.map(iv => '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="checkbox" name="tpIntervention" value="' + iv + '" ' + (existingIv.includes(iv)?'checked':'') + '> ' + iv + '</label>').join('') + '</div>'
+                + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">'
+                + '<div><label style="font-size:13px;color:var(--text-secondary);">Sessions/week</label><input type="number" id="tpFreq" value="' + (plan?(plan.frequency_per_week||''):'') + '" min="0.5" max="7" step="0.5" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;"></div>'
+                + '<div><label style="font-size:13px;color:var(--text-secondary);">Total sessions</label><input type="number" id="tpTotalSessions" value="' + (plan?(plan.planned_total_sessions||''):'') + '" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;"></div>'
+                + '<div><label style="font-size:13px;color:var(--text-secondary);">Planned end date</label><input type="date" id="tpEndDate" value="' + (plan&&plan.planned_end_date?plan.planned_end_date.split('T')[0]:'') + '" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;"></div>'
+                + '</div>'
+                + '<label style="font-size:13px;color:var(--text-secondary);font-weight:600;display:block;margin-bottom:8px;">Outcome Score Targets</label>'
+                + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">'
+                + '<div><label style="font-size:12px;color:var(--text-muted);">PHQ-9 target (0-27)</label><input type="number" id="tpPhq9" value="' + (plan?(plan.phq9_target_score??''):'') + '" min="0" max="27" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;"></div>'
+                + '<div><label style="font-size:12px;color:var(--text-muted);">GAD-7 target (0-21)</label><input type="number" id="tpGad7" value="' + (plan?(plan.gad7_target_score??''):'') + '" min="0" max="21" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;"></div>'
+                + '<div><label style="font-size:12px;color:var(--text-muted);">CORE-10 target (0-40)</label><input type="number" id="tpCore10" value="' + (plan?(plan.core10_target_score??''):'') + '" min="0" max="40" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;"></div>'
+                + '</div>'
+                + '<label style="font-size:13px;color:var(--text-secondary);font-weight:600;">Discharge Criteria</label><textarea id="tpDischarge" rows="2" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;margin-bottom:16px;">' + (plan?(plan.discharge_criteria||''):'') + '</textarea>'
+                + '<button onclick="saveTreatmentPlan(\'' + patientUsername + '\')" style="padding:10px 24px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:15px;">💾 Save Treatment Plan</button>'
+                + '</div>';
+        }
+
+        async function saveTreatmentPlan(patientUsername) {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            const interventions = Array.from(document.querySelectorAll('input[name="tpIntervention"]:checked')).map(cb => cb.value);
+            const payload = {
+                patient_username: patientUsername,
+                presenting_problems: ((document.getElementById('tpProblems')||{}).value||''),
+                goals: JSON.stringify(_tpGoals),
+                interventions: JSON.stringify(interventions),
+                frequency_per_week: parseFloat((document.getElementById('tpFreq')||{}).value)||null,
+                session_duration_minutes: 50,
+                planned_total_sessions: parseInt((document.getElementById('tpTotalSessions')||{}).value)||null,
+                planned_end_date: (document.getElementById('tpEndDate')||{}).value||null,
+                phq9_target_score: parseInt((document.getElementById('tpPhq9')||{}).value)||null,
+                gad7_target_score: parseInt((document.getElementById('tpGad7')||{}).value)||null,
+                core10_target_score: parseInt((document.getElementById('tpCore10')||{}).value)||null,
+                discharge_criteria: ((document.getElementById('tpDischarge')||{}).value||'')
+            };
+            try {
+                const resp = await fetch('/api/clinician/treatment-plan', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify(payload) });
+                const data = await resp.json();
+                if (!resp.ok) { alert('Error: ' + (data.error || 'Save failed')); return; }
+                _tpGoals = [];
+                await loadTreatmentPlan(patientUsername);
+            } catch (err) { alert('Error saving plan: ' + err.message); }
+        }
+
+        async function signTreatmentPlan(planId, patientUsername) {
+            if (!confirm('Sign this treatment plan as the responsible clinician?')) return;
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            try {
+                const resp = await fetch('/api/clinician/treatment-plan/' + planId + '/sign', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken } });
+                const data = await resp.json();
+                if (!resp.ok) { alert('Error: ' + (data.error || 'Sign failed')); return; }
+                await loadTreatmentPlan(patientUsername);
+            } catch (err) { alert('Error: ' + err.message); }
+        }
+
+        // ============================================================
+        // OUTCOME MEASURES — Section 1.3
+        // ============================================================
+
+        async function loadOutcomeMeasures(patientUsername) {
+            const container = document.getElementById('patientOutcomemeasuresContent');
+            if (!container) return;
+            container.innerHTML = '<div class="card"><p style="color:var(--text-muted);text-align:center;padding:20px;">Loading outcome measures...</p></div>';
+            try {
+                const resp = await fetch('/api/clinician/patient/' + encodeURIComponent(patientUsername) + '/outcome-measures', { credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Failed to load');
+                const byScale = data.by_scale || {};
+                const SCALE_BANDS = {
+                    'PHQ-9':  [[4,'Minimal'],[9,'Mild'],[14,'Moderate'],[19,'Mod-Severe'],[27,'Severe']],
+                    'GAD-7':  [[4,'Minimal'],[9,'Mild'],[14,'Moderate'],[21,'Severe']],
+                    'CORE-10':[[5,'Low'],[11,'Low-Mod'],[17,'Moderate'],[22,'Mod-Severe'],[40,'Severe']],
+                    'CORE-OM':[[0.99,'Non-clinical'],[4,'Clinical']],
+                    'WEMWBS': [[40,'Low'],[58,'Moderate'],[70,'High wellbeing']],
+                    'ORS':    [[24.9,'Clinical'],[40,'Non-clinical']],
+                    'SRS':    [[35.9,'Review'],[40,'Good alliance']]
+                };
+                const latestByScale = {};
+                Object.entries(byScale).forEach(([s,arr]) => { if (arr && arr.length) latestByScale[s] = arr[arr.length-1]; });
+                const getBandLabel = (score, bands) => { for (const [t,l] of bands) { if (score <= t) return l; } return bands[bands.length-1][1]; };
+                const summaryHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:20px;">'
+                    + Object.entries(SCALE_BANDS).map(([scale,bands]) => {
+                        const latest = latestByScale[scale];
+                        const score = latest ? latest.score : null;
+                        const band = score !== null ? getBandLabel(score, bands) : null;
+                        return '<div style="text-align:center;padding:12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border-color);"><div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;">' + scale + '</div><div style="font-size:24px;font-weight:700;color:' + (score!==null?'#6366f1':'var(--text-muted)') + ';margin:4px 0;">' + (score!==null?score:'—') + '</div><div style="font-size:11px;color:var(--text-muted);">' + (band||(score!==null?'':'No data')) + '</div>' + (latest?'<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">' + new Date(latest.entry_timestamp).toLocaleDateString('en-GB') + '</div>':'') + '</div>';
+                    }).join('') + '</div>';
+                const chartsHtml = Object.entries(byScale).filter(([,arr]) => arr && arr.length >= 2).map(([scale,entries]) => {
+                    const cid = 'omChart_' + scale.replace(/[^a-z0-9]/gi,'_');
+                    const latest = entries[entries.length-1];
+                    const prev = entries.length >= 2 ? entries[entries.length-2] : null;
+                    let rciHtml = '';
+                    if ((scale === 'PHQ-9' || scale === 'CORE-10') && prev) {
+                        const change = latest.score - prev.score;
+                        const reliable = Math.abs(change) >= 6;
+                        const improved = change < 0;
+                        rciHtml = reliable ? '<p style="font-size:13px;padding:6px 12px;border-radius:4px;background:' + (improved?'#e8f5e9':'#fff3e0') + ';color:' + (improved?'#2e7d32':'#e65100') + ';margin:8px 0 0;display:inline-block;">' + (improved?'↓ Reliable improvement':'↑ Reliable deterioration') + ' (change: ' + (change>0?'+':'') + change + ')</p>'
+                            : '<p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">Change of ' + (change>0?'+':'') + change + ' — within normal variation (RCI threshold: ±6)</p>';
+                    }
+                    return '<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h5 style="margin:0;">' + scale + ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">(' + entries.length + ' points)</span></h5><span style="font-size:14px;font-weight:700;color:#6366f1;">' + latest.score + '</span></div><canvas id="' + cid + '" height="100" style="width:100%;max-height:100px;display:block;"></canvas>' + rciHtml + '</div>';
+                }).join('');
+                container.innerHTML = '<div class="card" style="margin-bottom:12px;"><h4 style="margin-top:0;">📈 Outcome Measures — Latest Scores</h4>' + summaryHtml + '</div>'
+                    + chartsHtml
+                    + '<div class="card"><h5 style="margin-top:0;">📊 Record New Assessment</h5><div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;"><div><label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px;">Scale</label><select id="omNewScale" style="padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);"><option value="CORE-10">CORE-10</option><option value="CORE-OM">CORE-OM</option><option value="WEMWBS">WEMWBS</option><option value="ORS">ORS</option><option value="SRS">SRS</option></select></div><div><label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px;">Score</label><input type="number" id="omNewScore" placeholder="Score" style="padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);width:110px;"></div><div><label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px;">Date</label><input type="date" id="omNewDate" value="' + new Date().toISOString().split('T')[0] + '" style="padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);"></div><button onclick="recordOutcomeMeasure(\'' + patientUsername + '\')" style="padding:9px 18px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Record</button></div></div>';
+                requestAnimationFrame(() => {
+                    Object.entries(byScale).filter(([,arr]) => arr && arr.length >= 2).forEach(([scale, entries]) => {
+                        drawOmLineChart('omChart_' + scale.replace(/[^a-z0-9]/gi,'_'), entries);
+                    });
+                });
+            } catch (err) {
+                const c = document.getElementById('patientOutcomemeasuresContent');
+                if (c) c.innerHTML = '<div class="card"><p style="color:#dc3545;">Error: ' + err.message + '</p></div>';
+            }
+        }
+
+        function drawOmLineChart(canvasId, entries) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const W = canvas.offsetWidth || 300, H = 100;
+            canvas.width = W * dpr; canvas.height = H * dpr;
+            ctx.scale(dpr, dpr);
+            const scores = entries.map(e => e.score);
+            const minS = Math.min(...scores), maxS = Math.max(...scores);
+            const range = maxS - minS || 1;
+            const padX = 36, padY = 10;
+            ctx.clearRect(0,0,W,H);
+            ctx.strokeStyle = 'rgba(128,128,128,0.12)'; ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) { const y = padY + ((4-i)/4)*(H-padY*2); ctx.beginPath(); ctx.moveTo(padX,y); ctx.lineTo(W-8,y); ctx.stroke(); }
+            ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+            ctx.beginPath();
+            entries.forEach((e,i) => { const x = padX + (i/(entries.length-1))*(W-padX-8); const y = padY + (1-(e.score-minS)/range)*(H-padY*2); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+            ctx.stroke();
+            ctx.fillStyle = '#6366f1';
+            entries.forEach((e,i) => { const x = padX + (i/(entries.length-1))*(W-padX-8); const y = padY + (1-(e.score-minS)/range)*(H-padY*2); ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.fill(); });
+            ctx.fillStyle = 'rgba(128,128,128,0.7)'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+            ctx.fillText(maxS.toFixed(maxS%1?1:0), padX-3, padY+4);
+            ctx.fillText(minS.toFixed(minS%1?1:0), padX-3, H-padY+1);
+            ctx.textAlign = 'center'; ctx.font = '9px sans-serif';
+            entries.forEach((e,i) => { if (i===0||i===entries.length-1) { const x = padX + (i/(entries.length-1))*(W-padX-8); ctx.fillText(new Date(e.entry_timestamp).toLocaleDateString('en-GB',{day:'numeric',month:'short'}),x,H-1); } });
+        }
+
+        async function recordOutcomeMeasure(patientUsername) {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            const scale = (document.getElementById('omNewScale')||{}).value;
+            const score = parseFloat((document.getElementById('omNewScore')||{}).value);
+            const dateVal = (document.getElementById('omNewDate')||{}).value;
+            if (!scale || isNaN(score)) { alert('Please enter a scale and score.'); return; }
+            try {
+                const resp = await fetch('/api/clinician/outcome-measure', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify({ patient_username: patientUsername, scale_name: scale, score: score, entry_timestamp: dateVal }) });
+                const data = await resp.json();
+                if (!resp.ok) { alert('Error: ' + (data.error || 'Record failed')); return; }
+                await loadOutcomeMeasures(patientUsername);
+            } catch (err) { alert('Error: ' + err.message); }
+        }
+
         // Appointment Management Functions
         // Calendar state
         let currentCalendarDate = new Date();
@@ -16065,7 +16679,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 var res = await fetch('/api/messages/send', {
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-                    body: JSON.stringify({ recipient_username: recipient, content: content })
+                    body: JSON.stringify({ recipient: recipient, content: content })
                 });
                 var data = await res.json();
                 if (res.ok) {
