@@ -9,7 +9,12 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/images/logo-16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo-192.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Fonts + Design System -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/messaging.css') }}">
     
     <style>
@@ -42,7 +47,7 @@
         .dashboard-card .value {
             font-size: 32px;
             font-weight: 700;
-            color: #6c5ce7;
+            color: #6366f1;
             margin: 10px 0;
         }
 
@@ -62,7 +67,7 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid #6c5ce7;
+            border-left: 4px solid #6366f1;
         }
 
         .patient-header {
@@ -121,12 +126,12 @@
         }
 
         .btn-message {
-            background-color: #6c5ce7;
+            background-color: #6366f1;
             color: white;
         }
 
         .btn-message:hover {
-            background-color: #5f4cd6;
+            background-color: #8b5cf6;
         }
 
         .btn-view-notes {
@@ -180,13 +185,13 @@
         }
 
         .filter-btn.active {
-            background-color: #6c5ce7;
+            background-color: #6366f1;
             color: white;
-            border-color: #6c5ce7;
+            border-color: #6366f1;
         }
 
         .filter-btn:hover {
-            border-color: #6c5ce7;
+            border-color: #6366f1;
         }
 
         .analytics-section {
@@ -220,7 +225,7 @@
         .analytics-value {
             font-size: 24px;
             font-weight: 700;
-            color: #6c5ce7;
+            color: #6366f1;
         }
 
         .analytics-trend {
@@ -475,7 +480,7 @@
                     });
                     shortcut.addEventListener('mouseover', () => {
                         shortcut.style.backgroundColor = '#f5f6fa';
-                        shortcut.style.borderColor = '#6c5ce7';
+                        shortcut.style.borderColor = '#6366f1';
                     });
                     shortcut.addEventListener('mouseout', () => {
                         shortcut.style.backgroundColor = 'transparent';

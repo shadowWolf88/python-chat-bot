@@ -11,6 +11,17 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/images/logo-16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo-192.png">
+    <!-- Inline theme init — must run before CSS to prevent FOUC -->
+    <script>
+        (function () {
+            var saved = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+        }());
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
     <style>
         .page-watermark-fixed {
             position: fixed; top: 50%; left: 50%;
@@ -92,40 +103,40 @@
     <style>
         /* Theme CSS Variables */
         :root {
-            /* Light theme (default) */
-            --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --bg-secondary: #f5f5f5;
+            /* Light theme (default) — new brand palette */
+            --bg-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+            --bg-secondary: #f5f5f8;
             --bg-card: #ffffff;
             --bg-input: #ffffff;
-            --bg-sidebar: #f0f0f0;
-            --bg-hover: #e8e8e8;
-            --text-primary: #333333;
-            --text-secondary: #666666;
-            --text-muted: #999999;
-            --border-color: #e0e0e0;
-            --shadow-color: rgba(0,0,0,0.1);
-            --accent-color: #667eea;
-            --accent-gradient: linear-gradient(135deg, #667eea, #764ba2);
-            --success-color: #27ae60;
-            --danger-color: #e74c3c;
-            --warning-color: #f39c12;
+            --bg-sidebar: #f0f0f5;
+            --bg-hover: #e8e8f0;
+            --text-primary: #0f0f1a;
+            --text-secondary: #4a4a6a;
+            --text-muted: #7a7a9a;
+            --border-color: #e2e2ee;
+            --shadow-color: rgba(0,0,0,0.08);
+            --accent-color: #6366f1;
+            --accent-gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
         }
 
         /* Dark theme */
         [data-theme="dark"] {
-            --bg-primary: #1a1a2e;
-            --bg-secondary: #16213e;
-            --bg-card: #1f2937;
-            --bg-input: #374151;
-            --bg-sidebar: #111827;
-            --bg-hover: #374151;
-            --text-primary: #f3f4f6;
-            --text-secondary: #d1d5db;
-            --text-muted: #9ca3af;
-            --border-color: #374151;
-            --shadow-color: rgba(0,0,0,0.3);
-            --accent-color: #818cf8;
-            --accent-gradient: linear-gradient(135deg, #818cf8, #a78bfa);
+            --bg-primary: #08081a;
+            --bg-secondary: #0e0e24;
+            --bg-card: #14142e;
+            --bg-input: #1e1e3c;
+            --bg-sidebar: #0a0a1e;
+            --bg-hover: rgba(99,102,241,0.08);
+            --text-primary: #f1f1f8;
+            --text-secondary: #a0a0c8;
+            --text-muted: #60608a;
+            --border-color: #2a2a4a;
+            --shadow-color: rgba(0,0,0,0.4);
+            --accent-color: #8b9cf4;
+            --accent-gradient: linear-gradient(135deg, #8b9cf4, #a78bfa);
             --success-color: #34d399;
             --danger-color: #f87171;
             --warning-color: #fbbf24;
@@ -134,11 +145,17 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-primary);
             min-height: 100vh;
             pointer-events: auto;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
             transition: background 0.3s ease;
+        }
+
+        h1, h2, h3, h4, h5 {
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
         }
 
         [data-theme="dark"] body {
@@ -421,7 +438,7 @@
         }
         
         /* Terms and disclaimer headings */
-        [data-theme="dark"] h2[style*="color: #667eea"] {
+        [data-theme="dark"] h2[style*="color: #6366f1"] {
             color: var(--accent-color) !important;
         }
         
@@ -914,19 +931,49 @@
             z-index: 1000;
             pointer-events: auto;
         }
-        
+
+        /* Decorative blobs behind auth-box */
+        .auth-container::before,
+        .auth-container::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(90px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .auth-container::before {
+            width: 600px; height: 600px;
+            background: rgba(99, 102, 241, 0.28);
+            top: -150px; left: -180px;
+        }
+        .auth-container::after {
+            width: 480px; height: 480px;
+            background: rgba(6, 182, 212, 0.18);
+            bottom: -100px; right: -120px;
+        }
+
         .auth-box {
-            background: var(--bg-card);
-            border-radius: 20px;
-            box-shadow: 0 20px 60px var(--shadow-color);
-            max-width: 450px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(24px) saturate(1.8);
+            -webkit-backdrop-filter: blur(24px) saturate(1.8);
+            border: 1px solid rgba(255, 255, 255, 0.60);
+            border-radius: 24px;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(99, 102, 241, 0.08);
+            max-width: 460px;
             width: 100%;
-            padding: 40px;
+            padding: 44px 40px;
             position: relative;
             z-index: 1001;
             pointer-events: auto;
             transition: background 0.3s ease, box-shadow 0.3s ease;
             color: var(--text-color);
+        }
+
+        [data-theme="dark"] .auth-box {
+            background: rgba(20, 20, 46, 0.88);
+            border-color: rgba(99, 102, 241, 0.20);
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.60), 0 0 0 1px rgba(99, 102, 241, 0.12);
         }
 
         .auth-box * {
@@ -970,7 +1017,7 @@
             width: 40px;
             height: 40px;
             object-fit: contain;
-            filter: drop-shadow(0 1px 4px rgba(102,126,234,0.25));
+            filter: drop-shadow(0 1px 4px rgba(99,102,241,0.25));
         }
         [data-theme="dark"] .auth-logo-img {
             filter: brightness(1.5) drop-shadow(0 2px 6px rgba(130,150,255,0.5));
@@ -1039,7 +1086,7 @@
         }
         
         .btn-secondary:hover {
-            background: #667eea;
+            background: #6366f1;
             color: white;
         }
         
@@ -1050,20 +1097,47 @@
         }
 
         .app-header {
-            background: var(--bg-card);
-            backdrop-filter: blur(10px);
-            padding: 20px;
-            box-shadow: 0 2px 10px var(--shadow-color);
+            background: var(--accent-gradient);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 16px 24px;
+            box-shadow: 0 2px 16px rgba(99, 102, 241, 0.25);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 15px;
             transition: background 0.3s ease;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .app-header h2 {
-            color: var(--accent-color);
+            color: #ffffff !important;
+        }
+
+        .app-header .user-info,
+        .app-header .user-info * {
+            color: rgba(255, 255, 255, 0.90);
+        }
+
+        [data-theme="dark"] .app-header {
+            background: linear-gradient(135deg, #14142e 0%, #1a1a40 100%);
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.40);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+        }
+
+        [data-theme="dark"] .app-header h2 {
+            color: var(--accent-color) !important;
+        }
+
+        [data-theme="dark"] .app-header .user-info,
+        [data-theme="dark"] .app-header .user-info * {
+            color: var(--text-secondary);
+        }
+
+        .app-header h2 {
             display: flex;
             align-items: center;
             gap: 10px;
@@ -1072,7 +1146,7 @@
             width: 34px;
             height: 34px;
             object-fit: contain;
-            filter: drop-shadow(0 1px 3px rgba(102,126,234,0.2));
+            filter: drop-shadow(0 1px 3px rgba(99,102,241,0.2));
         }
         [data-theme="dark"] .header-logo-img {
             filter: brightness(1.5) drop-shadow(0 1px 4px rgba(130,150,255,0.45));
@@ -1147,10 +1221,16 @@
         }
 
         .tab-btn.active {
-            background: var(--bg-card);
-            color: var(--accent-color);
-            border-left-color: #ffd700;
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+            border-left-color: #06b6d4;
             font-weight: 700;
+        }
+
+        [data-theme="dark"] .tab-btn.active {
+            background: rgba(99, 102, 241, 0.20);
+            color: var(--accent-color);
+            border-left-color: #06b6d4;
         }
 
         .tab-content {
@@ -1169,6 +1249,12 @@
         }
         .tab-content.active {
             display: block;
+            animation: slide-up 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
 
         /* Dark Mode Toggle Switch */
@@ -1372,7 +1458,7 @@
         }
         
         .message.user {
-            background: #667eea;
+            background: #6366f1;
             color: white;
             margin-left: auto;
         }
@@ -1426,7 +1512,7 @@
 
         .chat-input-area textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #6366f1;
         }
 
         .chat-input-buttons {
@@ -1437,7 +1523,7 @@
 
         .chat-input-area .send-btn {
             padding: 12px 24px;
-            background: #667eea;
+            background: #6366f1;
             color: white;
             border: none;
             border-radius: 8px;
@@ -1511,7 +1597,7 @@
         .thinking-dots span {
             width: 8px;
             height: 8px;
-            background: #667eea;
+            background: #6366f1;
             border-radius: 50%;
             animation: thinking-bounce 1.4s infinite ease-in-out;
         }
@@ -1553,7 +1639,7 @@
             word-wrap: break-word;
         }
         .dev-ai-msg.user {
-            background: #667eea;
+            background: #6366f1;
             color: white;
             margin-left: auto;
             border-bottom-right-radius: 4px;
@@ -1594,16 +1680,16 @@
         }
         .dev-ai-quick-btn {
             padding: 8px 14px;
-            border: 1.5px solid #667eea;
+            border: 1.5px solid #6366f1;
             border-radius: 20px;
             background: transparent;
-            color: #667eea;
+            color: #6366f1;
             cursor: pointer;
             font-size: 0.85rem;
             transition: all 0.2s;
         }
         .dev-ai-quick-btn:hover {
-            background: #667eea;
+            background: #6366f1;
             color: white;
         }
         [data-theme="dark"] .dev-ai-msg.assistant {
@@ -1618,7 +1704,7 @@
             color: #7c8cf0;
         }
         [data-theme="dark"] .dev-ai-quick-btn:hover {
-            background: #667eea;
+            background: #6366f1;
             color: white;
         }
 
@@ -1640,7 +1726,7 @@
         }
         
         .mood-option:hover, .mood-option.selected {
-            border-color: #667eea;
+            border-color: #6366f1;
             background: #f0f4ff;
             transform: scale(1.05);
         }
@@ -1661,7 +1747,7 @@
         
         .med-item {
             background: #f0f4ff;
-            border: 1px solid #667eea;
+            border: 1px solid #6366f1;
             border-radius: 6px;
             padding: 8px 12px;
             margin: 5px 0;
@@ -1682,7 +1768,7 @@
         
         /* Pet Display */
         .pet-container {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
             border-radius: 16px;
             padding: 20px;
             color: white;
@@ -1742,8 +1828,8 @@
         }
         
         .history-card:hover {
-            border-color: #667eea;
-            box-shadow: 0 4px 12px rgba(102,126,234,0.2);
+            border-color: #6366f1;
+            box-shadow: 0 4px 12px rgba(99,102,241,0.2);
         }
         
         .history-card .date {
@@ -1821,7 +1907,7 @@
             width: 20px;
             height: 20px;
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border-top: 3px solid #6366f1;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -1848,7 +1934,7 @@
         .stat-value {
             font-size: 32px;
             font-weight: bold;
-            color: #667eea;
+            color: #6366f1;
             margin-bottom: 8px;
         }
         
@@ -1933,7 +2019,7 @@
         }
 
         .reaction-btn.active {
-            background: #667eea;
+            background: #6366f1;
             color: white;
         }
 
@@ -2159,7 +2245,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -2338,7 +2424,7 @@
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -2472,7 +2558,7 @@
         .patient-stat-value {
             font-size: 20px;
             font-weight: bold;
-            color: #667eea;
+            color: #6366f1;
         }
         
         .patient-stat-label {
@@ -2519,7 +2605,7 @@
         }
         
         .notification-header {
-            background: #667eea;
+            background: #6366f1;
             color: white;
             padding: 15px;
             display: flex;
@@ -2557,7 +2643,7 @@
         
         .notification-item strong {
             display: block;
-            color: #667eea;
+            color: #6366f1;
             margin-bottom: 5px;
         }
         
@@ -2638,7 +2724,7 @@
         }
         
         .password-toggle:hover {
-            color: #667eea;
+            color: #6366f1;
         }
         
         .password-field-wrapper input {
@@ -2679,8 +2765,8 @@
         /* Developer Dashboard Styles */
         .dev-subtab-btn {
             background: transparent;
-            color: #667eea;
-            border: 2px solid #667eea;
+            color: #6366f1;
+            border: 2px solid #6366f1;
             padding: 10px 20px;
             border-radius: 8px 8px 0 0;
             cursor: pointer;
@@ -2693,7 +2779,7 @@
         }
 
         .dev-subtab-btn.active {
-            background: #667eea;
+            background: #6366f1;
             color: white;
             border: none;
         }
@@ -2705,8 +2791,8 @@
         /* Developer messages sub-tabs */
         .dev-msg-tab-btn {
             background: transparent;
-            color: var(--accent-primary, #667eea);
-            border: 2px solid var(--accent-primary, #667eea);
+            color: var(--accent-primary, #6366f1);
+            border: 2px solid var(--accent-primary, #6366f1);
             padding: 8px 16px;
             border-radius: 8px;
             cursor: pointer;
@@ -2718,7 +2804,7 @@
             background: rgba(102, 126, 234, 0.1);
         }
         .dev-msg-tab-btn.active {
-            background: var(--accent-primary, #667eea);
+            background: var(--accent-primary, #6366f1);
             color: #fff;
         }
         .dev-msg-panel {
@@ -2742,7 +2828,7 @@
             word-break: break-word;
         }
         .dev-conv-bubble.own .dev-conv-bubble-inner {
-            background: var(--accent-primary, #667eea);
+            background: var(--accent-primary, #6366f1);
             color: #fff;
             border-bottom-right-radius: 4px;
         }
@@ -2787,7 +2873,7 @@
         .job-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .job-card.priority-critical { border-left-color: #e74c3c; }
         .job-card.priority-high     { border-left-color: #f39c12; }
-        .job-card.priority-medium   { border-left-color: #667eea; }
+        .job-card.priority-medium   { border-left-color: #6366f1; }
         .job-card.priority-low      { border-left-color: #27ae60; }
         .job-status-badge {
             display: inline-block;
@@ -2816,13 +2902,13 @@
             transition: all 0.15s;
         }
         .job-filter-btn.active, .job-filter-btn:hover {
-            background: var(--accent-primary, #667eea);
+            background: var(--accent-primary, #6366f1);
             color: #fff;
-            border-color: var(--accent-primary, #667eea);
+            border-color: var(--accent-primary, #6366f1);
         }
 
         .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
             color: white;
             padding: 25px;
             border-radius: 12px;
@@ -2969,7 +3055,7 @@
             position: fixed;
             bottom: 30px;
             right: 30px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
             color: white;
             padding: 20px 30px;
             border-radius: 15px;
@@ -3099,7 +3185,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0);
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
             color: white;
             padding: 50px 70px;
             border-radius: 25px;
@@ -3839,17 +3925,17 @@
         /* ==================== MESSAGING SYSTEM STYLES ==================== */
         .msg-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color, #e0e0e0); padding-bottom: 0; overflow-x: auto; }
         .msg-tab-btn { background: transparent; color: var(--text-secondary, #666); border: none; padding: 12px 20px; cursor: pointer; font-weight: 600; white-space: nowrap; border-bottom: 3px solid transparent; transition: all 0.2s; font-size: 14px; }
-        .msg-tab-btn:hover { color: var(--primary-color, #667eea); background: var(--hover-bg, #f5f5f5); }
-        .msg-tab-btn.active { color: var(--primary-color, #667eea); border-bottom-color: var(--primary-color, #667eea); }
+        .msg-tab-btn:hover { color: var(--primary-color, #6366f1); background: var(--hover-bg, #f5f5f5); }
+        .msg-tab-btn.active { color: var(--primary-color, #6366f1); border-bottom-color: var(--primary-color, #6366f1); }
         .msg-tab-btn .badge { background: #e74c3c; color: white; padding: 1px 7px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: bold; }
         .msg-search-bar { display: flex; gap: 8px; margin-bottom: 16px; }
         .msg-search-bar input { flex: 1; padding: 10px 14px; border: 2px solid var(--border-color, #e0e0e0); border-radius: 8px; font-size: 14px; background: var(--input-bg, white); color: var(--text-primary, #333); }
-        .msg-search-bar input:focus { border-color: var(--primary-color, #667eea); outline: none; }
+        .msg-search-bar input:focus { border-color: var(--primary-color, #6366f1); outline: none; }
         .msg-card { border: 1px solid var(--border-color, #e0e0e0); padding: 14px 16px; margin-bottom: 8px; background: var(--card-bg, white); border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; }
         .msg-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
-        .msg-card.unread { background: var(--unread-bg, #f0f4ff); border-left: 3px solid var(--primary-color, #667eea); }
+        .msg-card.unread { background: var(--unread-bg, #f0f4ff); border-left: 3px solid var(--primary-color, #6366f1); }
         .msg-avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: white; flex-shrink: 0; }
-        .msg-avatar.patient { background: #667eea; }
+        .msg-avatar.patient { background: #6366f1; }
         .msg-avatar.clinician { background: #27ae60; }
         .msg-avatar.developer { background: #e67e22; }
         .msg-avatar.default { background: #95a5a6; }
@@ -3857,25 +3943,25 @@
         .msg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
         .msg-sender { font-weight: 600; font-size: 14px; color: var(--text-primary, #333); }
         .msg-role-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; margin-left: 6px; }
-        .msg-role-badge.patient { background: #eef0ff; color: #667eea; }
+        .msg-role-badge.patient { background: #eef0ff; color: #6366f1; }
         .msg-role-badge.clinician { background: #e8f5e9; color: #27ae60; }
         .msg-role-badge.developer { background: #fff3e0; color: #e67e22; }
         .msg-time { font-size: 12px; color: var(--text-muted, #999); white-space: nowrap; }
         .msg-preview { color: var(--text-secondary, #666); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .msg-unread-badge { background: #e74c3c; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; margin-left: 8px; }
         .msg-status { font-size: 11px; margin-top: 2px; }
-        .msg-status.read { color: #667eea; }
+        .msg-status.read { color: #6366f1; }
         .msg-status.sent { color: var(--text-muted, #999); }
         .msg-empty { text-align: center; padding: 60px 20px; color: var(--text-muted, #999); }
         .msg-empty-icon { font-size: 48px; margin-bottom: 12px; }
         .msg-empty p { margin: 0; font-size: 15px; }
         .msg-quick-actions { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
         .msg-quick-btn { padding: 8px 16px; border: 2px solid var(--border-color, #e0e0e0); border-radius: 20px; background: var(--card-bg, white); color: var(--text-primary, #333); cursor: pointer; font-size: 13px; transition: all 0.2s; }
-        .msg-quick-btn:hover { border-color: var(--primary-color, #667eea); color: var(--primary-color, #667eea); background: var(--hover-bg, #f8f9ff); }
+        .msg-quick-btn:hover { border-color: var(--primary-color, #6366f1); color: var(--primary-color, #6366f1); background: var(--hover-bg, #f8f9ff); }
         .msg-compose-form { display: flex; flex-direction: column; gap: 12px; }
         .msg-compose-form label { font-weight: 600; font-size: 13px; color: var(--text-secondary, #666); margin-bottom: -4px; }
         .msg-compose-form input, .msg-compose-form textarea { padding: 10px 14px; border: 2px solid var(--border-color, #e0e0e0); border-radius: 8px; font-size: 14px; font-family: inherit; background: var(--input-bg, white); color: var(--text-primary, #333); }
-        .msg-compose-form input:focus, .msg-compose-form textarea:focus { border-color: var(--primary-color, #667eea); outline: none; }
+        .msg-compose-form input:focus, .msg-compose-form textarea:focus { border-color: var(--primary-color, #6366f1); outline: none; }
         .msg-compose-form textarea { resize: vertical; min-height: 120px; }
         .msg-char-count { font-size: 12px; color: var(--text-muted, #999); text-align: right; }
         .msg-char-count.warning { color: #e67e22; }
@@ -3895,20 +3981,20 @@
         .conv-bubble.own { margin-left: auto; }
         .conv-bubble.other { margin-right: auto; }
         .conv-bubble-inner { padding: 10px 14px; border-radius: 12px; word-wrap: break-word; font-size: 14px; line-height: 1.5; }
-        .conv-bubble.own .conv-bubble-inner { background: var(--primary-color, #667eea); color: white; border-bottom-right-radius: 4px; }
+        .conv-bubble.own .conv-bubble-inner { background: var(--primary-color, #6366f1); color: white; border-bottom-right-radius: 4px; }
         .conv-bubble.other .conv-bubble-inner { background: var(--card-bg, white); color: var(--text-primary, #333); border: 1px solid var(--border-color, #e0e0e0); border-bottom-left-radius: 4px; }
         .conv-bubble-meta { font-size: 11px; color: var(--text-muted, #999); margin-top: 4px; padding: 0 4px; }
         .conv-bubble.own .conv-bubble-meta { text-align: right; }
         .conv-reply { padding: 14px 20px; border-top: 1px solid var(--border-color, #e0e0e0); background: var(--card-bg, white); border-radius: 0 0 16px 16px; }
         .conv-reply-input { display: flex; gap: 10px; align-items: flex-end; }
         .conv-reply-input textarea { flex: 1; padding: 10px 14px; border: 2px solid var(--border-color, #e0e0e0); border-radius: 10px; resize: none; min-height: 44px; max-height: 120px; font-family: inherit; font-size: 14px; background: var(--input-bg, white); color: var(--text-primary, #333); }
-        .conv-reply-input textarea:focus { border-color: var(--primary-color, #667eea); outline: none; }
-        .conv-send-btn { padding: 10px 20px; background: var(--primary-color, #667eea); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; white-space: nowrap; }
+        .conv-reply-input textarea:focus { border-color: var(--primary-color, #6366f1); outline: none; }
+        .conv-send-btn { padding: 10px 20px; background: var(--primary-color, #6366f1); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; white-space: nowrap; }
         .conv-send-btn:hover { opacity: 0.9; }
         .conv-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         /* Dark mode messaging overrides */
         [data-theme="dark"] .msg-card { background: var(--card-bg); border-color: var(--border-color); }
-        [data-theme="dark"] .msg-card.unread { background: rgba(102,126,234,0.1); }
+        [data-theme="dark"] .msg-card.unread { background: rgba(99,102,241,0.1); }
         [data-theme="dark"] .conv-modal { background: var(--card-bg); }
         [data-theme="dark"] .conv-messages { background: var(--bg-secondary); }
         [data-theme="dark"] .conv-bubble.other .conv-bubble-inner { background: var(--bg-secondary); }
@@ -4115,11 +4201,11 @@
                     <label>Email Address *</label>
                     <input type="email" id="regEmail" placeholder="your.email@example.com" required>
                     <div style="margin-top:8px;">
-                        <button type="button" id="patientSendCodeBtn" onclick="sendEmailCode('patient')" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;">Send Verification Code</button>
+                        <button type="button" id="patientSendCodeBtn" onclick="sendEmailCode('patient')" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;">Send Verification Code</button>
                     </div>
                     <div id="patientCodeBox" style="display:none;margin-top:10px;display:none;">
                         <input type="text" id="patientVerifyCode" placeholder="6-digit code" maxlength="6" style="width:55%;padding:10px;border:2px solid #e0e0e0;border-radius:6px;font-size:1rem;letter-spacing:4px;text-align:center;" oninput="this.value=this.value.replace(/\D/g,'')">
-                        <button type="button" onclick="verifyEmailCode('patient')" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:10px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;margin-left:6px;">Verify</button>
+                        <button type="button" onclick="verifyEmailCode('patient')" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;padding:10px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;margin-left:6px;">Verify</button>
                     </div>
                     <div id="patientEmailVerifiedMsg" style="display:none;color:#16a34a;font-weight:600;margin-top:8px;font-size:0.9rem;">✓ Email verified</div>
                 </div>
@@ -4185,11 +4271,11 @@
                     <label>Email Address *</label>
                     <input type="email" id="clinicianEmail" placeholder="doctor@clinic.com" required>
                     <div style="margin-top:8px;">
-                        <button type="button" id="clinicianSendCodeBtn" onclick="sendEmailCode('clinician')" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;">Send Verification Code</button>
+                        <button type="button" id="clinicianSendCodeBtn" onclick="sendEmailCode('clinician')" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;">Send Verification Code</button>
                     </div>
                     <div id="clinicianCodeBox" style="display:none;">
                         <input type="text" id="clinicianVerifyCode" placeholder="6-digit code" maxlength="6" style="width:55%;padding:10px;border:2px solid #e0e0e0;border-radius:6px;font-size:1rem;letter-spacing:4px;text-align:center;margin-top:10px;" oninput="this.value=this.value.replace(/\D/g,'')">
-                        <button type="button" onclick="verifyEmailCode('clinician')" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:10px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;margin-left:6px;">Verify</button>
+                        <button type="button" onclick="verifyEmailCode('clinician')" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;padding:10px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;margin-left:6px;">Verify</button>
                     </div>
                     <div id="clinicianEmailVerifiedMsg" style="display:none;color:#16a34a;font-weight:600;margin-top:8px;font-size:0.9rem;">✓ Email verified</div>
                 </div>
@@ -4252,7 +4338,7 @@
     <!-- PATIENT Legal Disclaimer Modal -->
     <div id="patientDisclaimerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
         <div style="background: white; border-radius: 15px; max-width: 750px; width: 90%; max-height: 85vh; overflow-y: auto; padding: 40px; box-shadow: 0 10px 50px rgba(0,0,0,0.3);">
-            <h2 style="color: #667eea; margin-bottom: 20px; text-align: center;">⚖️ Patient Terms & Legal Disclaimer</h2>
+            <h2 style="color: #6366f1; margin-bottom: 20px; text-align: center;">⚖️ Patient Terms & Legal Disclaimer</h2>
 
             <div style="background: #ffebee; border-left: 4px solid #e74c3c; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
                 <strong style="color: #c62828;">⚠️ CRITICAL: READ CAREFULLY BEFORE USE</strong>
@@ -4405,7 +4491,7 @@
     <!-- CLINICIAN Legal Disclaimer Modal -->
     <div id="clinicianDisclaimerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
         <div style="background: white; border-radius: 15px; max-width: 750px; width: 90%; max-height: 85vh; overflow-y: auto; padding: 40px; box-shadow: 0 10px 50px rgba(0,0,0,0.3);">
-            <h2 style="color: #667eea; margin-bottom: 20px; text-align: center;">⚖️ Clinician Terms & Professional Responsibilities</h2>
+            <h2 style="color: #6366f1; margin-bottom: 20px; text-align: center;">⚖️ Clinician Terms & Professional Responsibilities</h2>
 
             <div style="background: #e8f4fd; border-left: 4px solid #2196F3; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
                 <strong style="color: #0d47a1;">⚠️ PROFESSIONAL USE ONLY - READ CAREFULLY</strong>
@@ -5301,7 +5387,7 @@
                                     container.className = 'confetti-container';
                                     document.body.appendChild(container);
 
-                                    const colors = ['#667eea', '#764ba2', '#f39c12', '#e74c3c', '#27ae60', '#3498db'];
+                                    const colors = ['#6366f1', '#8b5cf6', '#f39c12', '#e74c3c', '#27ae60', '#3498db'];
                                     const confettiCount = 50;
 
                                     for (let i = 0; i < confettiCount; i++) {
@@ -5865,7 +5951,7 @@
                             <div id="composeCharCount" class="msg-char-count">0 / 10,000</div>
 
                             <div style="display: flex; gap: 10px; align-items: center;">
-                                <button class="btn" id="composeSendBtn" onclick="sendNewMessage()" style="background: var(--primary-color, #667eea); padding: 12px 28px;">Send Message</button>
+                                <button class="btn" id="composeSendBtn" onclick="sendNewMessage()" style="background: var(--primary-color, #6366f1); padding: 12px 28px;">Send Message</button>
                                 <p id="messageSendStatusPatient" style="margin: 0; display: none; font-size: 14px;"></p>
                             </div>
                         </div>
@@ -6067,22 +6153,22 @@
                 
                 <!-- Sub-Navigation for Clinical Dashboard -->
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; overflow-x: auto; flex-wrap: wrap;">
-                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('overview', this)" id="overviewSubtabBtn" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('overview', this)" id="overviewSubtabBtn" style="background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         📊 Overview
                     </button>
-                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('patients', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('patients', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         👥 Patients
                     </button>
-                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('appointments', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('appointments', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         📅 Calendar
                     </button>
-                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('approvals', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('approvals', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         ⏳ Approvals
                     </button>
-                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('messages', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('messages', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         📨 Messages
                     </button>
-                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('riskmonitor', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('riskmonitor', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         🚨 Risk Monitor
                     </button>
                 </div>
@@ -6090,7 +6176,7 @@
                 <!-- Overview Subtab -->
                 <div id="clinicalOverviewTab" class="clinical-subtab-content">
                     <!-- Quick Stats - Only 3 Cards -->
-                    <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h4 style="color: white; margin: 0;">📊 Quick Overview</h4>
                             <button onclick="loadAnalyticsDashboard()" class="btn" style="padding: 8px 16px; background: rgba(255,255,255,0.3); border: 2px solid white;">🔄 Refresh</button>
@@ -6147,7 +6233,7 @@
                                 <button class="btn btn-secondary" onclick="goToToday()">Today</button>
                             </div>
                             <div style="display: flex; gap: 10px;">
-                                <button class="btn" id="monthViewBtn" onclick="setCalendarView('month')" style="background: #667eea;">Month</button>
+                                <button class="btn" id="monthViewBtn" onclick="setCalendarView('month')" style="background: #6366f1;">Month</button>
                                 <button class="btn btn-secondary" id="weekViewBtn" onclick="setCalendarView('week')">Week</button>
                                 <button class="btn btn-secondary" id="dayViewBtn" onclick="setCalendarView('day')">Day</button>
                                 <button class="btn" onclick="showNewAppointmentForm()" style="background: #2ecc71;">➕ New</button>
@@ -6195,7 +6281,7 @@
                     </div>
                     
                     <!-- New Appointment Form (Modal-style) -->
-                    <div id="newAppointmentForm" class="card" style="margin-top: 20px; display: none; background: #f8f9fa; border: 2px solid #667eea;">
+                    <div id="newAppointmentForm" class="card" style="margin-top: 20px; display: none; background: #f8f9fa; border: 2px solid #6366f1;">
                         <h4>📅 Schedule New Appointment</h4>
                         <div class="form-group">
                             <label>Select Patient</label>
@@ -6245,13 +6331,13 @@
                         <!-- Message Navigation -->
                         <div class="card">
                             <div style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px;">
-                                <button class="message-subtab-btn" onclick="switchMessageTab('inbox', this)" style="background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                <button class="message-subtab-btn" onclick="switchMessageTab('inbox', this)" style="background: #6366f1; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
                                     📬 Inbox
                                 </button>
-                                <button class="message-subtab-btn" onclick="switchMessageTab('sent', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                <button class="message-subtab-btn" onclick="switchMessageTab('sent', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
                                     📤 Sent
                                 </button>
-                                <button class="message-subtab-btn" onclick="switchMessageTab('new', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                <button class="message-subtab-btn" onclick="switchMessageTab('new', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
                                     ✏️ New Message
                                 </button>
                             </div>
@@ -6295,7 +6381,7 @@
                                         <button class="btn" onclick="sendClinicianMessage()" style="flex: 1;">📤 Send Message</button>
                                     </div>
 
-                                    <div id="messageSendStatus" style="display: none; padding: 12px; border-radius: 8px; background: #f0f0f0; color: #333; border-left: 4px solid #667eea;"></div>
+                                    <div id="messageSendStatus" style="display: none; padding: 12px; border-radius: 8px; background: #f0f0f0; color: #333; border-left: 4px solid #6366f1;"></div>
                                 </div>
                             </div>
                         </div>
@@ -6375,39 +6461,39 @@
                 <div id="patientDetailSection" style="display: none;">
                     <button class="btn btn-secondary" onclick="closePatientDetail()" style="margin-bottom: 15px;">← Back to Patient List</button>
                     
-                    <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 20px;">
+                    <div class="card" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; margin-bottom: 20px;">
                         <h3 id="patientDetailName" style="color: white; margin: 0;"></h3>
                         <p style="margin: 5px 0 0 0; opacity: 0.9;">Patient Overview</p>
                     </div>
                     
                     <!-- Patient Detail Sub-Navigation -->
                     <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; overflow-x: auto; flex-wrap: wrap;">
-                        <button class="patient-subtab-btn" onclick="switchPatientTab('summary', this)" id="summaryPatientSubtabBtn" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('summary', this)" id="summaryPatientSubtabBtn" style="background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             🤖 Summary
                         </button>
-                        <button class="patient-subtab-btn" onclick="switchPatientTab('charts', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('charts', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             📊 Charts
                         </button>
-                        <button class="patient-subtab-btn" onclick="switchPatientTab('profile', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('profile', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             👤 Profile
                         </button>
-                        <button class="patient-subtab-btn" onclick="switchPatientTab('moods', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('moods', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             😊 Mood Logs
                         </button>
-                        <button class="patient-subtab-btn" onclick="switchPatientTab('assessments', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('assessments', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             📋 Assessments
                         </button>
-                        <button class="patient-subtab-btn" onclick="switchPatientTab('therapy', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('therapy', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             💬 Therapy
                         </button>
-                        <button class="patient-subtab-btn" onclick="switchPatientTab('alerts', this)" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('alerts', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             🚨 Alerts
                         </button>
                     </div>
                     
                     <!-- Summary Subtab -->
                     <div id="patientSummaryTab" class="patient-subtab-content">
-                        <div class="card" style="border-left: 4px solid #667eea;">
+                        <div class="card" style="border-left: 4px solid #6366f1;">
                             <h4>🤖 AI Clinical Summary</h4>
                             <div id="aiSummary">
                                 <div style="text-align: center; padding: 20px;">
@@ -6436,7 +6522,7 @@
                                     <button class="btn" onclick="setPatientChartRange(7)" style="padding: 10px 15px;">7 Days</button>
                                     <button class="btn" onclick="setPatientChartRange(30)" style="padding: 10px 15px;">30 Days</button>
                                     <button class="btn" onclick="setPatientChartRange(90)" style="padding: 10px 15px;">90 Days</button>
-                                    <button class="btn" onclick="loadPatientCharts()" style="padding: 10px 15px; background: #667eea;">Refresh</button>
+                                    <button class="btn" onclick="loadPatientCharts()" style="padding: 10px 15px; background: #6366f1;">Refresh</button>
                                 </div>
                             </div>
                         </div>
@@ -9397,7 +9483,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             container.innerHTML = allUpdates.map(update => `
                 <div class="card" style="margin-bottom: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h4 style="margin: 0; color: #667eea;">${update.title}</h4>
+                        <h4 style="margin: 0; color: #6366f1;">${update.title}</h4>
                         <span style="color: #999; font-size: 13px;">${update.version ? 'v' + update.version + ' • ' : ''}${formatUpdateDate(update.date)}</span>
                     </div>
                     <ul style="margin: 0; padding-left: 20px; color: #555;">
@@ -10729,8 +10815,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             // Reset all clinical subtab buttons
             document.querySelectorAll('.clinical-subtab-btn').forEach(btn => {
                 btn.style.background = 'transparent';
-                btn.style.color = '#667eea';
-                btn.style.border = '2px solid #667eea';
+                btn.style.color = '#6366f1';
+                btn.style.border = '2px solid #6366f1';
             });
             
             // Show selected subtab
@@ -10738,7 +10824,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             
             // Highlight selected button
             if (buttonEl) {
-                buttonEl.style.background = '#667eea';
+                buttonEl.style.background = '#6366f1';
                 buttonEl.style.color = 'white';
                 buttonEl.style.border = 'none';
             }
@@ -13334,7 +13420,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             if (moodData.length > 1) {
                 const stepX = (width - 2 * padding) / (moodData.length - 1);
                 
-                ctx.strokeStyle = '#667eea';
+                ctx.strokeStyle = '#6366f1';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
                 
@@ -13349,7 +13435,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     }
                     
                     // Draw points
-                    ctx.fillStyle = '#667eea';
+                    ctx.fillStyle = '#6366f1';
                     ctx.beginPath();
                     ctx.arc(x, y, 5, 0, 2 * Math.PI);
                     ctx.fill();
@@ -13553,7 +13639,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 
                 if (response.ok && data.patients && data.patients.length > 0) {
                     const html = data.patients.map(patient => `
-                        <div class="patient-card" onclick="viewPatientDetail('${patient.username}')" style="cursor: pointer; border: 2px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-bottom: 15px; transition: all 0.3s; hover: {border-color: #667eea;}">
+                        <div class="patient-card" onclick="viewPatientDetail('${patient.username}')" style="cursor: pointer; border: 2px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-bottom: 15px; transition: all 0.3s; hover: {border-color: #6366f1;}">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                 <div>
                                     <strong style="font-size: 20px; color: #333;">${patient.username}</strong>
@@ -13563,7 +13649,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             </div>
                             <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                                 <div style="flex: 1; min-width: 100px;">
-                                    <div style="font-size: 28px; font-weight: bold; color: #667eea;">${patient.avg_mood_7d || 'N/A'}</div>
+                                    <div style="font-size: 28px; font-weight: bold; color: #6366f1;">${patient.avg_mood_7d || 'N/A'}</div>
                                     <div style="font-size: 12px; color: #999; text-transform: uppercase;">Avg Mood (7d)</div>
                                 </div>
                                 <div style="flex: 1; min-width: 100px;">
@@ -13721,7 +13807,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             if (moods.length > 1) {
                 const stepX = (width - 2 * padding) / (moods.length - 1);
                 
-                ctx.strokeStyle = '#667eea';
+                ctx.strokeStyle = '#6366f1';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
                 
@@ -13737,7 +13823,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     }
                     
                     // Draw points
-                    ctx.fillStyle = '#667eea';
+                    ctx.fillStyle = '#6366f1';
                     ctx.beginPath();
                     ctx.arc(x, y, 5, 0, 2 * Math.PI);
                     ctx.fill();
@@ -13906,8 +13992,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             // Reset all patient subtab buttons
             document.querySelectorAll('.patient-subtab-btn').forEach(btn => {
                 btn.style.background = 'transparent';
-                btn.style.color = '#667eea';
-                btn.style.border = '2px solid #667eea';
+                btn.style.color = '#6366f1';
+                btn.style.border = '2px solid #6366f1';
             });
             
             // Show selected subtab
@@ -13916,7 +14002,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             
             // Highlight selected button
             if (buttonEl) {
-                buttonEl.style.background = '#667eea';
+                buttonEl.style.background = '#6366f1';
                 buttonEl.style.color = 'white';
                 buttonEl.style.border = 'none';
             }
@@ -14240,11 +14326,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             
             // Update button styles
             document.getElementById('monthViewBtn').className = view === 'month' ? 'btn' : 'btn btn-secondary';
-            document.getElementById('monthViewBtn').style.background = view === 'month' ? '#667eea' : '';
+            document.getElementById('monthViewBtn').style.background = view === 'month' ? '#6366f1' : '';
             document.getElementById('weekViewBtn').className = view === 'week' ? 'btn' : 'btn btn-secondary';
-            document.getElementById('weekViewBtn').style.background = view === 'week' ? '#667eea' : '';
+            document.getElementById('weekViewBtn').style.background = view === 'week' ? '#6366f1' : '';
             document.getElementById('dayViewBtn').className = view === 'day' ? 'btn' : 'btn btn-secondary';
-            document.getElementById('dayViewBtn').style.background = view === 'day' ? '#667eea' : '';
+            document.getElementById('dayViewBtn').style.background = view === 'day' ? '#6366f1' : '';
             
             // Show/hide views
             document.getElementById('monthView').style.display = view === 'month' ? 'block' : 'none';
@@ -14342,14 +14428,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         aptHtml += `<div style="background: ${statusColor}; color: white; padding: 2px 6px; font-size: 11px; border-radius: 3px; margin-top: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="viewDayAppointments('${dateStr}')" title="${apt.patient_username} at ${time}">${time} ${apt.patient_username}</div>`;
                     });
                     if (dayAppointments.length > 3) {
-                        aptHtml += `<div style="color: #667eea; font-size: 11px; margin-top: 2px; cursor: pointer;" onclick="viewDayAppointments('${dateStr}')">+${dayAppointments.length - 3} more</div>`;
+                        aptHtml += `<div style="color: #6366f1; font-size: 11px; margin-top: 2px; cursor: pointer;" onclick="viewDayAppointments('${dateStr}')">+${dayAppointments.length - 3} more</div>`;
                     }
                 }
                 
                 html += `
-                    <div onclick="viewDayAppointments('${dateStr}')" style="background: ${isToday ? '#e3f2fd' : 'white'}; min-height: 100px; border: ${isToday ? '2px solid #667eea' : '1px solid #e0e0e0'}; border-radius: 4px; padding: 8px; cursor: pointer; position: relative;">
-                        <div style="font-weight: ${isToday ? 'bold' : 'normal'}; color: ${isToday ? '#667eea' : '#333'}; margin-bottom: 5px;">${day}</div>
-                        ${dayAppointments.length > 0 ? `<div style="position: absolute; top: 5px; right: 5px; background: #667eea; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">${dayAppointments.length}</div>` : ''}
+                    <div onclick="viewDayAppointments('${dateStr}')" style="background: ${isToday ? '#e3f2fd' : 'white'}; min-height: 100px; border: ${isToday ? '2px solid #6366f1' : '1px solid #e0e0e0'}; border-radius: 4px; padding: 8px; cursor: pointer; position: relative;">
+                        <div style="font-weight: ${isToday ? 'bold' : 'normal'}; color: ${isToday ? '#6366f1' : '#333'}; margin-bottom: 5px;">${day}</div>
+                        ${dayAppointments.length > 0 ? `<div style="position: absolute; top: 5px; right: 5px; background: #6366f1; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">${dayAppointments.length}</div>` : ''}
                         ${aptHtml}
                     </div>
                 `;
@@ -14371,7 +14457,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 const day = new Date(weekStart);
                 day.setDate(weekStart.getDate() + i);
                 const isToday = day.toDateString() === new Date().toDateString();
-                html += `<div style="background: ${isToday ? '#667eea' : '#f5f5f5'}; color: ${isToday ? 'white' : '#333'}; padding: 10px; font-weight: bold; text-align: center;">${day.toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})}</div>`;
+                html += `<div style="background: ${isToday ? '#6366f1' : '#f5f5f5'}; color: ${isToday ? 'white' : '#333'}; padding: 10px; font-weight: bold; text-align: center;">${day.toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})}</div>`;
             }
             
             // Time slots (8 AM to 6 PM)
@@ -14437,7 +14523,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     <div style="border: 2px solid ${isUpcoming ? '#ff9800' : isPast ? '#ccc' : statusColor}; border-radius: 8px; padding: 20px; background: ${isPast ? '#f5f5f5' : isUpcoming ? '#fff3e0' : 'white'};">
                         <div style="display: flex; justify-content: space-between; align-items: start;">
                             <div style="flex: 1;">
-                                <div style="font-size: 24px; font-weight: bold; color: #667eea; margin-bottom: 5px;">${time}</div>
+                                <div style="font-size: 24px; font-weight: bold; color: #6366f1; margin-bottom: 5px;">${time}</div>
                                 <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px;">${apt.patient_username}</div>
                                 ${apt.notes ? `<div style="color: #666; margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 6px;">${apt.notes}</div>` : ''}
                                 <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -14450,7 +14536,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 10px;">
-                                <button onclick="viewPatientDetail('${apt.patient_username}')" style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; white-space: nowrap;">View Patient</button>
+                                <button onclick="viewPatientDetail('${apt.patient_username}')" style="background: #6366f1; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; white-space: nowrap;">View Patient</button>
                                 <button onclick="cancelAppointment(${apt.id})" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; white-space: nowrap;">Cancel</button>
                             </div>
                         </div>
@@ -15141,7 +15227,7 @@ ${reportText}
                     </div>
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; color: white;">
+                        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 15px; border-radius: 10px; color: white;">
                             <p style="margin: 0; font-size: 13px; opacity: 0.9;">Sessions</p>
                             <h3 style="margin: 5px 0 0 0; font-size: 28px;">${activity.total_sessions || 0}</h3>
                         </div>
@@ -16251,7 +16337,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 container.innerHTML = updates.map(function(u) {
                     return '<div style="border: 1px solid var(--border-color, #e0e0e0); border-radius: 8px; padding: 15px; margin-bottom: 10px;">' +
                         '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
-                            '<strong style="color: var(--accent-primary, #667eea);">' + sanitizeHTML(u.title) + '</strong>' +
+                            '<strong style="color: var(--accent-primary, #6366f1);">' + sanitizeHTML(u.title) + '</strong>' +
                             '<span style="font-size: 12px; color: var(--text-muted, #999);">' + (u.version ? 'v' + sanitizeHTML(u.version) + ' • ' : '') + new Date(u.created_at).toLocaleDateString('en-GB') + '</span>' +
                         '</div>' +
                         '<ul style="margin: 0; padding-left: 20px;">' +
@@ -16695,7 +16781,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
                     <div style="display: flex; gap: 10px; justify-content: flex-end;">
                         <button onclick="document.getElementById('feedbackDetailModal').remove()" style="padding: 10px 20px; background: #e0e0e0; color: #333; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">Cancel</button>
-                        <button onclick="submitFeedbackUpdate(${id})" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">✅ Update Feedback</button>
+                        <button onclick="submitFeedbackUpdate(${id})" style="padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">✅ Update Feedback</button>
                     </div>
                 </div>
             `;
@@ -17193,7 +17279,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         function showMsgStatus(el, msg, type) {
             if (!el) return;
             el.textContent = msg;
-            el.style.color = type === 'success' ? '#27ae60' : type === 'warning' ? '#e67e22' : type === 'info' ? '#667eea' : '#e74c3c';
+            el.style.color = type === 'success' ? '#27ae60' : type === 'warning' ? '#e67e22' : type === 'info' ? '#6366f1' : '#e74c3c';
             el.style.display = 'block';
         }
 
@@ -17381,7 +17467,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
             try {
                 statusEl.textContent = '📤 Sending message...';
-                statusEl.style.color = '#667eea';
+                statusEl.style.color = '#6366f1';
                 statusEl.style.display = 'block';
 
                 // Use the correct endpoint with correct field names
@@ -18469,7 +18555,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
             const levelColors = { critical: '#ff4444', high: '#ff8800', moderate: '#ccaa00', low: '#2ecc71' };
             container.innerHTML = patients.map(function(p) {
-                return '<div onclick="openRiskDetail(\'' + escapeHtml(p.username) + '\')" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--shadow-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background=\'rgba(102,126,234,0.05)\'" onmouseout="this.style.background=\'transparent\'">' +
+                return '<div onclick="openRiskDetail(\'' + escapeHtml(p.username) + '\')" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--shadow-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background=\'rgba(99,102,241,0.05)\'" onmouseout="this.style.background=\'transparent\'">' +
                     '<div>' +
                         '<strong>' + escapeHtml(p.full_name || p.username) + '</strong>' +
                         '<div style="font-size: 0.85em; color: var(--text-secondary);">' + (p.last_assessed ? 'Last assessed: ' + new Date(p.last_assessed).toLocaleDateString() : 'Not yet assessed') + '</div>' +
@@ -18565,7 +18651,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     '<h4>Risk History (30 days)</h4>' +
                     '<div style="max-height: 200px; margin-bottom: 20px;"><canvas id="riskHistoryChart"></canvas></div>' +
                     '<div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">' +
-                        '<button onclick="triggerRiskRecalc(\'' + escapeHtml(patientUsername) + '\')" class="btn" style="background: #667eea; width: auto;">Recalculate Risk</button>' +
+                        '<button onclick="triggerRiskRecalc(\'' + escapeHtml(patientUsername) + '\')" class="btn" style="background: #6366f1; width: auto;">Recalculate Risk</button>' +
                         '<button onclick="closeRiskDetailModal()" class="btn btn-secondary" style="width: auto;">Close</button>' +
                     '</div>';
 

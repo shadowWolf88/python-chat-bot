@@ -1,52 +1,32 @@
 /**
  * ============================================
- * Theme Fixes - Override Inline Styles
+ * Theme Fixes — Targeted Inline-Style Overrides
  * ============================================
  *
- * This file forces theme-aware colors on elements
- * with hardcoded inline styles until they can be
- * properly refactored.
+ * This file corrects only elements that carry
+ * hardcoded inline styles (color, background,
+ * border). Component classes (buttons, cards,
+ * modals, tabs, toasts) are handled by
+ * components.css / messaging.css and must NOT
+ * be overridden here.
+ *
+ * Rule: only use !important where an inline
+ * style attribute would otherwise win.
  * ============================================
  */
 
 /* ============================================
-   GLOBAL TEXT COLOR FIXES
+   DARK MODE ROOT
    ============================================ */
 
-/* Force all text to use theme colors */
-body, body * {
-    color: var(--text-primary) !important;
-}
-
-/* Small text / helper text */
-small,
-.form-help,
-[style*="color: #666"],
-[style*="color: #999"],
-[style*="color:#666"],
-[style*="color:#999"] {
-    color: var(--text-secondary) !important;
-}
-
-/* Headings */
-h1, h2, h3, h4, h5, h6 {
-    color: var(--text-primary) !important;
-}
-
-/* Links */
-a {
-    color: var(--text-link) !important;
-}
-
-a:hover {
-    color: var(--text-link-hover) !important;
+[data-theme="dark"] {
+    color-scheme: dark;
 }
 
 /* ============================================
-   FORM INPUTS
+   FORM INPUTS — hardcoded border/bg overrides
    ============================================ */
 
-/* All form inputs */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -72,17 +52,26 @@ select:focus {
     outline: none !important;
 }
 
-/* Override hardcoded input borders */
+/* Inline border-color overrides */
 [style*="border: 2px solid #e0e0e0"],
 [style*="border:2px solid #e0e0e0"] {
     border-color: var(--border-primary) !important;
 }
 
+/* Dark mode inputs */
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+    color-scheme: dark;
+    background: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+}
+
 /* ============================================
-   BACKGROUNDS
+   HARDCODED BACKGROUND OVERRIDES
+   Only target inline style attributes
    ============================================ */
 
-/* Light gray backgrounds */
 [style*="background: #f9f9f9"],
 [style*="background: #f8f9fa"],
 [style*="background: #fafafa"],
@@ -91,7 +80,6 @@ select:focus {
     background: var(--bg-secondary) !important;
 }
 
-/* White backgrounds */
 [style*="background: white"],
 [style*="background: #ffffff"],
 [style*="background:#fff"] {
@@ -99,22 +87,29 @@ select:focus {
 }
 
 /* ============================================
-   CARDS & CONTAINERS
+   HARDCODED TEXT COLOR OVERRIDES
+   Only target inline style attributes
    ============================================ */
 
-.card,
-.modal-content,
-.auth-box,
-[style*="background: white"][style*="border"] {
-    background: var(--bg-elevated) !important;
-    border-color: var(--border-primary) !important;
+small,
+.form-help,
+[style*="color: #666"],
+[style*="color: #999"],
+[style*="color:#666"],
+[style*="color:#999"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Old brand colours in inline styles */
+[style*="color: #667eea"],
+[style*="color:#667eea"] {
+    color: var(--brand-primary) !important;
 }
 
 /* ============================================
-   STATUS COLORS - FORCE THEME COLORS
+   STATUS COLOURS — inline style overrides
    ============================================ */
 
-/* Warning boxes */
 [style*="background: #fff3cd"],
 [style*="background: #ffebee"],
 [style*="background:#fff3cd"] {
@@ -122,12 +117,6 @@ select:focus {
     border-color: var(--status-warning-border) !important;
 }
 
-[style*="background: #fff3cd"] *,
-[style*="background: #ffebee"] * {
-    color: var(--text-primary) !important;
-}
-
-/* Error/danger colors */
 [style*="color: #c62828"],
 [style*="color: #e74c3c"],
 [style*="border-left: 4px solid #e74c3c"] {
@@ -135,37 +124,15 @@ select:focus {
     border-color: var(--status-error) !important;
 }
 
-/* Success colors */
 [style*="color: #27ae60"],
 [style*="color: #2f855a"] {
     color: var(--status-success) !important;
 }
 
-/* Info/accent colors */
-[style*="color: #667eea"],
-h2[style*="color: #667eea"] {
-    color: var(--accent-primary) !important;
-}
-
 /* ============================================
-   BUTTONS - OVERRIDE INLINE STYLES
+   SECONDARY BUTTONS — inline style overrides
    ============================================ */
 
-button,
-.btn,
-[style*="background: #667eea"],
-[style*="background: linear-gradient"] {
-    background: var(--interactive-primary) !important;
-    color: var(--text-inverse) !important;
-    border-color: var(--interactive-primary) !important;
-}
-
-button:hover,
-.btn:hover {
-    background: var(--interactive-primary-hover) !important;
-}
-
-/* Secondary buttons */
 [style*="background: #f0f0f0"],
 [style*="background: #e0e0e0"] {
     background: var(--bg-secondary) !important;
@@ -177,7 +144,7 @@ button:hover,
    ============================================ */
 
 table {
-    color: var(--text-primary) !important;
+    color: var(--text-primary);
 }
 
 table th {
@@ -186,12 +153,11 @@ table th {
 }
 
 table td {
-    color: var(--text-secondary) !important;
+    color: var(--text-secondary);
     border-color: var(--border-primary) !important;
 }
 
-thead tr[style*="background"],
-[style*="background: #f8f9fa"] {
+thead tr[style*="background"] {
     background: var(--bg-secondary) !important;
 }
 
@@ -208,40 +174,7 @@ thead tr[style*="background"],
 }
 
 /* ============================================
-   SIDEBAR & NAVIGATION
-   ============================================ */
-
-.sidebar {
-    background: var(--bg-sidebar) !important;
-    border-color: var(--border-primary) !important;
-}
-
-.tab-btn {
-    color: var(--text-primary) !important;
-    background: transparent !important;
-}
-
-.tab-btn.active,
-.tab-btn:hover {
-    background: var(--bg-hover) !important;
-    color: var(--accent-primary) !important;
-}
-
-/* ============================================
-   MODALS & OVERLAYS
-   ============================================ */
-
-.modal {
-    background: var(--bg-elevated) !important;
-}
-
-.modal-content {
-    background: var(--bg-elevated) !important;
-    color: var(--text-primary) !important;
-}
-
-/* ============================================
-   CHAT & MESSAGING
+   CHAT & MESSAGING — index.html inline styles
    ============================================ */
 
 .chat-container {
@@ -260,7 +193,7 @@ thead tr[style*="background"],
 }
 
 .message.user {
-    background: var(--interactive-primary) !important;
+    background: var(--brand-gradient) !important;
     color: var(--text-inverse) !important;
 }
 
@@ -276,10 +209,9 @@ thead tr[style*="background"],
 }
 
 /* ============================================
-   SPECIFIC OVERRIDES FOR COMMON PATTERNS
+   DROPDOWN PLACEHOLDERS
    ============================================ */
 
-/* Dropdown placeholders */
 [id$="Placeholder"],
 .dropdown-placeholder {
     background: var(--bg-secondary) !important;
@@ -287,122 +219,14 @@ thead tr[style*="background"],
     border-color: var(--border-primary) !important;
 }
 
-/* Patient cards */
-.patient-card {
-    background: var(--bg-elevated) !important;
-    border-color: var(--border-primary) !important;
-}
-
-.patient-card * {
-    color: var(--text-primary) !important;
-}
-
-/* Stats and metrics */
-.stat-card {
-    background: var(--bg-elevated) !important;
-    border-color: var(--border-primary) !important;
-}
-
-.stat-label {
-    color: var(--text-secondary) !important;
-}
-
-.stat-value {
-    color: var(--text-primary) !important;
-}
-
-/* ============================================
-   ACCESSIBILITY - ENSURE READABLE TEXT
-   ============================================ */
-
-/* Force minimum contrast for all text */
-p, span, div, label {
-    color: var(--text-primary);
-}
-
-/* Secondary text elements */
-.secondary-text,
-.help-text,
-.meta-text {
-    color: var(--text-secondary);
-}
-
-/* Muted text */
-.muted-text,
-.placeholder-text {
-    color: var(--text-muted);
-}
-
-/* ============================================
-   PRINT STYLES - FORCE LIGHT THEME
-   ============================================ */
-
-@media print {
-    * {
-        background: white !important;
-        color: black !important;
-        border-color: #cccccc !important;
-    }
-}
-
-/* ============================================
-   DARK MODE SPECIFIC FIXES
-   ============================================ */
-
-[data-theme="dark"] {
-    /* Ensure absolutely everything inherits theme colors */
-    color-scheme: dark;
-}
-
-[data-theme="dark"] * {
-    /* Force theme colors in dark mode */
-    border-color: var(--border-primary);
-}
-
-[data-theme="dark"] input,
-[data-theme="dark"] textarea,
-[data-theme="dark"] select {
-    color-scheme: dark;
-    background: var(--bg-input) !important;
-    color: var(--text-primary) !important;
-}
-
-/* ============================================
-   URGENCY: HIGH CONTRAST ENFORCEMENT
-   ============================================ */
-
-/* Absolutely ensure text is visible */
-[data-theme="dark"] body,
-[data-theme="dark"] .main-content,
-[data-theme="dark"] .card,
-[data-theme="dark"] .modal {
-    background: var(--bg-primary) !important;
-    color: var(--text-primary) !important;
-}
-
-/* Force all paragraphs and text to be visible */
-[data-theme="dark"] p,
-[data-theme="dark"] span,
-[data-theme="dark"] div,
-[data-theme="dark"] label,
-[data-theme="dark"] h1,
-[data-theme="dark"] h2,
-[data-theme="dark"] h3,
-[data-theme="dark"] h4,
-[data-theme="dark"] h5,
-[data-theme="dark"] h6 {
-    color: var(--text-primary) !important;
-}
-
 /* ============================================
    CLINICIAN SUBTAB BUTTONS
    ============================================ */
 
-/* Inactive clinician subtab buttons - high contrast in both themes */
 .clinical-subtab-btn {
     color: var(--text-secondary, #4a5568) !important;
     background: var(--bg-secondary, #f7fafc) !important;
-    border-color: var(--border-color, #e2e8f0) !important;
+    border-color: var(--border-primary, #e2e8f0) !important;
 }
 
 .clinical-subtab-btn:hover {
@@ -410,75 +234,77 @@ p, span, div, label {
     background: var(--bg-hover, #edf2f7) !important;
 }
 
-/* Active clinician subtab button */
+/* Active subtab — gradient */
 .clinical-subtab-btn.active,
 .clinical-subtab-btn[style*="background: #667eea"],
-.clinical-subtab-btn[style*="background:#667eea"] {
-    background: var(--primary-color, #667eea) !important;
+.clinical-subtab-btn[style*="background:#667eea"],
+.clinical-subtab-btn[style*="background: #6366f1"],
+.clinical-subtab-btn[style*="background:#6366f1"] {
+    background: var(--brand-gradient) !important;
     color: #ffffff !important;
-    border-color: var(--primary-color, #667eea) !important;
+    border-color: var(--brand-primary, #6366f1) !important;
 }
 
 [data-theme="dark"] .clinical-subtab-btn {
-    color: var(--text-primary, #f7fafc) !important;
-    background: var(--bg-secondary, #2d3748) !important;
-    border-color: var(--border-color, #4a5568) !important;
+    color: var(--text-primary, #f1f1f8) !important;
+    background: var(--bg-secondary, #1a1a36) !important;
+    border-color: var(--border-primary, #2a2a4a) !important;
 }
 
 [data-theme="dark"] .clinical-subtab-btn.active,
 [data-theme="dark"] .clinical-subtab-btn[style*="background: #667eea"],
 [data-theme="dark"] .clinical-subtab-btn[style*="background:#667eea"] {
-    background: var(--primary-color, #667eea) !important;
+    background: var(--brand-gradient) !important;
     color: #ffffff !important;
 }
 
 /* ============================================
-   NOTIFICATIONS - DARK MODE FIXES
+   NOTIFICATIONS PANEL — DARK MODE
    ============================================ */
 
 [data-theme="dark"] .notification-panel {
-    background: var(--bg-card, #2d3748) !important;
-    border-color: var(--border-color, #4a5568) !important;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important;
+    background: var(--bg-elevated, #14142e) !important;
+    border-color: var(--border-primary, #2a2a4a) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
 }
 
 [data-theme="dark"] .notification-item {
-    border-bottom-color: var(--border-color, #4a5568) !important;
-    color: var(--text-primary, #f7fafc) !important;
+    border-bottom-color: var(--border-primary, #2a2a4a) !important;
+    color: var(--text-primary, #f1f1f8) !important;
 }
 
 [data-theme="dark"] .notification-item:hover {
-    background: var(--bg-hover, #3a4a5c) !important;
+    background: var(--bg-hover, rgba(99, 102, 241, 0.08)) !important;
 }
 
 [data-theme="dark"] .notification-item.unread {
-    background: rgba(102, 126, 234, 0.15) !important;
-    border-left: 3px solid var(--accent-primary, #667eea) !important;
+    background: rgba(99, 102, 241, 0.12) !important;
+    border-left: 3px solid var(--brand-primary, #6366f1) !important;
 }
 
 [data-theme="dark"] .notification-item strong {
-    color: var(--accent-primary, #667eea) !important;
+    color: var(--brand-primary, #6366f1) !important;
 }
 
 [data-theme="dark"] .notification-item p {
-    color: var(--text-primary, #f7fafc) !important;
+    color: var(--text-primary, #f1f1f8) !important;
 }
 
 [data-theme="dark"] .notification-item small {
-    color: var(--text-muted, #718096) !important;
+    color: var(--text-muted, #6b7280) !important;
 }
 
 [data-theme="dark"] .notification-body {
-    background: var(--bg-card, #2d3748) !important;
+    background: var(--bg-elevated, #14142e) !important;
 }
 
 /* ============================================
-   TERMINAL & CONSOLE - ALWAYS DARK WITH LIGHT TEXT
+   TERMINAL & CONSOLE — ALWAYS DARK
+   These elements are exempt from ALL global
+   colour overrides. Inline green text must
+   remain visible regardless of theme.
    ============================================ */
 
-/* Terminal and QA console must always appear as dark terminals
-   regardless of the current light/dark theme. Exclude them from
-   the global color override so their inline green text is visible. */
 #terminalOutput,
 #terminalOutput *,
 #qaTestOutput,
@@ -486,7 +312,6 @@ p, span, div, label {
     color: unset !important;
 }
 
-/* Ensure the terminal containers themselves keep their dark backgrounds */
 #terminalOutput {
     background: #1e1e1e !important;
     color: #00ff00 !important;
@@ -495,4 +320,31 @@ p, span, div, label {
 #qaTestOutput {
     background: #1e1e1e !important;
     color: #00ff00 !important;
+}
+
+/* ============================================
+   HELPER TEXT UTILITIES
+   ============================================ */
+
+.secondary-text,
+.help-text,
+.meta-text {
+    color: var(--text-secondary);
+}
+
+.muted-text,
+.placeholder-text {
+    color: var(--text-muted);
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+    * {
+        background: white !important;
+        color: black !important;
+        border-color: #cccccc !important;
+    }
 }

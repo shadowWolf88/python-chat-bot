@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>Developer Dashboard - Healing Space</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -13,10 +16,15 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
             min-height: 100vh;
             padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4, h5 {
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
         }
 
         .dashboard-container {
@@ -33,7 +41,7 @@
         }
 
         .dashboard-header h1 {
-            color: #667eea;
+            color: #6366f1;
             margin-bottom: 10px;
             display: flex;
             align-items: center;
@@ -50,7 +58,7 @@
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #6366f1;
         }
 
         .auth-section input {
@@ -62,7 +70,7 @@
         }
 
         .auth-section button {
-            background: #667eea;
+            background: #6366f1;
             color: white;
             padding: 8px 16px;
             border: none;
@@ -97,7 +105,7 @@
         }
 
         .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
             color: white;
             padding: 20px;
             display: flex;
@@ -127,7 +135,7 @@
             padding: 15px;
             border-radius: 8px;
             margin: 10px 0;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #6366f1;
         }
 
         .stat-label {
@@ -138,7 +146,7 @@
         }
 
         .stat-value {
-            color: #667eea;
+            color: #6366f1;
             font-size: 24px;
             font-weight: bold;
             margin-top: 5px;
@@ -152,7 +160,7 @@
         }
 
         button {
-            background: #667eea;
+            background: #6366f1;
             color: white;
             border: none;
             padding: 10px 16px;
@@ -176,7 +184,7 @@
         }
 
         .btn-secondary {
-            background: #764ba2;
+            background: #8b5cf6;
         }
 
         .btn-secondary:hover {
@@ -279,7 +287,7 @@
             padding: 12px;
             border-radius: 6px;
             margin: 10px 0;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #6366f1;
             font-size: 13px;
         }
 
@@ -338,8 +346,8 @@
         }
 
         .tab-button.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
+            color: #6366f1;
+            border-bottom-color: #6366f1;
         }
 
         .tab-content {
