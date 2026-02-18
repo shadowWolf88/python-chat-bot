@@ -4073,6 +4073,14 @@
                 <div class="form-group">
                     <label>Email Address *</label>
                     <input type="email" id="regEmail" placeholder="your.email@example.com" required>
+                    <div style="margin-top:8px;">
+                        <button type="button" id="patientSendCodeBtn" onclick="sendEmailCode('patient')" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;">Send Verification Code</button>
+                    </div>
+                    <div id="patientCodeBox" style="display:none;margin-top:10px;display:none;">
+                        <input type="text" id="patientVerifyCode" placeholder="6-digit code" maxlength="6" style="width:55%;padding:10px;border:2px solid #e0e0e0;border-radius:6px;font-size:1rem;letter-spacing:4px;text-align:center;" oninput="this.value=this.value.replace(/\D/g,'')">
+                        <button type="button" onclick="verifyEmailCode('patient')" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:10px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;margin-left:6px;">Verify</button>
+                    </div>
+                    <div id="patientEmailVerifiedMsg" style="display:none;color:#16a34a;font-weight:600;margin-top:8px;font-size:0.9rem;">✓ Email verified</div>
                 </div>
                 <div class="form-group">
                     <label>Phone Number *</label>
@@ -4135,6 +4143,14 @@
                 <div class="form-group">
                     <label>Email Address *</label>
                     <input type="email" id="clinicianEmail" placeholder="doctor@clinic.com" required>
+                    <div style="margin-top:8px;">
+                        <button type="button" id="clinicianSendCodeBtn" onclick="sendEmailCode('clinician')" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;">Send Verification Code</button>
+                    </div>
+                    <div id="clinicianCodeBox" style="display:none;">
+                        <input type="text" id="clinicianVerifyCode" placeholder="6-digit code" maxlength="6" style="width:55%;padding:10px;border:2px solid #e0e0e0;border-radius:6px;font-size:1rem;letter-spacing:4px;text-align:center;margin-top:10px;" oninput="this.value=this.value.replace(/\D/g,'')">
+                        <button type="button" onclick="verifyEmailCode('clinician')" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:10px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;margin-left:6px;">Verify</button>
+                    </div>
+                    <div id="clinicianEmailVerifiedMsg" style="display:none;color:#16a34a;font-weight:600;margin-top:8px;font-size:0.9rem;">✓ Email verified</div>
                 </div>
                 <div class="form-group">
                     <label>Phone Number *</label>
@@ -9972,13 +9988,18 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 showAuthMessage('PIN must be 4 digits', 'error');
                 return;
             }
-            
+
+            if (!patientEmailVerifiedState) {
+                showAuthMessage('Please verify your email address before creating an account', 'error');
+                return;
+            }
+
             // Store registration data and show disclaimer
             currentUser = username;
-            tempLoginData = { 
+            tempLoginData = {
                 type: 'patient',
-                username, 
-                password, 
+                username,
+                password,
                 pin,
                 email,
                 phone,
@@ -9990,7 +10011,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 country: 'United Kingdom',
                 area,
                 postcode,
-                nhs_number
+                nhs_number,
+                verified_identifier: email
             };
             showDisclaimerModal('patient');
         }
@@ -10000,9 +10022,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 const response = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        username: data.username, 
-                        password: data.password, 
+                    body: JSON.stringify({
+                        username: data.username,
+                        password: data.password,
                         pin: data.pin,
                         email: data.email,
                         phone: data.phone,
@@ -10015,6 +10037,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         area: data.area,
                         postcode: data.postcode,
                         nhs_number: data.nhs_number,
+                        verified_identifier: data.verified_identifier,
                         disclaimer_accepted: true
                     })
                 });
@@ -10036,6 +10059,82 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
         
+        // ===== EMAIL VERIFICATION FOR REGISTRATION =====
+        let patientEmailVerifiedState = false;
+        let clinicianEmailVerifiedState = false;
+
+        async function sendEmailCode(type) {
+            const emailId = type === 'patient' ? 'regEmail' : 'clinicianEmail';
+            const email = document.getElementById(emailId).value.trim();
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showAuthMessage('Please enter a valid email address first', 'error');
+                return;
+            }
+            const btn = document.getElementById(type === 'patient' ? 'patientSendCodeBtn' : 'clinicianSendCodeBtn');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                const res = await fetch('/api/auth/send-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier: email, method: 'email' })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById(type === 'patient' ? 'patientCodeBox' : 'clinicianCodeBox').style.display = 'block';
+                    btn.textContent = 'Resend Code';
+                    btn.disabled = false;
+                    showAuthMessage('Verification code sent to ' + email, 'success');
+                } else {
+                    showAuthMessage(data.error || 'Failed to send code', 'error');
+                    btn.textContent = 'Send Verification Code';
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                showAuthMessage('Network error sending code', 'error');
+                btn.textContent = 'Send Verification Code';
+                btn.disabled = false;
+            }
+        }
+
+        async function verifyEmailCode(type) {
+            const emailId = type === 'patient' ? 'regEmail' : 'clinicianEmail';
+            const codeId = type === 'patient' ? 'patientVerifyCode' : 'clinicianVerifyCode';
+            const email = document.getElementById(emailId).value.trim();
+            const code = document.getElementById(codeId).value.trim();
+            if (!code || code.length !== 6) {
+                showAuthMessage('Please enter the 6-digit code', 'error');
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/verify-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier: email, code })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    if (type === 'patient') {
+                        patientEmailVerifiedState = true;
+                        document.getElementById('patientCodeBox').style.display = 'none';
+                        document.getElementById('patientSendCodeBtn').style.display = 'none';
+                        document.getElementById('patientEmailVerifiedMsg').style.display = 'block';
+                    } else {
+                        clinicianEmailVerifiedState = true;
+                        document.getElementById('clinicianCodeBox').style.display = 'none';
+                        document.getElementById('clinicianSendCodeBtn').style.display = 'none';
+                        document.getElementById('clinicianEmailVerifiedMsg').style.display = 'block';
+                    }
+                    showAuthMessage('Email verified successfully!', 'success');
+                } else {
+                    showAuthMessage(data.error || 'Invalid code', 'error');
+                }
+            } catch (e) {
+                showAuthMessage('Network error verifying code', 'error');
+            }
+        }
+        // ===== END EMAIL VERIFICATION =====
+
         async function registerClinician() {
             const username = document.getElementById('clinicianUsername').value.trim();
             const password = document.getElementById('clinicianPassword').value;
@@ -10083,20 +10182,26 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 showAuthMessage('PIN must be exactly 4 digits', 'error');
                 return;
             }
-            
+
+            if (!clinicianEmailVerifiedState) {
+                showAuthMessage('Please verify your email address before creating an account', 'error');
+                return;
+            }
+
             // Store registration data and show disclaimer
             currentUser = username;
-            tempLoginData = { 
+            tempLoginData = {
                 type: 'clinician',
-                username, 
-                password, 
+                username,
+                password,
                 pin,
                 full_name,
                 email,
                 phone,
                 professional_id,
                 country,
-                area
+                area,
+                verified_identifier: email
             };
             showDisclaimerModal('clinician');
         }
@@ -10106,16 +10211,17 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 const response = await fetch('/api/auth/clinician/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        username: data.username, 
-                        password: data.password, 
-                        pin: data.pin, 
+                    body: JSON.stringify({
+                        username: data.username,
+                        password: data.password,
+                        pin: data.pin,
                         full_name: data.full_name,
                         email: data.email,
                         phone: data.phone,
                         professional_id: data.professional_id,
                         country: data.country,
                         area: data.area,
+                        verified_identifier: data.verified_identifier,
                         disclaimer_accepted: true
                     })
                 });

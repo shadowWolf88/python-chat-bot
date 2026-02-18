@@ -5392,24 +5392,22 @@ def register():
             return jsonify({'error': phone_error}), 400
         phone = phone_clean
         
-        # Check if email or phone was verified (if 2FA is enabled)
-        if os.getenv('REQUIRE_2FA_SIGNUP', '0') == '1':
-            if not verified_identifier:
-                return jsonify({'error': 'Please verify your email or phone number first'}), 400
-            
-            conn = get_db_connection()
-            cur = get_wrapped_cursor(conn)
-            
-            # Check if verification exists and is valid
-            verified = cur.execute(
-                "SELECT id FROM verification_codes WHERE identifier = %s AND verified=1 AND expires_at > CURRENT_TIMESTAMP",
-                (verified_identifier,)
-            ).fetchone()
-            
-            conn.close()
-            
-            if not verified:
-                return jsonify({'error': 'Verification expired or invalid. Please verify again.'}), 400
+        # Email verification is always required at registration
+        if not verified_identifier:
+            return jsonify({'error': 'Please verify your email address before registering'}), 400
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        verified = cur.execute(
+            "SELECT id FROM verification_codes WHERE identifier = %s AND verified=1 AND expires_at > CURRENT_TIMESTAMP",
+            (verified_identifier,)
+        ).fetchone()
+
+        conn.close()
+
+        if not verified:
+            return jsonify({'error': 'Email verification expired or invalid. Please verify your email again.'}), 400
         conditions = data.get('conditions')
         clinician_id = data.get('clinician_id')  # Required for patients
         country = data.get('country', '')
@@ -6285,6 +6283,22 @@ def clinician_register():
         is_valid, error_msg = validate_password_strength(password)
         if not is_valid:
             return jsonify({'error': error_msg}), 400
+
+        # Email verification is always required at registration
+        verified_identifier = data.get('verified_identifier')
+        if not verified_identifier:
+            return jsonify({'error': 'Please verify your email address before registering'}), 400
+
+        conn_v = get_db_connection()
+        cur_v = get_wrapped_cursor(conn_v)
+        verified = cur_v.execute(
+            "SELECT id FROM verification_codes WHERE identifier = %s AND verified=1 AND expires_at > CURRENT_TIMESTAMP",
+            (verified_identifier,)
+        ).fetchone()
+        conn_v.close()
+
+        if not verified:
+            return jsonify({'error': 'Email verification expired or invalid. Please verify your email again.'}), 400
 
         if len(pin) != 4 or not pin.isdigit():
             return jsonify({'error': 'PIN must be exactly 4 digits'}), 400
