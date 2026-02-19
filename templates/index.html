@@ -14742,17 +14742,34 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
 
+        // Treatment plan goal helper functions (avoid nested-quote issues in onclick/onchange)
+        function _tpUpdateGoal(i, value) {
+            if (!_tpGoals[i] || typeof _tpGoals[i] !== 'object') {
+                _tpGoals[i] = {text: value, category: '', target_date: '', status: 'active'};
+            } else {
+                _tpGoals[i].text = value;
+            }
+        }
+        function _tpRemoveGoal(i, username) {
+            _tpGoals.splice(i, 1);
+            loadTreatmentPlan(username);
+        }
+        function _tpAddGoal(username) {
+            _tpGoals.push({text: '', category: '', target_date: '', status: 'active'});
+            loadTreatmentPlan(username);
+        }
+
         function renderTreatmentPlanForm(patientUsername, plan) {
             const INTERVENTIONS = ['CBT','DBT','ACT','EMDR','Person-Centred','Psychodynamic','Mindfulness','Solution-Focused','Schema Therapy','Narrative Therapy','Behavioural Activation','Exposure/ERP','Motivational Interviewing','Psychoeducation','Family Therapy'];
             const existingIv = plan && plan.interventions ? (typeof plan.interventions === 'string' ? JSON.parse(plan.interventions) : plan.interventions) : [];
             const goalsHtml = _tpGoals.map((g,i) => {
                 const txt = typeof g === 'object' ? (g.text || '') : g;
-                return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;"><span style="padding:4px 8px;background:#6366f1;color:white;border-radius:4px;font-size:12px;">' + (i+1) + '</span><input type="text" value="' + txt.replace(/"/g,'&quot;') + '" placeholder="Goal (SMART)" onchange="window._tpGoals[' + i + ']=Object.assign(typeof window._tpGoals[' + i + ']===\'object\'?window._tpGoals[' + i + ']:{text:\'\',category:\'\',target_date:\'\',status:\'active\'},{text:this.value})" style="flex:1;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);"><button onclick="window._tpGoals.splice(' + i + ',1);loadTreatmentPlan(\'' + patientUsername + '\')" style="padding:4px 10px;background:#dc3545;color:white;border:none;border-radius:4px;cursor:pointer;">✕</button></div>';
+                return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;"><span style="padding:4px 8px;background:#6366f1;color:white;border-radius:4px;font-size:12px;">' + (i+1) + '</span><input type="text" value="' + txt.replace(/"/g,'&quot;') + '" placeholder="Goal (SMART)" onchange="_tpUpdateGoal(' + i + ', this.value)" style="flex:1;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);"><button onclick="_tpRemoveGoal(' + i + ', \'' + patientUsername + '\')" style="padding:4px 10px;background:#dc3545;color:white;border:none;border-radius:4px;cursor:pointer;">✕</button></div>';
             }).join('');
             return '<div>'
                 + '<label style="font-size:13px;color:var(--text-secondary);font-weight:600;">Presenting Problems</label><textarea id="tpProblems" rows="3" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;margin-bottom:12px;">' + (plan ? (plan.presenting_problems||'') : '') + '</textarea>'
                 + '<label style="font-size:13px;color:var(--text-secondary);font-weight:600;">Goals (SMART)</label><div id="tpGoalsList" style="margin:8px 0;">' + goalsHtml + '</div>'
-                + '<button onclick="window._tpGoals.push({text:\'\',category:\'\',target_date:\'\',status:\'active\'});loadTreatmentPlan(\'' + patientUsername + '\')" style="padding:6px 14px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;cursor:pointer;font-size:13px;margin-bottom:16px;">+ Add Goal</button>'
+                + '<button onclick="_tpAddGoal(\'' + patientUsername + '\')" style="padding:6px 14px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;cursor:pointer;font-size:13px;margin-bottom:16px;">+ Add Goal</button>'
                 + '<label style="font-size:13px;color:var(--text-secondary);font-weight:600;display:block;margin-bottom:8px;">Interventions</label><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">' + INTERVENTIONS.map(iv => '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;"><input type="checkbox" name="tpIntervention" value="' + iv + '" ' + (existingIv.includes(iv)?'checked':'') + '> ' + iv + '</label>').join('') + '</div>'
                 + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">'
                 + '<div><label style="font-size:13px;color:var(--text-secondary);">Sessions/week</label><input type="number" id="tpFreq" value="' + (plan?(plan.frequency_per_week||''):'') + '" min="0.5" max="7" step="0.5" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;margin-top:4px;"></div>'
