@@ -2100,9 +2100,9 @@ def add_security_headers(response):
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "img-src 'self' data: https:; "
-            "font-src 'self' https:; "
+            "font-src 'self' https://fonts.gstatic.com https:; "
             "connect-src 'self' https://api.groq.com https://www.healing-space.org.uk https://cdn.jsdelivr.net; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
