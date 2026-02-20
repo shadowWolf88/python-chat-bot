@@ -667,20 +667,24 @@ def score_core10(responses):
 
 
 def score_core_om(responses):
-    """Score CORE-OM. responses = list of 34 integers (0-4). Items 1,2,12,17 are positively worded (reverse scored)."""
+    """Score CORE-OM (34-item). responses = list of 34 integers (0-4).
+    Reverse-scored items (1-indexed, CORE System Trust): 3,4,7,12,19,21,31,32.
+    Domains: W=Wellbeing(4,14,17,31) P=Problems(2,5,8,11,13,15,18,20,23,27,28,30)
+             F=Functioning(1,3,7,10,12,19,21,25,26,29,32,33) R=Risk(6,9,16,22,24,34)
+    """
     if not responses or len(responses) != 34:
         raise ValueError("CORE-OM requires exactly 34 responses (0-4 each)")
     items = [int(r) for r in responses]
-    # Positive items (1-indexed): 1, 2, 12, 17 → reverse score
-    for idx in [0, 1, 11, 16]:
+    # Reverse-scored items (0-indexed): 2,3,6,11,18,20,30,31
+    for idx in [2, 3, 6, 11, 18, 20, 30, 31]:
         items[idx] = 4 - items[idx]
     total = sum(items)
     mean = round(total / 34, 2)
-    # Domain scores (simplified standard mapping)
-    wellbeing = [items[i] for i in [0, 1, 11, 16]]
-    problems = [items[i] for i in [3, 4, 5, 7, 8, 9, 13, 14, 15, 18, 20, 22]]
-    functioning = [items[i] for i in [2, 6, 10, 12, 17, 19, 21, 23, 24, 25, 28, 30]]
-    risk = [items[i] for i in [26, 27, 29, 31, 32, 33]]
+    # Domain scores — official CORE-OM subscale assignments (0-indexed)
+    wellbeing   = [items[i] for i in [3, 13, 16, 30]]
+    problems    = [items[i] for i in [1, 4, 7, 10, 12, 14, 17, 19, 22, 26, 27, 29]]
+    functioning = [items[i] for i in [0, 2, 6, 9, 11, 18, 20, 24, 25, 28, 31, 32]]
+    risk        = [items[i] for i in [5, 8, 15, 21, 23, 33]]
     domain_scores = {
         'wellbeing': round(sum(wellbeing) / len(wellbeing), 2),
         'problems': round(sum(problems) / len(problems), 2),
@@ -3086,6 +3090,20 @@ The user may be experiencing some difficulty. Please:
                 timeout=30
             )
             
+            if response.status_code == 400:
+                # Groq content filter hit — return a safe clinical fallback rather than crashing
+                error_detail = response.text[:300] if response.text else ""
+                print(f"Groq content filter (400) for user {self.username}: {error_detail}")
+                return (
+                    "I want to make sure I'm supporting you in the best way I can. "
+                    "What you're sharing sounds really important, and I want to give it the attention it deserves. "
+                    "Sometimes I find it helpful to take things one step at a time — could you tell me a little more about "
+                    "how you're feeling right now, in your own words?\n\n"
+                    "If you're in distress or feel unsafe right now, please reach out to the Samaritans on "
+                    "**116 123** (free, 24/7), text **SHOUT to 85258**, or call **999** in an emergency. "
+                    "You can also press the red SOS button at any time."
+                )
+
             if response.status_code != 200:
                 error_detail = response.text[:200] if response.text else "No error detail"
                 print(f"Groq API error {response.status_code}: {error_detail}")
@@ -4316,6 +4334,14 @@ def init_db():
             conn.commit()
         except Exception as e:
             print(f"Migration note (messages soft-delete cols): {e}")
+            conn.rollback()
+
+        # 2c. Ensure conversations.is_archived exists (production DBs may predate this column)
+        try:
+            cursor.execute("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE")
+            conn.commit()
+        except Exception as e:
+            print(f"Migration note (conversations is_archived): {e}")
             conn.rollback()
 
         # 3. Conversation participants table
@@ -22492,6 +22518,114 @@ def patient_crisis_alert():
         if conn:
             conn.rollback()
         return handle_exception(e, 'patient_crisis_alert')
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.route('/api/clinician/caseload/outcome-summary', methods=['GET'])
+def get_caseload_outcome_summary():
+    """Return latest outcome scores for all approved patients (Section 1.3 Caseload Tracker)"""
+    username = get_authenticated_username()
+    if not username or session.get('role') != 'clinician':
+        return jsonify({'error': 'Unauthorized'}), 403
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute("""
+            SELECT DISTINCT patient_username FROM patient_approvals
+            WHERE clinician_username=%s AND status='approved'
+            ORDER BY patient_username
+        """, (username,))
+        patients = [r[0] for r in cur.fetchall()]
+
+        lower_is_better = {'PHQ-9', 'GAD-7', 'CORE-10', 'CORE-OM'}
+        scales = ['PHQ-9', 'GAD-7', 'CORE-10', 'ORS', 'WEMWBS']
+        results = []
+        for pat in patients:
+            row = {'patient': pat}
+            for scale in scales:
+                cur.execute("""
+                    SELECT score, entry_timestamp FROM clinical_scales
+                    WHERE username=%s AND scale_name=%s
+                    ORDER BY entry_timestamp DESC LIMIT 2
+                """, (pat, scale))
+                rows = cur.fetchall()
+                if rows and rows[0][0] is not None:
+                    latest = rows[0][0]
+                    date_str = rows[0][1].strftime('%d %b') if rows[0][1] else ''
+                    trend = 'new'
+                    if len(rows) > 1 and rows[1][0] is not None:
+                        diff = latest - rows[1][0]
+                        if scale in lower_is_better:
+                            trend = 'better' if diff < 0 else ('worse' if diff > 0 else 'same')
+                        else:
+                            trend = 'better' if diff > 0 else ('worse' if diff < 0 else 'same')
+                    row[scale] = {'score': latest, 'date': date_str, 'trend': trend}
+                else:
+                    row[scale] = None
+            results.append(row)
+
+        return jsonify({'patients': results}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_caseload_outcome_summary')
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.route('/api/clinician/treatment-plan/<int:plan_id>/goal/<int:goal_index>', methods=['PUT'])
+@CSRFProtection.require_csrf
+def update_treatment_plan_goal(plan_id, goal_index):
+    """Update a single goal's status or text within a treatment plan JSON array (Section 1.2)"""
+    username = get_authenticated_username()
+    if not username or session.get('role') != 'clinician':
+        return jsonify({'error': 'Unauthorized'}), 403
+    conn = None
+    try:
+        data = request.get_json() or {}
+        new_status = data.get('status')
+        new_text = data.get('text')
+        valid_statuses = {'active', 'achieved', 'modified', 'dropped'}
+        if new_status and new_status not in valid_statuses:
+            return jsonify({'error': 'Invalid status'}), 400
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute("SELECT goals, clinician_username FROM treatment_plans WHERE id=%s", (plan_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'error': 'Plan not found'}), 404
+        if row[1] != username:
+            return jsonify({'error': 'Access denied'}), 403
+
+        import json as _json
+        goals = row[0]
+        if isinstance(goals, str):
+            goals = _json.loads(goals)
+        if not isinstance(goals, list) or goal_index >= len(goals):
+            return jsonify({'error': 'Goal index out of range'}), 400
+
+        goal = goals[goal_index]
+        if not isinstance(goal, dict):
+            goal = {'text': str(goal), 'status': 'active'}
+        if new_status:
+            goal['status'] = new_status
+        if new_text is not None:
+            goal['text'] = new_text
+        goals[goal_index] = goal
+
+        cur.execute(
+            "UPDATE treatment_plans SET goals=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+            (_json.dumps(goals), plan_id)
+        )
+        conn.commit()
+        return jsonify({'success': True, 'goal': goal}), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return handle_exception(e, 'update_treatment_plan_goal')
     finally:
         if conn:
             conn.close()

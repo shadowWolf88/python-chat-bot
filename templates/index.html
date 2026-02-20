@@ -6240,6 +6240,23 @@
                 
                 <!-- Overview Subtab -->
                 <div id="clinicalOverviewTab" class="clinical-subtab-content">
+                    <!-- Caseload Outcome Summary (Section 1.3) -->
+                    <div class="card" style="margin-bottom:20px;" id="caseloadOutcomesCard">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+                            <h4 style="margin:0;">📊 Caseload Outcome Tracker</h4>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                                <select id="caseloadOutcomeFilter" onchange="renderCaseloadTable()" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">
+                                    <option value="all">All patients</option>
+                                    <option value="worse">Deteriorating only</option>
+                                    <option value="no_data">No recent data</option>
+                                </select>
+                                <button class="btn btn-secondary" onclick="loadCaseloadOutcomes()" style="padding:6px 14px;font-size:13px;">↻ Refresh</button>
+                            </div>
+                        </div>
+                        <div id="caseloadOutcomesContent">
+                            <p style="color:var(--text-muted);text-align:center;padding:20px;">Loading outcome summary...</p>
+                        </div>
+                    </div>
                     <!-- Quick Stats - Only 3 Cards -->
                     <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -10595,29 +10612,26 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             `;
                         }
 
+                        const NOTIF_LABELS = {
+                            appointment_new:      '📅 New Appointment',
+                            appointment_response: '📅 Appointment Update',
+                            crisis_alert:         '🚨 Crisis Alert',
+                            approval:             '✅ Account Approved',
+                            approval_pending:     '⏳ Approval Pending',
+                            patient_request:      '👤 New Patient Request',
+                            dev_message:          '📨 Developer Message',
+                            message:              '💬 New Message',
+                            sos:                  '🆘 SOS Alert',
+                        };
+
                         list.innerHTML = headerHtml + data.notifications.map(n => {
-                            // Add emoji and action based on notification type
-                            let emoji = '📬';
+                            const ntype = n.notification_type || '';
+                            const label = NOTIF_LABELS[ntype] || '📬 Notification';
                             let onClick = `markNotificationRead(${n.id})`;
 
-                            if (n.notification_type === 'appointment_new') {
-                                emoji = '📅';
+                            if (ntype === 'appointment_new') {
                                 onClick = `markNotificationRead(${n.id}); switchTab('appointments')`;
-                            } else if (n.notification_type === 'appointment_response') {
-                                emoji = '✓';
-                            } else if (n.notification_type === 'crisis_alert') {
-                                emoji = '🚨';
-                            } else if (n.notification_type === 'approval') {
-                                emoji = '✅';
-                            } else if (n.notification_type === 'dev_message') {
-                                emoji = '📨';
-                                if (currentUserRole === 'developer') {
-                                    onClick = `markNotificationRead(${n.id}); switchTab('developer', null); setTimeout(() => { switchDevTab('messages', document.getElementById('devMessagesSubtabBtn')); switchDevMsgTab('inbox', document.getElementById('devMsgInboxBtn')); }, 200)`;
-                                } else {
-                                    onClick = `markNotificationRead(${n.id}); switchTab('${currentUserRole === 'clinician' ? 'professional' : 'home'}', null); setTimeout(() => switchMessageTab('inbox', null), 100)`;
-                                }
-                            } else if (n.notification_type === 'message') {
-                                emoji = '💬';
+                            } else if (ntype === 'dev_message' || ntype === 'message') {
                                 if (currentUserRole === 'developer') {
                                     onClick = `markNotificationRead(${n.id}); switchTab('developer', null); setTimeout(() => { switchDevTab('messages', document.getElementById('devMessagesSubtabBtn')); switchDevMsgTab('inbox', document.getElementById('devMsgInboxBtn')); }, 200)`;
                                 } else {
@@ -10628,7 +10642,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             return `
                                 <div class="notification-item ${n.read ? '' : 'unread'}" style="position: relative;">
                                     <div onclick="${onClick}" style="cursor: pointer;">
-                                        <strong>${emoji} ${n.notification_type}</strong>
+                                        <strong>${label}</strong>
                                         <p>${sanitizeHTML(n.message)}</p>
                                         <small>${new Date(n.created_at).toLocaleString()}</small>
                                     </div>
@@ -12814,8 +12828,71 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             "I've been interested in new things",
             "I've been feeling cheerful"
         ];
+        // CORE-OM 34-question array — sourced from official CORE System Trust form
+        // Items marked [R] are reverse-scored (positively worded): 3,4,7,12,19,21,31,32
+        const COREOМ_QUESTIONS = [
+            "I have felt terribly alone and isolated",                                    // 1  F
+            "I have felt tense, anxious or nervous",                                      // 2  P
+            "I have felt I have someone to turn to for support when needed",              // 3  F [R]
+            "I have felt O.K. about myself",                                              // 4  W [R]
+            "I have felt totally lacking in energy and enthusiasm",                       // 5  P
+            "I have been physically violent to others",                                   // 6  R
+            "I have felt able to cope when things go wrong",                             // 7  F [R]
+            "I have been troubled by aches, pains or other physical problems",           // 8  P
+            "I have thought of hurting myself",                                           // 9  R
+            "Talking to people has felt too much for me",                                 // 10 F
+            "Tension and anxiety have prevented me doing important things",               // 11 P
+            "I have been happy with the things I have done",                             // 12 F [R]
+            "I have been disturbed by unwanted thoughts and feelings",                   // 13 P
+            "I have felt like crying",                                                    // 14 W
+            "I have felt panic or terror",                                                // 15 P
+            "I made plans to end my life",                                                // 16 R
+            "I have felt overwhelmed by my problems",                                     // 17 W
+            "I have had difficulty getting to sleep or staying asleep",                  // 18 P
+            "I have felt warmth or affection for someone",                               // 19 F [R]
+            "My problems have been impossible to put to one side",                        // 20 P
+            "I have been able to do most things I needed to",                            // 21 F [R]
+            "I have threatened or intimidated another person",                            // 22 R
+            "I have felt despairing or hopeless",                                         // 23 P
+            "I have thought it would be better if I were dead",                          // 24 R
+            "I have felt criticised by other people",                                     // 25 F
+            "I have thought I have no friends",                                           // 26 F
+            "I have felt unhappy",                                                        // 27 P
+            "Unwanted images or memories have been distressing me",                      // 28 P
+            "I have been irritable when with other people",                               // 29 F
+            "I have thought I am to blame for my problems and difficulties",             // 30 P
+            "I have felt optimistic about my future",                                     // 31 W [R]
+            "I have achieved the things I wanted to",                                     // 32 F [R]
+            "I have felt humiliated or shamed by other people",                          // 33 F
+            "I have hurt myself physically or taken dangerous risks with my health"      // 34 R
+        ];
+
+        const ORS_ITEMS = [
+            { id: 'individual',    label: 'Individually',    desc: 'Personal wellbeing — how are you doing in yourself?' },
+            { id: 'interpersonal', label: 'Interpersonally', desc: 'Family / close relationships — how are things going?' },
+            { id: 'social',        label: 'Socially',        desc: 'Work / school / friendships — how are you doing?' },
+            { id: 'overall',       label: 'Overall',         desc: 'General sense of wellbeing — how are things in general?' }
+        ];
+
+        const SRS_ITEMS = [
+            { id: 'relationship', label: 'Relationship',   desc: 'I felt heard, understood, and respected in today\'s session.' },
+            { id: 'goals',        label: 'Goals & Topics', desc: 'We worked on and talked about what I wanted to work on.' },
+            { id: 'approach',     label: 'Approach',       desc: 'The therapist\'s approach felt right for me today.' },
+            { id: 'overall',      label: 'Overall',        desc: 'Overall, today\'s session was right for me.' }
+        ];
+
+        // omModal page state for paginated CORE-OM
+        let omModalPage = 0;
+        let omModalPageSize = 10;
+        let omModalAllQuestions = [];
+        let omModalOptions = [];
+        let omModalStartValue = 0;
         let omModalScale = null;
         let omModalScores = [];
+
+        // VAS modal state
+        let vasModalScale = null;
+        let vasModalItems = [];
 
         function startCORE10() {
             omModalScale = 'CORE-10';
@@ -12825,18 +12902,106 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         function startWEMWBS() {
             omModalScale = 'WEMWBS';
-            omModalScores = [];
+            omModalScores = new Array(14).fill(undefined);
             showOmModal('WEMWBS — Mental Wellbeing', WEMWBS_QUESTIONS, ['None of the time','Rarely','Some of the time','Often','All of the time'], 1);
         }
 
+        function startCOREOM() {
+            omModalScale = 'CORE-OM';
+            omModalScores = new Array(34).fill(undefined);
+            omModalPage = 0;
+            omModalPageSize = 10;
+            omModalAllQuestions = COREOМ_QUESTIONS;
+            omModalOptions = ['Not at all','Only occasionally','Sometimes','Often','Most or all the time'];
+            omModalStartValue = 0;
+            showOmModalPage();
+        }
+
+        function showOmModalPage() {
+            var start = omModalPage * omModalPageSize;
+            var end = Math.min(start + omModalPageSize, omModalAllQuestions.length);
+            var pageQuestions = omModalAllQuestions.slice(start, end);
+            var total = omModalAllQuestions.length;
+            var pageCount = Math.ceil(total / omModalPageSize);
+            var progressPct = Math.round(((omModalPage) / pageCount) * 100);
+
+            document.getElementById('omModalTitle').textContent = 'CORE-OM — Psychological Wellbeing (Page ' + (omModalPage + 1) + ' of ' + pageCount + ')';
+            var progEl = document.getElementById('omModalProgress');
+            if (progEl) {
+                progEl.style.display = 'block';
+                document.getElementById('omModalProgressBar').style.width = progressPct + '%';
+                document.getElementById('omModalProgressText').textContent = 'Questions ' + (start + 1) + '–' + end + ' of ' + total;
+            }
+
+            var container = document.getElementById('omModalQuestions');
+            container.innerHTML = pageQuestions.map(function(q, relIdx) {
+                var absIdx = start + relIdx;
+                return '<div style="margin:16px 0;padding:14px;border:1px solid var(--border-color);border-radius:8px;">'
+                    + '<p style="margin:0 0 12px;font-weight:600;color:var(--text-primary);">' + (absIdx + 1) + '. ' + q + '</p>'
+                    + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+                    + omModalOptions.map(function(label, vi) {
+                        var val = omModalStartValue + vi;
+                        var checked = omModalScores[absIdx] === val ? 'checked' : '';
+                        return '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:' + (checked ? 'var(--accent-color)' : 'var(--bg-secondary)') + ';color:' + (checked ? '#fff' : 'var(--text-primary)') + ';">'
+                            + '<input type="radio" name="omq' + absIdx + '" value="' + val + '" ' + checked + ' onchange="omModalScores[' + absIdx + ']=' + val + ';this.closest(\'div\').querySelectorAll(\'label\').forEach(function(l){l.style.background=\'var(--bg-secondary)\';l.style.color=\'var(--text-primary)\';});this.closest(\'label\').style.background=\'var(--accent-color)\';this.closest(\'label\').style.color=\'#fff\';" style="display:none;"> '
+                            + label + '</label>';
+                    }).join('')
+                    + '</div></div>';
+            }).join('');
+
+            var submitBtn = document.getElementById('omModalSubmitBtn');
+            if (omModalPage < pageCount - 1) {
+                submitBtn.textContent = 'Next Page →';
+                submitBtn.onclick = function() { omModalNextPage(); };
+            } else {
+                submitBtn.textContent = 'Submit Assessment';
+                submitBtn.onclick = function() { submitOutcomeMeasureModal(); };
+            }
+            document.getElementById('omModal').style.display = 'flex';
+        }
+
+        function omModalNextPage() {
+            var start = omModalPage * omModalPageSize;
+            var end = Math.min(start + omModalPageSize, omModalAllQuestions.length);
+            var unanswered = [];
+            for (var i = start; i < end; i++) {
+                if (omModalScores[i] === undefined) unanswered.push(i + 1);
+            }
+            if (unanswered.length > 0) {
+                alert('Please answer all questions on this page before continuing. (Missing: ' + unanswered.join(', ') + ')');
+                return;
+            }
+            omModalPage++;
+            showOmModalPage();
+        }
+
         function showOmModal(title, questions, optionLabels, startValue) {
+            omModalPage = 0;
+            omModalPageSize = questions.length; // show all at once for CORE-10 / WEMWBS
+            omModalAllQuestions = questions;
+            omModalOptions = optionLabels;
+            omModalStartValue = startValue;
+
             document.getElementById('omModalTitle').textContent = title;
-            const container = document.getElementById('omModalQuestions');
-            container.innerHTML = questions.map((q, idx) => '<div style="margin:16px 0;padding:12px;border:1px solid var(--border-color);border-radius:8px;">'
-                + '<p style="margin:0 0 10px;font-weight:600;">' + (idx+1) + '. ' + q + '</p>'
-                + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-                + optionLabels.map((label, vi) => '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;min-width:120px;"><input type="radio" name="omq' + idx + '" value="' + (startValue+vi) + '" onchange="omModalScores[' + idx + ']=' + (startValue+vi) + '"> ' + label + '</label>').join('')
-                + '</div></div>').join('');
+            var progEl = document.getElementById('omModalProgress');
+            if (progEl) progEl.style.display = 'none';
+
+            var container = document.getElementById('omModalQuestions');
+            container.innerHTML = questions.map(function(q, idx) {
+                return '<div style="margin:16px 0;padding:14px;border:1px solid var(--border-color);border-radius:8px;">'
+                    + '<p style="margin:0 0 12px;font-weight:600;color:var(--text-primary);">' + (idx + 1) + '. ' + q + '</p>'
+                    + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+                    + optionLabels.map(function(label, vi) {
+                        var val = startValue + vi;
+                        return '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);">'
+                            + '<input type="radio" name="omq' + idx + '" value="' + val + '" onchange="omModalScores[' + idx + ']=' + val + ';this.closest(\'div\').querySelectorAll(\'label\').forEach(function(l){l.style.background=\'var(--bg-secondary)\';l.style.color=\'var(--text-primary)\';});this.closest(\'label\').style.background=\'var(--accent-color)\';this.closest(\'label\').style.color=\'#fff\';" style="display:none;"> '
+                            + label + '</label>';
+                    }).join('')
+                    + '</div></div>';
+            }).join('');
+
+            var submitBtn = document.getElementById('omModalSubmitBtn');
+            if (submitBtn) { submitBtn.textContent = 'Submit Assessment'; submitBtn.onclick = function() { submitOutcomeMeasureModal(); }; }
             document.getElementById('omModal').style.display = 'flex';
         }
 
@@ -12844,25 +13009,146 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             document.getElementById('omModal').style.display = 'none';
             omModalScores = [];
             omModalScale = null;
+            omModalPage = 0;
+            omModalAllQuestions = [];
         }
 
         async function submitOutcomeMeasureModal() {
-            const expected = omModalScale === 'WEMWBS' ? 14 : 10;
-            if (omModalScores.filter(s => s !== undefined).length < expected) { alert('Please answer all questions.'); return; }
-            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            var expectedCount = { 'CORE-10': 10, 'CORE-OM': 34, 'WEMWBS': 14 };
+            var expected = expectedCount[omModalScale] || 10;
+            var answered = omModalScores.filter(function(s) { return s !== undefined; }).length;
+            if (answered < expected) {
+                alert('Please answer all ' + expected + ' questions. (' + answered + ' answered so far)');
+                return;
+            }
+            var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            var submitBtn = document.getElementById('omModalSubmitBtn');
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
             try {
-                const resp = await fetch('/api/patient/outcome-measure', {
+                var resp = await fetch('/api/patient/outcome-measure', {
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
                     body: JSON.stringify({ scale_name: omModalScale, responses: omModalScores })
                 });
-                const data = await resp.json();
+                var data = await resp.json();
                 if (resp.ok) {
-                    const scoreMsg = data.score !== undefined ? '\nScore: ' + data.score + (data.severity ? '\nSeverity: ' + data.severity : '') : '';
-                    alert('Assessment submitted!' + scoreMsg);
+                    var score = data.score !== undefined ? data.score : '?';
+                    var sev = data.severity ? ' — ' + data.severity : '';
+                    var msg = 'Assessment submitted!\n\nScore: ' + score + sev;
+                    if (data.rci) msg += '\n' + data.rci;
                     closeOmModal();
-                } else { alert('Error: ' + (data.error || 'Submission failed')); }
-            } catch (err) { alert('Error: ' + err.message); }
+                    showAssessmentResult(omModalScale || 'Assessment', score, data.severity || '', data.domain_scores || null);
+                } else {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Assessment'; }
+                    alert('Error: ' + (data.error || 'Submission failed'));
+                }
+            } catch (err) {
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Assessment'; }
+                alert('Network error: ' + err.message);
+            }
+        }
+
+        function showAssessmentResult(scaleName, score, severity, domainScores) {
+            var severityColour = {
+                'low': '#22c55e', 'low-moderate': '#84cc16', 'moderate': '#f59e0b',
+                'moderate-severe': '#ef4444', 'severe': '#991b1b',
+                'clinical': '#ef4444', 'non-clinical': '#22c55e',
+                'alliance_concern': '#f59e0b', 'good_alliance': '#22c55e',
+                'low wellbeing': '#ef4444', 'average wellbeing': '#f59e0b', 'high wellbeing': '#22c55e'
+            }[severity] || 'var(--accent-color)';
+            var html = '<div style="background:var(--bg-card);padding:24px;border-radius:12px;border:2px solid ' + severityColour + ';max-width:400px;margin:20px auto;text-align:center;">'
+                + '<div style="font-size:48px;margin-bottom:8px;">📊</div>'
+                + '<h4 style="margin:0 0 8px;color:var(--text-primary);">' + scaleName + ' Complete</h4>'
+                + '<div style="font-size:36px;font-weight:800;color:' + severityColour + ';margin:12px 0;">' + score + '</div>'
+                + (severity ? '<div style="background:' + severityColour + ';color:#fff;padding:6px 16px;border-radius:20px;display:inline-block;font-size:13px;font-weight:600;margin-bottom:12px;">' + severity + '</div>' : '')
+                + (domainScores ? '<div style="margin-top:12px;text-align:left;font-size:13px;color:var(--text-secondary);">'
+                    + Object.entries(domainScores).map(function(e) { return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border-color);"><span style="text-transform:capitalize;">' + e[0] + '</span><strong>' + e[1] + '</strong></div>'; }).join('')
+                    + '</div>' : '')
+                + '<p style="color:var(--text-muted);font-size:13px;margin:16px 0 0;">Your clinician can see this result. Well done for completing the assessment.</p>'
+                + '<button class="btn" onclick="this.closest(\'.assessment-result-overlay\').remove();" style="margin-top:16px;">Close</button>'
+                + '</div>';
+            var overlay = document.createElement('div');
+            overlay.className = 'assessment-result-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10002;padding:20px;';
+            overlay.innerHTML = html;
+            document.body.appendChild(overlay);
+        }
+
+        // ─── VAS Slider Modal (ORS / SRS) ────────────────────────────────────────
+        function startORS() {
+            vasModalScale = 'ORS';
+            vasModalItems = ORS_ITEMS;
+            showVASModal(
+                'ORS — Outcome Rating Scale',
+                'Move each slider to show how you have been doing over the past week. Left (0) = not well at all, Right (10) = going very well.',
+                ORS_ITEMS
+            );
+        }
+
+        function startSRS() {
+            vasModalScale = 'SRS';
+            vasModalItems = SRS_ITEMS;
+            showVASModal(
+                'SRS — Session Rating Scale',
+                'Please rate today\'s session. Left (0) = strongly disagree, Right (10) = strongly agree.',
+                SRS_ITEMS
+            );
+        }
+
+        function showVASModal(title, desc, items) {
+            document.getElementById('vasModalTitle').textContent = title;
+            document.getElementById('vasModalDesc').textContent = desc;
+            document.getElementById('vasModalSliders').innerHTML = items.map(function(item) {
+                return '<div style="margin-bottom:24px;">'
+                    + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">'
+                    + '<label style="font-weight:700;color:var(--text-primary);font-size:15px;">' + item.label + '</label>'
+                    + '<span id="vas_val_' + item.id + '" style="font-size:22px;font-weight:800;color:var(--accent-color);min-width:40px;text-align:right;">5.0</span>'
+                    + '</div>'
+                    + '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 10px;">' + item.desc + '</p>'
+                    + '<div style="position:relative;">'
+                    + '<input type="range" min="0" max="10" step="0.5" value="5" id="vas_' + item.id + '" '
+                    + 'oninput="document.getElementById(\'vas_val_' + item.id + '\').textContent=parseFloat(this.value).toFixed(1);" '
+                    + 'style="width:100%;accent-color:var(--accent-color);height:6px;cursor:pointer;">'
+                    + '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:4px;"><span>0 — Not well</span><span>5</span><span>10 — Very well</span></div>'
+                    + '</div></div>';
+            }).join('');
+            document.getElementById('vasModal').style.display = 'flex';
+        }
+
+        function closeVASModal() {
+            document.getElementById('vasModal').style.display = 'none';
+            vasModalScale = null;
+        }
+
+        async function submitVASModal() {
+            var responses = {};
+            var items = vasModalItems;
+            for (var i = 0; i < items.length; i++) {
+                var el = document.getElementById('vas_' + items[i].id);
+                if (!el) { alert('Slider not found: ' + items[i].id); return; }
+                responses[items[i].id] = parseFloat(el.value);
+            }
+            var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            var submitBtn = document.querySelector('#vasModal .btn');
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
+            try {
+                var resp = await fetch('/api/patient/outcome-measure', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ scale_name: vasModalScale, responses: responses })
+                });
+                var data = await resp.json();
+                if (resp.ok) {
+                    closeVASModal();
+                    showAssessmentResult(vasModalScale, data.score !== undefined ? data.score : '?', data.severity || '', null);
+                } else {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
+                    alert('Error: ' + (data.error || 'Submission failed'));
+                }
+            } catch (err) {
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
+                alert('Network error: ' + err.message);
+            }
         }
 
         async function loadPatientTreatmentPlanView() {
@@ -14741,12 +15027,26 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     const statusBadge = plan.status === 'active' ? '<span style="background:#28a745;color:white;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">● Active</span>'
                         : plan.status === 'draft' ? '<span style="background:#ffc107;color:#333;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">✏️ Draft</span>'
                         : '<span style="background:var(--bg-secondary);color:var(--text-secondary);padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">Archived</span>';
+                    const statusColour = { active:'#6366f1', achieved:'#22c55e', modified:'#f59e0b', dropped:'#9ca3af' };
                     const goalsHtml = _tpGoals.length ? _tpGoals.map((g,i) => {
                         const txt = typeof g === 'object' ? g.text : g;
                         const cat = typeof g === 'object' ? g.category : '';
                         const td = typeof g === 'object' ? g.target_date : '';
-                        const st = typeof g === 'object' ? g.status : '';
-                        return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px;border-left:3px solid #6366f1;margin-top:6px;"><span style="background:#6366f1;color:white;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">' + (i+1) + '</span><div><p style="margin:0;font-weight:600;">' + (txt||'') + '</p>' + (cat ? '<span style="font-size:11px;color:var(--text-muted);">' + cat + '</span>' : '') + (td ? '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">Target: ' + new Date(td).toLocaleDateString('en-GB') + '</span>' : '') + (st ? '<span style="font-size:11px;padding:1px 6px;border-radius:3px;margin-left:8px;background:' + (st==='achieved'?'#28a745':'#e0e0e0') + ';color:' + (st==='achieved'?'white':'#333') + ';">' + st + '</span>' : '') + '</div></div>';
+                        const st = (typeof g === 'object' ? g.status : '') || 'active';
+                        const col = statusColour[st] || '#6366f1';
+                        const statusSelect = '<select onchange="updateGoalStatus(' + plan.id + ',' + i + ',this.value,\'' + patientUsername + '\')" '
+                            + 'style="font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid ' + col + ';background:' + col + ';color:#fff;cursor:pointer;font-weight:600;" title="Click to update goal status">'
+                            + ['active','achieved','modified','dropped'].map(function(s){ return '<option value="' + s + '"' + (s===st?' selected':'') + '>' + s.charAt(0).toUpperCase()+s.slice(1) + '</option>'; }).join('')
+                            + '</select>';
+                        return '<div style="display:flex;align-items:flex-start;gap:8px;padding:10px;border-left:3px solid ' + col + ';margin-top:8px;background:var(--bg-secondary);border-radius:0 6px 6px 0;">'
+                            + '<span style="background:' + col + ';color:white;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;font-weight:700;">' + (i+1) + '</span>'
+                            + '<div style="flex:1;min-width:0;">'
+                            + '<p style="margin:0 0 4px;font-weight:600;color:var(--text-primary);">' + (txt||'') + '</p>'
+                            + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+                            + (cat ? '<span style="font-size:11px;color:var(--text-muted);">' + cat + '</span>' : '')
+                            + (td ? '<span style="font-size:11px;color:var(--text-muted);">Target: ' + new Date(td).toLocaleDateString('en-GB') + '</span>' : '')
+                            + statusSelect
+                            + '</div></div></div>';
                     }).join('') : '<p style="color:var(--text-muted);font-size:13px;">No goals set.</p>';
                     container.innerHTML = `
                         <div class="card">
@@ -14965,6 +15265,93 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 await loadOutcomeMeasures(patientUsername);
             } catch (err) { alert('Error: ' + err.message); }
         }
+
+        // === SECTION 1.3: CASELOAD OUTCOME TRACKER ===
+        var _caseloadOutcomeData = null;
+
+        async function loadCaseloadOutcomes() {
+            var container = document.getElementById('caseloadOutcomesContent');
+            if (!container) return;
+            container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">Loading...</p>';
+            try {
+                var resp = await fetch('/api/clinician/caseload/outcome-summary', { credentials: 'include' });
+                if (!resp.ok) { container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">Could not load outcome data.</p>'; return; }
+                var data = await resp.json();
+                _caseloadOutcomeData = data.patients || [];
+                renderCaseloadTable();
+            } catch (e) {
+                container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">Error loading data.</p>';
+            }
+        }
+
+        function renderCaseloadTable() {
+            var container = document.getElementById('caseloadOutcomesContent');
+            if (!container || !_caseloadOutcomeData) return;
+            var filter = (document.getElementById('caseloadOutcomeFilter') || {}).value || 'all';
+            var scales = ['PHQ-9', 'GAD-7', 'CORE-10', 'ORS', 'WEMWBS'];
+            var trendIcon = function(t) {
+                if (!t || t === 'new') return '<span style="color:var(--text-muted);">—</span>';
+                if (t === 'better') return '<span style="color:#22c55e;font-size:16px;" title="Improving">↑</span>';
+                if (t === 'worse')  return '<span style="color:#ef4444;font-size:16px;" title="Deteriorating">↓</span>';
+                return '<span style="color:var(--text-muted);font-size:16px;">→</span>';
+            };
+            var rows = _caseloadOutcomeData.filter(function(p) {
+                if (filter === 'worse') return scales.some(function(s) { return p[s] && p[s].trend === 'worse'; });
+                if (filter === 'no_data') return scales.every(function(s) { return !p[s]; });
+                return true;
+            });
+            if (rows.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">No patients match this filter.</p>';
+                return;
+            }
+            var html = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+                + '<thead><tr style="border-bottom:2px solid var(--border-color);">'
+                + '<th style="text-align:left;padding:10px 8px;color:var(--text-secondary);font-weight:600;">Patient</th>'
+                + scales.map(function(s) { return '<th style="text-align:center;padding:10px 8px;color:var(--text-secondary);font-weight:600;">' + s + '</th>'; }).join('')
+                + '</tr></thead><tbody>'
+                + rows.map(function(p) {
+                    return '<tr style="border-bottom:1px solid var(--border-color);cursor:pointer;" onclick="viewPatientFromCaseload(\'' + p.patient + '\')" onmouseover="this.style.background=\'var(--bg-secondary)\'" onmouseout="this.style.background=\'\'">'
+                        + '<td style="padding:10px 8px;font-weight:600;color:var(--text-primary);">' + p.patient + '</td>'
+                        + scales.map(function(s) {
+                            if (!p[s]) return '<td style="text-align:center;padding:10px 8px;color:var(--text-muted);">—</td>';
+                            return '<td style="text-align:center;padding:10px 8px;">'
+                                + '<div style="font-weight:700;color:var(--text-primary);">' + p[s].score + '</div>'
+                                + '<div style="font-size:11px;color:var(--text-muted);">' + (p[s].date || '') + ' ' + trendIcon(p[s].trend) + '</div>'
+                                + '</td>';
+                        }).join('')
+                        + '</tr>';
+                }).join('')
+                + '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        function viewPatientFromCaseload(username) {
+            if (!username) return;
+            switchClinicalTab('patients', document.querySelector('[onclick*="switchClinicalTab(\'patients\'"]'));
+            setTimeout(function() { viewPatientDetail(username); }, 300);
+        }
+        // === END CASELOAD OUTCOME TRACKER ===
+
+        // === SECTION 1.2: GOAL STATUS UPDATE ===
+        async function updateGoalStatus(planId, goalIndex, newStatus, username) {
+            var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            try {
+                var resp = await fetch('/api/clinician/treatment-plan/' + planId + '/goal/' + goalIndex, {
+                    method: 'PUT', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                var data = await resp.json();
+                if (resp.ok) {
+                    loadTreatmentPlan(username);
+                } else {
+                    alert('Could not update goal: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Network error updating goal status.');
+            }
+        }
+        // === END GOAL STATUS UPDATE ===
 
         // === SECTION 1.6: SOS CRISIS BUTTON FUNCTIONS ===
 
@@ -15601,7 +15988,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 // Render charts
                 renderMoodTrendChart(data.mood_trends || []);
                 renderAssessmentCharts(data.assessment_summary || { phq9: {}, gad7: {} });
-                
+
+                // Load caseload outcome tracker (Section 1.3)
+                loadCaseloadOutcomes();
+
             } catch (error) {
                 console.error('Error loading analytics dashboard:', error);
             }

@@ -288,14 +288,15 @@ class MessageService:
         if limit < 1 or limit > 100:
             limit = 20
         
-        # Get distinct conversation partners
+        # Get distinct non-archived conversation IDs for this user
         self.cur.execute("""
-            SELECT DISTINCT conversation_id
-            FROM conversation_participants
-            WHERE username = %s
-            ORDER BY conversation_id DESC
+            SELECT DISTINCT cp.conversation_id
+            FROM conversation_participants cp
+            JOIN conversations c ON c.id = cp.conversation_id
+            WHERE cp.username = %s AND (c.is_archived IS NULL OR c.is_archived = FALSE)
+            ORDER BY cp.conversation_id DESC
         """, (self.username,))
-        
+
         conv_ids = [row[0] for row in self.cur.fetchall()]
         
         conversations = []
