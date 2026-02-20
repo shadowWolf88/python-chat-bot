@@ -2139,9 +2139,9 @@ def _check_mood_streak(username, cur, days=7):
     """Calculate consecutive days of mood logging"""
     try:
         results = cur.execute("""
-            SELECT DATE(entry_timestamp) as log_date
+            SELECT DATE(entrestamp) as log_date
             FROM mood_logs WHERE username = %s
-            ORDER BY DATE(entry_timestamp) DESC
+            ORDER BY DATE(entrestamp) DESC
             LIMIT %s
         """, (username, days * 2)).fetchall()
         
@@ -13406,13 +13406,13 @@ def get_mood_progress():
         
         # Get first mood log and latest mood log for trend calculation
         first_log = cur.execute("""
-            SELECT mood_val, entry_timestamp FROM mood_logs 
-            WHERE username = %s ORDER BY entry_timestamp ASC LIMIT 1
+            SELECT mood_val, entrestamp FROM mood_logs
+            WHERE username = %s ORDER BY entrestamp ASC LIMIT 1
         """, (username,)).fetchone()
-        
+
         latest_log = cur.execute("""
-            SELECT mood_val, entry_timestamp FROM mood_logs 
-            WHERE username = %s ORDER BY entry_timestamp DESC LIMIT 1
+            SELECT mood_val, entrestamp FROM mood_logs
+            WHERE username = %s ORDER BY entrestamp DESC LIMIT 1
         """, (username,)).fetchone()
         
         if not first_log or not latest_log:
@@ -13440,8 +13440,8 @@ def get_mood_progress():
         
         # Determine trend (moving average of last 7 entries)
         last_7 = cur.execute("""
-            SELECT mood_val FROM mood_logs 
-            WHERE username = %s ORDER BY entry_timestamp DESC LIMIT 7
+            SELECT mood_val FROM mood_logs
+            WHERE username = %s ORDER BY entrestamp DESC LIMIT 7
         """, (username,)).fetchall()
         
         if len(last_7) >= 2:
@@ -19003,7 +19003,7 @@ def generate_clinician_summaries_endpoint():
                 mood_data = cur.execute("""
                     SELECT AVG(mood_val), COUNT(*)
                     FROM mood_logs WHERE username = %s
-                    AND entry_timestamp >= %s AND entry_timestamp < %s + INTERVAL '1 day'
+                    AND entrestamp >= %s AND entrestamp < %s + INTERVAL '1 day'
                     AND deleted_at IS NULL
                 """, (patient, month_start, month_end)).fetchone()
 
@@ -19541,7 +19541,7 @@ def get_clinician_patients():
                 u.last_login,
                 (SELECT alert_type FROM alerts a WHERE a.username = u.username AND a.status = 'open'
                  ORDER BY a.created_at DESC LIMIT 1) AS risk_level,
-                (SELECT MAX(ml.entry_timestamp) FROM mood_logs ml WHERE ml.username = u.username) AS last_active
+                (SELECT MAX(ml.entrestamp) FROM mood_logs ml WHERE ml.username = u.username) AS last_active
             FROM users u
             INNER JOIN patient_approvals pa ON u.username = pa.patient_username
             WHERE pa.clinician_username = %s
@@ -19783,12 +19783,12 @@ def get_clinician_patient_detail(patient_username):
         
         # Get recent mood logs (last 7 days)
         recent_moods = cur.execute("""
-            SELECT entry_timestamp, mood_val, notes
+            SELECT entrestamp, mood_val, notes
             FROM mood_logs
             WHERE username = %s
-            AND entry_timestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
+            AND entrestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
             AND deleted_at IS NULL
-            ORDER BY entry_timestamp DESC LIMIT 7
+            ORDER BY entrestamp DESC LIMIT 7
         """, (patient_username,)).fetchall()
         
         # Get current risk level
@@ -19888,12 +19888,12 @@ def get_clinician_patient_mood_logs(patient_username):
         
         # Get mood logs
         logs = cur.execute("""
-            SELECT entry_timestamp, mood_val, sleep_val, notes
+            SELECT entrestamp, mood_val, sleep_val, notes
             FROM mood_logs
             WHERE username = %s
-            AND entry_timestamp::date BETWEEN %s::date AND %s::date
+            AND entrestamp::date BETWEEN %s::date AND %s::date
             AND deleted_at IS NULL
-            ORDER BY entry_timestamp DESC
+            ORDER BY entrestamp DESC
         """, (patient_username, start_date, end_date)).fetchall()
         
         # Calculate week average
@@ -19901,7 +19901,7 @@ def get_clinician_patient_mood_logs(patient_username):
             SELECT AVG(mood_val)
             FROM mood_logs
             WHERE username = %s
-            AND entry_timestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
+            AND entrestamp > CURRENT_TIMESTAMP - INTERVAL '7 days'
             AND deleted_at IS NULL
         """, (patient_username,)).fetchone()[0]
         
@@ -19993,13 +19993,13 @@ def get_clinician_patient_analytics(patient_username):
         
         # Get mood data (last 30 days)
         mood_data = cur.execute("""
-            SELECT DATE(entry_timestamp) as date, AVG(mood_val)::INT as mood
+            SELECT DATE(entrestamp) as date, AVG(mood_val)::INT as mood
             FROM mood_logs
             WHERE username = %s
-            AND entry_timestamp > CURRENT_TIMESTAMP - INTERVAL '30 days'
+            AND entrestamp > CURRENT_TIMESTAMP - INTERVAL '30 days'
             AND deleted_at IS NULL
-            GROUP BY DATE(entry_timestamp)
-            ORDER BY DATE(entry_timestamp)
+            GROUP BY DATE(entrestamp)
+            ORDER BY DATE(entrestamp)
         """, (patient_username,)).fetchall()
         
         # Get activity data (weekly)
