@@ -8,18 +8,18 @@
 
 ---
 
-## CURRENT STATE SNAPSHOT (Feb 17, 2026)
+## CURRENT STATE SNAPSHOT (Feb 20, 2026 — updated)
 
 | Dimension | Status |
 |-----------|--------|
 | **Security** | ✅ TIER 0-1 complete — 180+ tests passing, production-grade |
-| **Backend** | api.py ~17,000 lines, Flask/PostgreSQL/Groq, 310 endpoints |
-| **Frontend** | index.html ~16,500 lines, monolithic SPA |
-| **Database** | 50+ tables, PostgreSQL on Railway |
-| **Patient Features** | 14 tabs, 17 CBT tools, AI therapy, pet, community, messaging |
-| **Clinician Features** | Dashboard live, patient caseload, risk monitor, messaging |
+| **Backend** | api.py ~17,500 lines, Flask/PostgreSQL/Groq, 325+ endpoints |
+| **Frontend** | index.html ~17,000 lines, monolithic SPA |
+| **Database** | 52+ tables, PostgreSQL on Railway |
+| **Patient Features** | 14 tabs, 17 CBT tools, AI therapy, pet, community, messaging, CORE-OM/ORS/SRS forms, SOS button |
+| **Clinician Features** | Dashboard live, session notes, treatment plan builder, caseload outcome tracker, risk monitor, messaging |
 | **Developer Features** | Terminal, AI chat, inbox, broadcast, QA, user mgmt, Post Update |
-| **AI** | Groq-powered therapy chat, AI memory, risk detection, summaries |
+| **AI** | Groq-powered therapy chat, AI memory, risk detection, summaries, content-filter fallback |
 | **Compliance** | GDPR foundations in place, NHS compliance not yet started |
 | **Mobile** | Capacitor configured, not production-ready |
 | **Tests** | 180+ passing, gaps in clinical logic coverage |
@@ -34,10 +34,16 @@
 - Full internal messaging system (inbox, sent, compose, conversation threads, templates, scheduling, group messaging, search)
 - Developer dashboard with terminal, AI assistant, inbox, broadcast, post updates, QA, user management, feedback, stats
 - Dark/light theme system with full CSS variable coverage
-- Notification system with dark mode support
+- Notification system with dark mode support, human-readable notification labels (no more "undefined" headers)
 - Remember Me sessions, developer inbox, Post Update feature (all Feb 17, 2026)
 - Community forum, achievements/badges, gratitude logging, pet system
 - FHIR data export, AI training data manager (GDPR-compliant)
+- **Phase 1.1 — Session Notes** (Feb 20, 2026): SOAP/BIRP/free-text formats, 6 presenting-problem templates, draft/sign-off/24h-lock workflow, full note history per patient
+- **Phase 1.2 — Treatment Plan Builder** (Feb 20, 2026): SMART goals with click-to-update status (active/achieved/modified/dropped), intervention selection, session parameters, outcome targets, clinician+patient co-signature, plan versioning, discharge criteria
+- **Phase 1.3 — Extended Outcome Measures** (Feb 20, 2026): CORE-10, CORE-OM (34-item paginated, real questions from CORE System Trust), WEMWBS, ORS (VAS sliders), SRS (VAS sliders) — all with validated server-side scoring and severity banding; Caseload Outcome Tracker in clinician overview with trend arrows
+- **Phase 1.6 — SOS Crisis Button** (Feb 2026): Persistent red button on every screen, crisis overlay with Samaritans/SHOUT/NHS 111, safety plan display, clinician alert, grounding exercises
+- Message archive bug fixed (is_archived column migration + inbox filter)
+- Groq API 400 content-filter handling: compassionate clinical fallback response instead of crash
 
 ---
 
@@ -46,7 +52,7 @@
 
 ---
 
-### 1.1 CLINICIAN: Session Notes System
+### 1.1 CLINICIAN: Session Notes System ✅ COMPLETE (Feb 20, 2026)
 **Priority: CRITICAL — This is the #1 thing clinicians need that's missing**
 
 Clinicians cannot do their jobs without session documentation. Every clinical session needs notes.
@@ -67,7 +73,7 @@ Clinicians cannot do their jobs without session documentation. Every clinical se
 
 ---
 
-### 1.2 CLINICIAN: Treatment Plan Builder
+### 1.2 CLINICIAN: Treatment Plan Builder ✅ COMPLETE (Feb 20, 2026)
 **Priority: CRITICAL — Required for clinical governance**
 
 Every patient needs a documented, co-produced treatment plan.
@@ -87,7 +93,7 @@ Every patient needs a documented, co-produced treatment plan.
 
 ---
 
-### 1.3 CLINICIAN: CORE-OM / WEMWBS Outcome Measures
+### 1.3 CLINICIAN: CORE-OM / WEMWBS Outcome Measures ✅ COMPLETE (Feb 20, 2026)
 **Priority: HIGH — Standard in UK mental health services**
 
 PHQ-9 and GAD-7 exist but are insufficient. Add:
@@ -136,7 +142,7 @@ PHQ-9 and GAD-7 exist but are insufficient. Add:
 
 ---
 
-### 1.6 PATIENT: Permanent SOS / Crisis Button
+### 1.6 PATIENT: Permanent SOS / Crisis Button ✅ COMPLETE (Feb 2026)
 **Priority: CRITICAL — Safety feature that should have been Day 1**
 
 - **Persistent red SOS button** visible on EVERY screen, every tab, always accessible
@@ -961,9 +967,9 @@ Features:
 
 | Feature | Status |
 |---------|--------|
-| Session notes (SOAP/BIRP) | Missing |
-| Treatment plan builder | Missing |
-| CORE-OM / WEMWBS | Missing |
+| Session notes (SOAP/BIRP) | ✅ Complete |
+| Treatment plan builder | ✅ Complete |
+| CORE-OM / WEMWBS / ORS / SRS | ✅ Complete |
 | Waiting list management | Missing |
 | Discharge workflow | Missing |
 | Referral letter generator | Missing |
@@ -991,7 +997,7 @@ Features:
 
 | Feature | Status |
 |---------|--------|
-| SOS / Crisis button (always visible) | Missing |
+| SOS / Crisis button (always visible) | ✅ Complete |
 | Medication tracker & reminders | Missing |
 | Recovery milestones dashboard | Missing |
 | Psychoeducation library | Missing |
@@ -1004,7 +1010,7 @@ Features:
 | Video therapy sessions | Missing |
 | Peer mentor matching | Missing |
 | Personalized homework from clinician | Missing |
-| Treatment plan visibility | Missing |
+| Treatment plan visibility | ✅ Complete |
 | PWA / offline mode | Missing |
 | Native mobile apps | Missing |
 | Weekly progress email digest | Missing |
@@ -1029,10 +1035,10 @@ Features:
 ## THE NON-NEGOTIABLES (Must happen before clinical deployment)
 
 1. ✅ Security hardening (complete)
-2. ⏳ SOS crisis button on every screen
-3. ⏳ Session notes system
-4. ⏳ Treatment plan documentation
-5. ⏳ CORE-OM outcome measures
+2. ✅ SOS crisis button on every screen (complete Feb 2026)
+3. ✅ Session notes system (complete Feb 20, 2026)
+4. ✅ Treatment plan documentation (complete Feb 20, 2026)
+5. ✅ CORE-OM outcome measures (complete Feb 20, 2026)
 6. ⏳ Safeguarding workflow
 7. ⏳ Field-level encryption for clinical data
 8. ⏳ GDPR comprehensive implementation
@@ -1071,5 +1077,5 @@ This is a small task (~1 hour) that can be added any time.
 
 ---
 
-*Roadmap generated: February 17, 2026. Next review: April 2026.*
+*Roadmap generated: February 17, 2026. Last updated: February 20, 2026. Next review: April 2026.*
 *This document should be reviewed quarterly and updated after each major milestone.*
