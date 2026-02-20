@@ -4309,6 +4309,15 @@ def init_db():
             print(f"Migration note (messages enhancement): {e}")
             conn.rollback()
 
+        # 2b. Ensure soft-delete columns exist (fix for production DBs created before these were added)
+        try:
+            cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_deleted_by_sender INTEGER DEFAULT 0")
+            cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_deleted_by_recipient INTEGER DEFAULT 0")
+            conn.commit()
+        except Exception as e:
+            print(f"Migration note (messages soft-delete cols): {e}")
+            conn.rollback()
+
         # 3. Conversation participants table
         try:
             cursor.execute("""
@@ -22431,6 +22440,61 @@ def get_patient_outcome_measures():
         return jsonify({'measures': measures}), 200
     except Exception as e:
         return handle_exception(e, 'get_patient_outcome_measures')
+
+
+@app.route('/api/patient/crisis-alert', methods=['POST'])
+@CSRFProtection.require_csrf
+def patient_crisis_alert():
+    """Send an urgent crisis alert to the patient's assigned clinician (Section 1.6 SOS button)"""
+    username = get_authenticated_username()
+    if not username:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Find patient's assigned clinician
+        cur.execute("""
+            SELECT clinician_username FROM patient_approvals
+            WHERE patient_username=%s AND status='approved'
+            ORDER BY id DESC LIMIT 1
+        """, (username,))
+        row = cur.fetchone()
+
+        if not row:
+            return jsonify({
+                'success': False,
+                'message': 'No assigned therapist found. Please call emergency services directly: 999 or Samaritans 116 123.'
+            }), 200
+
+        clinician_username = row[0]
+
+        cur.execute("""
+            INSERT INTO notifications (recipient_username, message, notification_type)
+            VALUES (%s, %s, %s)
+        """, (
+            clinician_username,
+            f'URGENT — CRISIS ALERT: {username} has pressed the SOS button. Please contact them immediately.',
+            'crisis_alert'
+        ))
+
+        conn.commit()
+        log_event(username, 'crisis', 'sos_alert_sent', f'Crisis alert sent to clinician: {clinician_username}')
+
+        return jsonify({
+            'success': True,
+            'message': f'Your therapist has been sent an urgent alert and will contact you as soon as possible. If you are in immediate danger, please call 999.'
+        }), 200
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return handle_exception(e, 'patient_crisis_alert')
+    finally:
+        if conn:
+            conn.close()
 
 
 # Run startup checks before first request

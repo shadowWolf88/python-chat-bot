@@ -9877,6 +9877,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 // PATIENT: Hide professional tab, SHOW all patient tabs including messages
                 document.getElementById('professionalTabBtn').style.display = 'none';
                 document.getElementById('professionalTab').style.display = 'none';
+                // Show SOS crisis button for patients
+                var sosBtn = document.getElementById('sosCrisisBtn');
+                if (sosBtn) sosBtn.style.display = 'flex';
 
                 // Ensure patient tab buttons are visible (including messages)
                 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -10764,6 +10767,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 document.getElementById('professionalTabBtn').style.display = 'none';
                 document.getElementById('authScreen').style.display = 'flex';
                 document.getElementById('appScreen').style.display = 'none';
+                // Hide SOS button and close overlay on logout
+                var sosBtn = document.getElementById('sosCrisisBtn');
+                if (sosBtn) sosBtn.style.display = 'none';
+                closeSOSOverlay();
                 document.getElementById('chatMessages').innerHTML = '';
                 selectedMoodValue = null;
                 medications = [];
@@ -14925,6 +14932,137 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 await loadOutcomeMeasures(patientUsername);
             } catch (err) { alert('Error: ' + err.message); }
         }
+
+        // === SECTION 1.6: SOS CRISIS BUTTON FUNCTIONS ===
+
+        function openSOSOverlay() {
+            var overlay = document.getElementById('sosCrisisOverlay');
+            if (!overlay) return;
+            overlay.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            // Reset grounding and alert state each time
+            var groundingDiv = document.getElementById('sosGroundingContent');
+            if (groundingDiv) groundingDiv.innerHTML = '';
+            stopBreathing();
+            var alertBtn = document.getElementById('sosAlertClinicianBtn');
+            var alertConfirm = document.getElementById('sosAlertConfirmation');
+            if (alertBtn) { alertBtn.disabled = false; alertBtn.textContent = '\uD83D\uDEA8 Alert My Therapist'; alertBtn.style.background = '#6366f1'; }
+            if (alertConfirm) alertConfirm.style.display = 'none';
+            loadCrisisContacts();
+        }
+
+        function closeSOSOverlay() {
+            var overlay = document.getElementById('sosCrisisOverlay');
+            if (!overlay) return;
+            overlay.style.display = 'none';
+            document.body.style.overflow = '';
+            stopBreathing();
+        }
+
+        async function loadCrisisContacts() {
+            var container = document.getElementById('sosPersonalContacts');
+            if (!container) return;
+            container.innerHTML = '<p style="color:rgba(255,255,255,0.5);font-size:14px;margin:0;">Loading...</p>';
+            try {
+                var res = await fetch('/api/crisis/contacts', { credentials: 'include' });
+                var data = await res.json();
+                if (!data.contacts || data.contacts.length === 0) {
+                    container.innerHTML = '<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:0;">No emergency contacts saved yet. You can add them in the Safety tab.</p>';
+                    return;
+                }
+                container.innerHTML = data.contacts.map(function(c) {
+                    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);">' +
+                        '<div><div style="color:#fff;font-weight:700;font-size:15px;">' + (c.name || '') + '</div>' +
+                        '<div style="color:rgba(255,255,255,0.55);font-size:13px;">' + (c.relationship || '') + '</div></div>' +
+                        (c.phone ? '<a href="tel:' + c.phone + '" style="background:#22c55e;color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;white-space:nowrap;">\u260E ' + c.phone + '</a>' : '') +
+                        '</div>';
+                }).join('');
+            } catch (e) {
+                container.innerHTML = '<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:0;">Could not load contacts.</p>';
+            }
+        }
+
+        async function sendClinicianCrisisAlert() {
+            var btn = document.getElementById('sosAlertClinicianBtn');
+            var confirm = document.getElementById('sosAlertConfirmation');
+            if (!btn) return;
+            btn.disabled = true;
+            btn.textContent = 'Sending alert...';
+            try {
+                var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+                var res = await fetch('/api/patient/crisis-alert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                    credentials: 'include',
+                    body: JSON.stringify({})
+                });
+                var data = await res.json();
+                if (data.success) {
+                    btn.textContent = '\u2713 Alert Sent';
+                    btn.style.background = '#22c55e';
+                    if (confirm) { confirm.style.display = 'block'; confirm.textContent = data.message; }
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = '\uD83D\uDEA8 Alert My Therapist';
+                    alert(data.message || 'Could not send alert. Please call emergency services.');
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = '\uD83D\uDEA8 Alert My Therapist';
+                alert('Connection error. Please call 999 or Samaritans 116 123 directly.');
+            }
+        }
+
+        function showGrounding(type) {
+            var content = document.getElementById('sosGroundingContent');
+            if (!content) return;
+            stopBreathing();
+            if (type === '54321') {
+                content.innerHTML =
+                    '<div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:20px;margin-top:4px;">' +
+                    '<h4 style="color:#fff;margin:0 0 14px;font-size:15px;">5-4-3-2-1 Grounding</h4>' +
+                    '<p style="color:rgba(255,255,255,0.9);margin:8px 0;"><strong style="color:#fbbf24;font-size:18px;">5</strong> &nbsp;things you can <strong>see</strong> right now</p>' +
+                    '<p style="color:rgba(255,255,255,0.9);margin:8px 0;"><strong style="color:#fbbf24;font-size:18px;">4</strong> &nbsp;things you can <strong>touch or feel</strong></p>' +
+                    '<p style="color:rgba(255,255,255,0.9);margin:8px 0;"><strong style="color:#fbbf24;font-size:18px;">3</strong> &nbsp;things you can <strong>hear</strong></p>' +
+                    '<p style="color:rgba(255,255,255,0.9);margin:8px 0;"><strong style="color:#fbbf24;font-size:18px;">2</strong> &nbsp;things you can <strong>smell</strong></p>' +
+                    '<p style="color:rgba(255,255,255,0.9);margin:8px 0;"><strong style="color:#fbbf24;font-size:18px;">1</strong> &nbsp;thing you can <strong>taste</strong></p>' +
+                    '<p style="color:rgba(255,255,255,0.55);font-size:13px;margin-top:14px;">Take your time with each one. You are here. You are safe right now.</p></div>';
+            } else if (type === 'breathing') {
+                content.innerHTML =
+                    '<div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:20px;margin-top:4px;text-align:center;">' +
+                    '<h4 style="color:#fff;margin:0 0 14px;font-size:15px;">Box Breathing</h4>' +
+                    '<div id="breathCircle" style="width:110px;height:110px;border-radius:50%;background:#6366f1;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;transition:all 4s ease;font-size:13px;color:#fff;font-weight:700;">Breathe IN</div>' +
+                    '<p style="color:rgba(255,255,255,0.65);font-size:13px;margin:0 0 12px;">Follow the circle — 4 seconds each phase</p>' +
+                    '<button onclick="stopBreathing()" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.2);padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;">Stop</button>' +
+                    '</div>';
+                var phases = [
+                    { text: 'Breathe IN', bg: '#6366f1', scale: '1.25' },
+                    { text: 'Hold', bg: '#8b5cf6', scale: '1.25' },
+                    { text: 'Breathe OUT', bg: '#22c55e', scale: '0.8' },
+                    { text: 'Hold', bg: '#8b5cf6', scale: '0.8' }
+                ];
+                var phase = 0;
+                window._breathInterval = setInterval(function() {
+                    phase = (phase + 1) % 4;
+                    var p = phases[phase];
+                    var circle = document.getElementById('breathCircle');
+                    if (circle) {
+                        circle.style.background = p.bg;
+                        circle.style.transform = 'scale(' + p.scale + ')';
+                        circle.textContent = p.text;
+                    }
+                }, 4000);
+            }
+        }
+
+        function stopBreathing() {
+            if (window._breathInterval) {
+                clearInterval(window._breathInterval);
+                window._breathInterval = null;
+            }
+        }
+
+        // === END SOS CRISIS BUTTON FUNCTIONS ===
 
         // Appointment Management Functions
         // Calendar state
@@ -19416,5 +19554,143 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
     {% if session.get('role') == 'clinician' %}
     <script src="/static/js/clinician.js?v={{ config.get('DEPLOY_VERSION', '1.0') }}"></script>
     {% endif %}
+
+    <!-- === SECTION 1.6: SOS / CRISIS BUTTON (patient-only, position: fixed) === -->
+    <button id="sosCrisisBtn"
+        onclick="openSOSOverlay()"
+        aria-label="Open crisis support"
+        style="display:none; position:fixed; bottom:75px; right:18px; z-index:4500;
+               width:56px; height:56px; border-radius:50%; border:none; cursor:pointer;
+               background:#dc2626; color:#fff; font-size:22px; font-weight:800;
+               box-shadow:0 4px 16px rgba(220,38,38,0.6); transition:transform 0.15s, box-shadow 0.15s;
+               line-height:1; padding:0;"
+        onmouseenter="this.style.transform='scale(1.12)';this.style.boxShadow='0 6px 24px rgba(220,38,38,0.8)'"
+        onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='0 4px 16px rgba(220,38,38,0.6)'"
+        title="SOS — Crisis Support">
+        SOS
+    </button>
+
+    <!-- SOS Crisis Overlay -->
+    <div id="sosCrisisOverlay"
+        style="display:none; position:fixed; inset:0; z-index:9999;
+               background:rgba(10,10,20,0.96); overflow-y:auto; padding:0;"
+        role="dialog" aria-modal="true" aria-label="Crisis support resources">
+
+        <!-- Close button -->
+        <button onclick="closeSOSOverlay()"
+            style="position:absolute; top:16px; right:16px; background:rgba(255,255,255,0.1);
+                   border:none; color:#fff; font-size:22px; width:40px; height:40px;
+                   border-radius:50%; cursor:pointer; z-index:1; line-height:1; padding:0;"
+            aria-label="Close">&#x2715;</button>
+
+        <div style="max-width:600px; margin:0 auto; padding:32px 20px 48px;">
+
+            <!-- Header -->
+            <div style="text-align:center; margin-bottom:24px;">
+                <div style="font-size:48px; margin-bottom:8px;">&#x1F6A8;</div>
+                <h1 style="color:#fff; margin:0 0 8px; font-size:28px; font-weight:800;">You Are Not Alone</h1>
+                <p style="color:rgba(255,255,255,0.8); margin:0; font-size:16px;">Help is available right now. You matter.</p>
+            </div>
+
+            <!-- 999 Banner -->
+            <div style="background:#dc2626; border-radius:12px; padding:16px 20px; margin-bottom:20px; text-align:center;">
+                <p style="color:#fff; margin:0; font-size:16px; font-weight:700;">
+                    &#x26A0;&#xFE0F; If you are in immediate danger — call <a href="tel:999" style="color:#fde68a; font-size:22px; font-weight:800; text-decoration:none;">999</a> now
+                </p>
+            </div>
+
+            <!-- UK Crisis Lines -->
+            <div style="background:rgba(255,255,255,0.06); border-radius:14px; padding:20px; margin-bottom:20px;">
+                <h3 style="color:#a5b4fc; margin:0 0 16px; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Crisis Helplines — Available Now</h3>
+
+                <div style="display:flex; flex-direction:column; gap:12px;">
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.08); border-radius:10px;">
+                        <div>
+                            <div style="color:#fff; font-weight:700; font-size:15px;">Samaritans</div>
+                            <div style="color:rgba(255,255,255,0.6); font-size:13px;">24/7 — free, confidential</div>
+                        </div>
+                        <a href="tel:116123" style="background:#22c55e; color:#fff; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:700; font-size:16px; white-space:nowrap;">&#x260E; 116 123</a>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.08); border-radius:10px;">
+                        <div>
+                            <div style="color:#fff; font-weight:700; font-size:15px;">SHOUT — Text Line</div>
+                            <div style="color:rgba(255,255,255,0.6); font-size:13px;">24/7 — text if you can't talk</div>
+                        </div>
+                        <a href="sms:85258&body=SHOUT" style="background:#6366f1; color:#fff; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:700; font-size:15px; white-space:nowrap;">Text 85258</a>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.08); border-radius:10px;">
+                        <div>
+                            <div style="color:#fff; font-weight:700; font-size:15px;">NHS Mental Health</div>
+                            <div style="color:rgba(255,255,255,0.6); font-size:13px;">24/7 — urgent mental health support</div>
+                        </div>
+                        <a href="tel:111" style="background:#0ea5e9; color:#fff; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:700; font-size:16px; white-space:nowrap;">&#x260E; 111 opt 2</a>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.08); border-radius:10px;">
+                        <div>
+                            <div style="color:#fff; font-weight:700; font-size:15px;">PAPYRUS — Under 35</div>
+                            <div style="color:rgba(255,255,255,0.6); font-size:13px;">Mon–Fri 9am–midnight, weekends 2pm–midnight</div>
+                        </div>
+                        <a href="tel:08000684141" style="background:#f59e0b; color:#fff; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:700; font-size:14px; white-space:nowrap;">&#x260E; 0800 068 4141</a>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Personal Contacts -->
+            <div style="background:rgba(255,255,255,0.06); border-radius:14px; padding:20px; margin-bottom:20px;">
+                <h3 style="color:#a5b4fc; margin:0 0 14px; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Your Emergency Contacts</h3>
+                <div id="sosPersonalContacts">
+                    <p style="color:rgba(255,255,255,0.5); font-size:14px; margin:0;">Loading your contacts...</p>
+                </div>
+            </div>
+
+            <!-- Alert Clinician -->
+            <div style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); border-radius:14px; padding:20px; margin-bottom:20px; text-align:center;">
+                <h3 style="color:#a5b4fc; margin:0 0 10px; font-size:15px;">Alert Your Therapist</h3>
+                <p style="color:rgba(255,255,255,0.7); font-size:13px; margin:0 0 14px;">Send your therapist an urgent notification right now.</p>
+                <button id="sosAlertClinicianBtn" onclick="sendClinicianCrisisAlert()"
+                    style="background:#6366f1; color:#fff; border:none; padding:12px 28px; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; width:100%; max-width:280px;">
+                    &#x1F6A8; Alert My Therapist
+                </button>
+                <p id="sosAlertConfirmation" style="display:none; color:#86efac; font-size:13px; margin:12px 0 0; font-weight:600;"></p>
+            </div>
+
+            <!-- Grounding Exercises -->
+            <div style="background:rgba(255,255,255,0.06); border-radius:14px; padding:20px; margin-bottom:20px;">
+                <h3 style="color:#a5b4fc; margin:0 0 14px; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Grounding Exercises</h3>
+                <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+                    <button onclick="showGrounding('54321')"
+                        style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:10px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; flex:1; min-width:140px;">
+                        &#x1F31F; 5-4-3-2-1 Senses
+                    </button>
+                    <button onclick="showGrounding('breathing')"
+                        style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:10px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; flex:1; min-width:140px;">
+                        &#x1F4A8; Box Breathing
+                    </button>
+                </div>
+                <div id="sosGroundingContent"></div>
+            </div>
+
+            <!-- Safety Plan -->
+            <div style="text-align:center; margin-bottom:24px;">
+                <button onclick="closeSOSOverlay(); switchTab('safety', null);"
+                    style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.25); padding:12px 24px; border-radius:10px; cursor:pointer; font-size:14px; font-weight:600;">
+                    &#x1F4CB; View My Safety Plan
+                </button>
+            </div>
+
+            <!-- Footer -->
+            <p style="text-align:center; color:rgba(255,255,255,0.4); font-size:12px; margin:0;">
+                Healing Space — Crisis Support &nbsp;|&nbsp; Always call 999 in immediate danger
+            </p>
+
+        </div>
+    </div>
+    <!-- === END SOS CRISIS BUTTON === -->
+
 </body>
 </html>
