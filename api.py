@@ -5904,37 +5904,40 @@ def change_password():
 
 
 def verify_clinician_patient_relationship(clinician_username, patient_username):
-    """Phase 1B: Verify clinician is assigned to patient (FK validation).
-    
-    Returns: (is_valid, clinician_id)
+    """Verify clinician is assigned to patient.
+
+    The users.clinician_id column stores the clinician's USERNAME (TEXT), not the integer PK.
+    We also accept the patient_approvals table as a second source of truth.
+    Returns: (is_valid, clinician_username)
     """
     try:
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
-        
-        # Get clinician's ID
+
+        # Verify clinician exists
         clinician = cur.execute(
-            "SELECT id FROM users WHERE username = %s AND role='clinician'",
+            "SELECT username FROM users WHERE username = %s AND role='clinician'",
             (clinician_username,)
         ).fetchone()
-        
+
         if not clinician:
             conn.close()
             return False, None
-        
-        clinician_id = clinician[0]
-        
-        # Check if clinician is assigned to patient
-        patient = cur.execute(
-            "SELECT clinician_id FROM users WHERE username = %s AND role='user'",
-            (patient_username,)
-        ).fetchone()
-        
+
+        # Check patient.clinician_id (stores the clinician username) OR patient_approvals
+        result = cur.execute("""
+            SELECT 1 FROM users WHERE username = %s AND role = 'user' AND clinician_id = %s
+            UNION
+            SELECT 1 FROM patient_approvals
+            WHERE patient_username = %s AND clinician_username = %s AND status = 'approved'
+            LIMIT 1
+        """, (patient_username, clinician_username, patient_username, clinician_username)).fetchone()
+
         conn.close()
-        
-        if patient and patient[0] == clinician_id:
-            return True, clinician_id
-        
+
+        if result:
+            return True, clinician_username
+
         return False, None
     except Exception as e:
         print(f"❌ FK validation error: {e}")
@@ -19529,12 +19532,16 @@ def get_clinician_patients():
             conn.close()
             return jsonify({'error': 'Clinician access required'}), 403
         
-        # Get all assigned patients with their data (simplified query)
+        # Get all assigned patients with their data
         patients = cur.execute("""
-            SELECT 
+            SELECT
                 u.username,
                 u.full_name,
-                u.email
+                u.email,
+                u.last_login,
+                (SELECT alert_type FROM alerts a WHERE a.username = u.username AND a.status = 'open'
+                 ORDER BY a.created_at DESC LIMIT 1) AS risk_level,
+                (SELECT MAX(ml.entry_timestamp) FROM mood_logs ml WHERE ml.username = u.username) AS last_active
             FROM users u
             INNER JOIN patient_approvals pa ON u.username = pa.patient_username
             WHERE pa.clinician_username = %s
@@ -19542,14 +19549,16 @@ def get_clinician_patients():
             AND u.role = 'user'
             ORDER BY u.full_name ASC
         """, (clinician_username,)).fetchall()
-        
+
         patient_list = []
         for p in patients:
-            username, full_name, email = p
+            username, full_name, email, last_login, risk_level, last_active = p
             patient_list.append({
                 'username': username,
                 'name': full_name or username,
-                'email': email or ''
+                'email': email or '',
+                'risk_level': risk_level or 'none',
+                'last_session': last_active.isoformat() if last_active else (last_login.isoformat() if last_login else None)
             })
         
         conn.close()

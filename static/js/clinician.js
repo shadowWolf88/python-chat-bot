@@ -246,9 +246,8 @@ async function loadPatients(filter = 'all', search = '') {
         
         // Apply search
         if (search) {
-            patients = patients.filter(p => 
-                p.first_name.toLowerCase().includes(search.toLowerCase()) ||
-                p.last_name.toLowerCase().includes(search.toLowerCase()) ||
+            patients = patients.filter(p =>
+                (p.name || p.username).toLowerCase().includes(search.toLowerCase()) ||
                 p.username.toLowerCase().includes(search.toLowerCase())
             );
         }
@@ -294,7 +293,7 @@ function renderPatientList(patients) {
         
         html += `
             <tr style="border-bottom: 1px solid #e0e0e0; hover-background: #f9f9f9;">
-                <td style="padding: 12px;">${sanitizeHTML(patient.first_name)} ${sanitizeHTML(patient.last_name)}</td>
+                <td style="padding: 12px;">${sanitizeHTML(patient.name || patient.username)}</td>
                 <td style="padding: 12px;">${sanitizeHTML(patient.email)}</td>
                 <td style="padding: 12px;">${lastSession}</td>
                 <td style="padding: 12px;">
@@ -322,12 +321,12 @@ async function selectPatient(username) {
         // Show patient detail section, hide patient list
         document.getElementById('clinicalPatientsTab').style.display = 'none';
         document.getElementById('patientDetailSection').style.display = 'block';
-        document.getElementById('patientDetailName').textContent = `${data.first_name} ${data.last_name}`;
+        document.getElementById('patientDetailName').textContent = data.name || data.username || username;
         
         // Load summary tab by default
         switchPatientTab('summary');
         
-        showSuccess(`Loaded patient: ${data.first_name} ${data.last_name}`);
+        showSuccess(`Loaded patient: ${data.name || data.username || username}`);
     } catch (error) {
         console.error('Error selecting patient:', error);
     }
@@ -357,7 +356,7 @@ async function loadPatientSummary(username) {
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
                     <div>
                         <strong style="display: block; color: #667eea; margin-bottom: 5px;">Name</strong>
-                        <p style="margin: 0;">${sanitizeHTML(data.first_name)} ${sanitizeHTML(data.last_name)}</p>
+                        <p style="margin: 0;">${sanitizeHTML(data.name || data.username || '')}</p>
                     </div>
                     <div>
                         <strong style="display: block; color: #667eea; margin-bottom: 5px;">Email</strong>
@@ -415,7 +414,7 @@ async function loadPatientProfile(username) {
                 <h4>👤 Full Profile</h4>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                     <div>
-                        <strong>Full Name:</strong> ${sanitizeHTML(data.first_name)} ${sanitizeHTML(data.last_name)}
+                        <strong>Full Name:</strong> ${sanitizeHTML(data.name || data.username || '')}
                     </div>
                     <div>
                         <strong>Username:</strong> ${sanitizeHTML(data.username)}
