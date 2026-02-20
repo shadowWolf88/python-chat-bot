@@ -5807,6 +5807,21 @@
                         <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 10px;">14-item Warwick-Edinburgh Mental Wellbeing Scale.</p>
                         <button class="btn" onclick="startWEMWBS()">Start WEMWBS</button>
                     </div>
+                    <div style="border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
+                        <h4>CORE-OM (Full)</h4>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 10px;">34-item holistic wellbeing measure used across UK services. About 10 minutes.</p>
+                        <button class="btn" onclick="startCOREOM()">Start CORE-OM</button>
+                    </div>
+                    <div style="border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
+                        <h4>ORS (Session Check-in)</h4>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 10px;">4-item Outcome Rating Scale — how are you doing right now? Takes under 1 minute.</p>
+                        <button class="btn" onclick="startORS()">Start ORS</button>
+                    </div>
+                    <div style="border: 2px solid var(--border-color); border-radius: 12px; padding: 20px;">
+                        <h4>SRS (Session Rating)</h4>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 10px;">4-item Session Rating Scale — how was your session? Complete after therapy.</p>
+                        <button class="btn" onclick="startSRS()">Start SRS</button>
+                    </div>
                 </div>
 
                 <!-- Patient Treatment Plan -->
@@ -5816,14 +5831,33 @@
                     <div id="patientTreatmentPlanView"></div>
                 </div>
 
-                <!-- Outcome Measure Modal -->
+                <!-- Outcome Measure Modal (radio buttons for CORE-10, WEMWBS, CORE-OM) -->
                 <div id="omModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;justify-content:center;align-items:center;z-index:10001;">
-                    <div style="background:var(--bg-card);padding:30px;border-radius:16px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;">
+                    <div style="background:var(--bg-card);padding:30px;border-radius:16px;max-width:620px;width:90%;max-height:85vh;overflow-y:auto;">
                         <h3 id="omModalTitle" style="margin-top:0;"></h3>
+                        <div id="omModalProgress" style="display:none;margin-bottom:12px;">
+                            <div style="background:var(--border-color);border-radius:4px;height:6px;">
+                                <div id="omModalProgressBar" style="background:#6366f1;height:6px;border-radius:4px;width:0%;transition:width 0.3s;"></div>
+                            </div>
+                            <p id="omModalProgressText" style="font-size:12px;color:var(--text-muted);margin:4px 0 0;"></p>
+                        </div>
                         <div id="omModalQuestions"></div>
                         <div style="display:flex;gap:10px;margin-top:20px;">
-                            <button class="btn" onclick="submitOutcomeMeasureModal()">Submit</button>
+                            <button class="btn" id="omModalSubmitBtn" onclick="submitOutcomeMeasureModal()">Submit</button>
                             <button class="btn btn-secondary" onclick="closeOmModal()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VAS Slider Modal (ORS and SRS) -->
+                <div id="vasModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;justify-content:center;align-items:center;z-index:10001;">
+                    <div style="background:var(--bg-card);padding:30px;border-radius:16px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;">
+                        <h3 id="vasModalTitle" style="margin-top:0;"></h3>
+                        <p id="vasModalDesc" style="color:var(--text-secondary);font-size:14px;margin-bottom:20px;"></p>
+                        <div id="vasModalSliders"></div>
+                        <div style="display:flex;gap:10px;margin-top:24px;">
+                            <button class="btn" onclick="submitVASModal()">Submit</button>
+                            <button class="btn btn-secondary" onclick="closeVASModal()">Cancel</button>
                         </div>
                     </div>
                 </div>
@@ -9830,11 +9864,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             // Show professional tab only for clinicians
             if (currentUserRole === 'clinician') {
                 document.getElementById('professionalTabBtn').style.display = 'block';
-                document.getElementById('messagesTabBtn').style.display = 'inline-block';
 
-                // Hide all patient-facing tab buttons for clinicians (except messages)
+                // Hide all patient-facing tab buttons for clinicians
                 document.querySelectorAll('.tab-btn').forEach(btn => {
-                    if (btn.id !== 'professionalTabBtn' && btn.id !== 'messagesTabBtn') {
+                    if (btn.id !== 'professionalTabBtn') {
                         btn.style.display = 'none';
                     }
                 });
