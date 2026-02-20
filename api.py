@@ -4140,6 +4140,7 @@ def init_db():
         cursor.execute("CREATE TABLE IF NOT EXISTS treatment_plans (id SERIAL PRIMARY KEY, clinician_username TEXT NOT NULL, patient_username TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, is_active BOOLEAN DEFAULT TRUE, presenting_problems TEXT, goals TEXT, interventions TEXT, frequency_per_week NUMERIC(4,1), session_duration_minutes INTEGER DEFAULT 50, planned_total_sessions INTEGER, planned_end_date DATE, phq9_target_score INTEGER, gad7_target_score INTEGER, core10_target_score INTEGER, other_outcome_targets TEXT, discharge_criteria TEXT, review_frequency_weeks INTEGER DEFAULT 6, next_review_date DATE, clinician_signed_at TIMESTAMP, patient_signed_at TIMESTAMP, patient_declined_signature BOOLEAN DEFAULT FALSE, status TEXT DEFAULT 'draft', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_treatment_plans_clinician ON treatment_plans(clinician_username)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_treatment_plans_patient ON treatment_plans(patient_username)")
+        conn.commit()  # Commit new tables before the ALTER TABLE block so a rollback doesn't undo them
         # Extend clinical_scales for 1.3 outcome measures (idempotent ALTER TABLE)
         try:
             cursor.execute("ALTER TABLE clinical_scales ADD COLUMN IF NOT EXISTS responses JSONB")
@@ -10731,7 +10732,8 @@ def submit_phq9():
         ).fetchone()
         
         if last_assessment:
-            last_date = datetime.fromisoformat(last_assessment[0])
+            _ts = last_assessment[0]
+            last_date = _ts if isinstance(_ts, datetime) else datetime.fromisoformat(str(_ts))
             days_since = (datetime.now() - last_date).days
             if days_since < 14:
                 conn.close()
@@ -10813,7 +10815,8 @@ def submit_gad7():
         ).fetchone()
         
         if last_assessment:
-            last_date = datetime.fromisoformat(last_assessment[0])
+            _ts = last_assessment[0]
+            last_date = _ts if isinstance(_ts, datetime) else datetime.fromisoformat(str(_ts))
             days_since = (datetime.now() - last_date).days
             if days_since < 14:
                 conn.close()
@@ -22212,7 +22215,7 @@ def patient_sign_treatment_plan():
         patient_username = get_authenticated_username()
         if not patient_username:
             return jsonify({'error': 'Authentication required'}), 401
-        if session.get('role') != 'patient':
+        if session.get('role') not in ('patient', 'user'):
             return jsonify({'error': 'Patient access required'}), 403
         data = request.get_json() or {}
         plan_id = data.get('plan_id')
@@ -22248,7 +22251,7 @@ def patient_decline_treatment_plan():
         patient_username = get_authenticated_username()
         if not patient_username:
             return jsonify({'error': 'Authentication required'}), 401
-        if session.get('role') != 'patient':
+        if session.get('role') not in ('patient', 'user'):
             return jsonify({'error': 'Patient access required'}), 403
         data = request.get_json() or {}
         plan_id = data.get('plan_id')
@@ -22282,7 +22285,7 @@ def get_patient_treatment_plan():
         patient_username = get_authenticated_username()
         if not patient_username:
             return jsonify({'error': 'Authentication required'}), 401
-        if session.get('role') != 'patient':
+        if session.get('role') not in ('patient', 'user'):
             return jsonify({'error': 'Patient access required'}), 403
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
@@ -22325,7 +22328,7 @@ def patient_submit_outcome_measure():
         patient_username = get_authenticated_username()
         if not patient_username:
             return jsonify({'error': 'Authentication required'}), 401
-        if session.get('role') != 'patient':
+        if session.get('role') not in ('patient', 'user'):
             return jsonify({'error': 'Patient access required'}), 403
         data = request.get_json() or {}
         scale_name = data.get('scale_name', '').strip()
@@ -22442,7 +22445,7 @@ def get_patient_outcome_measures():
         patient_username = get_authenticated_username()
         if not patient_username:
             return jsonify({'error': 'Authentication required'}), 401
-        if session.get('role') != 'patient':
+        if session.get('role') not in ('patient', 'user'):
             return jsonify({'error': 'Patient access required'}), 403
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
