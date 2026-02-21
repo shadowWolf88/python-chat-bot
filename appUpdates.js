@@ -1,6 +1,14 @@
 const APP_UPDATES = [
     {
         "date": "2026-02-21",
+        "version": "22.595",
+        "title": "Version History Update",
+        "changes": [
+            "Version History Update"
+        ]
+    },
+    {
+        "date": "2026-02-21",
         "version": "22.594",
         "title": "Fix: messages inbox 500 + AI summary now includes session notes & treatment plan",
         "changes": [

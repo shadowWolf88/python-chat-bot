@@ -1,3 +1,7 @@
+
+//run node generateVersionHistory.js
+//paste output in indez (search for const APP_UPDATES)
+
 const { execSync } = require("child_process");
 const fs = require("fs");
 

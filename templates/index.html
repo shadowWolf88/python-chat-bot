@@ -1179,6 +1179,10 @@
             background: var(--bg-sidebar);
         }
 
+        /* Hide sidebar entirely for clinician/developer — their dashboards are full-width */
+        .sidebar-hidden #sidebarNav { display: none !important; }
+        .sidebar-hidden .app-content { flex-direction: column; }
+
         .main-content {
             flex: 1;
             padding: 20px 30px;
