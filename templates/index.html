@@ -4002,6 +4002,8 @@
         [data-theme="dark"] .conv-bubble.other .conv-bubble-inner { background: var(--bg-secondary); }
         [data-theme="dark"] .msg-recipient-dropdown { background: var(--card-bg); border-color: var(--border-color); }
         [data-theme="dark"] .msg-recipient-item:hover { background: var(--hover-bg); }
+        [data-theme="dark"] .msg-quick-btn { background: var(--bg-secondary); color: var(--text-primary); border-color: var(--border-color); }
+        [data-theme="dark"] .msg-quick-btn:hover { border-color: var(--primary-color, #6366f1); color: var(--primary-color, #6366f1); background: rgba(99,102,241,0.1); }
     </style>
 </head>
 <body>
@@ -5237,6 +5239,37 @@
                 </div>
             </div>
             
+            <!-- Mood & Habits Tab -->
+            <div id="moodTab" class="tab-content">
+                <h3>📊 Mood & Habits</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">Track and review your mood, sleep, and daily habits over time.</p>
+
+                <div class="card" style="margin-bottom: 20px;">
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                        <button class="btn btn-primary" onclick="switchTab('home', document.querySelector('[onclick*=\'home\']'))">
+                            ➕ Log Today's Mood
+                        </button>
+                        <span style="color: var(--text-secondary); font-size: 14px;">Go to Home to log a new check-in, then return here to see your history.</span>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 20px;">
+                    <h4>📅 Recent Entries</h4>
+                    <div id="moodHistoryList">
+                        <div style="text-align: center; padding: 30px;">
+                            <div class="loading" style="margin: 0 auto;"></div>
+                            <p style="margin-top: 15px; color: var(--text-secondary);">Loading your mood history...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>📈 Mood Trend</h4>
+                    <canvas id="moodTabChart" width="600" height="200" style="max-width: 100%;"></canvas>
+                    <p id="moodTabChartEmpty" style="display: none; text-align: center; color: var(--text-secondary); padding: 20px;">No mood data yet — start tracking on the Home tab!</p>
+                </div>
+            </div>
+
             <!-- Gratitude Journal Tab -->
             <div id="gratitudeTab" class="tab-content">
                 <h3>Gratitude Journal</h3>
@@ -10052,7 +10085,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     
                     // Add history
                     data.history.forEach(msg => {
-                        addMessage(msg.message, msg.sender);
+                        addMessage(msg.message, msg.sender, null, msg.timestamp);
                     });
                 }
             } catch (error) {
@@ -10619,14 +10652,24 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             approval:             '✅ Account Approved',
                             approval_pending:     '⏳ Approval Pending',
                             patient_request:      '👤 New Patient Request',
-                            dev_message:          '📨 Developer Message',
+                            dev_message:          '📨 Developer Update',
+                            dev_message_reply:    '↩️ Message Reply',
                             message:              '💬 New Message',
                             sos:                  '🆘 SOS Alert',
+                            assessment:           '📋 Assessment Complete',
+                            patient_assessment:   '📋 Patient Assessment',
+                            clinical_concern:     '⚠️ Clinical Concern',
+                            risk_alert:           '🚨 Risk Alert',
+                            session_note:         '📝 Session Note',
+                            treatment_plan:       '🗺️ Treatment Plan',
+                            outcome_measure:      '📈 Outcome Measure',
                         };
 
                         list.innerHTML = headerHtml + data.notifications.map(n => {
                             const ntype = n.notification_type || '';
-                            const label = NOTIF_LABELS[ntype] || '📬 Notification';
+                            // Build a smart fallback from the type string if not in map
+                            const fallback = ntype ? '📬 ' + ntype.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '📬 Notification';
+                            const label = NOTIF_LABELS[ntype] || fallback;
                             let onClick = `markNotificationRead(${n.id})`;
 
                             if (ntype === 'appointment_new') {
@@ -10855,6 +10898,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 setTimeout(() => initializeWellnessRitual(), 500);
                 // Load Wins Board
                 setTimeout(() => loadWinsBoard(), 300);
+            }
+
+            // Load mood history when switching to mood tab
+            if (tabName === 'mood') {
+                loadMoodTabHistory();
             }
 
             // Load pet when switching to pet tab
@@ -13245,6 +13293,83 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
         
+        async function loadMoodTabHistory() {
+            const listEl = document.getElementById('moodHistoryList');
+            const canvas = document.getElementById('moodTabChart');
+            const emptyMsg = document.getElementById('moodTabChartEmpty');
+            if (!listEl) return;
+
+            listEl.innerHTML = '<div style="text-align:center;padding:30px;"><div class="loading" style="margin:0 auto;"></div><p style="margin-top:15px;color:var(--text-secondary);">Loading...</p></div>';
+
+            try {
+                const response = await fetch(`/api/mood/history?username=${encodeURIComponent(currentUser)}&limit=30`);
+                const data = await response.json();
+
+                if (response.ok && data.logs && data.logs.length > 0) {
+                    const moodEmojis = {1:'😢',2:'😢',3:'😔',4:'😔',5:'😐',6:'😐',7:'🙂',8:'🙂',9:'😄',10:'😄'};
+                    listEl.innerHTML = '<div class="history-grid">' +
+                        data.logs.map(log => `
+                            <div class="history-card">
+                                <div class="date">${new Date(log.timestamp).toLocaleString()}</div>
+                                <div style="font-size:24px;margin:10px 0;">${moodEmojis[log.mood_val] || '😐'} <strong>${log.mood_val}/10</strong></div>
+                                <div><strong>Sleep:</strong> ${log.sleep_val} hrs</div>
+                                ${log.water_pints ? `<div><strong>Water:</strong> ${log.water_pints} pints</div>` : ''}
+                                ${log.exercise_mins ? `<div><strong>Exercise:</strong> ${log.exercise_mins} mins</div>` : ''}
+                                ${log.outside_mins ? `<div><strong>Outdoors:</strong> ${log.outside_mins} mins</div>` : ''}
+                                ${log.meds ? `<div><strong>Meds:</strong> ${sanitizeHTML(log.meds)}</div>` : ''}
+                                ${log.notes ? `<div style="margin-top:8px;"><strong>Notes:</strong><br>${sanitizeWithLineBreaks(log.notes)}</div>` : ''}
+                            </div>
+                        `).join('') + '</div>';
+
+                    // Draw simple canvas line chart
+                    if (canvas && data.logs.length >= 2) {
+                        if (emptyMsg) emptyMsg.style.display = 'none';
+                        canvas.style.display = 'block';
+                        const reversed = [...data.logs].reverse();
+                        const ctx = canvas.getContext('2d');
+                        const W = canvas.width, H = canvas.height;
+                        const pad = 30;
+                        ctx.clearRect(0, 0, W, H);
+                        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border-color') || '#e0e0e0';
+                        ctx.lineWidth = 1;
+                        // Grid lines
+                        for (let v = 0; v <= 10; v += 2) {
+                            const y = H - pad - ((v / 10) * (H - pad * 2));
+                            ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke();
+                        }
+                        // Data line
+                        const stepX = (W - pad * 2) / Math.max(reversed.length - 1, 1);
+                        ctx.strokeStyle = '#6366f1';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        reversed.forEach((log, i) => {
+                            const x = pad + i * stepX;
+                            const y = H - pad - ((log.mood_val / 10) * (H - pad * 2));
+                            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                        });
+                        ctx.stroke();
+                        // Points
+                        ctx.fillStyle = '#6366f1';
+                        reversed.forEach((log, i) => {
+                            const x = pad + i * stepX;
+                            const y = H - pad - ((log.mood_val / 10) * (H - pad * 2));
+                            ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+                        });
+                    } else if (canvas) {
+                        canvas.style.display = 'none';
+                        if (emptyMsg) emptyMsg.style.display = 'block';
+                    }
+                } else {
+                    listEl.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:30px;">No mood logs yet. Start tracking on the Home tab!</p>';
+                    if (canvas) canvas.style.display = 'none';
+                    if (emptyMsg) emptyMsg.style.display = 'block';
+                }
+            } catch (error) {
+                listEl.innerHTML = '<p style="text-align:center;color:#dc3545;padding:30px;">Error loading mood history. Please try again.</p>';
+                console.error('Mood tab history error:', error);
+            }
+        }
+
         function showMessage(elementId, message, type) {
             const el = document.getElementById(elementId);
             el.textContent = message;
@@ -18407,10 +18532,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             var recipientEl = document.getElementById('messageRecipientPatient');
             var subjectEl = document.getElementById('messageSubjectPatient');
             var contentEl = document.getElementById('messageContentPatient');
+            var clinician = currentClinicianName || '';
             var templates = {
-                appointment: { recipient: '', subject: 'Appointment Request', content: 'Hi,\n\nI would like to request an appointment. Please could you let me know your available times?\n\nPreferred days: \nPreferred time: \n\nThank you.' },
-                checkin: { recipient: '', subject: 'Check-in', content: 'Hi,\n\nJust checking in to let you know how I\'ve been doing.\n\n' },
-                enquiry: { recipient: '', subject: 'General Enquiry', content: 'Hi,\n\nI have a question about: \n\n' },
+                appointment: { recipient: clinician, subject: 'Appointment Request', content: 'Hi,\n\nI would like to request an appointment. Please could you let me know your available times?\n\nPreferred days: \nPreferred time: \n\nThank you.' },
+                checkin: { recipient: clinician, subject: 'Check-in', content: 'Hi,\n\nJust checking in to let you know how I\'ve been doing.\n\n' },
+                enquiry: { recipient: clinician, subject: 'General Enquiry', content: 'Hi,\n\nI have a question about: \n\n' },
                 dev: { recipient: window.developerUsername || '', subject: 'Feedback / Issue Report', content: 'Hi Development Team,\n\nI wanted to report the following:\n\nType: [Bug / Feature Request / Feedback]\nDetails: \n\nThank you.' }
             };
             var t = templates[type];
