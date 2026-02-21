@@ -4140,6 +4140,16 @@ def init_db():
         cursor.execute("CREATE TABLE IF NOT EXISTS treatment_plans (id SERIAL PRIMARY KEY, clinician_username TEXT NOT NULL, patient_username TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, is_active BOOLEAN DEFAULT TRUE, presenting_problems TEXT, goals TEXT, interventions TEXT, frequency_per_week NUMERIC(4,1), session_duration_minutes INTEGER DEFAULT 50, planned_total_sessions INTEGER, planned_end_date DATE, phq9_target_score INTEGER, gad7_target_score INTEGER, core10_target_score INTEGER, other_outcome_targets TEXT, discharge_criteria TEXT, review_frequency_weeks INTEGER DEFAULT 6, next_review_date DATE, clinician_signed_at TIMESTAMP, patient_signed_at TIMESTAMP, patient_declined_signature BOOLEAN DEFAULT FALSE, status TEXT DEFAULT 'draft', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_treatment_plans_clinician ON treatment_plans(clinician_username)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_treatment_plans_patient ON treatment_plans(patient_username)")
+        # Performance indexes for high-frequency FK lookups (audit fix)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mood_logs_username ON mood_logs(username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_clinical_scales_username ON clinical_scales(username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_alerts_username ON alerts(username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mood_logs_timestamp ON mood_logs(entry_timestamp DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_clinical_scales_timestamp ON clinical_scales(entry_timestamp DESC)")
         conn.commit()  # Commit new tables before the ALTER TABLE block so a rollback doesn't undo them
         # Extend clinical_scales for 1.3 outcome measures (idempotent ALTER TABLE)
         try:
@@ -5326,7 +5336,16 @@ def login_page():
 
 @app.route('/api/admin/wipe')
 def admin_wipe_page():
-    """Serve admin database wipe page"""
+    """Serve admin database wipe page - PROTECTED (developer role only)"""
+    username = get_authenticated_username()
+    if not username:
+        return redirect('/login')
+    conn = get_db_connection()
+    cur = get_wrapped_cursor(conn)
+    user_role = cur.execute("SELECT role FROM users WHERE username = %s", (username,)).fetchone()
+    conn.close()
+    if not user_role or user_role[0] != 'developer':
+        return redirect('/')
     return render_template('admin-wipe.html')
 
 @app.route('/api/developer/dashboard')
