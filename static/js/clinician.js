@@ -313,22 +313,11 @@ function renderPatientList(patients) {
 }
 
 async function selectPatient(username) {
-    try {
-        const data = await callClinicianAPI(`/api/clinician/patient/${username}`);
-        
-        currentClinicianPatient = { username, ...data };
-        
-        // Show patient detail section, hide patient list
-        document.getElementById('clinicalPatientsTab').style.display = 'none';
-        document.getElementById('patientDetailSection').style.display = 'block';
-        document.getElementById('patientDetailName').textContent = data.name || data.username || username;
-        
-        // Load summary tab by default
-        switchPatientTab('summary');
-        
-        showSuccess(`Loaded patient: ${data.name || data.username || username}`);
-    } catch (error) {
-        console.error('Error selecting patient:', error);
+    // Hide the patient list tab and delegate to the full patient detail view
+    // which handles tab switching, data loading, and AI summary correctly.
+    document.getElementById('clinicalPatientsTab').style.display = 'none';
+    if (typeof viewPatientDetail === 'function') {
+        viewPatientDetail(username);
     }
 }
 

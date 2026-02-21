@@ -5909,6 +5909,10 @@ def verify_clinician_patient_relationship(clinician_username, patient_username):
     The users.clinician_id column stores the clinician's USERNAME (TEXT), not the integer PK.
     We also accept the patient_approvals table as a second source of truth.
     Returns: (is_valid, clinician_username)
+
+    NOTE: Does NOT close the connection — get_db_connection() returns the request-scoped
+    shared connection from Flask g, and closing it here would invalidate any cursors the
+    calling endpoint already has open. Flask's teardown_db_pool handles cleanup.
     """
     try:
         conn = get_db_connection()
@@ -5921,7 +5925,6 @@ def verify_clinician_patient_relationship(clinician_username, patient_username):
         ).fetchone()
 
         if not clinician:
-            conn.close()
             return False, None
 
         # Check patient.clinician_id (stores the clinician username) OR patient_approvals
@@ -5932,8 +5935,6 @@ def verify_clinician_patient_relationship(clinician_username, patient_username):
             WHERE patient_username = %s AND clinician_username = %s AND status = 'approved'
             LIMIT 1
         """, (patient_username, clinician_username, patient_username, clinician_username)).fetchone()
-
-        conn.close()
 
         if result:
             return True, clinician_username
