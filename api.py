@@ -4345,6 +4345,21 @@ def init_db():
             print(f"Migration note (conversations is_archived): {e}")
             conn.rollback()
 
+        # 2d. Ensure mood_logs has extended habit columns (added after initial schema)
+        for col_def in [
+            "exercise_mins INTEGER DEFAULT 0",
+            "outside_mins INTEGER DEFAULT 0",
+            "water_pints NUMERIC(4,1) DEFAULT 0",
+            "sentiment TEXT DEFAULT 'Neutral'",
+        ]:
+            col_name = col_def.split()[0]
+            try:
+                cursor.execute(f"ALTER TABLE mood_logs ADD COLUMN IF NOT EXISTS {col_def}")
+                conn.commit()
+            except Exception as e:
+                print(f"Migration note (mood_logs.{col_name}): {e}")
+                conn.rollback()
+
         # 3. Conversation participants table
         try:
             cursor.execute("""
@@ -12042,11 +12057,18 @@ def get_patient_detail(username):
             (username,)
         ).fetchone()
         
-        # Recent moods with ALL habit data
-        moods = cur.execute(
-            "SELECT mood_val, sleep_val, exercise_mins, outside_mins, water_pints, meds, notes, entrestamp FROM mood_logs WHERE username = %s ORDER BY entrestamp DESC LIMIT 30",
-            (username,)
-        ).fetchall()
+        # Recent moods — try extended columns first, fall back to basics if migration hasn't run
+        try:
+            moods = cur.execute(
+                "SELECT mood_val, sleep_val, exercise_mins, outside_mins, water_pints, meds, notes, entrestamp FROM mood_logs WHERE username = %s ORDER BY entrestamp DESC LIMIT 30",
+                (username,)
+            ).fetchall()
+        except Exception:
+            conn.rollback()
+            moods = cur.execute(
+                "SELECT mood_val, sleep_val, 0, 0, 0, meds, notes, entrestamp FROM mood_logs WHERE username = %s ORDER BY entrestamp DESC LIMIT 30",
+                (username,)
+            ).fetchall()
         
         # AI Chat history
         chat_history = cur.execute(
@@ -12223,10 +12245,17 @@ def generate_ai_summary():
                 app_logger.debug(f"Date parsing error for patient {username}: {e}")
                 days_since_join = 30
         # Get moods and alerts since join (or 30 days, whichever is less)
-        moods = cur.execute(
-            f"SELECT mood_val, sleep_val, exercise_mins, outside_mins, water_pints, meds, notes, entrestamp FROM mood_logs WHERE username = %s AND entrestamp >= CURRENT_TIMESTAMP - INTERVAL '{min(days_since_join,30)} days' ORDER BY entrestamp DESC",
-            (username,),
-        ).fetchall() or []
+        try:
+            moods = cur.execute(
+                f"SELECT mood_val, sleep_val, exercise_mins, outside_mins, water_pints, meds, notes, entrestamp FROM mood_logs WHERE username = %s AND entrestamp >= CURRENT_TIMESTAMP - INTERVAL '{min(days_since_join,30)} days' ORDER BY entrestamp DESC",
+                (username,),
+            ).fetchall() or []
+        except Exception:
+            conn.rollback()
+            moods = cur.execute(
+                f"SELECT mood_val, sleep_val, 0, 0, 0, meds, notes, entrestamp FROM mood_logs WHERE username = %s AND entrestamp >= CURRENT_TIMESTAMP - INTERVAL '{min(days_since_join,30)} days' ORDER BY entrestamp DESC",
+                (username,),
+            ).fetchall() or []
         alerts = cur.execute(
             f"SELECT alert_type, details, created_at FROM alerts WHERE username = %s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '{min(days_since_join,30)} days' ORDER BY created_at DESC",
             (username,),
