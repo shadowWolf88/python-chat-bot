@@ -301,21 +301,31 @@ class MessageService:
         
         conversations = []
         for conv_id in conv_ids:
-            # Get latest message
+            # Get latest message visible to this user (respects per-user soft-delete)
             self.cur.execute("""
                 SELECT sender_username, content, sent_at
                 FROM messages
                 WHERE conversation_id = %s AND deleted_at IS NULL
+                AND (
+                    (sender_username = %s AND (is_deleted_by_sender IS NULL OR is_deleted_by_sender = FALSE))
+                    OR
+                    (recipient_username = %s AND (is_deleted_by_recipient IS NULL OR is_deleted_by_recipient = FALSE))
+                )
                 ORDER BY sent_at DESC LIMIT 1
-            """, (conv_id,))
-            
+            """, (conv_id, self.username, self.username))
+
             latest = self.cur.fetchone()
-            
-            # Get unread count
+
+            # Skip conversations where this user has deleted all messages
+            if latest is None:
+                continue
+
+            # Get unread count (only non-deleted-by-recipient messages)
             self.cur.execute("""
                 SELECT COUNT(*) FROM messages
                 WHERE conversation_id = %s AND recipient_username = %s
                 AND is_read = 0 AND deleted_at IS NULL
+                AND (is_deleted_by_recipient IS NULL OR is_deleted_by_recipient = FALSE)
             """, (conv_id, self.username))
             unread_result = self.cur.fetchone()
             unread_count = unread_result[0] if unread_result else 0
