@@ -7963,13 +7963,16 @@ def reward_pet(action, activity_type=None):
 def therapy_chat():
     """AI therapy chat endpoint (Phase 2A: Input validation added)"""
     try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
         data = request.json
-        username = data.get('username')
         message = data.get('message')
-        wellness_data = data.get('wellness_data', {})  # NEW: Optional wellness context
-        
-        if not username or not message:
-            return jsonify({'error': 'Username and message required'}), 400
+        wellness_data = data.get('wellness_data', {})  # Optional wellness context
+
+        if not message:
+            return jsonify({'error': 'Message required'}), 400
         
         # PHASE 2A: Input validation
         message, msg_error = InputValidator.validate_message(message)
@@ -8334,11 +8337,10 @@ def therapy_chat():
 def get_chat_history():
     """Get chat history for a user (optionally filtered by chat session)"""
     try:
-        username = request.args.get('username')
-        chat_session_id = request.args.get('chat_session_id')  # Optional: specific session
-        
+        username = get_authenticated_username()
         if not username:
-            return jsonify({'error': 'Username required'}), 400
+            return jsonify({'error': 'Authentication required'}), 401
+        chat_session_id = request.args.get('chat_session_id')  # Optional: specific session
         
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
@@ -8914,11 +8916,10 @@ def log_mood():
 def mood_history():
     """Get mood history for user with all tracking data"""
     try:
-        username = request.args.get('username')
-        limit = request.args.get('limit', 30)
-        
+        username = get_authenticated_username()
         if not username:
-            return jsonify({'error': 'Username required'}), 400
+            return jsonify({'error': 'Authentication required'}), 401
+        limit = request.args.get('limit', 30)
         
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
@@ -8955,12 +8956,15 @@ def mood_history():
 def log_gratitude():
     """Log gratitude entry - automatically updates AI memory"""
     try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
         data = request.json
-        username = data.get('username')
         entry = data.get('entry')
 
-        if not username or not entry:
-            return jsonify({'error': 'Username and entry required'}), 400
+        if not entry:
+            return jsonify({'error': 'Entry required'}), 400
 
         # INPUT VALIDATION: Length limits
         MAX_ENTRY_LENGTH = 1000
@@ -10804,12 +10808,15 @@ def get_cbt_records():
 def submit_phq9():
     """Submit PHQ-9 depression assessment (once per fortnight)"""
     try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
         data = request.json
-        username = data.get('username')
         scores = data.get('scores')  # Array of 9 scores (0-3 each)
-        
-        if not username or not scores or len(scores) != 9:
-            return jsonify({'error': 'Username and 9 scores required'}), 400
+
+        if not scores or len(scores) != 9:
+            return jsonify({'error': '9 scores required'}), 400
         
         # Check if user already submitted PHQ-9 in last 14 days
         conn = get_db_connection()
@@ -10897,12 +10904,15 @@ def submit_phq9():
 def submit_gad7():
     """Submit GAD-7 anxiety assessment (once per fortnight)"""
     try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
         data = request.json
-        username = data.get('username')
         scores = data.get('scores')  # Array of 7 scores (0-3 each)
-        
-        if not username or not scores or len(scores) != 7:
-            return jsonify({'error': 'Username and 7 scores required'}), 400
+
+        if not scores or len(scores) != 7:
+            return jsonify({'error': '7 scores required'}), 400
         
         # Check if user already submitted GAD-7 in last 14 days
         conn = get_db_connection()
@@ -13226,13 +13236,32 @@ def get_training_stats():
 def manage_appointments():
     """Get or create appointments"""
     try:
+        session_user = get_authenticated_username()
+        if not session_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
         if request.method == 'GET':
             # Get appointments for clinician or patient
             clinician_username = request.args.get('clinician')
             patient_username = request.args.get('patient')
-            
+
             if not clinician_username and not patient_username:
                 return jsonify({'error': 'Clinician or patient username required'}), 400
+
+            # Only allow users to query their own appointments (or clinicians querying their patients)
+            if clinician_username and clinician_username != session_user:
+                return jsonify({'error': 'Access denied'}), 403
+            if patient_username and patient_username != session_user:
+                # Allow clinicians to view their own patients' appointments
+                conn_chk = get_db_connection()
+                cur_chk = get_wrapped_cursor(conn_chk)
+                ok = cur_chk.execute(
+                    "SELECT 1 FROM appointments WHERE patient_username=%s AND clinician_username=%s LIMIT 1",
+                    (patient_username, session_user)
+                ).fetchone()
+                conn_chk.close()
+                if not ok:
+                    return jsonify({'error': 'Access denied'}), 403
             
             conn = get_db_connection()
             cur = get_wrapped_cursor(conn)
@@ -13333,6 +13362,10 @@ def manage_appointments():
 def cancel_appointment(appointment_id):
     """Cancel an appointment"""
     try:
+        session_user = get_authenticated_username()
+        if not session_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
         
@@ -13369,13 +13402,17 @@ def cancel_appointment(appointment_id):
 def respond_to_appointment(appointment_id):
     """Patient acknowledges and responds to appointment (accept/decline)"""
     try:
+        session_user = get_authenticated_username()
+        if not session_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
         data = request.json
-        patient_username = data.get('patient_username')
+        patient_username = session_user  # Always use the authenticated user
         acknowledged = data.get('acknowledged', False)
         response = data.get('response')  # 'accepted' or 'declined'
-        
-        if not patient_username:
-            return jsonify({'error': 'Patient username required'}), 400
+
+        if not acknowledged:
+            return jsonify({'error': 'You must acknowledge reading the appointment'}), 400
         
         if not acknowledged:
             return jsonify({'error': 'You must acknowledge reading the appointment'}), 400
@@ -13429,12 +13466,18 @@ def respond_to_appointment(appointment_id):
 def confirm_appointment_attendance(appointment_id):
     """Clinician confirms whether a patient attended an appointment"""
     try:
+        session_user = get_authenticated_username()
+        if not session_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
         data = request.json
-        clinician_username = data.get('clinician_username')
+        clinician_username = session_user  # Always use authenticated user
         status = data.get('status')  # 'attended' or 'no_show' or 'missed'
 
-        if not clinician_username or not status:
-            return jsonify({'error': 'clinician_username and status are required'}), 400
+        if not status:
+            return jsonify({'error': 'status is required'}), 400
+        if status not in ['attended', 'no_show', 'missed']:
+            return jsonify({'error': "status must be one of: 'attended', 'no_show', 'missed'"}), 400
 
         if status not in ['attended', 'no_show', 'missed']:
             return jsonify({'error': "status must be one of: 'attended', 'no_show', 'missed'"}), 400
@@ -13489,10 +13532,9 @@ def confirm_appointment_attendance(appointment_id):
 def patient_profile():
     """Get or update patient profile (About Me)"""
     try:
-        username = request.args.get('username') if request.method == 'GET' else request.json.get('username')
-        
+        username = get_authenticated_username()
         if not username:
-            return jsonify({'error': 'Username required'}), 400
+            return jsonify({'error': 'Authentication required'}), 401
         
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)

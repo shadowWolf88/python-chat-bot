@@ -17447,9 +17447,15 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 
                 if (response.ok) {
                     currentPatientData = data;
-                    
+
                     // Generate AI summary
                     generateAISummary(username, data);
+
+                    // Re-render the currently active patient subtab now that data is available
+                    // (user may have clicked a tab while data was still loading)
+                    if (currentPatientTab && currentPatientTab !== 'summary' && currentPatientTab !== 'charts') {
+                        showPatientTab(currentPatientTab);
+                    }
                 } else {
                     document.getElementById('aiSummary').innerHTML = '<p style="color: #dc3545;">Error loading patient data</p>';
                 }
