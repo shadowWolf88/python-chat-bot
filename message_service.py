@@ -293,23 +293,24 @@ class MessageService:
             SELECT DISTINCT cp.conversation_id
             FROM conversation_participants cp
             JOIN conversations c ON c.id = cp.conversation_id
-            WHERE cp.username = %s AND (c.is_archived IS NULL OR c.is_archived = FALSE)
+            WHERE cp.username = %s AND (c.is_archived IS NULL OR c.is_archived = 0)
             ORDER BY cp.conversation_id DESC
         """, (self.username,))
 
         conv_ids = [row[0] for row in self.cur.fetchall()]
-        
+
         conversations = []
         for conv_id in conv_ids:
             # Get latest message visible to this user (respects per-user soft-delete)
+            # Note: is_deleted_by_sender/recipient stored as INTEGER (0/1) not BOOLEAN
             self.cur.execute("""
                 SELECT sender_username, content, sent_at
                 FROM messages
                 WHERE conversation_id = %s AND deleted_at IS NULL
                 AND (
-                    (sender_username = %s AND (is_deleted_by_sender IS NULL OR is_deleted_by_sender = FALSE))
+                    (sender_username = %s AND (is_deleted_by_sender IS NULL OR is_deleted_by_sender = 0))
                     OR
-                    (recipient_username = %s AND (is_deleted_by_recipient IS NULL OR is_deleted_by_recipient = FALSE))
+                    (recipient_username = %s AND (is_deleted_by_recipient IS NULL OR is_deleted_by_recipient = 0))
                 )
                 ORDER BY sent_at DESC LIMIT 1
             """, (conv_id, self.username, self.username))
@@ -325,7 +326,7 @@ class MessageService:
                 SELECT COUNT(*) FROM messages
                 WHERE conversation_id = %s AND recipient_username = %s
                 AND is_read = 0 AND deleted_at IS NULL
-                AND (is_deleted_by_recipient IS NULL OR is_deleted_by_recipient = FALSE)
+                AND (is_deleted_by_recipient IS NULL OR is_deleted_by_recipient = 0)
             """, (conv_id, self.username))
             unread_result = self.cur.fetchone()
             unread_count = unread_result[0] if unread_result else 0
@@ -592,14 +593,14 @@ class MessageService:
         if not msg or self.username not in (msg[0], msg[1]):
             raise ValueError("Access denied")
         
-        # Mark as archived by user
+        # Mark as archived by user (use 1 not TRUE — column is INTEGER in production)
         if self.username == msg[0]:
             self.cur.execute("""
-                UPDATE messages SET is_archived_by_sender = TRUE WHERE id = %s
+                UPDATE messages SET is_archived_by_sender = 1 WHERE id = %s
             """, (message_id,))
         else:
             self.cur.execute("""
-                UPDATE messages SET is_archived_by_recipient = TRUE WHERE id = %s
+                UPDATE messages SET is_archived_by_recipient = 1 WHERE id = %s
             """, (message_id,))
         
         self.conn.commit()
@@ -619,19 +620,19 @@ class MessageService:
         if not msg or self.username not in (msg[0], msg[1]):
             raise ValueError("Access denied")
         
-        # Mark as deleted by user
+        # Mark as deleted by user (use 1 not TRUE — column is INTEGER in production)
         if self.username == msg[0]:
             self.cur.execute("""
-                UPDATE messages SET is_deleted_by_sender = TRUE WHERE id = %s
+                UPDATE messages SET is_deleted_by_sender = 1 WHERE id = %s
             """, (message_id,))
-            deleted_by_sender = True
+            deleted_by_sender = 1
             deleted_by_recipient = msg[3]
         else:
             self.cur.execute("""
-                UPDATE messages SET is_deleted_by_recipient = TRUE WHERE id = %s
+                UPDATE messages SET is_deleted_by_recipient = 1 WHERE id = %s
             """, (message_id,))
             deleted_by_sender = msg[2]
-            deleted_by_recipient = True
+            deleted_by_recipient = 1
         
         # If both users deleted, mark permanently deleted
         if deleted_by_sender and deleted_by_recipient:

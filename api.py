@@ -12319,9 +12319,35 @@ def generate_ai_summary():
             (username,)
         ).fetchall() or []
 
+        # Get SOAP/BIRP session notes (Phase 1.1)
+        try:
+            session_notes = cur.execute(
+                """SELECT note_format, session_date, soap_subjective, soap_objective, soap_assessment, soap_plan,
+                          birp_behaviour, birp_intervention, birp_response, birp_plan, freetext_content, status
+                   FROM session_notes WHERE patient_username = %s
+                   ORDER BY session_date DESC LIMIT 5""",
+                (username,)
+            ).fetchall() or []
+        except Exception:
+            conn.rollback()
+            session_notes = []
+
+        # Get active treatment plan (Phase 1.2)
+        try:
+            treatment_plan_row = cur.execute(
+                """SELECT presenting_problems, goals, interventions, frequency_per_week,
+                          planned_total_sessions, status, clinician_signed_at, patient_signed_at
+                   FROM treatment_plans WHERE patient_username = %s AND is_active = TRUE
+                   ORDER BY created_at DESC LIMIT 1""",
+                (username,)
+            ).fetchone()
+        except Exception:
+            conn.rollback()
+            treatment_plan_row = None
+
         conn.close()
         app_logger.debug(f"AI summary data gathered: moods={len(moods)}, alerts={len(alerts)}, scales={len(scales)}, sessions={therapy_sessions}")
-        
+
         # Build context for AI
         patient_name = profile[0] if profile and len(profile) > 0 and profile[0] else username
         conditions = profile[1] if profile and len(profile) > 1 and profile[1] else "Not specified"
@@ -12339,11 +12365,41 @@ def generate_ai_summary():
             mood_trend = "improving" if recent_mood > older_mood else "declining" if recent_mood < older_mood else "stable"
         else:
             mood_trend = "insufficient data"
-        
+
         alert_count = len(alerts)
         gratitude_count = len(gratitude)
         cbt_count = len(cbt_records)
-        
+        session_notes_count = len(session_notes)
+
+        # Format session notes for prompt
+        def _format_session_note(sn):
+            date = str(sn[1])[:10] if sn[1] else 'unknown'
+            fmt = sn[0] or 'freetext'
+            if fmt == 'soap':
+                return f"[{date} SOAP] S:{(sn[2] or '')[:80]} A:{(sn[4] or '')[:80]}"
+            elif fmt == 'birp':
+                return f"[{date} BIRP] B:{(sn[6] or '')[:80]} R:{(sn[8] or '')[:80]}"
+            else:
+                return f"[{date}] {(sn[10] or '')[:120]}"
+
+        session_notes_text = chr(10).join([_format_session_note(sn) for sn in session_notes]) if session_notes else "No structured session notes recorded yet"
+
+        # Format treatment plan for prompt
+        if treatment_plan_row:
+            tp_problems = (treatment_plan_row[0] or '')[:200]
+            tp_status = treatment_plan_row[5] or 'draft'
+            tp_signed = 'Both parties signed' if treatment_plan_row[6] and treatment_plan_row[7] else \
+                        'Clinician signed, awaiting patient' if treatment_plan_row[6] else 'Draft'
+            try:
+                import json as _json
+                goals_raw = _json.loads(treatment_plan_row[1]) if treatment_plan_row[1] else []
+                goals_text = '; '.join([g.get('text', '') for g in goals_raw[:5] if isinstance(g, dict)]) if goals_raw else 'None'
+            except Exception:
+                goals_text = str(treatment_plan_row[1] or 'None')[:200]
+            treatment_plan_text = f"Status: {tp_status} ({tp_signed})\nPresenting problems: {tp_problems}\nTherapeutic goals: {goals_text}"
+        else:
+            treatment_plan_text = "No treatment plan created yet"
+
         # Build prompt with comprehensive data
         window_desc = f"since joining ({days_since_join} days)" if days_since_join < 30 else "last 30 days"
         prompt = f"""You are an experienced clinical psychologist preparing a comprehensive patient review for a colleague. Generate a detailed, professional clinical summary with clear sections.
@@ -12363,6 +12419,7 @@ QUANTITATIVE DATA:
 - Gratitude Journal Entries: {gratitude_count}
 - CBT Exercises Completed: {cbt_count}
 - Total Therapy Sessions: {therapy_sessions}
+- Structured Session Notes: {session_notes_count}
 
 CLINICAL ASSESSMENTS:
 {chr(10).join([f"- {s[0] or 'Unknown'}: Score {s[1] or 0} ({s[2] or 'unknown'} severity)" for s in scales]) if scales else "No formal assessments completed yet"}
@@ -12378,6 +12435,12 @@ CBT THOUGHT RECORDS:
 
 PREVIOUS CLINICIAN NOTES:
 {chr(10).join([f"- {'[FLAGGED] ' if n[1] else ''}{(n[0] or '')[:150]}" for n in clinician_notes]) if clinician_notes else "No previous clinician notes"}
+
+STRUCTURED SESSION NOTES (SOAP/BIRP):
+{session_notes_text}
+
+TREATMENT PLAN:
+{treatment_plan_text}
 
 SAFETY ALERTS:
 {chr(10).join([f"- [{a[0] or 'Alert'}] {a[1] or 'No details'}" for a in alerts[:5]]) if alerts else "No safety concerns flagged"}
