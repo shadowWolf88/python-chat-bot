@@ -4260,6 +4260,64 @@ def init_db():
             print(f"Migration note (patient_medications): {e}")
             conn.rollback()
 
+        # Phase 1.5 — Medication Tracker: extend patient_medications + adherence log
+        try:
+            cursor.execute("ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS prescriber TEXT")
+            cursor.execute("ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS side_effects TEXT")
+            cursor.execute("ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS refill_date DATE")
+            cursor.execute("ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS quantity_remaining INTEGER")
+            cursor.execute("ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS medication_adherence_logs (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    medication_id INTEGER NOT NULL,
+                    log_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                    status TEXT NOT NULL DEFAULT 'taken',
+                    taken_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    side_effect_noted TEXT,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(username, medication_id, log_date)
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_med_adherence_user ON medication_adherence_logs(username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_med_adherence_med ON medication_adherence_logs(medication_id, log_date)")
+            conn.commit()
+            print("✓ Phase 1.5: medication_adherence_logs + patient_medications columns ready")
+        except Exception as e:
+            print(f"Phase 1.5 medication migration note: {e}")
+            conn.rollback()
+
+        # Phase 1.4 — Waiting List Management
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS waiting_list (
+                    id SERIAL PRIMARY KEY,
+                    patient_username TEXT,
+                    referral_name TEXT,
+                    referral_email TEXT,
+                    referral_phone TEXT,
+                    clinician_username TEXT,
+                    referral_source TEXT DEFAULT 'self',
+                    presenting_problem TEXT,
+                    urgency INTEGER DEFAULT 3,
+                    risk_level TEXT DEFAULT 'low',
+                    date_received DATE DEFAULT CURRENT_DATE,
+                    notes TEXT,
+                    status TEXT DEFAULT 'waiting',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_waiting_list_clinician ON waiting_list(clinician_username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_waiting_list_status ON waiting_list(status)")
+            conn.commit()
+            print("✓ Phase 1.4: waiting_list table ready")
+        except Exception as e:
+            print(f"Phase 1.4 waiting list migration note: {e}")
+            conn.rollback()
+
         # ============================================================================
         # MESSAGING SYSTEM TABLES (Sprint 1: Comprehensive Messaging Overhaul)
         # ============================================================================
@@ -18491,38 +18549,499 @@ def get_wellness_summary():
 
 @app.route('/api/user/medications', methods=['GET'])
 def get_user_medications():
-    """Check if user has medications and get details"""
+    """Phase 1.5: Get patient's medication list with today's adherence status"""
     try:
         username = get_authenticated_username()
         if not username:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
-        
-        # Check if user has medications
+
         meds = cur.execute("""
-            SELECT medication_name, dosage, frequency, time_of_day
-            FROM patient_medications
-            WHERE username = %s AND is_active = TRUE
+            SELECT pm.id, pm.medication_name, pm.dosage, pm.frequency, pm.time_of_day,
+                   pm.prescriber, pm.notes, pm.side_effects, pm.refill_date,
+                   pm.quantity_remaining, pm.prescribed_date, pm.created_at,
+                   mal.status AS today_status, mal.taken_at
+            FROM patient_medications pm
+            LEFT JOIN medication_adherence_logs mal
+                ON mal.medication_id = pm.id
+                AND mal.username = pm.username
+                AND mal.log_date = CURRENT_DATE
+            WHERE pm.username = %s AND pm.is_active = TRUE
+            ORDER BY pm.medication_name
         """, (username,)).fetchall()
-        
+
+        # 30-day adherence per medication
+        result = []
+        for m in meds:
+            logs_30 = cur.execute("""
+                SELECT COUNT(*) FILTER (WHERE status='taken') AS taken,
+                       COUNT(*) FILTER (WHERE status IN ('missed','skipped')) AS missed
+                FROM medication_adherence_logs
+                WHERE medication_id = %s AND username = %s
+                  AND log_date >= CURRENT_DATE - INTERVAL '30 days'
+            """, (m[0], username)).fetchone()
+            total_logged = (logs_30[0] or 0) + (logs_30[1] or 0)
+            adherence_pct = round((logs_30[0] / total_logged * 100) if total_logged > 0 else 0)
+            result.append({
+                'id': m[0], 'name': m[1], 'dosage': m[2] or '',
+                'frequency': m[3] or '', 'time_of_day': m[4] or '',
+                'prescriber': m[5] or '', 'notes': m[6] or '',
+                'side_effects': m[7] or '', 'refill_date': str(m[8]) if m[8] else None,
+                'quantity_remaining': m[9], 'prescribed_date': str(m[10]) if m[10] else None,
+                'created_at': str(m[11]) if m[11] else None,
+                'today_status': m[12] or 'pending',
+                'taken_at': str(m[13]) if m[13] else None,
+                'adherence_30d': adherence_pct,
+                'taken_30d': logs_30[0] or 0,
+                'missed_30d': logs_30[1] or 0
+            })
+
         conn.close()
-        
-        return jsonify({
-            'has_medications': len(meds) > 0,
-            'medications': [
-                {
-                    'name': m[0],
-                    'dosage': m[1],
-                    'frequency': m[2],
-                    'time_of_day': m[3]
-                } for m in meds
-            ] if meds else []
-        }), 200
-        
+        return jsonify({'success': True, 'medications': result, 'has_medications': len(result) > 0}), 200
     except Exception as e:
-        return handle_exception(e, request.endpoint or 'user/medications')
+        return handle_exception(e, 'get_user_medications')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/user/medications', methods=['POST'])
+def add_user_medication():
+    """Phase 1.5: Add a new medication to patient's list"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.json or {}
+        name = (data.get('medication_name') or '').strip()
+        if not name:
+            return jsonify({'error': 'Medication name is required'}), 400
+
+        dosage = (data.get('dosage') or '').strip()[:200]
+        frequency = (data.get('frequency') or 'once daily').strip()[:100]
+        time_of_day = (data.get('time_of_day') or '').strip()[:200]
+        prescriber = (data.get('prescriber') or '').strip()[:200]
+        notes = (data.get('notes') or '').strip()[:1000]
+        side_effects = (data.get('side_effects') or '').strip()[:500]
+        quantity_remaining = data.get('quantity_remaining')
+        refill_date = data.get('refill_date') or None
+        prescribed_date = data.get('prescribed_date') or None
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        row = cur.execute("""
+            INSERT INTO patient_medications
+                (username, medication_name, dosage, frequency, time_of_day,
+                 prescriber, notes, side_effects, quantity_remaining, refill_date, prescribed_date)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id
+        """, (username, name[:200], dosage, frequency, time_of_day,
+              prescriber, notes, side_effects,
+              int(quantity_remaining) if quantity_remaining is not None else None,
+              refill_date, prescribed_date)).fetchone()
+        conn.commit()
+        conn.close()
+        log_event(username, 'medication', 'add', f'added {name}')
+        return jsonify({'success': True, 'medication_id': row[0], 'message': f'{name} added to your medication list'}), 201
+    except Exception as e:
+        return handle_exception(e, 'add_user_medication')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/user/medications/<int:med_id>', methods=['PUT'])
+def update_user_medication(med_id):
+    """Phase 1.5: Update a medication"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.json or {}
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Verify ownership
+        existing = cur.execute("SELECT id FROM patient_medications WHERE id=%s AND username=%s AND is_active=TRUE",
+                               (med_id, username)).fetchone()
+        if not existing:
+            conn.close()
+            return jsonify({'error': 'Medication not found'}), 404
+
+        fields = []
+        values = []
+        for field, col in [('medication_name', 'medication_name'), ('dosage', 'dosage'),
+                           ('frequency', 'frequency'), ('time_of_day', 'time_of_day'),
+                           ('prescriber', 'prescriber'), ('notes', 'notes'),
+                           ('side_effects', 'side_effects'), ('refill_date', 'refill_date'),
+                           ('quantity_remaining', 'quantity_remaining'), ('prescribed_date', 'prescribed_date')]:
+            if field in data:
+                fields.append(f"{col} = %s")
+                values.append(data[field])
+        if fields:
+            fields.append("updated_at = CURRENT_TIMESTAMP")
+            values.append(med_id)
+            values.append(username)
+            cur.execute(f"UPDATE patient_medications SET {', '.join(fields)} WHERE id=%s AND username=%s",
+                        values)
+            conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Medication updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_user_medication')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/user/medications/<int:med_id>', methods=['DELETE'])
+def delete_user_medication(med_id):
+    """Phase 1.5: Deactivate (soft-delete) a medication"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        updated = cur.execute(
+            "UPDATE patient_medications SET is_active=FALSE, updated_at=CURRENT_TIMESTAMP WHERE id=%s AND username=%s",
+            (med_id, username)).rowcount
+        conn.commit()
+        conn.close()
+        if updated == 0:
+            return jsonify({'error': 'Medication not found'}), 404
+        log_event(username, 'medication', 'remove', f'deactivated med id {med_id}')
+        return jsonify({'success': True, 'message': 'Medication removed'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_user_medication')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/user/medications/<int:med_id>/log', methods=['POST'])
+def log_medication_dose(med_id):
+    """Phase 1.5: Log a medication dose as taken/missed/skipped for today"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.json or {}
+        status = data.get('status', 'taken')  # 'taken', 'missed', 'skipped'
+        if status not in ('taken', 'missed', 'skipped'):
+            return jsonify({'error': 'Invalid status'}), 400
+        side_effect = (data.get('side_effect') or '').strip()[:500]
+        notes = (data.get('notes') or '').strip()[:500]
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Verify medication belongs to this user
+        med = cur.execute("SELECT medication_name FROM patient_medications WHERE id=%s AND username=%s AND is_active=TRUE",
+                          (med_id, username)).fetchone()
+        if not med:
+            conn.close()
+            return jsonify({'error': 'Medication not found'}), 404
+
+        # Upsert today's log (one entry per medication per day)
+        cur.execute("""
+            INSERT INTO medication_adherence_logs (username, medication_id, log_date, status, taken_at, side_effect_noted, notes)
+            VALUES (%s, %s, CURRENT_DATE, %s, CURRENT_TIMESTAMP, %s, %s)
+            ON CONFLICT (username, medication_id, log_date)
+            DO UPDATE SET status=EXCLUDED.status, taken_at=EXCLUDED.taken_at,
+                side_effect_noted=EXCLUDED.side_effect_noted, notes=EXCLUDED.notes
+        """, (username, med_id, status, side_effect or None, notes or None))
+
+        # Decrement quantity if taken
+        if status == 'taken':
+            cur.execute("""
+                UPDATE patient_medications
+                SET quantity_remaining = GREATEST(quantity_remaining - 1, 0)
+                WHERE id=%s AND username=%s AND quantity_remaining IS NOT NULL
+            """, (med_id, username))
+
+        conn.commit()
+        conn.close()
+        log_event(username, 'medication', f'dose_{status}', f'med id {med_id}')
+        msg = {'taken': '✅ Dose logged', 'missed': '⚠️ Missed dose recorded', 'skipped': '⏭️ Dose skipped'}.get(status, 'Logged')
+        return jsonify({'success': True, 'message': msg}), 200
+    except Exception as e:
+        return handle_exception(e, 'log_medication_dose')
+
+
+@app.route('/api/user/medications/adherence', methods=['GET'])
+def get_medication_adherence():
+    """Phase 1.5: Get overall adherence stats for the past 30 days"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Per-medication adherence over last 30 days with daily breakdown
+        meds = cur.execute(
+            "SELECT id, medication_name FROM patient_medications WHERE username=%s AND is_active=TRUE",
+            (username,)).fetchall()
+
+        adherence_data = []
+        for med_id, med_name in meds:
+            logs = cur.execute("""
+                SELECT log_date, status FROM medication_adherence_logs
+                WHERE medication_id=%s AND username=%s
+                  AND log_date >= CURRENT_DATE - INTERVAL '30 days'
+                ORDER BY log_date
+            """, (med_id, username)).fetchall()
+            taken = sum(1 for l in logs if l[1] == 'taken')
+            total = len(logs)
+            adherence_data.append({
+                'medication_id': med_id,
+                'name': med_name,
+                'adherence_pct': round(taken / total * 100) if total > 0 else 0,
+                'taken': taken,
+                'total_logged': total,
+                'daily': [{'date': str(l[0]), 'status': l[1]} for l in logs]
+            })
+
+        conn.close()
+        return jsonify({'success': True, 'adherence': adherence_data}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_medication_adherence')
+
+
+@app.route('/api/clinician/patient/<patient_username>/medications', methods=['GET'])
+def clinician_get_patient_medications(patient_username):
+    """Phase 1.5: Clinician views patient medication list and adherence (read-only)"""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (clinician_username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'admin'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        is_valid, _ = verify_clinician_patient_relationship(clinician_username, patient_username)
+        if not is_valid:
+            conn.close()
+            return jsonify({'error': 'Unauthorized: Patient not assigned to you'}), 403
+
+        meds = cur.execute("""
+            SELECT pm.id, pm.medication_name, pm.dosage, pm.frequency, pm.time_of_day,
+                   pm.prescriber, pm.notes, pm.side_effects, pm.refill_date,
+                   pm.quantity_remaining, pm.prescribed_date,
+                   COUNT(mal.id) FILTER (WHERE mal.status='taken' AND mal.log_date >= CURRENT_DATE - 30) AS taken_30d,
+                   COUNT(mal.id) FILTER (WHERE mal.status IN ('missed','skipped') AND mal.log_date >= CURRENT_DATE - 30) AS missed_30d
+            FROM patient_medications pm
+            LEFT JOIN medication_adherence_logs mal ON mal.medication_id = pm.id AND mal.username = pm.username
+            WHERE pm.username = %s AND pm.is_active = TRUE
+            GROUP BY pm.id
+            ORDER BY pm.medication_name
+        """, (patient_username,)).fetchall()
+
+        result = []
+        for m in meds:
+            total = (m[11] or 0) + (m[12] or 0)
+            result.append({
+                'id': m[0], 'name': m[1], 'dosage': m[2] or '', 'frequency': m[3] or '',
+                'time_of_day': m[4] or '', 'prescriber': m[5] or '', 'notes': m[6] or '',
+                'side_effects': m[7] or '', 'refill_date': str(m[8]) if m[8] else None,
+                'quantity_remaining': m[9], 'prescribed_date': str(m[10]) if m[10] else None,
+                'adherence_30d': round(m[11] / total * 100) if total > 0 else 0,
+                'taken_30d': m[11] or 0, 'missed_30d': m[12] or 0
+            })
+
+        conn.close()
+        return jsonify({'success': True, 'medications': result}), 200
+    except Exception as e:
+        return handle_exception(e, 'clinician_get_patient_medications')
+
+
+# ============================================================================
+# PHASE 1.4 — WAITING LIST MANAGEMENT
+# ============================================================================
+
+@app.route('/api/clinician/waiting-list', methods=['GET'])
+def get_waiting_list():
+    """Phase 1.4: Get clinician's waiting list, ordered by urgency then date"""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (clinician_username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'admin'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        entries = cur.execute("""
+            SELECT id, patient_username, referral_name, referral_email, referral_phone,
+                   referral_source, presenting_problem, urgency, risk_level,
+                   date_received, notes, status, created_at
+            FROM waiting_list
+            WHERE clinician_username = %s AND status = 'waiting'
+            ORDER BY urgency ASC, date_received ASC
+        """, (clinician_username,)).fetchall()
+
+        conn.close()
+        return jsonify({'success': True, 'waiting_list': [
+            {
+                'id': e[0], 'patient_username': e[1] or '', 'referral_name': e[2] or '',
+                'referral_email': e[3] or '', 'referral_phone': e[4] or '',
+                'referral_source': e[5] or 'self', 'presenting_problem': e[6] or '',
+                'urgency': e[7] or 3, 'risk_level': e[8] or 'low',
+                'date_received': str(e[9]) if e[9] else None,
+                'notes': e[10] or '', 'status': e[11],
+                'created_at': str(e[12]) if e[12] else None,
+                'waiting_days': (datetime.now().date() - e[9]).days if e[9] else 0
+            } for e in entries
+        ], 'total': len(entries)}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_waiting_list')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/waiting-list', methods=['POST'])
+def add_to_waiting_list():
+    """Phase 1.4: Add a referral to the waiting list"""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (clinician_username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'admin'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        data = request.json or {}
+        referral_name = (data.get('referral_name') or '').strip()[:200]
+        if not referral_name:
+            conn.close()
+            return jsonify({'error': 'Referral name is required'}), 400
+
+        urgency = int(data.get('urgency', 3))
+        if urgency not in (1, 2, 3, 4):
+            urgency = 3
+
+        row = cur.execute("""
+            INSERT INTO waiting_list
+                (clinician_username, patient_username, referral_name, referral_email,
+                 referral_phone, referral_source, presenting_problem, urgency,
+                 risk_level, date_received, notes)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id
+        """, (clinician_username,
+              (data.get('patient_username') or '').strip() or None,
+              referral_name,
+              (data.get('referral_email') or '').strip()[:200] or None,
+              (data.get('referral_phone') or '').strip()[:50] or None,
+              (data.get('referral_source') or 'self')[:50],
+              (data.get('presenting_problem') or '').strip()[:1000],
+              urgency,
+              (data.get('risk_level') or 'low')[:20],
+              data.get('date_received') or None,
+              (data.get('notes') or '').strip()[:2000])).fetchone()
+        conn.commit()
+        conn.close()
+        log_event(clinician_username, 'waiting_list', 'add', f'added {referral_name}')
+        return jsonify({'success': True, 'id': row[0], 'message': f'{referral_name} added to waiting list'}), 201
+    except Exception as e:
+        return handle_exception(e, 'add_to_waiting_list')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/waiting-list/<int:entry_id>', methods=['PUT'])
+def update_waiting_list_entry(entry_id):
+    """Phase 1.4: Update urgency, notes, or status of a waiting list entry"""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        existing = cur.execute("SELECT id FROM waiting_list WHERE id=%s AND clinician_username=%s",
+                               (entry_id, clinician_username)).fetchone()
+        if not existing:
+            conn.close()
+            return jsonify({'error': 'Entry not found'}), 404
+
+        data = request.json or {}
+        fields, values = ['updated_at = CURRENT_TIMESTAMP'], []
+        for col in ('urgency', 'risk_level', 'notes', 'status', 'presenting_problem',
+                    'referral_name', 'referral_email', 'referral_phone', 'referral_source'):
+            if col in data:
+                fields.append(f"{col} = %s")
+                values.append(data[col])
+        values += [entry_id, clinician_username]
+        cur.execute(f"UPDATE waiting_list SET {', '.join(fields)} WHERE id=%s AND clinician_username=%s", values)
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_waiting_list_entry')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/waiting-list/<int:entry_id>/convert', methods=['POST'])
+def convert_waiting_to_patient(entry_id):
+    """Phase 1.4: Convert waiting list entry to active patient — move from waiting to caseload"""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        entry = cur.execute(
+            "SELECT patient_username, referral_name FROM waiting_list WHERE id=%s AND clinician_username=%s AND status='waiting'",
+            (entry_id, clinician_username)).fetchone()
+        if not entry:
+            conn.close()
+            return jsonify({'error': 'Waiting list entry not found'}), 404
+
+        # Mark as converted
+        cur.execute("UPDATE waiting_list SET status='converted', updated_at=CURRENT_TIMESTAMP WHERE id=%s", (entry_id,))
+        conn.commit()
+        conn.close()
+        log_event(clinician_username, 'waiting_list', 'convert', f'converted entry {entry_id} ({entry[1]})')
+        return jsonify({'success': True, 'message': f'{entry[1]} moved from waiting list to active caseload',
+                        'patient_username': entry[0]}), 200
+    except Exception as e:
+        return handle_exception(e, 'convert_waiting_to_patient')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/waiting-list/<int:entry_id>', methods=['DELETE'])
+def remove_from_waiting_list(entry_id):
+    """Phase 1.4: Remove / discharge from waiting list"""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        n = cur.execute(
+            "UPDATE waiting_list SET status='discharged', updated_at=CURRENT_TIMESTAMP WHERE id=%s AND clinician_username=%s",
+            (entry_id, clinician_username)).rowcount
+        conn.commit()
+        conn.close()
+        if n == 0:
+            return jsonify({'error': 'Entry not found'}), 404
+        return jsonify({'success': True, 'message': 'Removed from waiting list'}), 200
+    except Exception as e:
+        return handle_exception(e, 'remove_from_waiting_list')
 
 
 @app.route('/api/homework/current', methods=['GET'])

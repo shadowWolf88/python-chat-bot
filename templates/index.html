@@ -4740,6 +4740,7 @@
                     📅 Appointments
                     <span id="appointmentBadge" style="background: #e74c3c; color: white; border-radius: 10px; padding: 2px 6px; font-size: 11px; margin-left: 5px; display: none;">!</span>
                 </button>
+                <button class="tab-btn" onclick="switchTab('medications', this)">💊 Medications</button>
                 <button class="tab-btn" onclick="switchTab('aboutme', this)">👤 About Me</button>
                 <button class="tab-btn" onclick="switchTab('history', this)">📈 History</button>
                 <button class="tab-btn" onclick="switchTab('updates', this)">🆕 Updates</button>
@@ -6194,6 +6195,71 @@
                 </div>
             </div>
 
+            <!-- Medications Tab — Phase 1.5 -->
+            <div id="medicationsTab" class="tab-content">
+                <h3>💊 Medications</h3>
+                <p class="tab-description">Track your medications, log daily doses, and monitor adherence over time.</p>
+                <!-- Today's doses banner -->
+                <div id="medsTodayBanner" class="card" style="margin-bottom: 20px; border-left: 4px solid #6366f1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0;">📋 Today's Doses</h4>
+                        <span id="medsTodayDate" style="font-size: 13px; color: var(--text-secondary);"></span>
+                    </div>
+                    <div id="medsTodayList"><p style="color: var(--text-muted); text-align: center; padding: 10px;">Loading...</p></div>
+                </div>
+                <!-- Add medication form -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <h4>➕ Add Medication</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Medication name *</label>
+                            <input type="text" id="medName" placeholder="e.g. Sertraline" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Dosage</label>
+                            <input type="text" id="medDosage" placeholder="e.g. 50mg" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Frequency</label>
+                            <select id="medFrequency" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); box-sizing: border-box;">
+                                <option value="once daily">Once daily</option>
+                                <option value="twice daily">Twice daily</option>
+                                <option value="three times daily">Three times daily</option>
+                                <option value="four times daily">Four times daily</option>
+                                <option value="every other day">Every other day</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="as needed">As needed (PRN)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Time(s) of day</label>
+                            <input type="text" id="medTimeOfDay" placeholder="e.g. Morning, with food" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Prescriber</label>
+                            <input type="text" id="medPrescriber" placeholder="e.g. Dr Smith / GP" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Quantity remaining</label>
+                            <input type="number" id="medQuantity" placeholder="e.g. 28" min="0" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); box-sizing: border-box;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Notes (optional)</label>
+                        <input type="text" id="medNotes" placeholder="e.g. Take with food, avoid alcohol" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); box-sizing: border-box;">
+                    </div>
+                    <button class="btn" onclick="addMedicationTracker()" style="background: #6366f1; color: white;">💊 Add Medication</button>
+                </div>
+                <!-- Medication list + adherence -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h4 style="margin: 0;">My Medications</h4>
+                        <button class="btn btn-secondary" onclick="loadMedicationsTab()" style="padding: 6px 12px; font-size: 13px;">🔄 Refresh</button>
+                    </div>
+                    <div id="medicationsList"><p style="color: var(--text-muted); text-align: center; padding: 20px;">Loading...</p></div>
+                </div>
+            </div>
+
             <!-- About Me Tab -->
             <div id="aboutmeTab" class="tab-content">
                 <h3>👤 About Me</h3>
@@ -6285,6 +6351,9 @@
                     </button>
                     <button class="clinical-subtab-btn" onclick="switchClinicalTab('riskmonitor', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         🚨 Risk Monitor
+                    </button>
+                    <button class="clinical-subtab-btn" onclick="switchClinicalTab('waitinglist', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                        📋 Waiting List
                     </button>
                 </div>
                 
@@ -6577,6 +6646,82 @@
                     </div>
                 </div>
 
+                <!-- Waiting List Tab — Phase 1.4 -->
+                <div id="clinicalWaitinglistTab" class="clinical-subtab-content" style="display: none;">
+                    <div class="card" style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                            <h4 style="margin: 0;">📋 Waiting List</h4>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="loadWaitingList()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px;">🔄 Refresh</button>
+                                <button onclick="toggleWaitingListForm()" class="btn" style="padding: 6px 14px; background: #6366f1; color: white; font-size: 13px;">➕ Add Referral</button>
+                            </div>
+                        </div>
+                        <!-- Stats bar -->
+                        <div id="waitingListStats" style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;"></div>
+                        <!-- Add referral form (hidden by default) -->
+                        <div id="waitingListForm" style="display: none; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; margin-bottom: 16px;">
+                            <h5 style="margin: 0 0 12px 0; color: var(--text-primary);">New Referral</h5>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 3px;">Name *</label>
+                                    <input type="text" id="wlName" placeholder="Referral name" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); box-sizing: border-box;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 3px;">Email</label>
+                                    <input type="email" id="wlEmail" placeholder="email@example.com" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); box-sizing: border-box;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 3px;">Phone</label>
+                                    <input type="text" id="wlPhone" placeholder="07..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); box-sizing: border-box;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 3px;">Referral source</label>
+                                    <select id="wlSource" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); box-sizing: border-box;">
+                                        <option value="self">Self-referral</option>
+                                        <option value="gp">GP</option>
+                                        <option value="iapt">IAPT</option>
+                                        <option value="inpatient">Inpatient discharge</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 3px;">Urgency</label>
+                                    <select id="wlUrgency" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); box-sizing: border-box;">
+                                        <option value="1">1 — Emergency</option>
+                                        <option value="2">2 — Urgent</option>
+                                        <option value="3" selected>3 — Routine</option>
+                                        <option value="4">4 — Low priority</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 3px;">Risk level</label>
+                                    <select id="wlRisk" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); box-sizing: border-box;">
+                                        <option value="low" selected>Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 3px;">Presenting problem</label>
+                                <textarea id="wlProblem" placeholder="Brief description of presenting concern..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); min-height: 70px; font-family: inherit; box-sizing: border-box;"></textarea>
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <label style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 3px;">Notes</label>
+                                <input type="text" id="wlNotes" placeholder="Any additional notes..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); box-sizing: border-box;">
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="submitWaitingListEntry()" class="btn" style="background: #6366f1; color: white;">💾 Add to List</button>
+                                <button onclick="toggleWaitingListForm()" class="btn btn-secondary">Cancel</button>
+                            </div>
+                        </div>
+                        <!-- Waiting list table -->
+                        <div id="waitingListTable">
+                            <p style="color: var(--text-muted); text-align: center; padding: 20px;">Loading waiting list...</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Risk Detail Modal -->
                 <div id="riskDetailModal" class="modal" style="display:none;">
                     <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
@@ -6629,6 +6774,9 @@
                         </button>
                         <button class="patient-subtab-btn" onclick="switchPatientTab('outcomemeasures', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             📈 Outcomes
+                        </button>
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('medications', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                            💊 Medications
                         </button>
                     </div>
                     
@@ -6725,6 +6873,10 @@
                     <!-- Outcome Measures Subtab -->
                     <div id="patientOutcomemeasuresTab" class="patient-subtab-content" style="display: none;">
                         <div id="patientOutcomemeasuresContent"></div>
+                    </div>
+                    <!-- Medications Subtab (clinician read-only) -->
+                    <div id="patientMedicationsTab" class="patient-subtab-content" style="display: none;">
+                        <div id="patientMedicationsContent"></div>
                     </div>
                 </div>
             </div>
@@ -14001,6 +14153,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 loadPatientAppointments();
             }
 
+            // Load medication tracker
+            if (tabName === 'medications') {
+                loadMedicationsTab();
+            }
+
             // Load messages when switching to messages tab
             if (tabName === 'messages') {
                 checkAndLoadMessages();
@@ -14070,6 +14227,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 loadPendingApprovals();
             } else if (subtabName === 'riskmonitor') {
                 loadRiskDashboard();
+            } else if (subtabName === 'waitinglist') {
+                loadWaitingList();
             }
         }
         
@@ -17283,6 +17442,154 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         }
         
         // About Me Functions
+        // ============================================================
+        // MEDICATION TRACKER — Phase 1.5
+        // ============================================================
+        const CSRF_TOKEN = () => (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+        const ADHERENCE_COLOR = { taken: '#28a745', missed: '#dc3545', skipped: '#ffc107', pending: '#6366f1' };
+        const ADHERENCE_EMOJI = { taken: '✅', missed: '❌', skipped: '⏭️', pending: '⏳' };
+
+        async function loadMedicationsTab() {
+            document.getElementById('medsTodayDate').textContent = new Date().toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'});
+            try {
+                const resp = await fetch('/api/user/medications', { credentials: 'include' });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Failed to load');
+                const meds = data.medications || [];
+                renderMedsTodayBanner(meds);
+                renderMedicationsList(meds);
+            } catch (e) {
+                document.getElementById('medsTodayList').innerHTML = '<p style="color:#dc3545;">Error loading medications. Please refresh.</p>';
+                document.getElementById('medicationsList').innerHTML = '<p style="color:#dc3545;">Error loading medications.</p>';
+            }
+        }
+
+        function renderMedsTodayBanner(meds) {
+            const el = document.getElementById('medsTodayList');
+            if (!meds.length) {
+                el.innerHTML = '<p style="color:var(--text-muted);text-align:center;">No medications added yet. Add one below.</p>';
+                return;
+            }
+            el.innerHTML = meds.map(m => {
+                const status = m.today_status || 'pending';
+                const color = ADHERENCE_COLOR[status] || '#999';
+                const emoji = ADHERENCE_EMOJI[status] || '⏳';
+                const takenTime = m.taken_at ? ' at ' + new Date(m.taken_at).toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'}) : '';
+                return `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border-color);">
+                    <div>
+                        <span style="font-weight:600;color:var(--text-primary);">${sanitizeHTML(m.name)}</span>
+                        ${m.dosage ? `<span style="color:var(--text-secondary);font-size:13px;margin-left:8px;">${sanitizeHTML(m.dosage)}</span>` : ''}
+                        <div style="font-size:12px;color:var(--text-muted);">${sanitizeHTML(m.time_of_day || m.frequency)}</div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        ${status !== 'pending' ? `<span style="color:${color};font-size:13px;">${emoji} ${status.charAt(0).toUpperCase()+status.slice(1)}${takenTime}</span>` : `
+                            <button onclick="logMedDose(${m.id},'taken')" style="background:#28a745;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;">✅ Taken</button>
+                            <button onclick="logMedDose(${m.id},'missed')" style="background:#dc3545;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;">❌ Missed</button>
+                            <button onclick="logMedDose(${m.id},'skipped')" style="background:#ffc107;color:#333;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;">⏭️ Skip</button>
+                        `}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderMedicationsList(meds) {
+            const el = document.getElementById('medicationsList');
+            if (!meds.length) {
+                el.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">No medications added yet.</p>';
+                return;
+            }
+            el.innerHTML = meds.map(m => {
+                const adh = m.adherence_30d || 0;
+                const adhColor = adh >= 80 ? '#28a745' : adh >= 50 ? '#ffc107' : '#dc3545';
+                const refillWarning = (m.quantity_remaining !== null && m.quantity_remaining !== undefined && m.quantity_remaining < 7)
+                    ? `<span style="background:#fff3cd;color:#856404;padding:3px 8px;border-radius:12px;font-size:12px;margin-left:8px;">⚠️ Low supply: ${m.quantity_remaining} left</span>` : '';
+                return `<div style="border:1px solid var(--border-color);border-radius:10px;padding:16px;margin-bottom:12px;background:var(--bg-secondary);">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+                        <div>
+                            <strong style="font-size:16px;color:var(--text-primary);">${sanitizeHTML(m.name)}</strong>
+                            ${refillWarning}
+                            <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">
+                                ${m.dosage ? `<span>${sanitizeHTML(m.dosage)}</span> · ` : ''}
+                                ${sanitizeHTML(m.frequency)}
+                                ${m.time_of_day ? ` · ${sanitizeHTML(m.time_of_day)}` : ''}
+                            </div>
+                            ${m.prescriber ? `<div style="font-size:12px;color:var(--text-muted);">Prescribed by: ${sanitizeHTML(m.prescriber)}</div>` : ''}
+                            ${m.notes ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;font-style:italic;">📝 ${sanitizeHTML(m.notes)}</div>` : ''}
+                        </div>
+                        <div style="text-align:center;min-width:80px;">
+                            <div style="font-size:24px;font-weight:700;color:${adhColor};">${adh}%</div>
+                            <div style="font-size:11px;color:var(--text-muted);">30-day adherence</div>
+                            <div style="font-size:11px;color:var(--text-muted);">${m.taken_30d} taken / ${m.missed_30d} missed</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <button onclick="removeMedication(${m.id})" style="background:transparent;color:#dc3545;border:1px solid #dc3545;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">🗑️ Remove</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function logMedDose(medId, status) {
+            try {
+                const resp = await fetch(`/api/user/medications/${medId}/log`, {
+                    method: 'POST', credentials: 'include',
+                    headers: {'Content-Type':'application/json','X-CSRF-Token': CSRF_TOKEN()},
+                    body: JSON.stringify({status})
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    loadMedicationsTab();
+                } else {
+                    alert(data.error || 'Error logging dose');
+                }
+            } catch(e) { alert('Connection error'); }
+        }
+
+        async function addMedicationTracker() {
+            const name = (document.getElementById('medName').value || '').trim();
+            if (!name) { alert('Please enter a medication name'); return; }
+            const body = {
+                medication_name: name,
+                dosage: (document.getElementById('medDosage').value || '').trim(),
+                frequency: document.getElementById('medFrequency').value,
+                time_of_day: (document.getElementById('medTimeOfDay').value || '').trim(),
+                prescriber: (document.getElementById('medPrescriber').value || '').trim(),
+                notes: (document.getElementById('medNotes').value || '').trim(),
+                quantity_remaining: document.getElementById('medQuantity').value || null
+            };
+            try {
+                const resp = await fetch('/api/user/medications', {
+                    method: 'POST', credentials: 'include',
+                    headers: {'Content-Type':'application/json','X-CSRF-Token': CSRF_TOKEN()},
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    ['medName','medDosage','medTimeOfDay','medPrescriber','medNotes','medQuantity'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+                    document.getElementById('medFrequency').selectedIndex = 0;
+                    loadMedicationsTab();
+                } else {
+                    alert(data.error || 'Error adding medication');
+                }
+            } catch(e) { alert('Connection error'); }
+        }
+
+        async function removeMedication(medId) {
+            if (!confirm('Remove this medication from your list? This cannot be undone.')) return;
+            try {
+                const resp = await fetch(`/api/user/medications/${medId}`, {
+                    method: 'DELETE', credentials: 'include',
+                    headers: {'X-CSRF-Token': CSRF_TOKEN()}
+                });
+                const data = await resp.json();
+                if (resp.ok) { loadMedicationsTab(); }
+                else { alert(data.error || 'Error removing medication'); }
+            } catch(e) { alert('Connection error'); }
+        }
+        // ============================================================
+        // END MEDICATION TRACKER
+        // ============================================================
+
         async function loadProfile() {
             try {
                 const response = await fetch(`/api/patient/profile?username=${encodeURIComponent(currentUser)}`);
@@ -17779,6 +18086,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             } else if (subtabName === 'outcomemeasures') {
                 const patientUsername = document.getElementById('patientDetailName').textContent.trim();
                 if (patientUsername) loadOutcomeMeasures(patientUsername);
+            } else if (subtabName === 'medications') {
+                const patientUsername = document.getElementById('patientDetailName').textContent.trim();
+                if (patientUsername) loadPatientMedications(patientUsername);
             }
         }
         
@@ -18521,6 +18831,55 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 await loadOutcomeMeasures(patientUsername);
             } catch (err) { alert('Error: ' + err.message); }
         }
+
+        // === PHASE 1.5: CLINICIAN PATIENT MEDICATIONS ===
+        async function loadPatientMedications(patientUsername) {
+            const container = document.getElementById('patientMedicationsContent');
+            if (!container) return;
+            container.innerHTML = '<div class="card"><p style="color:var(--text-muted);text-align:center;padding:20px;">Loading medications...</p></div>';
+            try {
+                const resp = await fetch(`/api/clinician/patient/${encodeURIComponent(patientUsername)}/medications`, { credentials: 'include' });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Failed to load');
+                const meds = data.medications || [];
+                if (!meds.length) {
+                    container.innerHTML = '<div class="card"><p style="color:var(--text-muted);text-align:center;padding:20px;">No medications recorded for this patient.</p></div>';
+                    return;
+                }
+                let html = '<div class="card"><h4>💊 Patient Medications</h4>'
+                    + '<p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Read-only view. Patient manages their own medication list.</p>';
+                meds.forEach(m => {
+                    const adh = m.adherence_30d || 0;
+                    const adhColor = adh >= 80 ? '#28a745' : adh >= 50 ? '#ffc107' : '#dc3545';
+                    const refillWarn = (m.quantity_remaining !== null && m.quantity_remaining < 7)
+                        ? `<span style="background:#fff3cd;color:#856404;padding:2px 6px;border-radius:10px;font-size:12px;margin-left:6px;">⚠️ Low supply</span>` : '';
+                    html += `<div style="border:1px solid var(--border-color);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--bg-secondary);">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+                            <div>
+                                <strong style="color:var(--text-primary);">${sanitizeHTML(m.name)}</strong>${refillWarn}
+                                <div style="font-size:13px;color:var(--text-secondary);margin-top:3px;">
+                                    ${m.dosage ? sanitizeHTML(m.dosage) + ' · ' : ''}${sanitizeHTML(m.frequency)}
+                                    ${m.time_of_day ? ' · ' + sanitizeHTML(m.time_of_day) : ''}
+                                </div>
+                                ${m.prescriber ? `<div style="font-size:12px;color:var(--text-muted);">Prescriber: ${sanitizeHTML(m.prescriber)}</div>` : ''}
+                                ${m.notes ? `<div style="font-size:12px;color:var(--text-secondary);font-style:italic;margin-top:4px;">📝 ${sanitizeHTML(m.notes)}</div>` : ''}
+                                ${m.side_effects ? `<div style="font-size:12px;color:#856404;margin-top:4px;">⚠️ Side effects noted: ${sanitizeHTML(m.side_effects)}</div>` : ''}
+                            </div>
+                            <div style="text-align:center;min-width:70px;">
+                                <div style="font-size:22px;font-weight:700;color:${adhColor};">${adh}%</div>
+                                <div style="font-size:11px;color:var(--text-muted);">30-day adherence</div>
+                                <div style="font-size:11px;color:var(--text-muted);">${m.taken_30d} taken / ${m.missed_30d} missed</div>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = `<div class="card"><p style="color:#dc3545;">Error loading medications: ${sanitizeHTML(e.message)}</p></div>`;
+            }
+        }
+        // === END PHASE 1.5 CLINICIAN MEDICATIONS ===
 
         // === SECTION 1.3: CASELOAD OUTCOME TRACKER ===
         var _caseloadOutcomeData = null;
@@ -22950,6 +23309,161 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         // === RISK DASHBOARD FUNCTIONS ===
         let allRiskPatients = [];
+
+        // ============================================================
+        // WAITING LIST — Phase 1.4
+        // ============================================================
+        const URGENCY_LABELS = {1:'Emergency',2:'Urgent',3:'Routine',4:'Low priority'};
+        const URGENCY_COLORS = {1:'#dc3545',2:'#fd7e14',3:'#6366f1',4:'#28a745'};
+        const RISK_BADGE = {low:'#28a745',medium:'#ffc107',high:'#dc3545'};
+
+        async function loadWaitingList() {
+            const tableEl = document.getElementById('waitingListTable');
+            const statsEl = document.getElementById('waitingListStats');
+            if (!tableEl) return;
+            tableEl.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">Loading...</p>';
+            try {
+                const resp = await fetch('/api/clinician/waiting-list', { credentials: 'include' });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Failed to load');
+                const list = data.waiting_list || [];
+
+                // Stats
+                if (statsEl) {
+                    const urgent = list.filter(e => e.urgency <= 2).length;
+                    const high_risk = list.filter(e => e.risk_level === 'high').length;
+                    const avg_wait = list.length > 0 ? Math.round(list.reduce((s,e) => s + (e.waiting_days||0), 0) / list.length) : 0;
+                    statsEl.innerHTML = [
+                        {label:'Total waiting', value: list.length, color:'#6366f1'},
+                        {label:'Urgent', value: urgent, color:'#fd7e14'},
+                        {label:'High risk', value: high_risk, color:'#dc3545'},
+                        {label:'Avg wait (days)', value: avg_wait, color:'#555'}
+                    ].map(s => `<div style="background:var(--bg-secondary);border-radius:8px;padding:10px 16px;text-align:center;min-width:100px;">
+                        <div style="font-size:22px;font-weight:700;color:${s.color};">${s.value}</div>
+                        <div style="font-size:12px;color:var(--text-muted);">${s.label}</div>
+                    </div>`).join('');
+                }
+
+                if (!list.length) {
+                    tableEl.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:30px;">Waiting list is empty. Click "Add Referral" to add someone.</p>';
+                    return;
+                }
+
+                tableEl.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:var(--bg-secondary);font-size:13px;">
+                            <th style="padding:10px;text-align:left;color:var(--text-primary);">Name</th>
+                            <th style="padding:10px;text-align:left;color:var(--text-primary);">Problem</th>
+                            <th style="padding:10px;text-align:center;color:var(--text-primary);">Urgency</th>
+                            <th style="padding:10px;text-align:center;color:var(--text-primary);">Risk</th>
+                            <th style="padding:10px;text-align:center;color:var(--text-primary);">Waiting</th>
+                            <th style="padding:10px;text-align:center;color:var(--text-primary);">Source</th>
+                            <th style="padding:10px;text-align:right;color:var(--text-primary);">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${list.map(e => {
+                            const urgColor = URGENCY_COLORS[e.urgency] || '#999';
+                            const riskColor = RISK_BADGE[e.risk_level] || '#999';
+                            const waitDays = e.waiting_days || 0;
+                            const waitColor = waitDays > 90 ? '#dc3545' : waitDays > 28 ? '#fd7e14' : '#28a745';
+                            return `<tr style="border-bottom:1px solid var(--border-color);">
+                                <td style="padding:10px;color:var(--text-primary);">
+                                    <strong>${sanitizeHTML(e.referral_name)}</strong>
+                                    ${e.referral_email ? `<div style="font-size:12px;color:var(--text-muted);">${sanitizeHTML(e.referral_email)}</div>` : ''}
+                                    ${e.referral_phone ? `<div style="font-size:12px;color:var(--text-muted);">${sanitizeHTML(e.referral_phone)}</div>` : ''}
+                                </td>
+                                <td style="padding:10px;color:var(--text-secondary);font-size:13px;max-width:200px;">${sanitizeHTML(e.presenting_problem || '—')}</td>
+                                <td style="padding:10px;text-align:center;">
+                                    <span style="background:${urgColor};color:white;padding:3px 8px;border-radius:12px;font-size:12px;font-weight:600;">${URGENCY_LABELS[e.urgency] || e.urgency}</span>
+                                </td>
+                                <td style="padding:10px;text-align:center;">
+                                    <span style="background:${riskColor};color:white;padding:3px 8px;border-radius:12px;font-size:12px;font-weight:600;text-transform:capitalize;">${sanitizeHTML(e.risk_level)}</span>
+                                </td>
+                                <td style="padding:10px;text-align:center;font-weight:600;color:${waitColor};">${waitDays}d</td>
+                                <td style="padding:10px;text-align:center;font-size:12px;color:var(--text-secondary);text-transform:capitalize;">${sanitizeHTML(e.referral_source)}</td>
+                                <td style="padding:10px;text-align:right;">
+                                    <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
+                                        ${e.patient_username ? `<button onclick="viewPatientFromCaseload('${sanitizeHTML(e.patient_username)}')" style="background:#6366f1;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;">View</button>` : ''}
+                                        <button onclick="markWaitingListConverted(${e.id})" style="background:#28a745;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;">✅ Convert</button>
+                                        <button onclick="removeFromWaitingList(${e.id})" style="background:#dc3545;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;">❌ Remove</button>
+                                    </div>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>`;
+            } catch (e) {
+                if (tableEl) tableEl.innerHTML = `<p style="color:#dc3545;text-align:center;padding:20px;">Error: ${sanitizeHTML(e.message)}</p>`;
+            }
+        }
+
+        function toggleWaitingListForm() {
+            const form = document.getElementById('waitingListForm');
+            if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function submitWaitingListEntry() {
+            const name = (document.getElementById('wlName').value || '').trim();
+            if (!name) { alert('Please enter a referral name'); return; }
+            const body = {
+                referral_name: name,
+                referral_email: (document.getElementById('wlEmail').value || '').trim(),
+                referral_phone: (document.getElementById('wlPhone').value || '').trim(),
+                referral_source: document.getElementById('wlSource').value,
+                urgency: parseInt(document.getElementById('wlUrgency').value),
+                risk_level: document.getElementById('wlRisk').value,
+                presenting_problem: (document.getElementById('wlProblem').value || '').trim(),
+                notes: (document.getElementById('wlNotes').value || '').trim()
+            };
+            try {
+                const resp = await fetch('/api/clinician/waiting-list', {
+                    method: 'POST', credentials: 'include',
+                    headers: {'Content-Type':'application/json','X-CSRF-Token': CSRF_TOKEN()},
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    ['wlName','wlEmail','wlPhone','wlProblem','wlNotes'].forEach(id => {
+                        const el = document.getElementById(id); if (el) el.value = '';
+                    });
+                    toggleWaitingListForm();
+                    loadWaitingList();
+                } else {
+                    alert(data.error || 'Error adding to waiting list');
+                }
+            } catch(e) { alert('Connection error'); }
+        }
+
+        async function markWaitingListConverted(id) {
+            if (!confirm('Mark this referral as converted to active patient?')) return;
+            try {
+                const resp = await fetch(`/api/clinician/waiting-list/${id}/convert`, {
+                    method: 'POST', credentials: 'include',
+                    headers: {'Content-Type':'application/json','X-CSRF-Token': CSRF_TOKEN()},
+                    body: JSON.stringify({})
+                });
+                const data = await resp.json();
+                if (resp.ok) { loadWaitingList(); }
+                else { alert(data.error || 'Error'); }
+            } catch(e) { alert('Connection error'); }
+        }
+
+        async function removeFromWaitingList(id) {
+            if (!confirm('Remove this person from the waiting list?')) return;
+            try {
+                const resp = await fetch(`/api/clinician/waiting-list/${id}`, {
+                    method: 'DELETE', credentials: 'include',
+                    headers: {'X-CSRF-Token': CSRF_TOKEN()}
+                });
+                const data = await resp.json();
+                if (resp.ok) { loadWaitingList(); }
+                else { alert(data.error || 'Error'); }
+            } catch(e) { alert('Connection error'); }
+        }
+        // ============================================================
+        // END WAITING LIST
+        // ============================================================
 
         async function loadRiskDashboard() {
             try {
