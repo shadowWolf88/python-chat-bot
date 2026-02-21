@@ -10776,13 +10776,23 @@ def submit_phq9():
             "INSERT INTO clinical_scales (username, scale_name, score, severity) VALUES (%s,%s,%s,%s)",
             (username, 'PHQ-9', total, severity)
         )
-        
+
         # Get clinician for notification
         clinician = cur.execute(
             "SELECT clinician_id FROM users WHERE username = %s",
             (username,)
         ).fetchone()
-        
+
+        # Create a risk alert for the clinician when score is clinically concerning
+        if severity not in ('Minimal', 'Mild'):
+            cur.execute(
+                """INSERT INTO alerts (username, alert_type, details, status)
+                   VALUES (%s, %s, %s, 'open')""",
+                (username,
+                 'clinical_concern',
+                 f"PHQ-9 score: {total}/27 ({severity}). Clinical review recommended.")
+            )
+
         conn.commit()
         conn.close()
         
@@ -10857,13 +10867,23 @@ def submit_gad7():
             "INSERT INTO clinical_scales (username, scale_name, score, severity) VALUES (%s,%s,%s,%s)",
             (username, 'GAD-7', total, severity)
         )
-        
+
         # Get clinician for notification
         clinician = cur.execute(
             "SELECT clinician_id FROM users WHERE username = %s",
             (username,)
         ).fetchone()
-        
+
+        # Create a risk alert for the clinician when score is clinically concerning
+        if severity not in ('Minimal', 'Mild'):
+            cur.execute(
+                """INSERT INTO alerts (username, alert_type, details, status)
+                   VALUES (%s, %s, %s, 'open')""",
+                (username,
+                 'clinical_concern',
+                 f"GAD-7 score: {total}/21 ({severity}). Clinical review recommended.")
+            )
+
         conn.commit()
         conn.close()
         
