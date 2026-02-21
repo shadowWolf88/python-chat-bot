@@ -5212,7 +5212,7 @@ except Exception as e:
 
 # Initialize pet game database on startup
 def init_pet_db():
-    """Initialize pet game database with required table"""
+    """Initialize pet game database with required tables"""
     try:
         conn = get_pet_db_connection()
         cur = get_wrapped_cursor(conn)
@@ -5227,6 +5227,17 @@ def init_pet_db():
                 stage TEXT DEFAULT 'Baby', adventure_end REAL DEFAULT 0,
                 last_updated REAL, hat TEXT DEFAULT 'None',
                 UNIQUE(username)
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pet_inventory (
+                id SERIAL PRIMARY KEY,
+                username TEXT NOT NULL,
+                item_name TEXT NOT NULL,
+                item_emoji TEXT NOT NULL,
+                item_rarity TEXT DEFAULT 'Common',
+                found_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                source TEXT DEFAULT 'walk'
             )
         """)
         conn.commit()
@@ -10587,24 +10598,54 @@ def pet_check_return():
         
         if adventure_end > 0 and time.time() >= adventure_end:
             # Pet returned!
-            import random
-            bonus_coins = random.randint(10, 50)
-            
+            import random as _random
+
+            # Walk loot table — weighted by rarity
+            WALK_ITEMS = [
+                ('Cool Leaf',       '🍃', 'Common'),
+                ('Shiny Pebble',    '🪨', 'Common'),
+                ('Pretty Flower',   '🌸', 'Common'),
+                ('Stick',           '🪵', 'Common'),
+                ('Acorn',           '🌰', 'Common'),
+                ('Mushroom',        '🍄', 'Uncommon'),
+                ('Sea Shell',       '🐚', 'Uncommon'),
+                ('Apple',           '🍎', 'Uncommon'),
+                ('Feather',         '🪶', 'Uncommon'),
+                ('Sparkling Crystal','💎', 'Rare'),
+                ('Star Fragment',   '⭐', 'Rare'),
+                ('Rainbow Stone',   '🌈', 'Legendary'),
+            ]
+            RARITY_WEIGHTS = {'Common': 50, 'Uncommon': 30, 'Rare': 15, 'Legendary': 5}
+            weights = [RARITY_WEIGHTS[i[2]] for i in WALK_ITEMS]
+            found = _random.choices(WALK_ITEMS, weights=weights, k=1)[0]
+            item_name, item_emoji, item_rarity = found
+
+            bonus_coins = _random.randint(10, 50)
             new_coins = pet[9] + bonus_coins
             new_xp = pet[10] + 20
-            
+
             cur.execute(
-                "UPDATE pet SET coins=%s, xp=%s, adventure_end=0, last_updated= %s WHERE id = %s",
+                "UPDATE pet SET coins=%s, xp=%s, adventure_end=0, last_updated=%s WHERE id = %s",
                 (new_coins, new_xp, time.time(), pet[0])
             )
+            # Save found item to inventory
+            try:
+                cur.execute(
+                    "INSERT INTO pet_inventory (username, item_name, item_emoji, item_rarity, source) VALUES (%s, %s, %s, %s, 'walk')",
+                    (username, item_name, item_emoji, item_rarity)
+                )
+            except Exception:
+                pass  # Inventory table may not exist on older deployments yet
+
             conn.commit()
             conn.close()
-            
+
             return jsonify({
                 'returned': True,
-                'message': f'{pet[2]} returned with {bonus_coins} coins and a cool leaf! 🍃',
+                'message': f'{pet[2]} returned and found a {item_emoji} {item_name}! (+{bonus_coins} coins)',
                 'coins_earned': bonus_coins,
-                'new_coins': new_coins
+                'new_coins': new_coins,
+                'found_item': {'name': item_name, 'emoji': item_emoji, 'rarity': item_rarity}
             }), 200
         else:
             conn.close()
@@ -10612,6 +10653,36 @@ def pet_check_return():
             
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
+
+@app.route('/api/pet/inventory', methods=['GET'])
+def pet_inventory():
+    """Get the player's pet inventory (items found on walks)"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_pet_db_connection()
+        cur = get_wrapped_cursor(conn)
+        try:
+            rows = cur.execute(
+                "SELECT item_name, item_emoji, item_rarity, found_at, source FROM pet_inventory WHERE username = %s ORDER BY found_at DESC",
+                (username,)
+            ).fetchall() or []
+        except Exception:
+            conn.rollback()
+            rows = []
+        conn.close()
+
+        items = [
+            {'name': r[0], 'emoji': r[1], 'rarity': r[2],
+             'found_at': str(r[3])[:16] if r[3] else '', 'source': r[4]}
+            for r in rows
+        ]
+        return jsonify({'items': items, 'count': len(items)}), 200
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
 
 @app.route('/api/pet/apply-decay', methods=['POST'])
 def pet_apply_decay():

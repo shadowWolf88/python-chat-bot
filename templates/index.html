@@ -5784,6 +5784,19 @@
                     <p style="color: var(--text-secondary); text-align: center; margin-top: 20px; font-size: 14px;">
                         💡 Earn coins and XP by completing self-care actions! Your pet grows as you grow.
                     </p>
+
+                    <!-- Pet Inventory -->
+                    <div style="margin-top: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="margin: 0;">🎒 Inventory</h4>
+                            <button onclick="loadPetInventory()" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 4px 12px; cursor: pointer; font-size: 13px; color: var(--text-secondary);">🔄 Refresh</button>
+                        </div>
+                        <div id="petInventoryGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; min-height: 60px;">
+                            <p style="color: var(--text-secondary); font-size: 13px; grid-column: 1 / -1; text-align: center; padding: 16px 0;">
+                                Loading inventory...
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -12973,6 +12986,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             // Show professional tab only for clinicians
             if (currentUserRole === 'clinician') {
                 document.getElementById('professionalTabBtn').style.display = 'block';
+                // Hide sidebar entirely for clinicians — not needed
+                document.getElementById('appScreen').classList.add('sidebar-hidden');
 
                 // Hide all patient-facing tab buttons for clinicians
                 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -13002,6 +13017,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             } else if (currentUserRole === 'developer') {
                 // DEVELOPER: Show only developer tab
                 document.getElementById('developerTabBtn').style.display = 'block';
+                // Hide sidebar entirely for developers — not needed
+                document.getElementById('appScreen').classList.add('sidebar-hidden');
 
                 // Hide patient and clinician tabs
                 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -15500,17 +15517,43 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             try {
                 const response = await fetch(`/api/pet/status?username=${encodeURIComponent(currentUser)}`);
                 const data = await response.json();
-                
+
                 if (data.exists) {
                     document.getElementById('petCreate').classList.add('hidden');
                     document.getElementById('petDisplay').classList.remove('hidden');
                     updatePetDisplay(data.pet);
+                    loadPetInventory();
                 } else {
                     document.getElementById('petCreate').classList.remove('hidden');
                     document.getElementById('petDisplay').classList.add('hidden');
                 }
             } catch (error) {
                 console.error('Pet load error:', error);
+            }
+        }
+
+        const RARITY_COLOURS = { Common: '#888', Uncommon: '#27ae60', Rare: '#6366f1', Legendary: '#f39c12' };
+
+        async function loadPetInventory() {
+            const grid = document.getElementById('petInventoryGrid');
+            if (!grid) return;
+            try {
+                const resp = await fetch('/api/pet/inventory', { credentials: 'include' });
+                const data = await resp.json();
+                if (data.items && data.items.length > 0) {
+                    grid.innerHTML = data.items.map(item => `
+                        <div title="${sanitizeHTML(item.name)} — ${item.rarity}\nFound: ${item.found_at}"
+                             style="border: 2px solid ${RARITY_COLOURS[item.rarity] || '#888'}; border-radius: 10px; padding: 8px 4px; text-align: center; background: var(--card-bg);">
+                            <div style="font-size: 28px;">${item.emoji}</div>
+                            <div style="font-size: 11px; font-weight: 600; margin-top: 4px; color: var(--text-primary);">${sanitizeHTML(item.name)}</div>
+                            <div style="font-size: 10px; color: ${RARITY_COLOURS[item.rarity] || '#888'};">${item.rarity}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    grid.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;grid-column:1/-1;text-align:center;padding:16px 0;">No items yet — send your pet on a walk to find treasures! 🌲</p>';
+                }
+            } catch (err) {
+                grid.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;grid-column:1/-1;text-align:center;">Could not load inventory.</p>';
             }
         }
         
@@ -15627,7 +15670,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 if (response.ok) {
                     const data = await response.json();
                     if (data.returned) {
-                        alert('🎉 ' + data.message + ' Earned: 🪙 ' + data.coins_earned + ' coins!');
+                        const item = data.found_item;
+                        const itemStr = item ? `\n\n${item.emoji} Found: ${item.name} (${item.rarity})` : '';
+                        alert('🎉 ' + data.message + itemStr);
                         loadPetStatus();
                     }
                 }
