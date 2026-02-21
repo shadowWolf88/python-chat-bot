@@ -20479,9 +20479,9 @@ def get_clinician_risk_alerts():
             conn.close()
             return jsonify({'error': 'Clinician access required'}), 403
         
-        # Get alerts for assigned patients
+        # Get alerts for assigned patients (both via patient_approvals and users.clinician_id)
         alerts = cur.execute("""
-            SELECT 
+            SELECT
                 u.full_name,
                 a.alert_type,
                 a.created_at,
@@ -20490,13 +20490,21 @@ def get_clinician_risk_alerts():
                 a.id
             FROM alerts a
             INNER JOIN users u ON a.username = u.username
-            INNER JOIN patient_approvals pa ON a.username = pa.patient_username
-            WHERE pa.clinician_username = %s
-            AND pa.status = 'approved'
+            WHERE a.username IN (
+                SELECT pa.patient_username
+                FROM patient_approvals pa
+                WHERE pa.clinician_username = %s
+                AND pa.status = 'approved'
+                UNION
+                SELECT u2.username
+                FROM users u2
+                WHERE u2.clinician_id = %s
+                AND u2.role = 'user'
+            )
             AND a.status = 'open'
             ORDER BY a.created_at DESC
             LIMIT 50
-        """, (clinician_username,)).fetchall()
+        """, (clinician_username, clinician_username)).fetchall()
         
         total_alerts = len(alerts)
         
