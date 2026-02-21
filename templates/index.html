@@ -4741,6 +4741,7 @@
                     <span id="appointmentBadge" style="background: #e74c3c; color: white; border-radius: 10px; padding: 2px 6px; font-size: 11px; margin-left: 5px; display: none;">!</span>
                 </button>
                 <button class="tab-btn" onclick="switchTab('medications', this)">💊 Medications</button>
+                <button class="tab-btn" id="progressTabBtn" onclick="switchTab('progress', this)">🏆 Progress</button>
                 <button class="tab-btn" onclick="switchTab('aboutme', this)">👤 About Me</button>
                 <button class="tab-btn" onclick="switchTab('history', this)">📈 History</button>
                 <button class="tab-btn" onclick="switchTab('updates', this)">🆕 Updates</button>
@@ -6260,6 +6261,15 @@
                 </div>
             </div>
 
+            <!-- Recovery Milestones & Progress Dashboard — Phase 1.7 -->
+            <div id="progressTab" class="tab-content">
+                <h3>🏆 Your Recovery Journey</h3>
+                <p class="tab-description">Track your progress, celebrate milestones, and see how far you've come.</p>
+                <div id="progressDashboardContent">
+                    <p style="text-align:center;color:var(--text-muted);padding:40px;">Loading your progress data...</p>
+                </div>
+            </div>
+
             <!-- About Me Tab -->
             <div id="aboutmeTab" class="tab-content">
                 <h3>👤 About Me</h3>
@@ -6778,6 +6788,9 @@
                         <button class="patient-subtab-btn" onclick="switchPatientTab('medications', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             💊 Medications
                         </button>
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('progress', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
+                            🏆 Progress
+                        </button>
                     </div>
                     
                     <!-- Summary Subtab -->
@@ -6877,6 +6890,10 @@
                     <!-- Medications Subtab (clinician read-only) -->
                     <div id="patientMedicationsTab" class="patient-subtab-content" style="display: none;">
                         <div id="patientMedicationsContent"></div>
+                    </div>
+                    <!-- Progress Subtab (clinician read-only) — Phase 1.7 -->
+                    <div id="patientProgressTab" class="patient-subtab-content" style="display: none;">
+                        <div id="patientProgressContent"></div>
                     </div>
                 </div>
             </div>
@@ -13151,7 +13168,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 // Hide all patient-facing tab content for clinicians
                 const patientTabs = ['therapyTab', 'moodTab', 'gratitudeTab', 'cbtTab', 'petTab',
                                      'clinicalTab', 'communityTab', 'insightsTab',
-                                     'historyTab'];
+                                     'historyTab', 'progressTab', 'medicationsTab'];
                 patientTabs.forEach(tabId => {
                     const tab = document.getElementById(tabId);
                     if (tab) {
@@ -14156,6 +14173,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             // Load medication tracker
             if (tabName === 'medications') {
                 loadMedicationsTab();
+            }
+
+            // Load recovery progress dashboard
+            if (tabName === 'progress') {
+                loadProgressDashboard();
             }
 
             // Load messages when switching to messages tab
@@ -18089,6 +18111,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             } else if (subtabName === 'medications') {
                 const patientUsername = document.getElementById('patientDetailName').textContent.trim();
                 if (patientUsername) loadPatientMedications(patientUsername);
+            } else if (subtabName === 'progress') {
+                const patientUsername = document.getElementById('patientDetailName').textContent.trim();
+                if (patientUsername) loadClinicianPatientProgress(patientUsername);
             }
         }
         
@@ -18880,6 +18905,454 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
         // === END PHASE 1.5 CLINICIAN MEDICATIONS ===
+
+        // ═══════════════════════════════════════════════════════════════════
+        // PHASE 1.7 — RECOVERY MILESTONES & PROGRESS DASHBOARD
+        // ═══════════════════════════════════════════════════════════════════
+
+        // Draws a simple Canvas sparkline.  data = [{date, avg_mood}]
+        function drawMoodChart(canvasId, moodData, label) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || !moodData.length) return;
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+            const PAD = { t: 16, r: 16, b: 32, l: 36 };
+            const plotW = W - PAD.l - PAD.r;
+            const plotH = H - PAD.t - PAD.b;
+
+            ctx.clearRect(0, 0, W, H);
+
+            const vals = moodData.map(d => d.avg_mood);
+            const minV = Math.max(0, Math.min(...vals) - 0.5);
+            const maxV = Math.min(10, Math.max(...vals) + 0.5);
+            const scaleX = i => PAD.l + (i / (moodData.length - 1)) * plotW;
+            const scaleY = v => PAD.t + plotH - ((v - minV) / (maxV - minV)) * plotH;
+
+            // Grid lines
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 1;
+            [2, 4, 6, 8, 10].forEach(v => {
+                if (v >= minV && v <= maxV) {
+                    const y = scaleY(v);
+                    ctx.beginPath();
+                    ctx.moveTo(PAD.l, y);
+                    ctx.lineTo(W - PAD.r, y);
+                    ctx.stroke();
+                    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+                    ctx.font = '10px sans-serif';
+                    ctx.fillText(v, 2, y + 4);
+                }
+            });
+
+            // 7-day rolling average line
+            if (moodData.length >= 7) {
+                const rolling = [];
+                for (let i = 6; i < moodData.length; i++) {
+                    const avg = vals.slice(i - 6, i + 1).reduce((a, b) => a + b, 0) / 7;
+                    rolling.push({ i, avg });
+                }
+                ctx.strokeStyle = 'rgba(99,102,241,0.35)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 3]);
+                ctx.beginPath();
+                rolling.forEach((pt, ri) => {
+                    const x = scaleX(pt.i), y = scaleY(pt.avg);
+                    ri === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Main mood line
+            const gradient = ctx.createLinearGradient(0, PAD.t, 0, H - PAD.b);
+            gradient.addColorStop(0, 'rgba(99,102,241,0.9)');
+            gradient.addColorStop(1, 'rgba(99,102,241,0.4)');
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            moodData.forEach((d, i) => {
+                const x = scaleX(i), y = scaleY(d.avg_mood);
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Area fill
+            ctx.fillStyle = 'rgba(99,102,241,0.07)';
+            ctx.beginPath();
+            moodData.forEach((d, i) => {
+                const x = scaleX(i), y = scaleY(d.avg_mood);
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.lineTo(scaleX(moodData.length - 1), H - PAD.b);
+            ctx.lineTo(scaleX(0), H - PAD.b);
+            ctx.closePath();
+            ctx.fill();
+
+            // X-axis date labels (show ~5 evenly spaced)
+            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+            ctx.font = '10px sans-serif';
+            const step = Math.max(1, Math.floor(moodData.length / 5));
+            for (let i = 0; i < moodData.length; i += step) {
+                const d = moodData[i].date.slice(5); // MM-DD
+                ctx.fillText(d, scaleX(i) - 12, H - 6);
+            }
+        }
+
+        function drawScaleChart(canvasId, historyData, maxScore) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || historyData.length < 2) return;
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+            const PAD = { t: 16, r: 16, b: 32, l: 36 };
+            const plotW = W - PAD.l - PAD.r;
+            const plotH = H - PAD.t - PAD.b;
+            ctx.clearRect(0, 0, W, H);
+
+            const vals = historyData.map(d => d.score);
+            const scaleX = i => PAD.l + (i / (historyData.length - 1)) * plotW;
+            const scaleY = v => PAD.t + plotH - (v / maxScore) * plotH;
+
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 1;
+            [Math.floor(maxScore * 0.25), Math.floor(maxScore * 0.5), Math.floor(maxScore * 0.75)].forEach(v => {
+                const y = scaleY(v);
+                ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke();
+                ctx.fillStyle = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+                ctx.font = '10px sans-serif';
+                ctx.fillText(v, 2, y + 4);
+            });
+
+            // Lower score = better (PHQ/GAD/CORE), use green downward trend
+            ctx.strokeStyle = 'rgba(40,167,69,0.9)';
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            historyData.forEach((d, i) => {
+                const x = scaleX(i), y = scaleY(d.score);
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Dots
+            historyData.forEach((d, i) => {
+                ctx.beginPath();
+                ctx.arc(scaleX(i), scaleY(d.score), 4, 0, Math.PI * 2);
+                ctx.fillStyle = '#28a745';
+                ctx.fill();
+            });
+
+            // X axis dates
+            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
+            ctx.font = '10px sans-serif';
+            const step = Math.max(1, Math.floor(historyData.length / 5));
+            for (let i = 0; i < historyData.length; i += step) {
+                ctx.fillText(historyData[i].date.slice(5), scaleX(i) - 12, H - 6);
+            }
+        }
+
+        // ── Patient-side progress dashboard ────────────────────────────────
+        async function loadProgressDashboard() {
+            const container = document.getElementById('progressDashboardContent');
+            if (!container) return;
+            container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:40px;">Loading your progress...</p>';
+
+            try {
+                const resp = await fetch('/api/user/progress-dashboard', { credentials: 'include' });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Failed to load');
+
+                const {
+                    mood_data = [], current_streak = 0, longest_streak = 0,
+                    phq9_history = [], gad7_history = [], core10_history = [],
+                    baseline_mood, recent_mood, cbt_data = [], total_cbt_sessions = 0,
+                    gratitude_total = 0, days_in_treatment = 0, milestones = []
+                } = data;
+
+                const moodChange = (baseline_mood && recent_mood)
+                    ? (recent_mood - baseline_mood).toFixed(1) : null;
+                const moodChangeHtml = moodChange
+                    ? `<span style="color:${parseFloat(moodChange) >= 0 ? '#28a745' : '#dc3545'};font-weight:700;font-size:18px;">
+                          ${parseFloat(moodChange) >= 0 ? '▲' : '▼'} ${Math.abs(moodChange)} pts
+                       </span><br><span style="font-size:12px;color:var(--text-muted);">vs. baseline</span>`
+                    : `<span style="font-size:13px;color:var(--text-muted);">Not enough data yet</span>`;
+
+                const newMilestones = milestones.filter(m => !m.is_read);
+                const newBadge = newMilestones.length
+                    ? `<span style="background:#dc3545;color:#fff;border-radius:50%;padding:2px 8px;font-size:13px;margin-left:6px;">${newMilestones.length}</span>` : '';
+
+                let html = `
+                <!-- Hero Banner -->
+                <div class="card" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;margin-bottom:16px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                        <div>
+                            <div style="font-size:28px;font-weight:800;">🌱 ${days_in_treatment} Days</div>
+                            <div style="font-size:15px;opacity:0.9;">on your recovery journey</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:36px;font-weight:800;">${current_streak}</div>
+                            <div style="font-size:13px;opacity:0.9;">day check-in streak 🔥</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:26px;font-weight:700;">${milestones.length} 🏆</div>
+                            <div style="font-size:13px;opacity:0.9;">milestones earned</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stat Cards -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+                    <div class="card" style="text-align:center;padding:14px;">
+                        <div style="font-size:28px;font-weight:700;color:#6366f1;">${current_streak}</div>
+                        <div style="font-size:12px;color:var(--text-muted);">Current Streak</div>
+                    </div>
+                    <div class="card" style="text-align:center;padding:14px;">
+                        <div style="font-size:28px;font-weight:700;color:#f59e0b;">${longest_streak}</div>
+                        <div style="font-size:12px;color:var(--text-muted);">Longest Streak</div>
+                    </div>
+                    <div class="card" style="text-align:center;padding:14px;">
+                        <div style="font-size:28px;font-weight:700;color:#28a745;">${total_cbt_sessions}</div>
+                        <div style="font-size:12px;color:var(--text-muted);">CBT Sessions</div>
+                    </div>
+                    <div class="card" style="text-align:center;padding:14px;">
+                        <div style="font-size:28px;font-weight:700;color:#8b5cf6;">${gratitude_total}</div>
+                        <div style="font-size:12px;color:var(--text-muted);">Gratitude Entries</div>
+                    </div>
+                    <div class="card" style="text-align:center;padding:14px;">
+                        ${moodChangeHtml}
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Mood Trend</div>
+                    </div>
+                </div>`;
+
+                // Mood chart
+                if (mood_data.length > 1) {
+                    html += `
+                    <div class="card" style="margin-bottom:16px;">
+                        <h4>📊 Mood Trend — Last 90 Days</h4>
+                        <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">Daily average mood (1-10). Dashed line = 7-day rolling average.</p>
+                        <canvas id="moodTrendChart" width="700" height="160" style="width:100%;max-width:700px;"></canvas>
+                    </div>`;
+                }
+
+                // PHQ-9 chart
+                if (phq9_history.length > 1) {
+                    const first = phq9_history[0].score, last = phq9_history[phq9_history.length - 1].score;
+                    const diff = first - last;
+                    const rci = diff >= 6 ? `<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:10px;font-size:13px;margin-left:8px;">✓ Reliable Change (RCI &gt; 6)</span>` : '';
+                    html += `
+                    <div class="card" style="margin-bottom:16px;">
+                        <h4>📉 PHQ-9 Depression Score ${rci}</h4>
+                        <p style="font-size:12px;color:var(--text-muted);">Lower is better. Started: ${first} → Current: ${last} (${diff >= 0 ? '▼ ' + diff : '▲ ' + Math.abs(diff)} points)</p>
+                        <canvas id="phq9TrendChart" width="700" height="140" style="width:100%;max-width:700px;"></canvas>
+                    </div>`;
+                }
+
+                // GAD-7 chart
+                if (gad7_history.length > 1) {
+                    const first = gad7_history[0].score, last = gad7_history[gad7_history.length - 1].score;
+                    const diff = first - last;
+                    html += `
+                    <div class="card" style="margin-bottom:16px;">
+                        <h4>📉 GAD-7 Anxiety Score</h4>
+                        <p style="font-size:12px;color:var(--text-muted);">Started: ${first} → Current: ${last} (${diff >= 0 ? '▼ ' + diff : '▲ ' + Math.abs(diff)} points)</p>
+                        <canvas id="gad7TrendChart" width="700" height="140" style="width:100%;max-width:700px;"></canvas>
+                    </div>`;
+                }
+
+                // CBT tool breakdown
+                if (cbt_data.length) {
+                    const topTools = cbt_data.slice(0, 6);
+                    const maxUses = Math.max(...topTools.map(t => t.uses));
+                    html += `<div class="card" style="margin-bottom:16px;"><h4>🧠 CBT Tool Usage</h4>
+                        <div style="display:grid;gap:8px;">`;
+                    topTools.forEach(t => {
+                        const pct = Math.round((t.uses / maxUses) * 100);
+                        html += `<div>
+                            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;">
+                                <span style="color:var(--text-primary);">${sanitizeHTML(t.tool)}</span>
+                                <span style="color:var(--text-muted);">${t.uses} sessions</span>
+                            </div>
+                            <div style="background:var(--bg-secondary);border-radius:8px;height:8px;overflow:hidden;">
+                                <div style="background:#6366f1;width:${pct}%;height:100%;border-radius:8px;"></div>
+                            </div>
+                        </div>`;
+                    });
+                    html += '</div></div>';
+                }
+
+                // Milestones
+                html += `<div class="card"><h4>🏆 Achievements ${newBadge}</h4>`;
+                if (!milestones.length) {
+                    html += '<p style="color:var(--text-muted);text-align:center;padding:20px;">Keep tracking your progress — milestones will appear here!</p>';
+                } else {
+                    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding-top:8px;">';
+                    milestones.forEach(m => {
+                        const isNew = !m.is_read;
+                        const borderColor = m.type === 'clinician' ? '#8b5cf6' : '#28a745';
+                        const bgColor = isNew ? (m.type === 'clinician' ? 'rgba(139,92,246,0.07)' : 'rgba(40,167,69,0.07)') : 'var(--bg-secondary)';
+                        html += `<div style="border:2px solid ${borderColor};border-radius:12px;padding:14px;background:${bgColor};position:relative;">
+                            ${isNew ? '<span style="position:absolute;top:8px;right:8px;background:#dc3545;color:#fff;font-size:11px;padding:2px 6px;border-radius:8px;">NEW</span>' : ''}
+                            <div style="font-size:32px;margin-bottom:6px;">${sanitizeHTML(m.icon || '🏆')}</div>
+                            <div style="font-weight:700;color:var(--text-primary);font-size:14px;">${sanitizeHTML(m.title)}</div>
+                            ${m.description ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${sanitizeHTML(m.description)}</div>` : ''}
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${sanitizeHTML(m.achieved_at)}${m.from_clinician ? ' · 💌 from your clinician' : ''}</div>
+                        </div>`;
+                    });
+                    html += '</div>';
+                }
+                html += '</div>';
+
+                container.innerHTML = html;
+
+                // Draw charts after DOM update
+                requestAnimationFrame(() => {
+                    if (mood_data.length > 1) drawMoodChart('moodTrendChart', mood_data, 'Mood');
+                    if (phq9_history.length > 1) drawScaleChart('phq9TrendChart', phq9_history, 27);
+                    if (gad7_history.length > 1) drawScaleChart('gad7TrendChart', gad7_history, 21);
+                });
+
+            } catch (e) {
+                container.innerHTML = `<div class="card"><p style="color:#dc3545;padding:20px;text-align:center;">Could not load progress data: ${sanitizeHTML(e.message)}</p></div>`;
+            }
+        }
+
+        // ── Clinician view of patient progress ─────────────────────────────
+        async function loadClinicianPatientProgress(patientUsername) {
+            const container = document.getElementById('patientProgressContent');
+            if (!container) return;
+            container.innerHTML = '<div class="card"><p style="color:var(--text-muted);text-align:center;padding:20px;">Loading progress data...</p></div>';
+
+            try {
+                const resp = await fetch(`/api/clinician/patient/${encodeURIComponent(patientUsername)}/progress-dashboard`, { credentials: 'include' });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Failed to load');
+
+                const { mood_data = [], phq9_history = [], gad7_history = [], core10_history = [],
+                        milestones = [], days_in_treatment = 0, total_cbt_sessions = 0, total_mood_logs = 0 } = data;
+
+                let html = `
+                <div class="card" style="margin-bottom:12px;">
+                    <h4>📊 Patient Progress Overview</h4>
+                    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;">
+                        <div style="text-align:center;"><strong style="font-size:22px;color:#6366f1;">${days_in_treatment}</strong><br><span style="font-size:12px;color:var(--text-muted);">Days in treatment</span></div>
+                        <div style="text-align:center;"><strong style="font-size:22px;color:#28a745;">${total_mood_logs}</strong><br><span style="font-size:12px;color:var(--text-muted);">Mood logs</span></div>
+                        <div style="text-align:center;"><strong style="font-size:22px;color:#8b5cf6;">${total_cbt_sessions}</strong><br><span style="font-size:12px;color:var(--text-muted);">CBT sessions</span></div>
+                        <div style="text-align:center;"><strong style="font-size:22px;color:#f59e0b;">${milestones.length}</strong><br><span style="font-size:12px;color:var(--text-muted);">Milestones earned</span></div>
+                    </div>`;
+
+                if (mood_data.length > 1) {
+                    html += `<p style="font-size:13px;font-weight:600;margin:8px 0 4px;">Mood Trend (last 60 days)</p>
+                             <canvas id="clinMoodChart" width="600" height="130" style="width:100%;max-width:600px;"></canvas>`;
+                }
+                if (phq9_history.length > 1) {
+                    const first = phq9_history[0].score, last = phq9_history[phq9_history.length - 1].score;
+                    const rci = (first - last) >= 6;
+                    html += `<p style="font-size:13px;font-weight:600;margin:16px 0 4px;">PHQ-9: ${first} → ${last}
+                        ${rci ? '<span style="background:#d4edda;color:#155724;padding:2px 6px;border-radius:8px;font-size:12px;">RCI achieved</span>' : ''}</p>
+                        <canvas id="clinPhq9Chart" width="600" height="120" style="width:100%;max-width:600px;"></canvas>`;
+                }
+                if (gad7_history.length > 1) {
+                    const first = gad7_history[0].score, last = gad7_history[gad7_history.length - 1].score;
+                    html += `<p style="font-size:13px;font-weight:600;margin:16px 0 4px;">GAD-7: ${first} → ${last}</p>
+                        <canvas id="clinGad7Chart" width="600" height="120" style="width:100%;max-width:600px;"></canvas>`;
+                }
+                html += '</div>';
+
+                // Milestones + send message
+                html += `<div class="card" style="margin-top:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                        <h4 style="margin:0;">🏆 Milestones (${milestones.length})</h4>
+                        <button class="btn btn-primary" onclick="toggleMilestoneMessageForm('${sanitizeHTML(patientUsername)}')" style="font-size:13px;padding:6px 14px;">
+                            💌 Send Milestone Message
+                        </button>
+                    </div>
+                    <div id="milestoneMessageForm_${sanitizeHTML(patientUsername)}" style="display:none;background:var(--bg-secondary);border-radius:10px;padding:14px;margin-bottom:12px;">
+                        <div style="display:grid;gap:8px;">
+                            <input id="milestoneTitle_${sanitizeHTML(patientUsername)}" placeholder="Title (e.g. 'Incredible Progress!')" style="padding:8px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);width:100%;box-sizing:border-box;">
+                            <textarea id="milestoneMsg_${sanitizeHTML(patientUsername)}" rows="3" placeholder="Personal message to your patient..." style="padding:8px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);width:100%;resize:vertical;box-sizing:border-box;"></textarea>
+                            <div style="display:flex;gap:8px;">
+                                <select id="milestoneIcon_${sanitizeHTML(patientUsername)}" style="padding:8px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);">
+                                    <option value="💌">💌 Personal Message</option>
+                                    <option value="🌟">🌟 Outstanding</option>
+                                    <option value="🎉">🎉 Celebration</option>
+                                    <option value="💪">💪 Strength</option>
+                                    <option value="🌱">🌱 Growth</option>
+                                    <option value="🏆">🏆 Achievement</option>
+                                </select>
+                                <button class="btn btn-primary" onclick="sendClinicianMilestone('${sanitizeHTML(patientUsername)}')" style="flex:1;">Send</button>
+                                <button class="btn btn-secondary" onclick="document.getElementById('milestoneMessageForm_${sanitizeHTML(patientUsername)}').style.display='none';">Cancel</button>
+                            </div>
+                        </div>
+                    </div>`;
+
+                if (!milestones.length) {
+                    html += '<p style="color:var(--text-muted);font-size:13px;">No milestones earned yet. Keep encouraging the patient!</p>';
+                } else {
+                    html += '<div style="display:flex;flex-wrap:wrap;gap:10px;">';
+                    milestones.forEach(m => {
+                        const color = m.type === 'clinician' ? '#8b5cf6' : '#28a745';
+                        html += `<div style="border:2px solid ${color};border-radius:10px;padding:10px 14px;background:var(--bg-secondary);max-width:220px;">
+                            <span style="font-size:24px;">${sanitizeHTML(m.icon || '🏆')}</span>
+                            <div style="font-weight:600;font-size:13px;color:var(--text-primary);">${sanitizeHTML(m.title)}</div>
+                            <div style="font-size:11px;color:var(--text-muted);">${sanitizeHTML(m.achieved_at)}</div>
+                        </div>`;
+                    });
+                    html += '</div>';
+                }
+                html += '</div>';
+
+                container.innerHTML = html;
+                requestAnimationFrame(() => {
+                    if (mood_data.length > 1) drawMoodChart('clinMoodChart', mood_data, 'Mood');
+                    if (phq9_history.length > 1) drawScaleChart('clinPhq9Chart', phq9_history, 27);
+                    if (gad7_history.length > 1) drawScaleChart('clinGad7Chart', gad7_history, 21);
+                });
+
+            } catch (e) {
+                container.innerHTML = `<div class="card"><p style="color:#dc3545;padding:20px;">Error loading progress: ${sanitizeHTML(e.message)}</p></div>`;
+            }
+        }
+
+        function toggleMilestoneMessageForm(patientUsername) {
+            const form = document.getElementById(`milestoneMessageForm_${patientUsername}`);
+            if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function sendClinicianMilestone(patientUsername) {
+            const title = (document.getElementById(`milestoneTitle_${patientUsername}`) || {}).value || '';
+            const message = (document.getElementById(`milestoneMsg_${patientUsername}`) || {}).value || '';
+            const icon = (document.getElementById(`milestoneIcon_${patientUsername}`) || {}).value || '💌';
+
+            if (!title.trim() || !message.trim()) {
+                alert('Please enter both a title and message.');
+                return;
+            }
+
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            try {
+                const resp = await fetch(`/api/clinician/patient/${encodeURIComponent(patientUsername)}/milestone-message`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ title: title.trim(), message: message.trim(), icon })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Failed to send');
+                alert('Milestone message sent! The patient will see it in their Progress tab.');
+                document.getElementById(`milestoneMessageForm_${patientUsername}`).style.display = 'none';
+                loadClinicianPatientProgress(patientUsername); // reload to show new milestone
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // END PHASE 1.7
+        // ═══════════════════════════════════════════════════════════════════
 
         // === SECTION 1.3: CASELOAD OUTCOME TRACKER ===
         var _caseloadOutcomeData = null;

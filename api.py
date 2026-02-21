@@ -4150,6 +4150,22 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_username)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_mood_logs_timestamp ON mood_logs(entry_timestamp DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_clinical_scales_timestamp ON clinical_scales(entry_timestamp DESC)")
+        # Phase 1.7: Recovery milestones table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS recovery_milestones (
+                id SERIAL PRIMARY KEY,
+                username TEXT NOT NULL,
+                milestone_type TEXT NOT NULL DEFAULT 'auto',
+                category TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                icon TEXT DEFAULT '🏆',
+                achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_read BOOLEAN DEFAULT FALSE,
+                clinician_username TEXT
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_recovery_milestones_username ON recovery_milestones(username)")
         conn.commit()  # Commit new tables before the ALTER TABLE block so a rollback doesn't undo them
         # Extend clinical_scales for 1.3 outcome measures (idempotent ALTER TABLE)
         try:
@@ -19061,6 +19077,386 @@ def remove_from_waiting_list(entry_id):
         return jsonify({'success': True, 'message': 'Removed from waiting list'}), 200
     except Exception as e:
         return handle_exception(e, 'remove_from_waiting_list')
+
+
+# ─────────────────────────────────────────────────────────
+#  Phase 1.7 — Recovery Milestones & Progress Dashboard
+# ─────────────────────────────────────────────────────────
+
+def _compute_and_store_milestones(username, conn, cur):
+    """Auto-compute milestone achievements and insert any newly earned ones."""
+    try:
+        existing = {row[0] for row in cur.execute(
+            "SELECT title FROM recovery_milestones WHERE username=%s AND milestone_type='auto'",
+            (username,)
+        ).fetchall()}
+
+        earned = []
+
+        # ── Mood streak milestones ──────────────────────────────────────────
+        streak_rows = cur.execute(
+            """SELECT DATE(entry_timestamp) as d FROM mood_logs
+               WHERE username=%s AND deleted_at IS NULL
+               GROUP BY d ORDER BY d DESC""",
+            (username,)
+        ).fetchall()
+        if streak_rows:
+            streak = 1
+            for i in range(1, len(streak_rows)):
+                prev = streak_rows[i - 1][0]
+                curr = streak_rows[i][0]
+                if (prev - curr).days == 1:
+                    streak += 1
+                else:
+                    break
+            total_days = len(streak_rows)
+            for days, icon, label in [(7,'🔥','7-day'), (14,'🔥','14-day'), (30,'⭐','30-day'),
+                                       (60,'💎','60-day'), (100,'👑','100-day')]:
+                title = f'{label} Mood Streak'
+                if total_days >= days and title not in existing:
+                    earned.append(('auto', 'streak', title,
+                                   f"You've been tracking your mood for {days} consecutive days — incredible dedication!",
+                                   icon))
+        # ── Gratitude milestones ───────────────────────────────────────────
+        grat_count = cur.execute(
+            "SELECT COUNT(*) FROM gratitude_entries WHERE username=%s",
+            (username,)
+        ).fetchone()
+        if grat_count:
+            for n_entries, title_str, desc_str in [
+                (10, 'Gratitude Starter', 'Logged 10 gratitude entries — building a positive mindset!'),
+                (50, 'Gratitude Champion', '50 gratitude entries! Your grateful mindset is blossoming.'),
+                (100, 'Gratitude Master', '100 gratitude entries — a true practitioner of positive thinking!'),
+            ]:
+                if grat_count[0] >= n_entries and title_str not in existing:
+                    earned.append(('auto', 'engagement', title_str, desc_str, '🙏'))
+
+        # ── PHQ-9 score milestones ─────────────────────────────────────────
+        phq_rows = cur.execute(
+            """SELECT score FROM clinical_scales WHERE username=%s AND scale_name='PHQ-9'
+               ORDER BY entry_timestamp DESC LIMIT 1""",
+            (username,)
+        ).fetchone()
+        if phq_rows:
+            score = phq_rows[0]
+            for threshold, title_str, desc_str, icon in [
+                (14, 'PHQ-9 Entering Mild Range', 'Your PHQ-9 score has dropped below 15 — meaningful progress in managing depression!', '📉'),
+                (9,  'PHQ-9 Mild Range',          'PHQ-9 score below 10 — you\'re now in the mild range. Outstanding progress!', '🌟'),
+                (4,  'PHQ-9 Minimal Symptoms',    'PHQ-9 score below 5 — minimal depression symptoms. Remarkable recovery!', '🎉'),
+            ]:
+                if score <= threshold and title_str not in existing:
+                    earned.append(('auto', 'score', title_str, desc_str, icon))
+
+        # ── GAD-7 score milestones ─────────────────────────────────────────
+        gad_rows = cur.execute(
+            """SELECT score FROM clinical_scales WHERE username=%s AND scale_name='GAD-7'
+               ORDER BY entry_timestamp DESC LIMIT 1""",
+            (username,)
+        ).fetchone()
+        if gad_rows:
+            score = gad_rows[0]
+            for threshold, title_str, desc_str, icon in [
+                (14, 'GAD-7 Entering Mild Range', 'GAD-7 score below 15 — your anxiety management is working!', '📉'),
+                (9,  'GAD-7 Mild Range',           'GAD-7 below 10 — mild anxiety symptoms. You\'re making great strides!', '🌟'),
+                (4,  'GAD-7 Minimal Anxiety',      'GAD-7 below 5 — minimal anxiety! An incredible achievement.', '🎉'),
+            ]:
+                if score <= threshold and title_str not in existing:
+                    earned.append(('auto', 'score', title_str, desc_str, icon))
+
+        # ── CBT tool usage milestones ──────────────────────────────────────
+        cbt_count = cur.execute(
+            "SELECT COUNT(*) FROM cbt_tool_entries WHERE username=%s",
+            (username,)
+        ).fetchone()
+        if cbt_count:
+            for n_cbt, title_str, desc_str in [
+                (1,  'First CBT Session',    'You completed your first CBT exercise — taking the first step is the hardest!'),
+                (10, 'CBT Explorer',         '10 CBT exercises completed — building powerful cognitive habits!'),
+                (50, 'CBT Practitioner',     '50 CBT exercises! You\'re a dedicated practitioner of evidence-based therapy.'),
+            ]:
+                if cbt_count[0] >= n_cbt and title_str not in existing:
+                    earned.append(('auto', 'engagement', title_str, desc_str, '🧠'))
+
+        # ── First mood log milestone ───────────────────────────────────────
+        mood_total = cur.execute(
+            "SELECT COUNT(*) FROM mood_logs WHERE username=%s AND deleted_at IS NULL",
+            (username,)
+        ).fetchone()
+        if mood_total and mood_total[0] >= 1 and 'First Mood Check-in' not in existing:
+            earned.append(('auto', 'engagement', 'First Mood Check-in',
+                           'You logged your first mood! Self-awareness is the foundation of wellbeing.', '😊'))
+
+        # ── Insert newly earned milestones ─────────────────────────────────
+        for (mtype, cat, title, desc, icon) in earned:
+            cur.execute(
+                """INSERT INTO recovery_milestones
+                   (username, milestone_type, category, title, description, icon)
+                   VALUES (%s,%s,%s,%s,%s,%s)""",
+                (username, mtype, cat, title, desc, icon)
+            )
+        if earned:
+            conn.commit()
+    except Exception as e:
+        app_logger.warning(f'_compute_and_store_milestones error for {username}: {e}')
+
+
+@app.route('/api/user/progress-dashboard', methods=['GET'])
+def get_progress_dashboard():
+    """Phase 1.7: Patient progress dashboard — mood trends, streaks, milestones, baselines."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # ── Mood data (last 90 days) ───────────────────────────────────────
+        mood_rows = cur.execute(
+            """SELECT DATE(entry_timestamp) as d, AVG(mood_val)::NUMERIC(4,2) as avg_mood
+               FROM mood_logs
+               WHERE username=%s AND deleted_at IS NULL
+                 AND entry_timestamp >= CURRENT_DATE - INTERVAL '90 days'
+               GROUP BY d ORDER BY d ASC""",
+            (username,)
+        ).fetchall()
+
+        mood_data = [{'date': str(r[0]), 'avg_mood': float(r[1])} for r in mood_rows]
+
+        # ── Streak calculation ─────────────────────────────────────────────
+        all_dates = cur.execute(
+            """SELECT DISTINCT DATE(entry_timestamp) as d FROM mood_logs
+               WHERE username=%s AND deleted_at IS NULL
+               ORDER BY d DESC""",
+            (username,)
+        ).fetchall()
+        current_streak = 0
+        longest_streak = 0
+        if all_dates:
+            from datetime import date as _date, timedelta as _td
+            today = _date.today()
+            streak = 0
+            for i, (d,) in enumerate(all_dates):
+                expected = today - _td(days=i)
+                if d == expected:
+                    streak += 1
+                else:
+                    break
+            current_streak = streak
+            # Longest streak
+            best = 1
+            run = 1
+            dates_list = [r[0] for r in all_dates]
+            for i in range(1, len(dates_list)):
+                if (dates_list[i - 1] - dates_list[i]).days == 1:
+                    run += 1
+                    best = max(best, run)
+                else:
+                    run = 1
+            longest_streak = best
+
+        # ── PHQ-9 / GAD-7 history ─────────────────────────────────────────
+        def get_scale_history(scale_name):
+            rows = cur.execute(
+                """SELECT score, severity, DATE(entry_timestamp) as d FROM clinical_scales
+                   WHERE username=%s AND scale_name=%s
+                   ORDER BY entry_timestamp ASC""",
+                (username, scale_name)
+            ).fetchall()
+            return [{'score': r[0], 'severity': r[1], 'date': str(r[2])} for r in rows]
+
+        phq9_history = get_scale_history('PHQ-9')
+        gad7_history = get_scale_history('GAD-7')
+        core10_history = get_scale_history('CORE-10')
+
+        # ── Baseline comparison (first 7-day avg vs last 7-day avg) ───────
+        baseline_mood = None
+        recent_mood = None
+        if len(mood_data) >= 7:
+            baseline_mood = round(sum(m['avg_mood'] for m in mood_data[:7]) / 7, 2)
+            recent_mood = round(sum(m['avg_mood'] for m in mood_data[-7:]) / 7, 2)
+
+        # ── CBT tool usage ─────────────────────────────────────────────────
+        cbt_stats = cur.execute(
+            """SELECT tool_type, COUNT(*) as uses, MAX(created_at) as last_used
+               FROM cbt_tool_entries WHERE username=%s
+               GROUP BY tool_type ORDER BY uses DESC""",
+            (username,)
+        ).fetchall()
+        cbt_data = [{'tool': r[0], 'uses': r[1], 'last_used': str(r[2])[:10]} for r in cbt_stats]
+        total_cbt = sum(r['uses'] for r in cbt_data)
+
+        # ── Gratitude count ────────────────────────────────────────────────
+        grat_total = cur.execute(
+            "SELECT COUNT(*) FROM gratitude_entries WHERE username=%s", (username,)
+        ).fetchone()[0]
+
+        # ── Days in treatment ──────────────────────────────────────────────
+        user_created = cur.execute(
+            "SELECT created_at FROM users WHERE username=%s", (username,)
+        ).fetchone()
+        from datetime import datetime as _dt
+        days_in_treatment = 0
+        if user_created and user_created[0]:
+            days_in_treatment = ((_dt.utcnow() - user_created[0]).days) if user_created[0].tzinfo is None \
+                else ((_dt.now(user_created[0].tzinfo) - user_created[0]).days)
+
+        # ── Auto-compute new milestones ────────────────────────────────────
+        _compute_and_store_milestones(username, conn, cur)
+
+        # ── Fetch all milestones (auto + clinician-sent) ───────────────────
+        milestone_rows = cur.execute(
+            """SELECT id, milestone_type, category, title, description, icon,
+                      achieved_at, is_read, clinician_username
+               FROM recovery_milestones WHERE username=%s
+               ORDER BY achieved_at DESC""",
+            (username,)
+        ).fetchall()
+
+        milestones = [{
+            'id': r[0], 'type': r[1], 'category': r[2], 'title': r[3],
+            'description': r[4], 'icon': r[5], 'achieved_at': str(r[6])[:10],
+            'is_read': r[7], 'from_clinician': r[8]
+        } for r in milestone_rows]
+
+        # Mark all as read
+        cur.execute(
+            "UPDATE recovery_milestones SET is_read=TRUE WHERE username=%s AND is_read=FALSE",
+            (username,)
+        )
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'mood_data': mood_data,
+            'current_streak': current_streak,
+            'longest_streak': longest_streak,
+            'phq9_history': phq9_history,
+            'gad7_history': gad7_history,
+            'core10_history': core10_history,
+            'baseline_mood': baseline_mood,
+            'recent_mood': recent_mood,
+            'cbt_data': cbt_data,
+            'total_cbt_sessions': total_cbt,
+            'gratitude_total': grat_total,
+            'days_in_treatment': days_in_treatment,
+            'milestones': milestones,
+            'unread_count': sum(1 for m in milestones if not m['is_read']),
+        }), 200
+
+    except Exception as e:
+        return handle_exception(e, 'get_progress_dashboard')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/patient/<patient_username>/milestone-message', methods=['POST'])
+def send_milestone_message(patient_username):
+    """Phase 1.7: Clinician sends a personal milestone message to a patient."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        data = request.json or {}
+        title = (data.get('title') or '').strip()[:200]
+        message = (data.get('message') or '').strip()[:1000]
+        icon = (data.get('icon') or '💌').strip()[:10]
+
+        if not title or not message:
+            return jsonify({'error': 'Title and message are required'}), 400
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute(
+            """INSERT INTO recovery_milestones
+               (username, milestone_type, category, title, description, icon, clinician_username)
+               VALUES (%s, 'clinician', 'personal', %s, %s, %s, %s)""",
+            (patient_username, title, message, icon, clinician_username)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Milestone message sent'}), 201
+
+    except Exception as e:
+        return handle_exception(e, 'send_milestone_message')
+
+
+@app.route('/api/clinician/patient/<patient_username>/progress-dashboard', methods=['GET'])
+def clinician_get_patient_progress(patient_username):
+    """Phase 1.7: Clinician view of patient progress dashboard (read-only)."""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'clinician':
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Mood trend (last 60 days)
+        mood_rows = cur.execute(
+            """SELECT DATE(entry_timestamp) as d, AVG(mood_val)::NUMERIC(4,2)
+               FROM mood_logs WHERE username=%s AND deleted_at IS NULL
+                 AND entry_timestamp >= CURRENT_DATE - INTERVAL '60 days'
+               GROUP BY d ORDER BY d ASC""",
+            (patient_username,)
+        ).fetchall()
+        mood_data = [{'date': str(r[0]), 'avg_mood': float(r[1])} for r in mood_rows]
+
+        # PHQ-9 / GAD-7 history
+        def scale_hist(scale_name):
+            rows = cur.execute(
+                """SELECT score, severity, DATE(entry_timestamp) FROM clinical_scales
+                   WHERE username=%s AND scale_name=%s ORDER BY entry_timestamp ASC""",
+                (patient_username, scale_name)
+            ).fetchall()
+            return [{'score': r[0], 'severity': r[1], 'date': str(r[2])} for r in rows]
+
+        phq9 = scale_hist('PHQ-9')
+        gad7 = scale_hist('GAD-7')
+        core10 = scale_hist('CORE-10')
+
+        # Milestones
+        ms_rows = cur.execute(
+            """SELECT title, description, icon, achieved_at, milestone_type
+               FROM recovery_milestones WHERE username=%s ORDER BY achieved_at DESC""",
+            (patient_username,)
+        ).fetchall()
+        milestones = [{'title': r[0], 'description': r[1], 'icon': r[2],
+                       'achieved_at': str(r[3])[:10], 'type': r[4]} for r in ms_rows]
+
+        # Days in treatment + cbt count
+        user_created = cur.execute("SELECT created_at FROM users WHERE username=%s", (patient_username,)).fetchone()
+        from datetime import datetime as _dt2
+        days_in = 0
+        if user_created and user_created[0]:
+            days_in = (_dt2.utcnow() - user_created[0]).days if user_created[0].tzinfo is None else \
+                      (_dt2.now(user_created[0].tzinfo) - user_created[0]).days
+
+        total_cbt = cur.execute(
+            "SELECT COUNT(*) FROM cbt_tool_entries WHERE username=%s", (patient_username,)
+        ).fetchone()[0]
+        total_moods = cur.execute(
+            "SELECT COUNT(*) FROM mood_logs WHERE username=%s AND deleted_at IS NULL", (patient_username,)
+        ).fetchone()[0]
+
+        conn.close()
+        return jsonify({
+            'mood_data': mood_data,
+            'phq9_history': phq9,
+            'gad7_history': gad7,
+            'core10_history': core10,
+            'milestones': milestones,
+            'days_in_treatment': days_in,
+            'total_cbt_sessions': total_cbt,
+            'total_mood_logs': total_moods,
+        }), 200
+
+    except Exception as e:
+        return handle_exception(e, 'clinician_get_patient_progress')
 
 
 @app.route('/api/homework/current', methods=['GET'])
