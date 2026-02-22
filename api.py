@@ -2192,6 +2192,99 @@ def _calculate_achievement_progress(username, cur):
     except:
         return {'mood_logging': {'total_entries': 0, 'current_streak': 0, 'next_milestone': 7}, 'achievements_earned': 0}
 
+
+def _advance_quest_progress(username, metric, cur, conn):
+    """
+    HJ.1 Quest System — advance progress for all active quests matching the given metric.
+    metric examples: 'wellness_log', 'mood_log', 'gratitude_log',
+                     'cbt_tool' (any CBT tool), 'cbt_tool:RelaxationAudioPlayer' (specific tool),
+                     'cbt_tool_unique' (unique tools — uses quest_progress_log)
+    """
+    try:
+        active_quests = cur.execute("""
+            SELECT pq.id, pq.quest_key, pq.progress, pq.target, qd.xp_reward,
+                   qd.tracking_metric, qd.title, qd.icon
+            FROM patient_quests pq
+            JOIN quest_definitions qd ON pq.quest_key = qd.quest_key
+            WHERE pq.username = %s AND pq.status = 'active'
+            AND (pq.expires_at IS NULL OR pq.expires_at > NOW())
+        """, (username,)).fetchall()
+
+        for quest in active_quests:
+            qid, qkey, progress, target, xp, q_metric, q_title, q_icon = quest
+            if not q_metric:
+                continue
+            matches = False
+            if metric == q_metric:
+                matches = True
+            elif metric.startswith('cbt_tool:') and q_metric == 'cbt_tool':
+                matches = True  # Any CBT tool counts for generic 'cbt_tool' metric
+            elif q_metric == 'cbt_tool_unique' and metric.startswith('cbt_tool:'):
+                tool_id = metric.split(':', 1)[1]
+                already = cur.execute(
+                    "SELECT COUNT(*) FROM quest_progress_log WHERE quest_id=%s AND event_data=%s",
+                    (qid, tool_id)
+                ).fetchone()
+                matches = (already[0] == 0) if already else True
+            elif metric.startswith('cbt_tool:') and q_metric == metric:
+                matches = True
+
+            if not matches:
+                continue
+
+            # For unique tool quests, log this specific tool
+            if q_metric == 'cbt_tool_unique' and metric.startswith('cbt_tool:'):
+                tool_id = metric.split(':', 1)[1]
+                try:
+                    cur.execute(
+                        "INSERT INTO quest_progress_log (quest_id, event_data) VALUES (%s,%s)",
+                        (qid, tool_id)
+                    )
+                except Exception:
+                    pass
+
+            new_progress = min(progress + 1, target + 1)  # cap to prevent overflow
+
+            if new_progress >= target:
+                # Complete the quest
+                cur.execute("""
+                    UPDATE patient_quests SET status='completed', progress=%s,
+                    completed_at=NOW() WHERE id=%s AND status='active'
+                """, (target, qid))
+                # Award XP to pet
+                try:
+                    cur.execute(
+                        "UPDATE pet SET xp = xp + %s WHERE username=%s",
+                        (xp or 50, username)
+                    )
+                except Exception:
+                    pass
+                # Create a recovery milestone for significant quests (XP >= 100)
+                if (xp or 0) >= 100:
+                    try:
+                        cur.execute("""
+                            INSERT INTO recovery_milestones
+                            (username, milestone_type, category, title, description, icon)
+                            VALUES (%s,'quest','achievement',%s,%s,%s)
+                        """, (username, f"Quest Complete: {q_title}",
+                              f"You completed the quest and earned {xp} XP!",
+                              q_icon or '⚔️'))
+                    except Exception:
+                        pass
+            else:
+                cur.execute(
+                    "UPDATE patient_quests SET progress=%s WHERE id=%s",
+                    (new_progress, qid)
+                )
+        conn.commit()
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        print(f"Quest progress update error: {e}")
+
+
 # ==================== CONTENT MODERATION ====================
 class ContentModerator:
     """Simple content moderation for community posts and replies"""
@@ -4166,6 +4259,168 @@ def init_db():
             )
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_recovery_milestones_username ON recovery_milestones(username)")
+
+        # === HJ.1 QUEST SYSTEM TABLES ===
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS quest_definitions (
+                id SERIAL PRIMARY KEY,
+                quest_key TEXT UNIQUE NOT NULL,
+                title TEXT NOT NULL,
+                subtitle TEXT,
+                description TEXT NOT NULL,
+                lore_text TEXT,
+                quest_type TEXT NOT NULL DEFAULT 'skill',
+                category TEXT DEFAULT 'general',
+                icon TEXT DEFAULT '⚔️',
+                xp_reward INTEGER DEFAULT 50,
+                required_count INTEGER DEFAULT 1,
+                tracking_metric TEXT,
+                duration_days INTEGER,
+                auto_assign BOOLEAN DEFAULT TRUE,
+                difficulty TEXT DEFAULT 'gentle',
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS patient_quests (
+                id SERIAL PRIMARY KEY,
+                username TEXT NOT NULL,
+                quest_key TEXT NOT NULL,
+                status TEXT DEFAULT 'active',
+                progress INTEGER DEFAULT 0,
+                target INTEGER DEFAULT 1,
+                assigned_by TEXT DEFAULT 'system',
+                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                expires_at TIMESTAMP,
+                celebration_shown BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_patient_quests_username ON patient_quests(username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_patient_quests_status ON patient_quests(username, status)")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS quest_progress_log (
+                id SERIAL PRIMARY KEY,
+                quest_id INTEGER NOT NULL,
+                event_data TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # === HJ.2 SPELL MASTERY TABLE ===
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS spell_mastery (
+                id SERIAL PRIMARY KEY,
+                username TEXT NOT NULL,
+                tool_id TEXT NOT NULL,
+                first_cast_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                cast_count INTEGER DEFAULT 1,
+                last_cast_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                power_level INTEGER DEFAULT 1,
+                UNIQUE(username, tool_id)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_spell_mastery_username ON spell_mastery(username)")
+        conn.commit()
+
+        # Seed quest definitions (idempotent)
+        _QUEST_SEEDS = [
+            ('daily_morning_compass', 'The Morning Compass', 'Daily Ritual',
+             'Complete your daily wellness check-in to orient yourself for the day ahead.',
+             'Every great journey begins with knowing where you stand.',
+             'daily', 'ritual', '🧭', 30, 1, 'wellness_log', 1, True),
+            ('daily_evening_lantern', 'The Evening Lantern', 'Daily Ritual',
+             'Log your mood and write one gratitude entry before the day ends.',
+             'Light a lantern in the dark — small moments of brightness matter most.',
+             'daily', 'ritual', '🪔', 25, 1, 'mood_log', 1, True),
+            ('skill_thought_challenger', 'The Thought Challenger', '7-Day Skill Quest',
+             'Use any CBT tool 3 times this week to build your mental resilience.',
+             'Thoughts are not facts. Learn to see them clearly.',
+             'skill', 'cbt', '⚡', 150, 3, 'cbt_tool', 7, True),
+            ('skill_breathing_stone', 'The Breathing Stone', '5-Day Skill Quest',
+             'Practice guided breathing 5 days in a row. Feel the calm settle.',
+             'The breath is the only anchor you carry everywhere.',
+             'skill', 'cbt', '💨', 100, 5, 'cbt_tool:RelaxationAudioPlayer', 7, True),
+            ('skill_compass_seeker', 'The Compass Seeker', 'Skill Quest',
+             'Complete a Problem Solving exercise when you face a challenge.',
+             'Every problem has a path through it. Find yours.',
+             'skill', 'cbt', '🧭', 75, 1, 'cbt_tool:ProblemSolvingWorksheet', 14, True),
+            ('skill_healing_salve', 'The Healing Salve', 'Self-Compassion Quest',
+             'Write a Self-Compassion Letter to yourself with the kindness you would give a friend.',
+             'Treat yourself with the care you would give to someone you love.',
+             'skill', 'cbt', '💙', 110, 1, 'cbt_tool:SelfCompassionLetter', 21, True),
+            ('explore_gratitude_grove', 'The Gratitude Grove', 'Exploration Quest',
+             'Write 7 gratitude entries this week. Each one plants a seed in your grove.',
+             'A grove grows one seed at a time.',
+             'exploration', 'gratitude', '🌿', 120, 7, 'gratitude_log', 7, True),
+            ('explore_strength_runes', 'The Strength Runes', 'Self-Discovery Quest',
+             'Complete the Strengths Inventory to discover the powers within you.',
+             'Knowing your strengths is the first step to using them.',
+             'exploration', 'cbt', '🔮', 80, 1, 'cbt_tool:StrengthsInventory', 30, True),
+            ('explore_true_north', 'True North', 'Values Quest',
+             'Complete the Values Card Sort to discover what matters most to you.',
+             'When you know your true north, no storm can disorient you.',
+             'exploration', 'cbt', '⭐', 100, 1, 'cbt_tool:ValuesCardSort', 30, True),
+            ('arc_seven_day_dawn', 'The Seven-Day Dawn', '7-Day Arc Quest',
+             'Complete your wellness check-in every day for 7 days.',
+             'Seven sunrises. Seven choices to show up for yourself.',
+             'arc', 'ritual', '🌅', 300, 7, 'wellness_log', 14, True),
+            ('arc_mood_keeper', 'The Mood Keeper', '7-Day Arc Quest',
+             'Log your mood every day for 7 days. Awareness is the first step to change.',
+             'To know where you are going, you must first know where you are.',
+             'arc', 'mood', '📊', 200, 7, 'mood_log', 14, True),
+            ('arc_clarity_path', 'The Clarity Path', '2-Week Arc Quest',
+             'Use 5 different CBT tools over 2 weeks. Each one is a new skill.',
+             'Five paths forward. Choose them one by one.',
+             'arc', 'cbt', '✨', 350, 5, 'cbt_tool_unique', 14, True),
+            ('arc_roots_and_wings', 'Roots and Wings', '21-Day Arc Quest',
+             'Complete 21 wellness check-ins. Build the roots that allow you to grow wings.',
+             'Twenty-one days to build a habit. Twenty-one seeds planted.',
+             'arc', 'ritual', '🦋', 500, 21, 'wellness_log', 28, True),
+            ('courage_safety_shield', 'The Shield Pact', 'Courage Quest',
+             'Create or review your Safety Plan — a shield you carry always.',
+             'The bravest thing is knowing where to turn when the storm comes.',
+             'courage', 'safety', '🛡️', 200, 1, 'cbt_tool:SafetyPlanBuilder', 30, False),
+            ('courage_exposure_steps', 'The Courage Steps', 'Courage Quest',
+             'Build your Exposure Hierarchy — map the challenges you will face, step by step.',
+             'Mountains are climbed one step at a time.',
+             'courage', 'cbt', '🏔️', 180, 1, 'cbt_tool:ExposureHierarchyBuilder', 30, False),
+            ('connect_community_circle', 'The Circle', 'Connection Quest',
+             'Post in the community forum or respond to a peer. Connection is medicine.',
+             'No healer walks the path alone.',
+             'connection', 'community', '🌐', 100, 1, 'community_post', 7, True),
+            ('bonus_dream_ward', 'The Dream Ward', 'Wellness Quest',
+             'Complete the Sleep Hygiene Checklist to protect your nights.',
+             'Rest is not weakness. It is wisdom.',
+             'skill', 'wellness', '🌙', 60, 1, 'cbt_tool:SleepHygieneChecklist', 14, True),
+            ('bonus_wave_rider', 'The Wave Rider', 'Urge Quest',
+             'Use the Urge Surfing Timer when an urge arises. Ride it, do not fight it.',
+             'Urges are like waves — they rise, peak, and fall.',
+             'skill', 'wellness', '🏄', 70, 1, 'cbt_tool:UrgeSurfingTimer', 14, True),
+            ('bonus_the_arsenal', 'The Arsenal', 'Skills Quest',
+             'Use the Coping Skills Selector to build your personal toolkit.',
+             'A healer carries many tools. Know yours.',
+             'skill', 'cbt', '🛠️', 65, 1, 'cbt_tool:CopingSkillsSelector', 14, True),
+            ('bonus_if_then_binding', 'The If-Then Binding', 'Preparation Quest',
+             'Build your If-Then Coping Plan for the moments when you need it most.',
+             'Prepare your response before the storm hits.',
+             'skill', 'cbt', '🔗', 65, 1, 'cbt_tool:IfThenCopingPlan', 14, True),
+        ]
+        for seed in _QUEST_SEEDS:
+            try:
+                cursor.execute("""
+                    INSERT INTO quest_definitions
+                    (quest_key, title, subtitle, description, lore_text,
+                     quest_type, category, icon, xp_reward, required_count,
+                     tracking_metric, duration_days, auto_assign)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (quest_key) DO NOTHING
+                """, seed)
+            except Exception as _qe:
+                print(f"Quest seed note: {_qe}")
+        conn.commit()
+
         conn.commit()  # Commit new tables before the ALTER TABLE block so a rollback doesn't undo them
         # Extend clinical_scales for 1.3 outcome measures (idempotent ALTER TABLE)
         try:
@@ -9017,6 +9272,12 @@ def log_mood():
                 conn.rollback()
                 print(f"[WARN] Mood risk alert failed: {_me}")
 
+        # HJ.1 Quest progress — advance mood_log quests
+        try:
+            _advance_quest_progress(username, 'mood_log', cur, conn)
+        except Exception as _qe:
+            print(f"Quest progress (mood) note: {_qe}")
+
         conn.close()
 
         # Update AI memory with new activity
@@ -9109,11 +9370,18 @@ def log_gratitude():
             (username, entry)
         )
         log_id = cur.fetchone()[0]
+
+        # HJ.1 Quest progress — advance gratitude_log quests
+        try:
+            _advance_quest_progress(username, 'gratitude_log', cur, conn)
+        except Exception as _qe:
+            print(f"Quest progress (gratitude) note: {_qe}")
+
         conn.close()
-        
+
         # AUTO-UPDATE AI MEMORY
         update_ai_memory(username)
-        
+
         # Reward pet for self-care activity
         reward_pet('gratitude')
 
@@ -16178,6 +16446,31 @@ def save_cbt_tool_entry():
         except Exception as e:
             print(f"Pet reward error (non-critical): {e}")
 
+        # HJ.1 Quest progress + HJ.2 Spell mastery — record CBT tool usage
+        try:
+            _conn2 = get_db_connection()
+            _cur2 = get_wrapped_cursor(_conn2)
+            _advance_quest_progress(username, f'cbt_tool:{tool_type}', _cur2, _conn2)
+            # HJ.2: Upsert spell mastery
+            _cur2.execute("""
+                INSERT INTO spell_mastery (username, tool_id, cast_count, last_cast_at, power_level)
+                VALUES (%s, %s, 1, NOW(),
+                    CASE WHEN 1 >= 50 THEN 5 WHEN 1 >= 20 THEN 4 WHEN 1 >= 10 THEN 3 WHEN 1 >= 3 THEN 2 ELSE 1 END)
+                ON CONFLICT (username, tool_id) DO UPDATE SET
+                    cast_count = spell_mastery.cast_count + 1,
+                    last_cast_at = NOW(),
+                    power_level = CASE
+                        WHEN spell_mastery.cast_count + 1 >= 50 THEN 5
+                        WHEN spell_mastery.cast_count + 1 >= 20 THEN 4
+                        WHEN spell_mastery.cast_count + 1 >= 10 THEN 3
+                        WHEN spell_mastery.cast_count + 1 >= 3 THEN 2
+                        ELSE 1 END
+            """, (username, tool_type))
+            _conn2.commit()
+            _conn2.close()
+        except Exception as _qe2:
+            print(f"Quest/spell progress (cbt) note: {_qe2}")
+
         log_event(username, 'cbt', 'tool_saved', f'Tool: {tool_type}')
 
         return jsonify({'success': True, 'id': entry_id}), 200
@@ -18589,7 +18882,13 @@ def create_wellness_log():
         
         conn.commit()
         wellness_log_id = cur.lastrowid
-        
+
+        # HJ.1 Quest progress — advance wellness_log quests
+        try:
+            _advance_quest_progress(username, 'wellness_log', cur, conn)
+        except Exception as _qe:
+            print(f"Quest progress (wellness) note: {_qe}")
+
         # Update AI memory with new wellness data
         update_ai_memory(username)
         
@@ -19027,6 +19326,392 @@ def clinician_get_patient_medications(patient_username):
         return jsonify({'success': True, 'medications': result}), 200
     except Exception as e:
         return handle_exception(e, 'clinician_get_patient_medications')
+
+
+# ============================================================================
+# HJ.1 — QUEST SYSTEM
+# ============================================================================
+
+@app.route('/api/user/quests', methods=['GET'])
+def get_user_quests():
+    """HJ.1: Get player's active, completed-today, and suggested quests"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Active quests
+        active_rows = cur.execute("""
+            SELECT pq.id, pq.quest_key, pq.progress, pq.target, pq.assigned_by,
+                   pq.assigned_at, pq.expires_at,
+                   qd.title, qd.subtitle, qd.description, qd.lore_text,
+                   qd.icon, qd.quest_type, qd.category, qd.xp_reward
+            FROM patient_quests pq
+            JOIN quest_definitions qd ON pq.quest_key = qd.quest_key
+            WHERE pq.username = %s AND pq.status = 'active'
+            AND (pq.expires_at IS NULL OR pq.expires_at > NOW())
+            ORDER BY pq.assigned_at DESC
+        """, (username,)).fetchall()
+
+        active = []
+        for r in active_rows:
+            expires = r[6].isoformat() if r[6] else None
+            active.append({
+                'id': r[0], 'quest_key': r[1], 'progress': r[2], 'target': r[3],
+                'assigned_by': r[4], 'assigned_at': r[5].isoformat() if r[5] else None,
+                'expires_at': expires, 'pct': round((r[2] / max(r[3], 1)) * 100),
+                'title': r[7], 'subtitle': r[8], 'description': r[9], 'lore_text': r[10],
+                'icon': r[11], 'quest_type': r[12], 'category': r[13], 'xp_reward': r[14]
+            })
+
+        # Completed today
+        completed_today_rows = cur.execute("""
+            SELECT pq.id, pq.quest_key, qd.title, qd.icon, qd.xp_reward, pq.completed_at
+            FROM patient_quests pq
+            JOIN quest_definitions qd ON pq.quest_key = qd.quest_key
+            WHERE pq.username = %s AND pq.status = 'completed'
+            AND DATE(pq.completed_at) = CURRENT_DATE
+            ORDER BY pq.completed_at DESC LIMIT 10
+        """, (username,)).fetchall()
+
+        completed_today = [{'id': r[0], 'quest_key': r[1], 'title': r[2],
+                            'icon': r[3], 'xp_reward': r[4],
+                            'completed_at': r[5].isoformat() if r[5] else None}
+                           for r in completed_today_rows]
+
+        # Total stats
+        stats = cur.execute("""
+            SELECT COUNT(*) as completed_count,
+                   COALESCE(SUM(qd.xp_reward), 0) as total_xp
+            FROM patient_quests pq
+            JOIN quest_definitions qd ON pq.quest_key = qd.quest_key
+            WHERE pq.username = %s AND pq.status = 'completed'
+        """, (username,)).fetchone()
+
+        # Suggested quests (auto_assign=True, not already active/completed)
+        active_keys = [q['quest_key'] for q in active]
+        completed_keys_all = [r[0] for r in cur.execute(
+            "SELECT quest_key FROM patient_quests WHERE username=%s AND status='completed'",
+            (username,)
+        ).fetchall()]
+        exclude_keys = list(set(active_keys + completed_keys_all))
+
+        if exclude_keys:
+            placeholders = ','.join(['%s'] * len(exclude_keys))
+            suggested_rows = cur.execute(f"""
+                SELECT quest_key, title, subtitle, description, lore_text,
+                       icon, quest_type, category, xp_reward, required_count, duration_days, difficulty
+                FROM quest_definitions
+                WHERE auto_assign = TRUE AND is_active = TRUE
+                AND quest_key NOT IN ({placeholders})
+                ORDER BY RANDOM() LIMIT 5
+            """, exclude_keys).fetchall()
+        else:
+            suggested_rows = cur.execute("""
+                SELECT quest_key, title, subtitle, description, lore_text,
+                       icon, quest_type, category, xp_reward, required_count, duration_days, difficulty
+                FROM quest_definitions
+                WHERE auto_assign = TRUE AND is_active = TRUE
+                ORDER BY RANDOM() LIMIT 5
+            """).fetchall()
+
+        suggested = [{'quest_key': r[0], 'title': r[1], 'subtitle': r[2], 'description': r[3],
+                      'lore_text': r[4], 'icon': r[5], 'quest_type': r[6], 'category': r[7],
+                      'xp_reward': r[8], 'required_count': r[9], 'duration_days': r[10],
+                      'difficulty': r[11]} for r in suggested_rows]
+
+        conn.close()
+        return jsonify({
+            'active': active,
+            'completed_today': completed_today,
+            'suggested': suggested,
+            'total_xp': int(stats[1]) if stats else 0,
+            'completed_count': int(stats[0]) if stats else 0
+        }), 200
+    except Exception as e:
+        return handle_exception(e, 'get_user_quests')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/user/quests/accept', methods=['POST'])
+def accept_quest():
+    """HJ.1: Patient accepts a suggested quest"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        data = request.json or {}
+        quest_key = data.get('quest_key')
+        if not quest_key:
+            return jsonify({'error': 'quest_key required'}), 400
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Verify quest exists
+        qdef = cur.execute(
+            "SELECT quest_key, required_count, duration_days, title, icon FROM quest_definitions WHERE quest_key=%s AND is_active=TRUE",
+            (quest_key,)
+        ).fetchone()
+        if not qdef:
+            conn.close()
+            return jsonify({'error': 'Quest not found'}), 404
+
+        # Check not already active
+        already = cur.execute(
+            "SELECT id FROM patient_quests WHERE username=%s AND quest_key=%s AND status='active'",
+            (username, quest_key)
+        ).fetchone()
+        if already:
+            conn.close()
+            return jsonify({'error': 'Quest already active'}), 409
+
+        expires_at = None
+        if qdef[2]:  # duration_days
+            cur.execute("SELECT NOW() + (%s * INTERVAL '1 day')", (qdef[2],))
+            expires_at = cur.fetchone()[0]
+
+        cur.execute("""
+            INSERT INTO patient_quests (username, quest_key, status, progress, target,
+                                        assigned_by, expires_at)
+            VALUES (%s, %s, 'active', 0, %s, 'self', %s)
+            RETURNING id
+        """, (username, quest_key, qdef[1], expires_at))
+        quest_id = cur.fetchone()[0]
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'quest_id': quest_id,
+                        'message': f'Quest "{qdef[3]}" accepted!'}), 201
+    except Exception as e:
+        return handle_exception(e, 'accept_quest')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/user/quests/<int:quest_id>/abandon', methods=['POST'])
+def abandon_quest(quest_id):
+    """HJ.1: Patient abandons an active quest"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute(
+            "UPDATE patient_quests SET status='abandoned' WHERE id=%s AND username=%s AND status='active'",
+            (quest_id, username)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return handle_exception(e, 'abandon_quest')
+
+
+@app.route('/api/clinician/patient/<patient_username>/quests', methods=['GET'])
+def get_patient_quests_clinician(patient_username):
+    """HJ.1: Clinician views patient quest activity"""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') not in ('clinician', 'developer'):
+            return jsonify({'error': 'Clinician access required'}), 403
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        active_rows = cur.execute("""
+            SELECT pq.id, pq.quest_key, qd.title, qd.icon, pq.progress, pq.target,
+                   pq.assigned_by, pq.assigned_at, pq.expires_at, qd.xp_reward
+            FROM patient_quests pq JOIN quest_definitions qd ON pq.quest_key=qd.quest_key
+            WHERE pq.username=%s AND pq.status='active'
+            ORDER BY pq.assigned_at DESC
+        """, (patient_username,)).fetchall()
+
+        completed_rows = cur.execute("""
+            SELECT pq.id, pq.quest_key, qd.title, qd.icon, pq.completed_at, qd.xp_reward
+            FROM patient_quests pq JOIN quest_definitions qd ON pq.quest_key=qd.quest_key
+            WHERE pq.username=%s AND pq.status='completed'
+            ORDER BY pq.completed_at DESC LIMIT 10
+        """, (patient_username,)).fetchall()
+
+        courage_quests = cur.execute("""
+            SELECT quest_key, title, subtitle, description, icon, xp_reward
+            FROM quest_definitions WHERE auto_assign=FALSE AND is_active=TRUE
+        """).fetchall()
+
+        conn.close()
+        return jsonify({
+            'active': [{'id': r[0], 'quest_key': r[1], 'title': r[2], 'icon': r[3],
+                        'progress': r[4], 'target': r[5], 'assigned_by': r[6],
+                        'pct': round((r[4] / max(r[5], 1)) * 100), 'xp_reward': r[9]} for r in active_rows],
+            'completed': [{'id': r[0], 'quest_key': r[1], 'title': r[2], 'icon': r[3],
+                           'completed_at': r[4].isoformat() if r[4] else None, 'xp_reward': r[5]} for r in completed_rows],
+            'available_to_assign': [{'quest_key': r[0], 'title': r[1], 'subtitle': r[2],
+                                     'description': r[3], 'icon': r[4], 'xp_reward': r[5]} for r in courage_quests]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, 'get_patient_quests_clinician')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/patient/<patient_username>/quests/assign', methods=['POST'])
+def clinician_assign_quest(patient_username):
+    """HJ.1: Clinician assigns a quest (typically courage/clinician-only quests) to a patient"""
+    try:
+        clinician_username = get_authenticated_username()
+        if not clinician_username:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') not in ('clinician', 'developer'):
+            return jsonify({'error': 'Clinician access required'}), 403
+        data = request.json or {}
+        quest_key = data.get('quest_key')
+        if not quest_key:
+            return jsonify({'error': 'quest_key required'}), 400
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        qdef = cur.execute(
+            "SELECT required_count, duration_days, title FROM quest_definitions WHERE quest_key=%s",
+            (quest_key,)
+        ).fetchone()
+        if not qdef:
+            conn.close()
+            return jsonify({'error': 'Quest not found'}), 404
+        # Don't duplicate active quests
+        existing = cur.execute(
+            "SELECT id FROM patient_quests WHERE username=%s AND quest_key=%s AND status='active'",
+            (patient_username, quest_key)
+        ).fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'error': 'Quest already active for this patient'}), 409
+
+        expires_at = None
+        if qdef[1]:
+            cur.execute("SELECT NOW() + (%s * INTERVAL '1 day')", (qdef[1],))
+            expires_at = cur.fetchone()[0]
+
+        cur.execute("""
+            INSERT INTO patient_quests (username, quest_key, status, progress, target,
+                                        assigned_by, expires_at)
+            VALUES (%s,%s,'active',0,%s,%s,%s) RETURNING id
+        """, (patient_username, quest_key, qdef[0], clinician_username, expires_at))
+        quest_id = cur.fetchone()[0]
+        conn.commit()
+
+        # Notify patient
+        try:
+            send_notification(patient_username,
+                f"⚔️ Your guide has assigned you a quest: \"{qdef[2]}\". Check your Quest Board!",
+                'quest_assigned')
+        except Exception:
+            pass
+
+        conn.close()
+        return jsonify({'success': True, 'quest_id': quest_id}), 201
+    except Exception as e:
+        return handle_exception(e, 'clinician_assign_quest')
+
+
+# HJ.2 Spell endpoints
+@CSRFProtection.require_csrf
+@app.route('/api/user/spell/cast', methods=['POST'])
+def record_spell_cast():
+    """HJ.2: Record CBT tool usage as a spell cast, update mastery"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        data = request.json or {}
+        tool_id = data.get('tool_id', '').strip()
+        if not tool_id:
+            return jsonify({'error': 'tool_id required'}), 400
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Check if first cast
+        existing = cur.execute(
+            "SELECT cast_count FROM spell_mastery WHERE username=%s AND tool_id=%s",
+            (username, tool_id)
+        ).fetchone()
+        is_first = existing is None
+
+        cur.execute("""
+            INSERT INTO spell_mastery (username, tool_id, cast_count, last_cast_at, power_level)
+            VALUES (%s, %s, 1, NOW(),
+                CASE WHEN 1 >= 50 THEN 5 WHEN 1 >= 20 THEN 4 WHEN 1 >= 10 THEN 3 WHEN 1 >= 3 THEN 2 ELSE 1 END)
+            ON CONFLICT (username, tool_id) DO UPDATE SET
+                cast_count = spell_mastery.cast_count + 1,
+                last_cast_at = NOW(),
+                power_level = CASE
+                    WHEN spell_mastery.cast_count + 1 >= 50 THEN 5
+                    WHEN spell_mastery.cast_count + 1 >= 20 THEN 4
+                    WHEN spell_mastery.cast_count + 1 >= 10 THEN 3
+                    WHEN spell_mastery.cast_count + 1 >= 3 THEN 2
+                    ELSE 1 END
+        """, (username, tool_id))
+        conn.commit()
+
+        row = cur.execute(
+            "SELECT cast_count, power_level FROM spell_mastery WHERE username=%s AND tool_id=%s",
+            (username, tool_id)
+        ).fetchone()
+        conn.close()
+
+        return jsonify({
+            'success': True, 'is_first_cast': is_first,
+            'cast_count': row[0] if row else 1,
+            'power_level': row[1] if row else 1
+        }), 200
+    except Exception as e:
+        return handle_exception(e, 'record_spell_cast')
+
+
+@app.route('/api/user/spells', methods=['GET'])
+def get_user_spells():
+    """HJ.2: Get all spells with mastery data"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        ALL_TOOL_IDS = [
+            'CognitiveDistortionsQuiz', 'CoreBeliefsWorksheet', 'ThoughtDefusionExercise',
+            'IfThenCopingPlan', 'CopingSkillsSelector', 'SelfCompassionLetter',
+            'ProblemSolvingWorksheet', 'ExposureHierarchyBuilder', 'RelaxationAudioPlayer',
+            'UrgeSurfingTimer', 'ValuesCardSort', 'StrengthsInventory',
+            'SleepHygieneChecklist', 'SafetyPlanBuilder', 'ActivityScheduler'
+        ]
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        mastery_rows = cur.execute(
+            "SELECT tool_id, cast_count, power_level, first_cast_at, last_cast_at FROM spell_mastery WHERE username=%s",
+            (username,)
+        ).fetchall()
+        conn.close()
+
+        mastery_map = {r[0]: {'cast_count': r[1], 'power_level': r[2],
+                               'first_cast_at': r[3].isoformat() if r[3] else None,
+                               'last_cast_at': r[4].isoformat() if r[4] else None}
+                       for r in mastery_rows}
+
+        mastered = []
+        unmastered = []
+        total_casts = 0
+        for tool_id in ALL_TOOL_IDS:
+            if tool_id in mastery_map:
+                m = mastery_map[tool_id]
+                total_casts += m['cast_count']
+                mastered.append({'tool_id': tool_id, **m})
+            else:
+                unmastered.append({'tool_id': tool_id})
+
+        return jsonify({'mastered': mastered, 'unmastered': unmastered, 'total_casts': total_casts}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_user_spells')
 
 
 # ============================================================================

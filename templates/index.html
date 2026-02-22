@@ -16,7 +16,9 @@
         (function () {
             var saved = localStorage.getItem('theme');
             var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            document.documentElement.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+            // Support sanctuary theme in addition to light/dark
+            var theme = saved || (prefersDark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
         }());
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -141,6 +143,88 @@
             --danger-color: #f87171;
             --warning-color: #fbbf24;
         }
+
+        /* === SANCTUARY THEME === */
+        [data-theme="sanctuary"] {
+            --bg-primary: linear-gradient(160deg, #0d1b2a 0%, #1b2838 40%, #2d1b47 100%);
+            --bg-secondary: #1a2235;
+            --bg-card: #1e2d47;
+            --bg-input: #243352;
+            --bg-sidebar: #141f30;
+            --bg-hover: rgba(244,162,97,0.08);
+            --text-primary: #e8e4d9;
+            --text-secondary: #b0a990;
+            --text-muted: #7a7260;
+            --border-color: #2a3d5a;
+            --shadow-color: rgba(0,0,0,0.5);
+            --accent-color: #f4a261;
+            --accent-gradient: linear-gradient(135deg, #f4a261, #e76f51);
+            --success-color: #40916c;
+            --danger-color: #ef4444;
+            --warning-color: #f4a261;
+            --sanctuary-forest: #2d6a4f;
+            --sanctuary-amber: #f4a261;
+            --sanctuary-crimson: #e76f51;
+            --sanctuary-purple: #7c3aed;
+            --sanctuary-gold: #d4a017;
+            --sanctuary-mist: rgba(244,162,97,0.06);
+        }
+        [data-theme="sanctuary"] .card {
+            border: 1px solid rgba(244,162,97,0.12);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(244,162,97,0.05);
+        }
+        [data-theme="sanctuary"] .tab-btn.active {
+            background: var(--accent-gradient) !important;
+            color: white !important;
+        }
+        @keyframes sanctuaryFloat {
+            0%,100% { transform: translateY(0px); }
+            50%      { transform: translateY(-6px); }
+        }
+        @keyframes sanctuaryGlow {
+            0%,100% { box-shadow: 0 0 10px rgba(244,162,97,0.2); }
+            50%      { box-shadow: 0 0 25px rgba(244,162,97,0.45); }
+        }
+        @keyframes emberFlicker {
+            0%,100% { transform: scaleX(1) scaleY(1); opacity:1; }
+            25%      { transform: scaleX(0.95) scaleY(1.05); opacity:0.95; }
+            75%      { transform: scaleX(1.04) scaleY(0.97); opacity:0.98; }
+        }
+        @keyframes spellPulse {
+            0%   { transform: scale(1); }
+            100% { transform: scale(1.15); }
+        }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        .sanctuary-section { border-radius:16px; padding:20px; margin-bottom:20px;
+            background:var(--bg-card); border:1px solid var(--border-color); transition:box-shadow .3s; }
+        .sanctuary-section:hover { box-shadow: 0 8px 32px var(--shadow-color); }
+        .sanctuary-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+        .sanctuary-icon { font-size:1.6em; flex-shrink:0; }
+        .sanctuary-title { font-size:1em; font-weight:700; color:var(--text-primary); margin:0; }
+        .sanctuary-subtitle { font-size:0.8em; color:var(--text-muted); margin:0; font-style:italic; }
+        .mood-garden-canvas { width:100%; height:120px; border-radius:12px;
+            background:var(--bg-secondary); display:block; }
+        .spell-circle-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+        .spell-circle-item { border:1.5px solid var(--border-color); border-radius:12px;
+            padding:14px 10px; text-align:center; cursor:pointer; background:var(--bg-secondary);
+            transition:all .2s ease; }
+        .spell-circle-item:hover { border-color:var(--accent-color);
+            background:var(--sanctuary-mist,rgba(244,162,97,0.05)); transform:translateY(-2px); }
+        .milestone-stone { display:flex; align-items:center; gap:10px; padding:10px 14px;
+            border-radius:10px; background:var(--bg-secondary); margin-bottom:8px;
+            border-left:3px solid var(--sanctuary-gold,#d4a017); }
+        .weekly-ember-container { display:flex; align-items:flex-end; justify-content:center;
+            gap:8px; padding:10px 0; }
+        .ember-day { display:flex; flex-direction:column; align-items:center; gap:4px; }
+        .ember-flame { width:28px; border-radius:4px 4px 2px 2px; transition:height .5s ease, background .5s ease;
+            background:linear-gradient(to top,#e76f51,#f4a261); }
+        .ember-flame.lit { animation:emberFlicker 2s ease infinite; }
+        .ember-flame.unlit { background:var(--border-color); animation:none; }
+        .ember-day-label { font-size:0.65em; color:var(--text-muted); text-align:center; }
+        .quest-item { border:1.5px solid var(--border-color); border-radius:12px; padding:16px;
+            margin-bottom:12px; background:var(--bg-secondary); position:relative; }
+        .quest-board-header { display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:12px; flex-wrap:wrap; gap:8px; }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -4710,10 +4794,17 @@
                     🔔
                     <span id="notificationBadge" style="position: absolute; top: -5px; right: -5px; background: var(--danger-color); color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; display: none; justify-content: center; align-items: center;">0</span>
                 </button>
-                <label class="theme-toggle" style="margin-right: 15px; vertical-align: middle;">
+                <label class="theme-toggle" style="margin-right: 8px; vertical-align: middle;">
                     <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()">
                     <span class="theme-toggle-slider"></span>
                 </label>
+                <button onclick="toggleSanctuaryTheme()" id="sanctuaryThemeBtn" title="Toggle Sanctuary Theme"
+                        style="background:linear-gradient(135deg,#2d6a4f,#40916c); color:white; border:none;
+                               border-radius:8px; padding:6px 11px; cursor:pointer; font-size:0.82em;
+                               font-weight:600; margin-right:10px; vertical-align:middle; transition:opacity .2s;"
+                        onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                    🌿
+                </button>
                 <span id="usernameDisplay"></span>
                 <button class="btn" onclick="logout()" style="width: auto; padding: 10px 20px;">Logout</button>
             </div>
@@ -4805,24 +4896,34 @@
                 </script>
             
             <div class="main-content">
-            <!-- Home Tab -->
+            <!-- Home Tab — The Sanctuary -->
             <div id="homeTab" class="tab-content active">
-                <!-- Welcome Section -->
-                <div class="card home-welcome-card">
-                    <div class="welcome-header">
-                        <h2 id="homeWelcomeMessage">Welcome!</h2>
-                        <p class="last-login-text" id="homeLastLogin">Loading...</p>
+                <!-- Sanctuary Header -->
+                <div class="card sanctuary-section">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                        <div>
+                            <h2 id="homeWelcomeMessage" style="margin:0 0 4px 0; font-size:1.35em;">Welcome to your Sanctuary</h2>
+                            <p id="homeLastLogin" class="last-login-text" style="margin:0; color:var(--text-secondary); font-size:0.85em;">Loading...</p>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <span class="app-version" style="font-size:0.75em; color:var(--text-muted);">Healing Space UK v22.1.0</span>
+                        </div>
                     </div>
-                    <div class="home-version-info">
-                        <span class="app-version">Healing Space UK v22.1.0</span>
-                    </div>
-                    <div class="motivational-quote" id="homeMotivationalQuote">
-                        Every day is a fresh start. You're doing great!
+                    <div class="motivational-quote" id="homeMotivationalQuote"
+                         style="margin-top:12px; padding:12px 16px; background:var(--bg-secondary);
+                                border-radius:10px; color:var(--text-secondary); font-style:italic;
+                                font-size:0.9em; border-left:3px solid var(--accent-color);">
+                        Every day is a fresh start. You're doing great.
                     </div>
                 </div>
 
-                <!-- Daily Wellness Ritual - Chat Window (BEFORE Tasks) -->
+                <!-- The Hearth — Daily Wellness Ritual -->
                 <div id="wellnessRitualContainer" class="card wellness-chat-card" style="margin-top: 20px;">
+                    <div style="display:flex; align-items:center; gap:8px; padding:12px 20px 0 20px;">
+                        <span style="font-size:1.3em;">🔥</span>
+                        <strong style="font-size:0.95em;">The Hearth</strong>
+                        <span style="font-size:0.78em; color:var(--text-muted); font-style:italic;">— your daily wellness ritual</span>
+                    </div>
                     <!-- Chat Header -->
                     <div class="wellness-chat-header">
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -4866,117 +4967,97 @@
                     </div>
                 </div>
 
-                <!-- Daily Tasks Section -->
-                <div class="card home-tasks-card" style="margin-top: 20px;">
-                    <h3>Today's Wellness Tasks</h3>
-                    <div class="daily-progress">
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" id="dailyProgressBar" style="width: 0%"></div>
+                <!-- The Quest Board -->
+                <div class="card sanctuary-section quest-board-card" id="questBoardCard" style="margin-top:20px;">
+                    <div class="quest-board-header">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:1.8em;">⚔️</span>
+                            <div>
+                                <h3 class="sanctuary-title" style="margin:0;">The Quest Board</h3>
+                                <p class="sanctuary-subtitle" style="margin:0;">
+                                    <span id="questXpTotal">0</span> XP earned · <span id="questCompletedCount">0</span> completed
+                                </p>
+                            </div>
                         </div>
-                        <span class="progress-text" id="dailyProgressText">0/6 completed</span>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <button class="btn btn-primary" onclick="initializeWellnessRitual()" style="width: 100%;">
-                            💙 Start Your Daily Wellness Check-in
-                        </button>
-                    </div>
-                    <div id="dailyTasksList" class="daily-tasks-list">
-                        <!-- Tasks rendered dynamically -->
+                        <button onclick="showQuestAcceptModal()" class="btn btn-primary"
+                                style="padding:7px 14px; font-size:0.85em; white-space:nowrap;">+ Quest</button>
                     </div>
                     <div class="streak-display" id="streakDisplay">
                         <span class="streak-icon">🔥</span>
                         <span class="streak-count" id="streakCount">0</span> day streak
                     </div>
-                </div>
-
-                <!-- Quick Navigation Section -->
-                <div class="card home-quick-nav" style="margin-top: 20px;">
-                    <h3>Quick Access</h3>
-                    <div class="quick-nav-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
-                        <button class="quick-nav-btn" onclick="switchTab('therapy', document.querySelector('[onclick*=&quot;therapy&quot;]'))">
-                            🤖 AI Therapy
-                        </button>
-                        <button class="quick-nav-btn" onclick="switchTab('mood', document.querySelector('[onclick*=&quot;mood&quot;]'))">
-                            📊 Log Mood
-                        </button>
-                        <button class="quick-nav-btn" onclick="switchTab('pet', document.querySelector('[onclick*=&quot;pet&quot;]'))">
-                            🐶 My Pet
-                        </button>
-                        <button class="quick-nav-btn" onclick="switchTab('gratitude', document.querySelector('[onclick*=&quot;gratitude&quot;]'))">
-                            🙏 Gratitude
-                        </button>
-                        <button class="quick-nav-btn" onclick="switchTab('cbt', document.querySelector('[onclick*=&quot;cbt&quot;]'))">
-                            🧠 CBT Tools
-                        </button>
-                        <button class="quick-nav-btn" onclick="switchTab('clinical', document.querySelector('[onclick*=&quot;clinical&quot;]'))">
-                            📋 Assessments
-                        </button>
+                    <div id="activeQuestsList">
+                        <p style="color:var(--text-muted); font-size:0.9em; text-align:center; padding:16px;">Loading your quests...</p>
                     </div>
                 </div>
 
-                <!-- Help & Documentation Section -->
-                <div class="card home-help-card" style="margin-top: 20px;">
-                    <h3>Help & Getting Started</h3>
-                    <div class="help-links">
-                        <button class="help-link" onclick="showQuickTips()">
-                            💡 Quick Tips
-                        </button>
-                        <button class="help-link" onclick="switchTab('updates', document.querySelector('[onclick*=&quot;updates&quot;]'))">
-                            🆕 What's New
-                        </button>
-                        <button class="help-link" onclick="switchTab('cbt', document.querySelector('[onclick*=&quot;cbt&quot;]')); setTimeout(() => loadCBTTool('SafetyPlanBuilder'), 200);">
-                            🆘 Safety Plan Builder
-                        </button>
-                    </div>
-                    <div id="quickTipsPanel" class="quick-tips-content" style="display: none; margin-top: 15px;">
-                        <div class="card" style="background: var(--bg-secondary);">
-                            <p><strong>Getting Started:</strong></p>
-                            <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
-                                <li>Log your mood daily to track patterns</li>
-                                <li>Chat with AI Therapy when you need support</li>
-                                <li>Complete daily tasks to earn pet rewards</li>
-                                <li>Use CBT tools for structured exercises</li>
-                                <li>Check on your virtual pet regularly</li>
-                                <li>Build your streak for bonus rewards!</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pet Status Mini Card -->
-                <div class="card home-pet-card" style="margin-top: 20px;" id="homePetCard">
-                    <h3>🐾 Your Pet</h3>
-                    <div id="homePetStatus" style="display: flex; align-items: center; gap: 20px;">
-                        <span id="homePetEmoji" style="font-size: 48px;">🐾</span>
+                <!-- The Mood Garden -->
+                <div class="card sanctuary-section" style="margin-top:20px;">
+                    <div class="sanctuary-header">
+                        <span class="sanctuary-icon">🌿</span>
                         <div>
-                            <p><strong id="homePetName">No pet yet</strong></p>
-                            <p style="color: var(--text-secondary);">🪙 <span id="homePetCoins">0</span> coins | ⭐ <span id="homePetXP">0</span> XP</p>
+                            <h3 class="sanctuary-title">The Mood Garden</h3>
+                            <p class="sanctuary-subtitle">Your last 7 days, growing in colour</p>
                         </div>
-                        <button class="btn btn-secondary" onclick="switchTab('pet', document.querySelector('[onclick*=&quot;pet&quot;]'))" style="margin-left: auto;">
-                            Visit Pet
-                        </button>
+                    </div>
+                    <canvas id="moodGardenCanvas" class="mood-garden-canvas"></canvas>
+                    <p style="text-align:center; font-size:0.78em; color:var(--text-muted); margin-top:8px;">
+                        Higher mood = brighter blooms · Log daily to watch your garden grow
+                    </p>
+                </div>
+
+                <!-- The Spell Circle -->
+                <div class="card sanctuary-section" style="margin-top:20px;">
+                    <div class="sanctuary-header">
+                        <span class="sanctuary-icon">🌀</span>
+                        <div>
+                            <h3 class="sanctuary-title">The Spell Circle</h3>
+                            <p class="sanctuary-subtitle">Three spells suggested for this moment</p>
+                        </div>
+                    </div>
+                    <div id="spellCircleGrid" class="spell-circle-grid"></div>
+                </div>
+
+                <!-- The Milestone Wall -->
+                <div class="card sanctuary-section" style="margin-top:20px;">
+                    <div class="sanctuary-header">
+                        <span class="sanctuary-icon">🏆</span>
+                        <div>
+                            <h3 class="sanctuary-title">The Milestone Wall</h3>
+                            <p class="sanctuary-subtitle">Your earned achievements glow here</p>
+                        </div>
+                        <button onclick="switchTab('progress', document.querySelector('[onclick*=&quot;progress&quot;]'))"
+                                class="btn btn-secondary" style="margin-left:auto; padding:6px 12px; font-size:0.8em;">View All</button>
+                    </div>
+                    <div id="milestoneWallContent">
+                        <p style="color:var(--text-muted); font-size:0.85em; text-align:center; padding:10px;">Loading achievements...</p>
                     </div>
                 </div>
 
-                <!-- Developer Feedback Section -->
-                <div class="card home-feedback-card" style="margin-top: 20px;">
-                    <h3>Send Feedback to Developers</h3>
-                    <div class="form-group">
-                        <label>Category</label>
-                        <select id="feedbackCategory" class="themed-input">
-                            <option value="bug">🐛 Bug Report</option>
-                            <option value="feature">💡 Feature Request</option>
-                            <option value="improvement">✨ Improvement Suggestion</option>
-                            <option value="other">📝 Other</option>
-                        </select>
+                <!-- Your Companion -->
+                <div class="card sanctuary-section" id="companionSection" style="margin-top:20px;">
+                    <div class="sanctuary-header">
+                        <span class="sanctuary-icon">🐾</span>
+                        <div>
+                            <h3 class="sanctuary-title">Your Companion</h3>
+                            <p class="sanctuary-subtitle">Growing with you on every step</p>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Your Message</label>
-                        <textarea id="feedbackMessage" class="themed-textarea" rows="4"
-                                  placeholder="Share your feedback, report issues, or suggest improvements..."></textarea>
+                    <div id="companionDisplay">
+                        <p style="color:var(--text-muted); text-align:center; padding:10px;">Loading companion...</p>
                     </div>
-                    <button class="btn" onclick="submitFeedback()">Send Feedback</button>
-                    <p id="feedbackStatus" style="margin-top: 10px; display: none;"></p>
+                </div>
+
+                <!-- The Weekly Ember -->
+                <div class="card sanctuary-section" style="margin-top:20px;">
+                    <div class="sanctuary-header">
+                        <span class="sanctuary-icon">🕯️</span>
+                        <div>
+                            <h3 class="sanctuary-title">The Weekly Ember</h3>
+                            <p class="sanctuary-subtitle">Each day you check in, the flame grows</p>
+                        </div>
+                    </div>
+                    <div id="weeklyEmberContainer" class="weekly-ember-container"></div>
                 </div>
 
                 <!-- Safety & Crisis Resources (Always Visible) -->
@@ -4988,6 +5069,34 @@
                     <button class="btn btn-secondary" style="margin-top: 15px;" onclick="switchTab('cbt', document.querySelector('[onclick*=&quot;cbt&quot;]')); setTimeout(() => loadCBTTool('SafetyPlanBuilder'), 200);">
                         View Safety Plan Builder
                     </button>
+                </div>
+
+                <!-- Quest System Overlays -->
+                <div id="questAcceptModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75);
+                     z-index:9000; align-items:center; justify-content:center; padding:20px;">
+                    <div style="background:var(--bg-card); border-radius:16px; padding:28px; max-width:600px;
+                                width:100%; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5);"
+                         onclick="event.stopPropagation()">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                            <h3 style="margin:0;">⚔️ Choose Your Quest</h3>
+                            <button onclick="document.getElementById('questAcceptModal').style.display='none'"
+                                    style="background:none; border:none; font-size:1.5em; cursor:pointer; color:var(--text-muted);">×</button>
+                        </div>
+                        <div id="suggestedQuestsList">
+                            <p style="text-align:center; color:var(--text-muted); padding:20px;">Loading available quests...</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="questCelebration" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88);
+                     z-index:9999; align-items:center; justify-content:center; padding:20px; flex-direction:column;">
+                    <div style="text-align:center; color:white; max-width:400px;">
+                        <div id="questCelebrationIcon" style="font-size:5em; margin-bottom:20px;">⚔️</div>
+                        <h2 id="questCelebrationTitle" style="font-size:1.8em; margin-bottom:10px;">Quest Complete!</h2>
+                        <p id="questCelebrationLore" style="font-style:italic; color:rgba(255,255,255,0.75); margin-bottom:15px; line-height:1.5;"></p>
+                        <p id="questCelebrationXP" style="font-size:1.3em; color:#fbbf24; font-weight:700; margin-bottom:20px;"></p>
+                        <button onclick="document.getElementById('questCelebration').style.display='none'"
+                                class="btn btn-primary">Continue Your Journey →</button>
+                    </div>
                 </div>
             </div>
 
@@ -5299,9 +5408,17 @@
             
             <!-- CBT Tools Tab -->
             <div id="cbtTab" class="tab-content">
-                                <h3>Cognitive Behavioral Therapy Tools</h3>
-                                <p style="color: var(--text-secondary); margin-bottom: 20px;">Select a CBT tool below to get started. Your progress is saved for each tool.</p>
-                                <div id="cbtToolsDashboard" class="cbt-tools-dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 30px;"></div>
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+                                    <div>
+                                        <h3 style="margin:0 0 4px 0;">Cognitive Behavioral Therapy Tools</h3>
+                                        <p style="color:var(--text-secondary); margin:0; font-size:0.9em;">Each tool also has a spell name — your clinical skills as magical powers.</p>
+                                    </div>
+                                    <button onclick="showSpellLibrary()" class="btn btn-secondary"
+                                            style="white-space:nowrap; padding:8px 16px; flex-shrink:0;">
+                                        📖 Spell Library
+                                    </button>
+                                </div>
+                                <div id="cbtToolsDashboard" class="cbt-tools-dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 30px;"></div>
                                 <div id="cbtToolLoader" class="cbt-tool-loader" style="min-height: 320px;"></div>
                                 <div id="cbtToolMessage" class="hidden"></div>
                                 <script>
@@ -5324,14 +5441,176 @@
                                     { id: 'ActivityScheduler', name: 'Activity Scheduler', icon: '📅' }
                                 ];
 
+                                // HJ.2 Spell metadata map
+                                const SPELL_MAP = {
+                                    'CognitiveDistortionsQuiz':  { spell:'The Mirror of Truth',   element:'🔮', flavor:'See your thoughts as they truly are',         color:'#6366f1' },
+                                    'CoreBeliefsWorksheet':      { spell:'The Root Reading',       element:'🌳', flavor:'Unearth the beliefs that shape your world',   color:'#059669' },
+                                    'ThoughtDefusionExercise':   { spell:'The Cloud Walk',         element:'☁️', flavor:'Unhook from thoughts that hold you back',     color:'#7dd3fc' },
+                                    'IfThenCopingPlan':          { spell:'The If-Then Binding',    element:'🔗', flavor:'Prepare your response before the storm',      color:'#f59e0b' },
+                                    'CopingSkillsSelector':      { spell:'The Arsenal',            element:'🛠️', flavor:'Build your personal toolkit of resilience',  color:'#8b5cf6' },
+                                    'SelfCompassionLetter':      { spell:'The Healing Salve',      element:'💙', flavor:'Treat yourself with the care you deserve',    color:'#06b6d4' },
+                                    'ProblemSolvingWorksheet':   { spell:'The Compass',            element:'🧭', flavor:'Navigate from stuck to moving forward',       color:'#10b981' },
+                                    'ExposureHierarchyBuilder':  { spell:'The Courage Steps',      element:'🏔️', flavor:'Map your path through what frightens you',   color:'#f97316' },
+                                    'RelaxationAudioPlayer':     { spell:'Calm Breath',            element:'💨', flavor:'Regulate your nervous system instantly',      color:'#a78bfa' },
+                                    'UrgeSurfingTimer':          { spell:'The Wave Rider',         element:'🏄', flavor:'Ride the urge, do not fight it',              color:'#0ea5e9' },
+                                    'ValuesCardSort':            { spell:'True North',             element:'⭐', flavor:'Connect to what matters most to you',         color:'#fbbf24' },
+                                    'StrengthsInventory':        { spell:'The Strength Rune',      element:'💪', flavor:'Discover the powers that already live in you',color:'#84cc16' },
+                                    'SleepHygieneChecklist':     { spell:'The Dream Ward',         element:'🌙', flavor:'Protect your nights and restore your days',   color:'#818cf8' },
+                                    'SafetyPlanBuilder':         { spell:'The Shield Pact',        element:'🛡️', flavor:'Forge your plan for when the storm comes',    color:'#ef4444' },
+                                    'ActivityScheduler':         { spell:'Spark of Motion',        element:'⚡', flavor:'Break the stillness and reclaim your energy', color:'#f59e0b' },
+                                };
+
                                 function renderCBTToolsDashboard() {
                                     const dash = document.getElementById('cbtToolsDashboard');
-                                    dash.innerHTML = CBT_TOOLS.map(tool => `
-                                        <button class="cbt-tool-btn" style="padding: 22px 10px; border-radius: 14px; border: 2px solid var(--border-color); background: var(--bg-card); font-size: 18px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer; transition: box-shadow .2s; box-shadow: 0 2px 8px var(--shadow-color);" onclick="loadCBTTool('${tool.id}')">
-                                            <span style="font-size: 2.2em;">${tool.icon}</span>
-                                            <span>${tool.name}</span>
-                                        </button>
-                                    `).join('');
+                                    if (!dash) return;
+                                    dash.innerHTML = CBT_TOOLS.map(tool => {
+                                        const spell = SPELL_MAP[tool.id];
+                                        return `
+                                        <button class="cbt-tool-btn" onclick="loadAndRecordSpell('${tool.id}')"
+                                                style="padding:18px 12px; border-radius:14px; border:2px solid var(--border-color);
+                                                       background:var(--bg-card); display:flex; flex-direction:column;
+                                                       align-items:center; gap:8px; cursor:pointer; transition:all .2s;
+                                                       box-shadow:0 2px 8px var(--shadow-color); position:relative; overflow:hidden; text-align:center;">
+                                            ${spell ? `<div style="position:absolute; top:0; left:0; right:0; height:3px; background:${spell.color};"></div>` : ''}
+                                            <span style="font-size:2.2em;">${tool.icon}</span>
+                                            <span style="font-size:0.9em; font-weight:700; line-height:1.2;">${tool.name}</span>
+                                            ${spell ? `<span style="font-size:0.72em; color:${spell.color}; font-style:italic; line-height:1.2;">${spell.element} ${spell.spell}</span>` : ''}
+                                            <span id="masteryBadge_${tool.id}" style="font-size:0.68em; display:none; color:#fbbf24;"></span>
+                                        </button>`;
+                                    }).join('');
+                                    loadSpellMasteryBadges();
+                                }
+
+                                // HJ.2: Load spell mastery badges on dashboard
+                                async function loadSpellMasteryBadges() {
+                                    try {
+                                        const resp = await fetch('/api/user/spells', { credentials: 'include' });
+                                        if (!resp.ok) return;
+                                        const data = await resp.json();
+                                        (data.mastered || []).forEach(s => {
+                                            const el = document.getElementById(`masteryBadge_${s.tool_id}`);
+                                            if (el) {
+                                                const stars = '⭐'.repeat(Math.min(s.power_level || 1, 5));
+                                                el.textContent = `${stars} Cast ${s.cast_count}×`;
+                                                el.style.display = 'block';
+                                            }
+                                        });
+                                    } catch (e) {}
+                                }
+
+                                // HJ.2: Record spell cast then load tool
+                                async function loadAndRecordSpell(toolId) {
+                                    fetch('/api/user/spell/cast', {
+                                        method: 'POST', credentials: 'include',
+                                        headers: { 'Content-Type': 'application/json',
+                                                   'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') || {}).content || '' },
+                                        body: JSON.stringify({ tool_id: toolId })
+                                    }).then(r => r.json()).then(data => {
+                                        if (data.is_first_cast) showSpellLearnedAnimation(toolId);
+                                    }).catch(() => {});
+                                    loadCBTTool(toolId);
+                                }
+
+                                function showSpellLearnedAnimation(toolId) {
+                                    const spell = SPELL_MAP[toolId];
+                                    if (!spell) return;
+                                    const overlay = document.createElement('div');
+                                    overlay.style.cssText = `position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999;
+                                        display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                        animation:fadeIn 0.3s ease; cursor:pointer;`;
+                                    overlay.innerHTML = `
+                                        <div style="text-align:center; color:white; padding:40px; max-width:360px;">
+                                            <div style="font-size:4.5em; margin-bottom:16px; animation:spellPulse 0.6s ease infinite alternate;">${spell.element}</div>
+                                            <h2 style="margin:0 0 8px 0; font-size:1.7em;">✨ Spell Learned!</h2>
+                                            <h3 style="margin:0 0 12px 0; color:${spell.color}; font-size:1.35em;">${spell.spell}</h3>
+                                            <p style="color:rgba(255,255,255,0.75); font-style:italic; margin:0 0 20px 0;">"${spell.flavor}"</p>
+                                            <p style="font-size:0.85em; color:rgba(255,255,255,0.5);">Added to your Spell Library · Tap anywhere to continue</p>
+                                        </div>`;
+                                    overlay.addEventListener('click', () => overlay.remove());
+                                    document.body.appendChild(overlay);
+                                    setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 5000);
+                                }
+
+                                // HJ.2: Show Spell Library view
+                                function showSpellLibrary() {
+                                    const loader = document.getElementById('cbtToolLoader');
+                                    const dash = document.getElementById('cbtToolsDashboard');
+                                    if (dash) dash.style.display = 'none';
+                                    if (loader) loader.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px;">Loading Spell Library...</div>';
+
+                                    fetch('/api/user/spells', { credentials: 'include' })
+                                        .then(r => r.json())
+                                        .then(data => {
+                                            const mastered = data.mastered || [];
+                                            const unmastered = data.unmastered || [];
+                                            loader.innerHTML = `
+                                            <div>
+                                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+                                                    <h3 style="margin:0;">📖 Your Spell Library</h3>
+                                                    <button onclick="closeSpellLibrary()" class="btn btn-secondary">← Back to Tools</button>
+                                                </div>
+                                                ${mastered.length ? `<p style="color:var(--text-secondary); margin-bottom:14px;">
+                                                    <strong>${mastered.length}</strong> spell${mastered.length!==1?'s':''} mastered ·
+                                                    <strong>${data.total_casts||0}</strong> total casts</p>
+                                                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; margin-bottom:24px;">
+                                                    ${mastered.map(s => {
+                                                        const sp = SPELL_MAP[s.tool_id] || {};
+                                                        const orbs = Array.from({length:5},(_,i)=>
+                                                            `<span style="color:${i<(s.power_level||1)?sp.color||'#fbbf24':'var(--border-color)'}; font-size:0.85em;">◆</span>`
+                                                        ).join('');
+                                                        const last = s.last_cast_at ? new Date(s.last_cast_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '';
+                                                        return `<div onclick="loadAndRecordSpell('${s.tool_id}')"
+                                                            style="border:2px solid ${sp.color||'var(--border-color)'}33; border-radius:13px; padding:16px;
+                                                                   background:var(--bg-secondary); position:relative; overflow:hidden; cursor:pointer;
+                                                                   transition:all .2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+                                                            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${sp.color||'var(--accent-color)'};"></div>
+                                                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                                                                <span style="font-size:2em;">${sp.element||'🔮'}</span>
+                                                                <div>
+                                                                    <strong style="display:block; color:${sp.color||'var(--text-primary)'}; font-size:0.95em;">${sp.spell||s.tool_id}</strong>
+                                                                    <span style="font-size:0.75em; color:var(--text-muted);">${s.tool_id.replace(/([A-Z])/g,' $1').trim()}</span>
+                                                                </div>
+                                                            </div>
+                                                            <p style="color:var(--text-secondary); font-size:0.82em; font-style:italic; margin:0 0 10px 0;">"${sp.flavor||''}"</p>
+                                                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                                                <div>${orbs}</div>
+                                                                <span style="font-size:0.78em; color:var(--text-muted);">Cast ${s.cast_count}× · ${last}</span>
+                                                            </div>
+                                                        </div>`;
+                                                    }).join('')}
+                                                </div>` : ''}
+                                                ${unmastered.length ? `
+                                                <h4 style="color:var(--text-muted); margin-bottom:10px; font-size:0.9em;">📜 Spells Yet to be Learned</h4>
+                                                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px;">
+                                                    ${unmastered.map(s => {
+                                                        const sp = SPELL_MAP[s.tool_id] || {};
+                                                        return `<div onclick="loadAndRecordSpell('${s.tool_id}')"
+                                                            style="border:1.5px dashed var(--border-color); border-radius:11px; padding:14px;
+                                                                   opacity:0.65; cursor:pointer; transition:opacity .2s;"
+                                                            onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='0.65'">
+                                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                                <span style="font-size:1.8em; filter:grayscale(0.6);">${sp.element||'?'}</span>
+                                                                <div>
+                                                                    <strong style="display:block; font-size:0.88em;">${sp.spell||s.tool_id}</strong>
+                                                                    <span style="font-size:0.74em; color:var(--text-muted);">Not yet learned · Tap to learn</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>`;
+                                                    }).join('')}
+                                                </div>` : '<p style="color:var(--success-color); text-align:center; padding:20px; font-weight:600;">🌟 All spells mastered! Truly legendary.</p>'}
+                                            </div>`;
+                                        })
+                                        .catch(() => {
+                                            if (loader) loader.innerHTML = '<p style="color:var(--danger-color); padding:20px;">Could not load spell library.</p>';
+                                        });
+                                }
+
+                                function closeSpellLibrary() {
+                                    const dash = document.getElementById('cbtToolsDashboard');
+                                    const loader = document.getElementById('cbtToolLoader');
+                                    if (dash) dash.style.display = 'grid';
+                                    if (loader) loader.innerHTML = '';
+                                    renderCBTToolsDashboard();
                                 }
 
                                 async function loadCBTTool(toolId) {
@@ -7460,7 +7739,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const savedTheme = localStorage.getItem('theme');
             const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-            if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+            if (savedTheme === 'sanctuary') {
+                document.documentElement.setAttribute('data-theme', 'sanctuary');
+            } else if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
                 document.documentElement.setAttribute('data-theme', 'dark');
                 const toggle = document.getElementById('darkModeToggle');
                 if (toggle) toggle.checked = true;
@@ -7495,6 +7776,29 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
         
+        // HJ.3: Sanctuary theme toggle
+        function toggleSanctuaryTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            if (current === 'sanctuary') {
+                html.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                const t = document.getElementById('darkModeToggle');
+                if (t) t.checked = false;
+            } else {
+                html.setAttribute('data-theme', 'sanctuary');
+                localStorage.setItem('theme', 'sanctuary');
+                const t = document.getElementById('darkModeToggle');
+                if (t) t.checked = false; // sanctuary is its own theme
+            }
+            // Redraw mood garden in new theme colours
+            setTimeout(() => {
+                if (typeof drawMoodGarden === 'function' && window._lastMoodEntries) {
+                    drawMoodGarden(window._lastMoodEntries);
+                }
+            }, 100);
+        }
+
         // Initialize theme and set toggle state correctly
         function initializeTheme() {
             const savedTheme = localStorage.getItem('theme');
@@ -7674,6 +7978,390 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 console.error('Error loading home data:', error);
                 renderHomeTabStatic();
             }
+            // HJ.1/2/3: Load sanctuary data
+            loadSanctuaryData();
+        }
+
+        // ============================================================
+        // HJ.1 — QUEST SYSTEM FUNCTIONS
+        // ============================================================
+        async function loadQuestBoard() {
+            try {
+                const resp = await fetch('/api/user/quests', { credentials: 'include' });
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const xpEl = document.getElementById('questXpTotal');
+                const countEl = document.getElementById('questCompletedCount');
+                if (xpEl) xpEl.textContent = data.total_xp || 0;
+                if (countEl) countEl.textContent = data.completed_count || 0;
+                renderActiveQuests(data.active || []);
+                window._suggestedQuests = data.suggested || [];
+            } catch (e) {
+                console.error('Quest board error:', e);
+            }
+        }
+
+        function renderActiveQuests(quests) {
+            const el = document.getElementById('activeQuestsList');
+            if (!el) return;
+            const typeColor = { daily:'#10b981', skill:'#6366f1', exploration:'#f59e0b',
+                                arc:'#8b5cf6', courage:'#ef4444', connection:'#06b6d4' };
+            if (!quests.length) {
+                el.innerHTML = `<div style="text-align:center; padding:18px; color:var(--text-muted);">
+                    <p style="font-size:1em; margin-bottom:6px;">No active quests.</p>
+                    <p style="font-size:0.85em;">Tap "+ Quest" above to begin your journey.</p>
+                </div>`;
+                return;
+            }
+            el.innerHTML = quests.slice(0, 4).map(q => {
+                const pct = Math.min(100, Math.round((q.progress / Math.max(q.target, 1)) * 100));
+                const tc = typeColor[q.quest_type] || '#6366f1';
+                const daysLeft = q.expires_at ?
+                    Math.max(0, Math.ceil((new Date(q.expires_at) - Date.now()) / 86400000)) : null;
+                return `<div class="quest-item" style="border-left:4px solid ${tc};">
+                    <div style="display:flex; align-items:flex-start; gap:10px;">
+                        <span style="font-size:1.8em; flex-shrink:0;">${q.icon}</span>
+                        <div style="flex:1; min-width:0;">
+                            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+                                <strong style="font-size:0.95em;">${q.title}</strong>
+                                <span style="font-size:0.72em; padding:2px 7px; border-radius:10px;
+                                       background:${tc}22; color:${tc}; font-weight:600;">${q.subtitle||q.quest_type}</span>
+                            </div>
+                            <p style="color:var(--text-secondary); font-size:0.82em; margin:0 0 8px 0; line-height:1.4;">${q.description}</p>
+                            ${q.lore_text ? `<p style="color:var(--text-muted); font-size:0.77em; font-style:italic; margin:0 0 8px 0;">"${q.lore_text}"</p>` : ''}
+                            <div style="background:var(--border-color); border-radius:4px; height:7px; margin-bottom:5px; overflow:hidden;">
+                                <div style="width:${pct}%; background:${tc}; height:100%; border-radius:4px; transition:width .5s;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:0.78em; color:var(--text-muted);">
+                                <span>${q.progress} / ${q.target}${q.progress>=q.target?' ✅':''}</span>
+                                <span style="display:flex; gap:8px;">
+                                    <span style="color:#fbbf24;">+${q.xp_reward} XP</span>
+                                    ${daysLeft!==null ? `<span>${daysLeft}d left</span>` : ''}
+                                </span>
+                            </div>
+                        </div>
+                        <button onclick="abandonQuest(${q.id})" title="Abandon"
+                                style="background:none; border:none; cursor:pointer; color:var(--text-muted);
+                                       font-size:0.8em; padding:4px; flex-shrink:0;">✕</button>
+                    </div>
+                </div>`;
+            }).join('') + (quests.length > 4 ? `<p style="text-align:center; color:var(--text-muted); font-size:0.82em;">${quests.length - 4} more active quest${quests.length-4>1?'s':''}</p>` : '');
+        }
+
+        function showQuestAcceptModal() {
+            const modal = document.getElementById('questAcceptModal');
+            if (!modal) return;
+            modal.style.display = 'flex';
+            const el = document.getElementById('suggestedQuestsList');
+            if (!el) return;
+            if (window._suggestedQuests && window._suggestedQuests.length) {
+                renderSuggestedQuests(window._suggestedQuests);
+            } else {
+                el.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:30px;">All available quests are already active or completed. Check back soon!</p>';
+            }
+        }
+
+        function renderSuggestedQuests(quests) {
+            const el = document.getElementById('suggestedQuestsList');
+            if (!el) return;
+            const typeColor = { daily:'#10b981', skill:'#6366f1', exploration:'#f59e0b',
+                                arc:'#8b5cf6', courage:'#ef4444', connection:'#06b6d4' };
+            el.innerHTML = quests.map(q => {
+                const tc = typeColor[q.quest_type] || '#6366f1';
+                const dur = q.duration_days === 1 ? 'Daily reset' :
+                            q.duration_days ? `${q.duration_days} days to complete` : 'No time limit';
+                return `<div style="border:1.5px solid var(--border-color); border-radius:12px; padding:16px;
+                             margin-bottom:12px; border-left:4px solid ${tc}; background:var(--bg-secondary);">
+                    <div style="display:flex; align-items:flex-start; gap:12px;">
+                        <span style="font-size:2em;">${q.icon}</span>
+                        <div style="flex:1;">
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+                                <strong>${q.title}</strong>
+                                <span style="font-size:0.72em; padding:2px 7px; border-radius:10px;
+                                       background:${tc}22; color:${tc}; font-weight:600;">${q.subtitle||q.quest_type}</span>
+                            </div>
+                            <p style="color:var(--text-secondary); font-size:0.84em; margin:4px 0 8px 0;">${q.description}</p>
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                                <span style="font-size:0.78em; color:var(--text-muted);">Goal: ${q.required_count}× · ${dur}</span>
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <span style="color:#fbbf24; font-size:0.84em; font-weight:600;">+${q.xp_reward} XP</span>
+                                    <button onclick="acceptQuest('${q.quest_key}', this)"
+                                            class="btn btn-primary" style="padding:6px 14px; font-size:0.82em;">Accept</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function acceptQuest(questKey, btnEl) {
+            if (btnEl) { btnEl.disabled = true; btnEl.textContent = '...'; }
+            try {
+                const resp = await fetch('/api/user/quests/accept', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json',
+                               'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') || {}).content || '' },
+                    body: JSON.stringify({ quest_key: questKey })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    document.getElementById('questAcceptModal').style.display = 'none';
+                    loadQuestBoard();
+                    if (typeof showToast === 'function') showToast('⚔️ Quest accepted! Your journey begins.', 'success');
+                } else {
+                    if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Accept'; }
+                    if (typeof showToast === 'function') showToast(data.error || 'Could not accept quest.', 'error');
+                }
+            } catch (e) {
+                if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Accept'; }
+            }
+        }
+
+        async function abandonQuest(questId) {
+            if (!confirm('Abandon this quest? Your progress will be lost.')) return;
+            try {
+                await fetch(`/api/user/quests/${questId}/abandon`, {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') || {}).content || '' }
+                });
+                loadQuestBoard();
+            } catch (e) {}
+        }
+
+        function showQuestCelebration(quest) {
+            const cel = document.getElementById('questCelebration');
+            if (!cel) return;
+            document.getElementById('questCelebrationIcon').textContent = quest.icon || '⚔️';
+            document.getElementById('questCelebrationTitle').textContent = `Quest Complete: ${quest.title}`;
+            document.getElementById('questCelebrationLore').textContent = `"${quest.lore_text || 'Well done, brave soul.'}"`;
+            document.getElementById('questCelebrationXP').textContent = `+${quest.xp_reward} XP earned`;
+            cel.style.display = 'flex';
+            setTimeout(() => { cel.style.display = 'none'; }, 9000);
+        }
+
+        // ============================================================
+        // HJ.3 — SANCTUARY FUNCTIONS
+        // ============================================================
+        async function loadSanctuaryData() {
+            // Mood garden
+            try {
+                const mr = await fetch('/api/mood/history?limit=7', { credentials: 'include' });
+                if (mr.ok) {
+                    const md = await mr.json();
+                    drawMoodGarden(md.entries || md.moods || md || []);
+                }
+            } catch (e) {}
+
+            // Achievements / milestone wall
+            try {
+                const ar = await fetch('/api/patient/achievements', { credentials: 'include' });
+                if (ar.ok) {
+                    const ad = await ar.json();
+                    renderMilestoneWall(ad.achievements || ad || []);
+                }
+            } catch (e) {}
+
+            // Companion (pet)
+            try {
+                const pr = await fetch('/api/pet', { credentials: 'include' });
+                if (pr.ok) {
+                    const pd = await pr.json();
+                    renderCompanionCard(pd);
+                }
+            } catch (e) {}
+
+            renderSpellCircle();
+            renderWeeklyEmber();
+            loadQuestBoard();
+        }
+
+        function drawMoodGarden(entries) {
+            const canvas = document.getElementById('moodGardenCanvas');
+            if (!canvas || !canvas.getContext) return;
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width = canvas.offsetWidth || 600;
+            const H = canvas.height = 120;
+            const avg = entries.length ?
+                entries.reduce((s, e) => s + (e.mood_val || e.mood || 5), 0) / entries.length : 5;
+            // Sky
+            const sky = ctx.createLinearGradient(0, 0, 0, H * 0.65);
+            if (avg >= 7) { sky.addColorStop(0, '#87ceeb'); sky.addColorStop(1, '#c8eaf7'); }
+            else if (avg >= 4) { sky.addColorStop(0, '#9ab5c8'); sky.addColorStop(1, '#c4d8e8'); }
+            else { sky.addColorStop(0, '#6a7a8a'); sky.addColorStop(1, '#8a9aaa'); }
+            ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+            // Ground
+            const gnd = ctx.createLinearGradient(0, H * 0.65, 0, H);
+            gnd.addColorStop(0, '#2d6a4f'); gnd.addColorStop(1, '#1a3d2a');
+            ctx.fillStyle = gnd; ctx.fillRect(0, H * 0.65, W, H);
+            const list = entries.slice(-7);
+            if (!list.length) {
+                ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '13px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Log your mood to see your garden grow 🌱', W/2, H/2); return;
+            }
+            const spacing = W / (list.length + 1);
+            const gY = H * 0.65;
+            list.forEach((entry, i) => {
+                const mood = Math.max(1, Math.min(10, entry.mood_val || entry.mood || 5));
+                const x = spacing * (i + 1);
+                if (mood >= 8) drawGardenSunflower(ctx, x, gY, mood);
+                else if (mood >= 6) drawGardenFlower(ctx, x, gY, mood);
+                else if (mood >= 4) drawGardenPlant(ctx, x, gY, mood);
+                else if (mood >= 2) { drawGardenSprout(ctx, x, gY); drawGardenCloud(ctx, x, gY - 45, false); }
+                else { drawGardenSprout(ctx, x, gY); drawGardenCloud(ctx, x, gY - 45, true); }
+                const d = entry.timestamp ? new Date(entry.timestamp) : new Date();
+                const dayN = ['Su','Mo','Tu','We','Th','Fr','Sa'][d.getDay()];
+                ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.font = '9px sans-serif';
+                ctx.textAlign = 'center'; ctx.fillText(dayN, x, H - 3);
+            });
+        }
+
+        function drawGardenSunflower(ctx, x, gY, mood) {
+            const h = 32 + mood * 2;
+            ctx.strokeStyle = '#40916c'; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(x, gY); ctx.lineTo(x, gY - h); ctx.stroke();
+            ctx.fillStyle = '#f4d03f';
+            for (let p = 0; p < 8; p++) {
+                const a = (p/8) * Math.PI * 2;
+                ctx.beginPath(); ctx.ellipse(x + Math.cos(a)*8, gY-h + Math.sin(a)*8, 5, 3, a, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.fillStyle = '#8B4513'; ctx.beginPath(); ctx.arc(x, gY-h, 5.5, 0, Math.PI*2); ctx.fill();
+        }
+        function drawGardenFlower(ctx, x, gY, mood) {
+            const h = 24 + mood * 2;
+            ctx.strokeStyle = '#40916c'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(x, gY); ctx.lineTo(x, gY-h); ctx.stroke();
+            const cols = ['#ff6b9d','#ff8c94','#ffa07a','#ffb6c1'];
+            ctx.fillStyle = cols[mood % cols.length];
+            for (let p = 0; p < 5; p++) {
+                const a = (p/5)*Math.PI*2;
+                ctx.beginPath(); ctx.arc(x+Math.cos(a)*6, gY-h+Math.sin(a)*6, 4, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.fillStyle = '#ffd700'; ctx.beginPath(); ctx.arc(x, gY-h, 3, 0, Math.PI*2); ctx.fill();
+        }
+        function drawGardenPlant(ctx, x, gY, mood) {
+            const h = 16 + mood;
+            ctx.strokeStyle = '#40916c'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(x, gY); ctx.lineTo(x, gY-h); ctx.stroke();
+            ctx.fillStyle = '#40916c';
+            ctx.beginPath(); ctx.ellipse(x-6, gY-h*0.6, 7, 4, -0.5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(x+6, gY-h*0.4, 7, 4, 0.5, 0, Math.PI*2); ctx.fill();
+        }
+        function drawGardenSprout(ctx, x, gY) {
+            ctx.strokeStyle = '#95d5b2'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(x, gY); ctx.lineTo(x, gY-12);
+            ctx.bezierCurveTo(x, gY-16, x+5, gY-16, x+5, gY-19); ctx.stroke();
+        }
+        function drawGardenCloud(ctx, x, y, isRain) {
+            ctx.fillStyle = isRain ? 'rgba(130,150,180,0.7)' : 'rgba(200,220,240,0.6)';
+            ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x-7, y+3, 6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x+7, y+3, 6, 0, Math.PI*2); ctx.fill();
+            if (isRain) {
+                ctx.fillStyle = 'rgba(100,140,200,0.6)';
+                [[x-3,y+11,4],[x+1,y+13,5],[x+5,y+11,3]].forEach(([rx,ry,rh]) => {
+                    ctx.fillRect(rx, ry, 1.5, rh);
+                });
+            }
+        }
+
+        function renderMilestoneWall(achievements) {
+            const el = document.getElementById('milestoneWallContent');
+            if (!el) return;
+            const recent = (achievements || []).slice(0, 3);
+            if (!recent.length) {
+                el.innerHTML = '<p style="color:var(--text-muted); font-size:0.88em; text-align:center; padding:10px;">Complete your first quest or log your mood to earn your first milestone ✨</p>';
+                return;
+            }
+            el.innerHTML = recent.map(a => `
+                <div class="milestone-stone">
+                    <span style="font-size:1.4em;">${a.icon_emoji || a.icon || '🏆'}</span>
+                    <div>
+                        <strong style="display:block; font-size:0.9em;">${a.badge_name || a.title || 'Achievement'}</strong>
+                        <span style="font-size:0.78em; color:var(--text-muted);">${a.description || a.earned_at ? new Date(a.earned_at).toLocaleDateString('en-GB') : ''}</span>
+                    </div>
+                </div>`).join('');
+        }
+
+        function renderCompanionCard(petData) {
+            const el = document.getElementById('companionDisplay');
+            if (!el || !petData) return;
+            const speciesEmoji = {cat:'🐱', dog:'🐶', rabbit:'🐰', fox:'🦊',
+                                  hamster:'🐹', bird:'🐦', snake:'🐍', dragon:'🐉'};
+            const emoji = speciesEmoji[petData.species] || '🐾';
+            el.innerHTML = `
+                <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                    <span style="font-size:3em; animation:sanctuaryFloat 3s ease infinite;">${emoji}</span>
+                    <div style="flex:1; min-width:160px;">
+                        <strong style="display:block; font-size:1em;">${petData.name || 'Your Companion'}</strong>
+                        <p style="font-size:0.8em; color:var(--text-muted); margin:2px 0 8px 0;">
+                            Stage: ${petData.stage || 'Baby'} · ⭐ ${petData.xp || 0} XP · 🪙 ${petData.coins || 0}
+                        </p>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:70px;">
+                                <div style="font-size:0.7em; color:var(--text-muted); margin-bottom:3px;">Happiness</div>
+                                <div style="height:5px; background:var(--border-color); border-radius:3px;">
+                                    <div style="width:${Math.min(100, petData.happiness||70)}%; height:100%; background:#10b981; border-radius:3px;"></div>
+                                </div>
+                            </div>
+                            <div style="flex:1; min-width:70px;">
+                                <div style="font-size:0.7em; color:var(--text-muted); margin-bottom:3px;">Energy</div>
+                                <div style="height:5px; background:var(--border-color); border-radius:3px;">
+                                    <div style="width:${Math.min(100, petData.energy||70)}%; height:100%; background:#f59e0b; border-radius:3px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="switchTab('pet', document.querySelector('[onclick*=\\'pet\\']'))"
+                            class="btn btn-secondary" style="padding:6px 12px; font-size:0.8em; flex-shrink:0;">Visit →</button>
+                </div>`;
+        }
+
+        function renderSpellCircle() {
+            const el = document.getElementById('spellCircleGrid');
+            if (!el || typeof SPELL_MAP === 'undefined') return;
+            const hour = new Date().getHours();
+            let recommended;
+            if (hour < 10)       recommended = ['RelaxationAudioPlayer', 'IfThenCopingPlan', 'ProblemSolvingWorksheet'];
+            else if (hour < 14)  recommended = ['CognitiveDistortionsQuiz', 'ValuesCardSort', 'CopingSkillsSelector'];
+            else if (hour < 18)  recommended = ['CoreBeliefsWorksheet', 'ThoughtDefusionExercise', 'StrengthsInventory'];
+            else                 recommended = ['SleepHygieneChecklist', 'SelfCompassionLetter', 'UrgeSurfingTimer'];
+            el.innerHTML = recommended.map(toolId => {
+                const spell = SPELL_MAP[toolId] || { spell: toolId, element:'✨', flavor:'', color:'var(--accent-color)' };
+                return `<div class="spell-circle-item"
+                    onclick="switchTab('cbt', document.querySelector('[onclick*=\\'cbt\\']')); setTimeout(() => loadAndRecordSpell('${toolId}'), 300);">
+                    <div style="font-size:2em; margin-bottom:6px;">${spell.element}</div>
+                    <div style="font-weight:700; font-size:0.8em; color:${spell.color}; margin-bottom:3px;">${spell.spell}</div>
+                    <div style="font-size:0.7em; color:var(--text-muted); line-height:1.3; font-style:italic;">${spell.flavor}</div>
+                </div>`;
+            }).join('');
+        }
+
+        async function renderWeeklyEmber() {
+            const el = document.getElementById('weeklyEmberContainer');
+            if (!el) return;
+            let streakCount = 0;
+            try {
+                const streakEl = document.getElementById('streakCount');
+                if (streakEl) streakCount = parseInt(streakEl.textContent) || 0;
+            } catch {}
+            const today = new Date();
+            const dayNames = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+            const days = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(today); d.setDate(d.getDate() - i);
+                const dow = d.getDay();
+                days.push({ label: dayNames[dow === 0 ? 6 : dow - 1] });
+            }
+            el.innerHTML = days.map((d, i) => {
+                const isLit = i >= (7 - Math.min(streakCount, 7));
+                const height = isLit ? (14 + (i + 1) * 7) : 8;
+                return `<div class="ember-day">
+                    <div class="ember-flame ${isLit ? 'lit' : 'unlit'}" style="height:${height}px;"></div>
+                    <span class="ember-day-label">${d.label}</span>
+                </div>`;
+            }).join('');
         }
 
         function renderHomeTab(data) {
@@ -7711,20 +8399,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const streakEl = document.getElementById('streakCount');
             if (streakEl && data.streak) {
                 streakEl.textContent = data.streak.current || 0;
-            }
-
-            // Pet info
-            if (data.pet) {
-                const petNameEl = document.getElementById('homePetName');
-                const petCoinsEl = document.getElementById('homePetCoins');
-                const petXPEl = document.getElementById('homePetXP');
-                const petEmojiEl = document.getElementById('homePetEmoji');
-
-                if (petNameEl) petNameEl.textContent = data.pet.name || 'Your Pet';
-                if (petCoinsEl) petCoinsEl.textContent = data.pet.coins || 0;
-                if (petXPEl) petXPEl.textContent = data.pet.xp || 0;
-                // Pet emoji would need species info - use generic for now
-                if (petEmojiEl) petEmojiEl.textContent = '🐾';
+                // Update ember after streak loaded
+                setTimeout(renderWeeklyEmber, 100);
             }
         }
 
