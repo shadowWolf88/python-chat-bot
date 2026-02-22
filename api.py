@@ -4556,6 +4556,7 @@ def init_db():
             except Exception as _e:
                 conn.rollback()
                 print(f"Phase 1.5 column migration note: {_e}")
+        # Create table first in its own transaction, then indexes separately
         try:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS medication_adherence_logs (
@@ -4571,12 +4572,42 @@ def init_db():
                     UNIQUE(username, medication_id, log_date)
                 )
             """)
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_med_adherence_user ON medication_adherence_logs(username)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_med_adherence_med ON medication_adherence_logs(medication_id, log_date)")
             conn.commit()
-            print("✓ Phase 1.5: medication_adherence_logs + patient_medications columns ready")
+            print("✓ Phase 1.5: medication_adherence_logs table ready")
         except Exception as e:
-            print(f"Phase 1.5 adherence log migration note: {e}")
+            print(f"Phase 1.5 adherence log table note: {e}")
+            conn.rollback()
+        for _idx in [
+            "CREATE INDEX IF NOT EXISTS idx_med_adherence_user ON medication_adherence_logs(username)",
+            "CREATE INDEX IF NOT EXISTS idx_med_adherence_med ON medication_adherence_logs(medication_id, log_date)",
+        ]:
+            try:
+                cursor.execute(_idx)
+                conn.commit()
+            except Exception as _e:
+                conn.rollback()
+
+        # Ensure HJ.1 quest_definitions has all required columns (added in 38193c0)
+        for _qcol in [
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS subtitle TEXT",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS lore_text TEXT",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'general'",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS icon TEXT DEFAULT '⚔️'",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS tracking_metric TEXT",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS duration_days INTEGER",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS auto_assign BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS difficulty TEXT DEFAULT 'gentle'",
+        ]:
+            try:
+                cursor.execute(_qcol)
+                conn.commit()
+            except Exception as _e:
+                conn.rollback()
+        # Ensure patient_quests has celebration_shown column
+        try:
+            cursor.execute("ALTER TABLE patient_quests ADD COLUMN IF NOT EXISTS celebration_shown BOOLEAN DEFAULT FALSE")
+            conn.commit()
+        except Exception as _e:
             conn.rollback()
 
         # Phase 1.4 — Waiting List Management
@@ -5899,8 +5930,9 @@ def verify_code():
         
         code_id, expires_at = result
         
-        # Check expiration
-        if datetime.now() > datetime.fromisoformat(expires_at):
+        # Check expiration (psycopg2 returns datetime objects, not strings)
+        expires_dt = expires_at if isinstance(expires_at, datetime) else datetime.fromisoformat(str(expires_at))
+        if datetime.now() > expires_dt:
             conn.close()
             return jsonify({'error': 'Verification code expired. Please request a new one.'}), 400
         

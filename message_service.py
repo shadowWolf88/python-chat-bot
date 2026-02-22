@@ -293,7 +293,7 @@ class MessageService:
             SELECT DISTINCT cp.conversation_id
             FROM conversation_participants cp
             JOIN conversations c ON c.id = cp.conversation_id
-            WHERE cp.username = %s AND (c.is_archived IS NULL OR c.is_archived = 0)
+            WHERE cp.username = %s AND (c.is_archived IS NULL OR c.is_archived = FALSE)
             ORDER BY cp.conversation_id DESC
         """, (self.username,))
 

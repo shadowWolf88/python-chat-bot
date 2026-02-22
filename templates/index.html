@@ -8381,7 +8381,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
             // Companion (pet)
             try {
-                const pr = await fetch('/api/pet', { credentials: 'include' });
+                const pr = await fetch('/api/pet/status', { credentials: 'include' });
                 if (pr.ok) {
                     const pd = await pr.json();
                     renderCompanionCard(pd);
