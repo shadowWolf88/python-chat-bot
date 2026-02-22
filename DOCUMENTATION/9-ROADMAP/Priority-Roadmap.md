@@ -90,7 +90,7 @@ This layer sits **on top** of the clinical engine — the outcomes, the PHQ-9 sc
 
 ---
 
-### HJ.1 THE QUEST SYSTEM
+### HJ.1 THE QUEST SYSTEM ✅ (Feb 22, 2026)
 **Priority: HIGH — Core engagement mechanic**
 
 Reframe therapeutic work as quests. Each quest corresponds to a real clinical intervention or homework task:
@@ -109,11 +109,11 @@ Reframe therapeutic work as quests. Each quest corresponds to a real clinical in
 - Progress bar within each quest
 - Quest completion triggers milestone celebration
 
-**Backend**: `patient_quests` table, `GET/POST /api/user/quests`, clinician quest assignment endpoint
+**Implemented**: `quest_definitions` (20 seeded quests), `patient_quests`, `quest_progress_log` tables. `_advance_quest_progress()` helper hooked into wellness/mood/gratitude/CBT endpoints. 6 API endpoints (GET quests, accept, abandon, clinician view/assign, spell cast, spell library). Frontend: Quest Board replaces daily tasks widget, Accept Quest modal, completion celebration overlay.
 
 ---
 
-### HJ.2 THE SPELL LIBRARY (REFRAMED CBT TOOLS)
+### HJ.2 THE SPELL LIBRARY (REFRAMED CBT TOOLS) ✅ (Feb 22, 2026)
 **Priority: HIGH — Reframes the existing toolset**
 
 The 17 CBT tools already exist. The change is purely in presentation — **spells are skills** you learn to cast when you need them:
@@ -136,11 +136,11 @@ The 17 CBT tools already exist. The change is purely in presentation — **spell
 - Completing a tool for the first time "learns" the spell — small animation, added to Spell Library
 - Spell Library page shows all mastered spells with usage count ("Cast 23 times")
 - Spells have a "power level" that increases with usage frequency (visual indicator only)
-- No backend changes — purely a frontend presentation layer
+**Implemented**: `spell_mastery` DB table (cast_count, power_level 1-5). `SPELL_MAP` constant with 15 spell names/elements/flavors/colours. Modified CBT tool grid shows spell name + colour stripe. `loadAndRecordSpell()` records mastery. Spell Library toggle view shows mastered spells with power orbs + cast count, unmastered as locked scrolls. First-cast "Spell Learned!" animation overlay. `POST /api/user/spell/cast` + `GET /api/user/spells` endpoints.
 
 ---
 
-### HJ.3 THE SANCTUARY (HOME SCREEN REDESIGN)
+### HJ.3 THE SANCTUARY (HOME SCREEN REDESIGN) ✅ (Feb 22, 2026)
 **Priority: MEDIUM — Major UX transformation**
 
 The home screen evolves from a dashboard of widgets to a **living, personalised sanctuary**:
@@ -159,6 +159,8 @@ The home screen evolves from a dashboard of widgets to a **living, personalised 
 - Gentle animations — nothing jarring, nothing clinical
 - Seasonal changes — autumn colours, winter snow in the sanctuary background
 - Deeply personal — patient's name woven in, their milestones visible
+
+**Implemented**: Sanctuary CSS theme (`[data-theme="sanctuary"]`) with amber/forest/navy palette + custom CSS variables. Animations: sanctuaryFloat, emberFlicker, spellPulse. Home tab fully redesigned with 7 sections: Sanctuary Header, The Hearth (wellness ritual), Quest Board, Mood Garden (Canvas), Spell Circle (3 contextual spells), Milestone Wall, Companion (pet), Weekly Ember (streak flames). 🌿 theme toggle button in header.
 
 ---
 
@@ -798,9 +800,9 @@ Migration strategy: zero-downtime, backward-compatible.
 | Gratitude journal | ✅ Complete |
 | Clinical assessments (PHQ-9, GAD-7, CORE-OM, ORS, SRS) | ✅ Complete |
 | Appointments | ✅ Complete (basic) |
-| Quest system | ⏳ Designed, not built |
-| Healing Journey / sanctuary redesign | ⏳ Designed, not built |
-| Spell library presentation layer | ⏳ Designed, not built |
+| Quest system | ✅ Complete (Feb 22) |
+| Healing Journey / sanctuary redesign | ✅ Complete (Feb 22) |
+| Spell library presentation layer | ✅ Complete (Feb 22) |
 | Familiar evolution system | ⏳ Designed, not built |
 | Achievement constellation | ⏳ Designed, not built |
 | Journey Map visualisation | ⏳ Designed, not built |
@@ -856,7 +858,8 @@ Migration strategy: zero-downtime, backward-compatible.
 
 | Phase | Priority | Effort | Impact | Target |
 |-------|----------|--------|--------|--------|
-| Healing Journey (HJ.1–HJ.7) | **NOW** | Medium | Very High | Q2 2026 |
+| Healing Journey (HJ.1–HJ.3) ✅ | **DONE** | Medium | Very High | Feb 2026 |
+| Healing Journey (HJ.4–HJ.7) | **Q2 2026** | Medium | High | Q2 2026 |
 | 2 — Clinical Excellence | **Q2 2026** | High | Very High | Q2–Q3 2026 |
 | 3 — Patient Empowerment | **Q2–Q3 2026** | Medium | High | Q3 2026 |
 | 4 — AI & Intelligence | **Q3 2026** | High | Very High | Q3 2026 |
@@ -909,6 +912,6 @@ Achievable in ~1 hour:
 
 ---
 
-*Roadmap last updated: February 22, 2026.*
+*Roadmap last updated: February 22, 2026 (HJ.1, HJ.2, HJ.3 completed).*
 *Next review: April 2026.*
 *This document should be reviewed quarterly and updated after each major milestone.*
