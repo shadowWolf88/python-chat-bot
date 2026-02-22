@@ -5376,6 +5376,140 @@ def init_db():
                 print(f"Migration note ({dev_table_name}): {e}")
                 conn.rollback()
 
+        # ── FINAL FAILSAFE ENSURES ──────────────────────────────────────────────
+        # Each runs in its own try/except so a missed earlier migration never
+        # leaves critical tables permanently missing after server restart.
+
+        # Phase 1.5: patient_medications extended columns
+        for _col in [
+            "ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS prescriber TEXT",
+            "ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS side_effects TEXT",
+            "ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS refill_date DATE",
+            "ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS quantity_remaining INTEGER",
+            "ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        ]:
+            try:
+                cursor.execute(_col)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
+        # Phase 1.5: medication adherence log table
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS medication_adherence_logs (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    medication_id INTEGER NOT NULL,
+                    log_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                    status TEXT NOT NULL DEFAULT 'taken',
+                    taken_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    side_effect_noted TEXT,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(username, medication_id, log_date)
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_med_adherence_user ON medication_adherence_logs(username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_med_adherence_med ON medication_adherence_logs(medication_id, log_date)")
+            conn.commit()
+        except Exception as _e:
+            print(f"Failsafe ensure note (medication_adherence_logs): {_e}")
+            conn.rollback()
+
+        # HJ.1: quest_definitions table
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS quest_definitions (
+                    id SERIAL PRIMARY KEY,
+                    quest_key TEXT UNIQUE NOT NULL,
+                    title TEXT NOT NULL,
+                    subtitle TEXT,
+                    description TEXT NOT NULL,
+                    lore_text TEXT,
+                    quest_type TEXT NOT NULL DEFAULT 'skill',
+                    category TEXT DEFAULT 'general',
+                    icon TEXT DEFAULT 'sword',
+                    xp_reward INTEGER DEFAULT 50,
+                    required_count INTEGER DEFAULT 1,
+                    tracking_metric TEXT,
+                    duration_days INTEGER,
+                    auto_assign BOOLEAN DEFAULT TRUE,
+                    difficulty TEXT DEFAULT 'gentle',
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+        except Exception as _e:
+            print(f"Failsafe ensure note (quest_definitions): {_e}")
+            conn.rollback()
+
+        # Ensure quest_definitions has newer columns (in case table pre-dates HJ.1)
+        for _col in [
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS subtitle TEXT",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS lore_text TEXT",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'general'",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS auto_assign BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS difficulty TEXT DEFAULT 'gentle'",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS tracking_metric TEXT",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS duration_days INTEGER",
+            "ALTER TABLE quest_definitions ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+        ]:
+            try:
+                cursor.execute(_col)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
+        # HJ.1: patient_quests table
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS patient_quests (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    quest_key TEXT NOT NULL,
+                    status TEXT DEFAULT 'active',
+                    progress INTEGER DEFAULT 0,
+                    target INTEGER DEFAULT 1,
+                    assigned_by TEXT DEFAULT 'system',
+                    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    completed_at TIMESTAMP,
+                    expires_at TIMESTAMP,
+                    celebration_shown BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_patient_quests_username ON patient_quests(username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_patient_quests_status ON patient_quests(username, status)")
+            conn.commit()
+        except Exception as _e:
+            print(f"Failsafe ensure note (patient_quests): {_e}")
+            conn.rollback()
+
+        # HJ.2: spell_mastery table
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS spell_mastery (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    tool_id TEXT NOT NULL,
+                    first_cast_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    cast_count INTEGER DEFAULT 1,
+                    last_cast_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    power_level INTEGER DEFAULT 1,
+                    UNIQUE(username, tool_id)
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_spell_mastery_username ON spell_mastery(username)")
+            conn.commit()
+        except Exception as _e:
+            print(f"Failsafe ensure note (spell_mastery): {_e}")
+            conn.rollback()
+
+        print("✓ Failsafe ensures complete")
+        # ── END FAILSAFE ENSURES ────────────────────────────────────────────────
+
         # Verify the database is accessible
         cursor.execute("SELECT 1")
         conn.commit()
