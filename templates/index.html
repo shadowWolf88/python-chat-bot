@@ -3739,6 +3739,81 @@
             }
         }
 
+        /* DARK MODE OVERRIDES FOR WELLNESS RITUAL CARD */
+        [data-theme="dark"] .wellness-chat-card {
+            border-color: var(--border-color);
+            background: var(--bg-card);
+        }
+
+        [data-theme="dark"] .wellness-chat-header {
+            background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .wellness-chat-messages {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .wellness-message.ai .wellness-bubble {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .wellness-message.user .wellness-bubble {
+            background: #6366f1;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .wellness-option-btn {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .wellness-option-btn:hover {
+            background: var(--bg-hover);
+            border-color: #6366f1;
+        }
+
+        [data-theme="dark"] .wellness-option-btn.selected {
+            background: #6366f1;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .wellness-text-input {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .wellness-text-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+        }
+
+        [data-theme="dark"] .wellness-input-area {
+            background: var(--bg-card);
+            border-top-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .welfare-already-logged {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .mood-button {
+            background: var(--bg-secondary);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .mood-button.selected {
+            background: #6366f1;
+            border-color: #6366f1;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
         @media (max-width: 600px) {
             .wellness-chat-card {
                 max-height: 500px;

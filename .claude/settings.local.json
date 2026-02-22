@@ -5,7 +5,9 @@
       "Bash(psql:*)",
       "Bash(source:*)",
       "Bash(python3:*)",
-      "Bash(railway up:*)"
+      "Bash(railway up:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

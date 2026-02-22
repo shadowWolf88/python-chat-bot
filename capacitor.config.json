@@ -4,7 +4,8 @@
   "webDir": "templates",
   "server": {
     "url": "https://www.healing-space.org.uk",
-    "cleartext": false
+    "cleartext": false,
+    "hostname": "www.healing-space.org.uk"
   },
   "ios": {
     "contentInset": "automatic",
