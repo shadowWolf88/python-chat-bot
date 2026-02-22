@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -37,7 +41,7 @@
     </style>
     <!-- TIER 1.8: XSS Prevention -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
     <!-- Design System v2.0 -->
     <link rel="stylesheet" href="/static/css/theme-variables.css">
     <link rel="stylesheet" href="/static/css/components.css">
@@ -123,6 +127,82 @@
             --danger-color: #ef4444;
             --warning-color: #f59e0b;
         }
+
+        /* ===== MOBILE & TOUCH GLOBAL OPTIMISATIONS ===== */
+        html {
+            /* Prevent gray flash on tap (Android) */
+            -webkit-tap-highlight-color: transparent;
+            /* Smooth font rendering */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Momentum scrolling on iOS for all scrollable areas */
+        .chat-messages, .wellness-chat-messages, .msg-list,
+        .conv-messages, .notification-list, .ai-insight-box,
+        [style*="overflow-y: auto"], [style*="overflow-y:auto"] {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* All interactive elements: remove text selection, improve touch response */
+        button, [role="button"], .tab-btn, .mood-button,
+        .wellness-option-btn, .spell-circle-item, .quest-item,
+        .sanctuary-section, label[for], .nav-item {
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* Viewport height that accounts for mobile keyboard + browser chrome */
+        .main-container, #appContainer {
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        /* ===== SAFE AREA INSETS (iPhone notch / Dynamic Island / home bar) ===== */
+        .theme-toggle {
+            top: max(20px, calc(env(safe-area-inset-top) + 8px)) !important;
+            right: max(20px, calc(env(safe-area-inset-right) + 8px)) !important;
+        }
+
+        #devAccessBtn {
+            bottom: max(18px, calc(env(safe-area-inset-bottom) + 8px)) !important;
+            right: max(18px, calc(env(safe-area-inset-right) + 8px)) !important;
+        }
+
+        #sosCrisisBtn {
+            bottom: max(75px, calc(env(safe-area-inset-bottom) + 75px)) !important;
+            right: max(18px, calc(env(safe-area-inset-right) + 8px)) !important;
+        }
+
+        #notificationPanel {
+            top: max(80px, calc(env(safe-area-inset-top) + 80px)) !important;
+            right: max(8px, calc(env(safe-area-inset-right) + 8px)) !important;
+            /* Prevent overflow on narrow mobile screens */
+            max-width: calc(100vw - 16px) !important;
+            width: min(400px, calc(100vw - 16px)) !important;
+        }
+
+        /* ===== :ACTIVE STATES (touch feedback for hover-only elements) ===== */
+        /* Wellness ritual */
+        .wellness-option-btn:active { opacity: 0.8; transform: scale(0.97); }
+        .wellness-close-btn:active { background: rgba(255,255,255,0.4) !important; }
+        .mood-button:active { transform: scale(0.95); opacity: 0.85; }
+
+        /* Quest / Sanctuary */
+        .sanctuary-section:active { opacity: 0.92; }
+        .spell-circle-item:active { transform: scale(0.95); }
+        .quest-item:active { opacity: 0.85; }
+
+        /* General buttons + tabs */
+        .tab-btn:active { opacity: 0.8; }
+        button:active:not(:disabled) { opacity: 0.85; }
+        .reaction-btn:active { transform: scale(1.15); }
+        .mood-option:active { transform: scale(1.08); }
+        .daily-task-item:active { opacity: 0.8; }
+        .quick-nav-btn:active { opacity: 0.8; }
+        .help-link:active { opacity: 0.7; }
+        .session-item:active { background: var(--bg-hover); }
 
         /* Dark theme */
         [data-theme="dark"] {
@@ -3490,10 +3570,10 @@
         }
 
         .wellness-chat-header {
-            background: linear-gradient(135deg, var(--primary-color) 0%, #7B2D9E 100%);
+            background: var(--accent-gradient);
             color: white;
             padding: 15px 20px;
-            border-bottom: 2px solid var(--primary-color);
+            border-bottom: 2px solid var(--accent-color);
         }
 
         .wellness-chat-header h3 {
@@ -3746,8 +3826,8 @@
         }
 
         [data-theme="dark"] .wellness-chat-header {
-            background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
-            color: #ffffff;
+            background: var(--accent-gradient);
+            color: white;
         }
 
         [data-theme="dark"] .wellness-chat-messages {
@@ -3762,8 +3842,8 @@
         }
 
         [data-theme="dark"] .wellness-message.user .wellness-bubble {
-            background: #6366f1;
-            color: #ffffff;
+            background: var(--accent-color);
+            color: white;
         }
 
         [data-theme="dark"] .wellness-option-btn {
@@ -3772,14 +3852,15 @@
             border-color: var(--border-color);
         }
 
-        [data-theme="dark"] .wellness-option-btn:hover {
+        [data-theme="dark"] .wellness-option-btn:hover,
+        [data-theme="dark"] .wellness-option-btn:active {
             background: var(--bg-hover);
-            border-color: #6366f1;
+            border-color: var(--accent-color);
         }
 
         [data-theme="dark"] .wellness-option-btn.selected {
-            background: #6366f1;
-            color: #ffffff;
+            background: var(--accent-color);
+            color: white;
         }
 
         [data-theme="dark"] .wellness-text-input {
@@ -3789,7 +3870,7 @@
         }
 
         [data-theme="dark"] .wellness-text-input:focus {
-            border-color: #6366f1;
+            border-color: var(--accent-color);
             box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
         }
 
@@ -3809,9 +3890,72 @@
         }
 
         [data-theme="dark"] .mood-button.selected {
-            background: #6366f1;
-            border-color: #6366f1;
+            background: var(--accent-color);
+            border-color: var(--accent-color);
             box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        /* SANCTUARY THEME OVERRIDES FOR WELLNESS RITUAL */
+        [data-theme="sanctuary"] .wellness-chat-card {
+            background: var(--bg-card);
+            border-color: rgba(244,162,97,0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        [data-theme="sanctuary"] .wellness-chat-header {
+            background: linear-gradient(135deg, #2d6a4f 0%, #40916c 50%, var(--sanctuary-amber) 100%);
+            color: white;
+            border-bottom-color: rgba(244,162,97,0.3);
+        }
+        [data-theme="sanctuary"] .wellness-chat-messages {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        [data-theme="sanctuary"] .wellness-message.ai .wellness-bubble {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: rgba(244,162,97,0.2);
+        }
+        [data-theme="sanctuary"] .wellness-message.user .wellness-bubble {
+            background: var(--accent-color);
+            color: white;
+        }
+        [data-theme="sanctuary"] .wellness-option-btn {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: rgba(244,162,97,0.2);
+        }
+        [data-theme="sanctuary"] .wellness-option-btn:hover,
+        [data-theme="sanctuary"] .wellness-option-btn:active {
+            background: var(--bg-hover);
+            border-color: var(--accent-color);
+        }
+        [data-theme="sanctuary"] .wellness-option-btn.selected {
+            background: var(--accent-color);
+            color: white;
+        }
+        [data-theme="sanctuary"] .wellness-text-input {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: rgba(244,162,97,0.2);
+        }
+        [data-theme="sanctuary"] .wellness-text-input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 8px rgba(244,162,97,0.3);
+        }
+        [data-theme="sanctuary"] .wellness-input-area {
+            background: var(--bg-card);
+            border-top-color: rgba(244,162,97,0.2);
+        }
+        [data-theme="sanctuary"] .mood-button {
+            background: var(--bg-secondary);
+            border-color: rgba(244,162,97,0.2);
+            color: var(--text-primary);
+        }
+        [data-theme="sanctuary"] .mood-button.selected {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            box-shadow: 0 4px 12px rgba(244,162,97,0.4);
+            color: white;
         }
 
         @media (max-width: 600px) {
@@ -7825,30 +7969,28 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         function toggleDarkMode() {
             const currentTheme = document.documentElement.getAttribute('data-theme');
+            // Sanctuary has its own toggle — dark mode switch only cycles light ↔ dark
+            if (currentTheme === 'sanctuary') return;
             const isDark = currentTheme === 'dark';
-            
-            // Toggle the theme
+
             if (isDark) {
-                document.documentElement.removeAttribute('data-theme');
+                document.documentElement.setAttribute('data-theme', 'light');
                 localStorage.setItem('theme', 'light');
             } else {
                 document.documentElement.setAttribute('data-theme', 'dark');
                 localStorage.setItem('theme', 'dark');
             }
-            
+
             // Sync both toggles
             const darkModeToggle = document.getElementById('darkModeToggle');
             const authDarkModeToggle = document.getElementById('authDarkModeToggle');
-            
-            const newTheme = document.documentElement.getAttribute('data-theme');
-            const isNowDark = newTheme === 'dark';
-            
-            if (darkModeToggle) {
-                darkModeToggle.checked = isNowDark;
-            }
-            if (authDarkModeToggle) {
-                authDarkModeToggle.checked = isNowDark;
-            }
+            const isNowDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            if (darkModeToggle) darkModeToggle.checked = isNowDark;
+            if (authDarkModeToggle) authDarkModeToggle.checked = isNowDark;
+
+            // Update theme-color meta for Android Chrome address bar
+            const themeMeta = document.querySelector('meta[name="theme-color"]');
+            if (themeMeta) themeMeta.content = isNowDark ? '#08081a' : '#6366f1';
         }
         
         // HJ.3: Sanctuary theme toggle
@@ -17848,7 +17990,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 if (currentChannel) {
                     loadChannelPosts(currentChannel, false);
                 }
-            }, 30000);
+            }, 60000);
         }
 
         function stopCommunityAutoRefresh() {
