@@ -359,6 +359,157 @@ Extend current real-time detection to predictive detection BEFORE crisis:
 
 ---
 
+### 3.0 ONBOARDING REDESIGN — ALL USER TYPES
+**Priority: HIGH — First impressions define retention and clinical safety**
+
+> *"The first five minutes in a therapist's waiting room shapes everything that follows. Our onboarding is that waiting room. It needs to feel warm, safe, and unhurried — while collecting exactly what we need and nothing more."*
+
+#### The Problem
+Feedback confirms the current patient sign-up is long, form-heavy, and clinical in tone. It asks for everything at once before the user has experienced any value. This creates drop-off at the very point we most need engagement, and it puts unnecessary burden on users who may already be vulnerable. The same issue affects clinicians: our current form doesn't validate their professional registration, creating a clinical governance gap.
+
+#### UK Regulatory Requirements — What MUST Be Collected
+
+**For ALL users:**
+- Full legal name *(required for clinical record and GDPR identity)*
+- Date of birth *(age verification — 18+ for standard registration; separate under-18 pathway needed)*
+- Email address *(account identity, legal communications)*
+- Password or OAuth credential
+- Explicit GDPR consent *(UK GDPR Art. 6 + Art. 9 — special category health data)*
+- Acknowledgment: "This platform is not an emergency service"
+- Marketing/research consent *(separate, opt-in, clearly distinguished)*
+
+**Additional — Patients only:**
+- Safety screen: "Are you experiencing a mental health crisis right now?" → Yes = immediate crisis overlay, SOS resources, do NOT continue to sign-up (offer crisis contact instead)
+- Professional care: "Are you currently under the care of a mental health professional?" *(informs suggested features and risk defaults)*
+- Optional: preferred name (may differ from legal name)
+- Deferred: everything else (NHS number, address, phone, emergency contact, presenting problem, baseline assessments — all collected after first login during profile completion)
+
+**Additional — Clinicians only:**
+- Professional registration body (BACP / UKCP / BPS / NMC / HCPC / GMC / BABCP — dropdown)
+- Professional registration number *(for verification against body's register)*
+- Agreed to Healing Space UK's Practitioner Agreement and Clinical Governance Policy
+- Employer/Practice name *(optional at signup, required before first patient assigned)*
+- Indemnity insurance confirmation *(required before patient access granted)*
+- Background check: confirmation DBS certificate is current and on file
+
+**Developers/Admins:**
+- Admin-created only — no self-registration. Current approach is correct.
+
+#### Minimum Viable Sign-Up Per Role — The "3-Screen Rule"
+
+**Patient Onboarding (3 screens + email verification):**
+```
+Screen 1 — "Let's Begin"
+  • First name + Email + Password (or Google/Apple OAuth)
+  • Safety gate: "Are you in crisis right now?" [No, I'm okay / I need help right now]
+    → Crisis branch: SOS resources, Samaritans, NHS 111 — do not proceed to sign-up
+  • Progress indicator: ●○○
+
+Screen 2 — "Just a Moment"
+  • Date of birth (18+ check, clear error if under 18 with explanation and CAMHS signposting)
+  • Are you currently working with a mental health professional? [Yes / No / Not sure]
+  • Progress indicator: ●●○
+
+Screen 3 — "A Few Important Things"
+  • Plain-English GDPR summary (3 bullet points, link to full policy)
+    - "We store your health data to support your care"
+    - "You can download or delete your data at any time"
+    - "We never sell your data"
+  • Checkbox: "I agree to the Terms of Service and Privacy Policy" (required)
+  • Checkbox: "I'd like to receive helpful tips and updates by email" (optional, pre-unchecked)
+  • Progress indicator: ●●●
+
+Post-registration:
+  • Email verification link sent (must verify before accessing app)
+  • Welcome screen with: "Your sanctuary is ready. Take a moment to make it yours →"
+  • Progressive profile setup offered (not mandatory): preferred name, therapy goals (freetext), how they heard about us
+  • Baseline PHQ-9/GAD-7 offered as first "quest" — warm framing: "This helps us understand where you're starting from"
+```
+
+**Clinician Onboarding (4 screens + email verification + admin approval):**
+```
+Screen 1 — "Welcome, Healer"
+  • Full name + Email + Password
+  • Professional body (dropdown: BACP, UKCP, BPS, NMC, HCPC, GMC, BABCP, Other)
+  • Registration number
+  • Progress indicator: ●○○○
+
+Screen 2 — "Your Practice"
+  • Practice / employer name (optional)
+  • Modalities practiced (checkboxes: CBT, ACT, DBT, EMDR, Psychodynamic, Integrative, etc.)
+  • Primary client group (Adults / CAMHS / Older Adults / Mixed)
+  • Progress indicator: ●●○○
+
+Screen 3 — "Governance Essentials"
+  • DBS check current and on file: [Yes — confirm] [No — we'll send guidance]
+  • Professional indemnity insurance: [Yes — confirm] [No — we'll send guidance]
+  • I agree to the Practitioner Agreement (plain-English summary + link to full doc)
+  • I agree to the Clinical Governance Policy (plain-English summary + link)
+  • Progress indicator: ●●●○
+
+Screen 4 — "Almost There"
+  • GDPR consent (same as patient — health data processing)
+  • "How would you describe your role?" [Therapist / Counsellor / Psychologist / Psychiatrist / Other]
+  • Brief bio (optional, shown to patients if desired)
+  • Progress indicator: ●●●●
+
+Post-registration:
+  • Email verification + admin approval queue (clinician sees "Your account is pending review — usually within 1 working day")
+  • Background verification: auto-lookup against BACP/UKCP public registers where API available (manual review for others)
+  • On approval: welcome email with quick-start guide, first patient setup walkthrough
+```
+
+#### Modern UX Patterns to Implement
+
+| Pattern | Rationale |
+|---------|-----------|
+| **OAuth (Google/Apple)** | 40-60% of users prefer not creating a new password; reduces friction and abandonment |
+| **One question per screen** (for mobile) | Reduces cognitive load, especially for people in distress |
+| **Warm, conversational copy** | "What should we call you?" not "Enter first name" |
+| **Illustrated progress indicator** | Small sanctuary illustration that "grows" as steps complete |
+| **Inline validation** | Errors shown as you type, not on submit |
+| **No asterisks / mandatory fields language** | Every field shown is required unless labelled "(optional)" |
+| **Magic link option** | Email-based login as alternative to password (improves accessibility) |
+| **Autosave** | Save progress so returning users don't restart from step 1 |
+| **"Why do we ask this?"** tooltips | For any field that might feel intrusive — builds trust |
+| **Smart defaults** | Pre-fill DOB picker to reasonable adult range; default to UK |
+
+#### Progressive Post-Signup Profile Completion
+After signing in for the first time, a patient is gently prompted (never blocked) to optionally complete:
+- Emergency contact (name + phone) — nudged once, then dismissible
+- Presenting concern summary (freetext, shows in clinician view)
+- Therapy goals ("What would you like to be different in your life?")
+- Baseline clinical assessments (PHQ-9, GAD-7 framed as "Let's see where you're starting from")
+- Profile photo (optional — used in community and treatment plan)
+- Notification preferences
+
+This profile completion bar is visible in settings and on the home screen until 100% — but accessing any feature is never blocked by incomplete profile.
+
+#### Under-18 Pathway
+Currently the platform is adults-only. This section should clarify:
+- Users under 18 are redirected to age-appropriate resources (YoungMinds, CAMHS.nhs.uk, Kooth)
+- A roadmap item to build a fully compliant under-18 experience (requires Gillick competency framework, parental consent workflow, mandatory safeguarding protocols) is captured in Phase 6 (Compliance)
+
+#### Technical Implementation Notes
+- **Auth**: Add Google OAuth + Apple OAuth via `Authlib` or `Flask-Dance`
+- **Magic link**: Generate time-limited JWT token, email link, auto-login on click
+- **BACP/UKCP register lookup**: BACP has a public search API; UKCP has a public directory (scrape-safe); build async verification job
+- **Admin approval queue**: New clinician accounts set `status='pending'`; admin approval sets `status='active'`; automated email at each stage
+- **Age gate**: Server-side validation of DOB → under-18 blocked with error + signposting
+- **Safety gate**: Crisis check on Step 1 — if "I need help now" selected → no account created, full crisis resources shown, session flagged for analytics (anonymized)
+- **GDPR consent storage**: `user_consents` table — consent type, version, timestamp, IP hash; required for lawful basis evidence
+- **Multi-step form state**: Store partial form in `session` (not localStorage) to survive page reload; clear on completion or abandonment >1h
+
+#### Onboarding Metrics to Track
+- Sign-up start → completion rate (target: >75%)
+- Step-by-step drop-off funnel
+- Time to first meaningful action (first mood log, first CBT tool, first clinician contact)
+- Time from clinician registration to first patient assigned
+- Crisis-gate activation rate (important safeguarding metric)
+- OAuth vs. email/password split
+
+---
+
 ### 3.1 PSYCHOEDUCATION LIBRARY
 **Priority: HIGH**
 
@@ -813,6 +964,7 @@ Migration strategy: zero-downtime, backward-compatible.
 | PWA / offline mode | ⏳ Missing |
 | Native mobile apps | ⏳ Missing |
 | Wearable integration | ⏳ Missing |
+| Streamlined onboarding (all roles) | ⏳ Designed (see 3.0), not built |
 
 ### Risk & Safety Pipeline
 
@@ -861,6 +1013,7 @@ Migration strategy: zero-downtime, backward-compatible.
 | Healing Journey (HJ.1–HJ.3) ✅ | **DONE** | Medium | Very High | Feb 2026 |
 | Healing Journey (HJ.4–HJ.7) | **Q2 2026** | Medium | High | Q2 2026 |
 | 2 — Clinical Excellence | **Q2 2026** | High | Very High | Q2–Q3 2026 |
+| 3.0 — Onboarding Redesign | **Q2 2026** | Medium | Very High | Q2 2026 |
 | 3 — Patient Empowerment | **Q2–Q3 2026** | Medium | High | Q3 2026 |
 | 4 — AI & Intelligence | **Q3 2026** | High | Very High | Q3 2026 |
 | 5 — Scale & Integrations | **Q3–Q4 2026** | Very High | Very High | Q4 2026 |
@@ -912,6 +1065,6 @@ Achievable in ~1 hour:
 
 ---
 
-*Roadmap last updated: February 22, 2026 (HJ.1, HJ.2, HJ.3 completed).*
+*Roadmap last updated: February 22, 2026 (HJ.1, HJ.2, HJ.3 completed; Section 3.0 Onboarding Redesign added).*
 *Next review: April 2026.*
 *This document should be reviewed quarterly and updated after each major milestone.*
