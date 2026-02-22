@@ -4287,12 +4287,21 @@ def init_db():
             conn.rollback()
 
         # Phase 1.5 — Medication Tracker: extend patient_medications + adherence log
+        # Each ALTER runs in its own transaction so one failure doesn't block the rest
+        for _col_sql in [
+            "ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS prescriber TEXT",
+            "ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS side_effects TEXT",
+            "ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS refill_date DATE",
+            "ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS quantity_remaining INTEGER",
+            "ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        ]:
+            try:
+                cursor.execute(_col_sql)
+                conn.commit()
+            except Exception as _e:
+                conn.rollback()
+                print(f"Phase 1.5 column migration note: {_e}")
         try:
-            cursor.execute("ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS prescriber TEXT")
-            cursor.execute("ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS side_effects TEXT")
-            cursor.execute("ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS refill_date DATE")
-            cursor.execute("ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS quantity_remaining INTEGER")
-            cursor.execute("ALTER TABLE patient_medications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS medication_adherence_logs (
                     id SERIAL PRIMARY KEY,
@@ -4312,7 +4321,7 @@ def init_db():
             conn.commit()
             print("✓ Phase 1.5: medication_adherence_logs + patient_medications columns ready")
         except Exception as e:
-            print(f"Phase 1.5 medication migration note: {e}")
+            print(f"Phase 1.5 adherence log migration note: {e}")
             conn.rollback()
 
         # Phase 1.4 — Waiting List Management
@@ -8973,17 +8982,46 @@ def log_mood():
             meds_str = meds
         
         cur.execute(
-            """INSERT INTO mood_logs (username, mood_val, sleep_val, meds, notes, sentiment, 
-               water_pints, exercise_mins, outside_mins) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            """INSERT INTO mood_logs (username, mood_val, sleep_val, meds, notes, sentiment,
+               water_pints, exercise_mins, outside_mins) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               RETURNING id""",
             (username, mood_val, sleep_val, meds_str, notes, 'Neutral', water_pints, exercise_mins, outside_mins)
         )
         conn.commit()
         log_id = cur.fetchone()[0]
+
+        # RISK ALERT: Flag critically low mood to clinician
+        if mood_val is not None and mood_val <= 3:
+            try:
+                _clu = cur.execute("SELECT clinician_id FROM users WHERE username=%s", (username,)).fetchone()
+                _clinician = _clu[0] if _clu and _clu[0] else None
+                _mood_severity = 'critical' if mood_val <= 2 else 'high'
+                cur.execute("""
+                    INSERT INTO risk_alerts
+                        (patient_username, clinician_username, alert_type, severity, title, details, source)
+                    VALUES (%s,%s,'low_mood',%s,%s,%s,'mood_log')
+                """, (
+                    username, _clinician, _mood_severity,
+                    f"Low Mood Reported — {mood_val}/10",
+                    f"Patient reported mood of {mood_val}/10. "
+                    + (f'Notes: "{notes[:200]}"' if notes else "No additional notes.")
+                ))
+                conn.commit()
+                if _clinician:
+                    send_notification(
+                        _clinician,
+                        f"⚠️ {username} reported a low mood of {mood_val}/10. Please check in.",
+                        'risk_alert'
+                    )
+            except Exception as _me:
+                conn.rollback()
+                print(f"[WARN] Mood risk alert failed: {_me}")
+
         conn.close()
-        
+
         # Update AI memory with new activity
         update_ai_memory(username)
-        
+
         # Reward pet for self-care activity
         reward_pet('mood')
 
@@ -10955,30 +10993,42 @@ def submit_phq9():
         ).fetchone()
 
         # Create a risk alert for the clinician when score is clinically concerning
+        _phq9_sev_map = {'Moderate':'moderate','Moderately Severe':'high','Severe':'critical'}
         if severity not in ('Minimal', 'Mild'):
             cur.execute(
                 """INSERT INTO alerts (username, alert_type, details, status)
                    VALUES (%s, %s, %s, 'open')""",
-                (username,
-                 'clinical_concern',
+                (username, 'clinical_concern',
                  f"PHQ-9 score: {total}/27 ({severity}). Clinical review recommended.")
             )
+            # Also insert into rich risk_alerts table for clinician dashboard
+            cur.execute("""
+                INSERT INTO risk_alerts
+                    (patient_username, clinician_username, alert_type, severity, title, details, source)
+                VALUES (%s,%s,'phq9',%s,%s,%s,'phq9')
+            """, (
+                username, clinician[0] if clinician and clinician[0] else None,
+                _phq9_sev_map.get(severity, 'moderate'),
+                f"PHQ-9 — {severity} ({total}/27)",
+                f"PHQ-9 score of {total}/27 indicates {severity} depression. Clinical review recommended."
+            ))
 
         conn.commit()
         conn.close()
-        
+
         # Send notifications
         send_notification(
             username,
             f"PHQ-9 assessment completed. Score: {total} ({severity}). Next assessment available in 14 days.",
             'assessment'
         )
-        
+
         if clinician and clinician[0]:
+            _notif_type = 'risk_alert' if severity not in ('Minimal','Mild') else 'patient_assessment'
             send_notification(
                 clinician[0],
-                f"Patient {username} completed PHQ-9 assessment. Score: {total} ({severity}).",
-                'patient_assessment'
+                f"{'⚠️ ' if severity not in ('Minimal','Mild') else ''}Patient {username} completed PHQ-9. Score: {total} ({severity}).",
+                _notif_type
             )
         
         # AUTO-UPDATE AI MEMORY
@@ -11049,30 +11099,42 @@ def submit_gad7():
         ).fetchone()
 
         # Create a risk alert for the clinician when score is clinically concerning
+        _gad7_sev_map = {'Moderate': 'moderate', 'Severe': 'high'}
         if severity not in ('Minimal', 'Mild'):
             cur.execute(
                 """INSERT INTO alerts (username, alert_type, details, status)
                    VALUES (%s, %s, %s, 'open')""",
-                (username,
-                 'clinical_concern',
+                (username, 'clinical_concern',
                  f"GAD-7 score: {total}/21 ({severity}). Clinical review recommended.")
             )
+            # Also insert into rich risk_alerts table
+            cur.execute("""
+                INSERT INTO risk_alerts
+                    (patient_username, clinician_username, alert_type, severity, title, details, source)
+                VALUES (%s,%s,'gad7',%s,%s,%s,'gad7')
+            """, (
+                username, clinician[0] if clinician and clinician[0] else None,
+                _gad7_sev_map.get(severity, 'moderate'),
+                f"GAD-7 — {severity} ({total}/21)",
+                f"GAD-7 score of {total}/21 indicates {severity} anxiety. Clinical review recommended."
+            ))
 
         conn.commit()
         conn.close()
-        
+
         # Send notifications
         send_notification(
             username,
             f"GAD-7 assessment completed. Score: {total} ({severity}). Next assessment available in 14 days.",
             'assessment'
         )
-        
+
         if clinician and clinician[0]:
+            _notif_type = 'risk_alert' if severity not in ('Minimal', 'Mild') else 'patient_assessment'
             send_notification(
                 clinician[0],
-                f"Patient {username} completed GAD-7 assessment. Score: {total} ({severity}).",
-                'patient_assessment'
+                f"{'⚠️ ' if severity not in ('Minimal','Mild') else ''}Patient {username} completed GAD-7. Score: {total} ({severity}).",
+                _notif_type
             )
         
         # AUTO-UPDATE AI MEMORY
@@ -12282,11 +12344,31 @@ def get_patient_detail(username):
             (username,)
         ).fetchall()
         
-        # Recent alerts (use alerts table with correct columns)
-        alerts = cur.execute(
-            "SELECT alert_type, details, created_at FROM alerts WHERE username = %s ORDER BY created_at DESC LIMIT 10",
-            (username,)
-        ).fetchall()
+        # Recent alerts: merge risk_alerts (rich) + alerts (legacy PHQ-9/GAD-7) tables
+        # risk_alerts has severity, source, acknowledged — prefer this
+        risk_alerts_rows = cur.execute("""
+            SELECT alert_type, severity, title, details, source, acknowledged, created_at
+            FROM risk_alerts WHERE patient_username = %s
+            ORDER BY created_at DESC LIMIT 20
+        """, (username,)).fetchall()
+        legacy_alerts_rows = cur.execute("""
+            SELECT alert_type, 'moderate' as severity, alert_type as title, details, 'assessment' as source,
+                   (status='closed') as acknowledged, created_at
+            FROM alerts WHERE username = %s AND (deleted_at IS NULL OR deleted_at > NOW())
+            ORDER BY created_at DESC LIMIT 10
+        """, (username,)).fetchall()
+        # Merge, de-duplicate by time, sort by severity then date
+        _sev_order = {'critical':0,'high':1,'moderate':2,'low':3}
+        _all_alerts = []
+        for a in risk_alerts_rows:
+            _all_alerts.append({'type':a[0],'severity':a[1],'title':a[2],'message':a[3],
+                                'source':a[4],'acknowledged':bool(a[5]),'timestamp':a[6]})
+        for a in legacy_alerts_rows:
+            _all_alerts.append({'type':a[0],'severity':a[1],'title':a[2],'message':a[3],
+                                'source':a[4],'acknowledged':bool(a[5]),'timestamp':a[6]})
+        _all_alerts.sort(key=lambda x: (_sev_order.get(x['severity'],99),
+                                         -(x['timestamp'].timestamp() if x['timestamp'] else 0)))
+        alerts = _all_alerts
         
         # Clinical scales
         scales = cur.execute(
@@ -12318,6 +12400,33 @@ def get_patient_detail(username):
             ).fetchall()
         except Exception:
             patient_suggestions = []
+
+        # C-SSRS safety assessments (clinician always sees these)
+        try:
+            cssrs_rows = cur.execute("""
+                SELECT id, q1_ideation, q2_frequency, q3_duration, q4_planning, q5_intent, q6_behavior,
+                       total_score, risk_level, reasoning, has_planning, has_intent, has_behavior,
+                       alert_sent, assessed_at
+                FROM c_ssrs_assessments WHERE patient_username = %s
+                ORDER BY assessed_at DESC LIMIT 10
+            """, (username,)).fetchall()
+        except Exception:
+            cssrs_rows = []
+
+        # Wellness logs (rich ritual data — separate from mood_logs)
+        try:
+            wellness_rows = cur.execute("""
+                SELECT mood, mood_descriptor, sleep_quality, sleep_notes,
+                       hydration_level, total_hydration_cups,
+                       exercise_type, exercise_duration, outdoor_time_minutes,
+                       social_contact, medication_taken, energy_level,
+                       emotional_narrative, capacity_index, homework_completed, homework_blockers,
+                       timestamp
+                FROM wellness_logs WHERE username = %s
+                ORDER BY timestamp DESC LIMIT 20
+            """, (username,)).fetchall()
+        except Exception:
+            wellness_rows = []
 
         conn.close()
 
@@ -12353,7 +12462,15 @@ def get_patient_detail(username):
                 {'situation': c[0], 'thought': c[1], 'evidence': c[2], 'timestamp': c[3]} for c in cbt_records
             ],
             'recent_alerts': [
-                {'type': a[0], 'message': a[1], 'timestamp': a[2]} for a in alerts
+                {
+                    'type': a['type'],
+                    'severity': a.get('severity','moderate'),
+                    'title': a.get('title', a['type']),
+                    'message': a.get('message',''),
+                    'source': a.get('source',''),
+                    'acknowledged': a.get('acknowledged', False),
+                    'timestamp': a['timestamp'].isoformat() if hasattr(a.get('timestamp'),'isoformat') else str(a.get('timestamp',''))
+                } for a in alerts
             ],
             'clinical_scales': [
                 {'name': s[0], 'score': s[1], 'severity': s[2], 'timestamp': s[3]} for s in scales
@@ -12366,7 +12483,24 @@ def get_patient_detail(username):
             ],
             'patient_suggestions': [
                 {'text': s[0], 'created_at': str(s[1]) if s[1] else None} for s in patient_suggestions
-            ]
+            ],
+            'cssrs_assessments': [{
+                'id': r[0], 'q1': r[1], 'q2': r[2], 'q3': r[3], 'q4': r[4], 'q5': r[5], 'q6': r[6],
+                'total_score': r[7], 'risk_level': r[8], 'reasoning': r[9],
+                'has_planning': r[10], 'has_intent': r[11], 'has_behavior': r[12],
+                'alert_sent': bool(r[13]),
+                'assessed_at': r[14].isoformat() if r[14] else None
+            } for r in cssrs_rows],
+            'wellness_logs': [{
+                'mood': r[0], 'mood_descriptor': r[1],
+                'sleep_quality': r[2], 'sleep_notes': r[3],
+                'hydration_level': r[4], 'hydration_cups': r[5],
+                'exercise_type': r[6], 'exercise_duration': r[7], 'outdoor_mins': r[8],
+                'social_contact': r[9], 'medication_taken': r[10], 'energy_level': r[11],
+                'emotional_narrative': r[12], 'capacity_index': r[13],
+                'homework_completed': r[14], 'homework_blockers': r[15],
+                'timestamp': r[16].isoformat() if r[16] else None
+            } for r in wellness_rows]
         }), 200
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
@@ -22068,11 +22202,52 @@ def submit_c_ssrs_assessment():
         # Check if alert needed
         alert_config = CSSRSAssessment.get_alert_threshold(risk_data['risk_level'])
         alert_sent = False
-        
-        if alert_config['should_alert']:
-            clinician_username = data.get('clinician_username')
+
+        # Look up clinician from submitted data or from user record
+        clinician_username = data.get('clinician_username')
+        if not clinician_username:
+            _clu = cur.execute("SELECT clinician_id FROM users WHERE username=%s", (username,)).fetchone()
+            if _clu and _clu[0]:
+                clinician_username = _clu[0]
+
+        # Map C-SSRS risk_level to risk_alerts severity
+        _level_map = {'none': None, 'low': 'low', 'moderate': 'moderate',
+                      'high': 'high', 'very_high': 'critical', 'extreme': 'critical'}
+        _db_severity = _level_map.get(risk_data['risk_level'].lower())
+
+        # Always write to risk_alerts for moderate+ (and low if configured)
+        if _db_severity and alert_config.get('should_alert', True):
+            try:
+                cur.execute("""
+                    INSERT INTO risk_alerts
+                        (patient_username, clinician_username, alert_type, severity, title, details,
+                         source, risk_score_at_time)
+                    VALUES (%s,%s,%s,%s,%s,%s,'c_ssrs',%s)
+                """, (
+                    username, clinician_username,
+                    'safety_check',
+                    _db_severity,
+                    f"C-SSRS Safety Assessment — {risk_data['risk_level'].replace('_',' ').title()}",
+                    f"Score: {risk_data['total_score']}/30. {risk_data['reasoning']} "
+                    f"[Planning:{responses[4]} Intent:{responses[5]} Behaviour:{responses[6]}]",
+                    risk_data['total_score']
+                ))
+                conn.commit()
+            except Exception as _e:
+                conn.rollback()
+                print(f"[WARN] C-SSRS risk_alerts insert failed: {_e}")
+
+            # In-app notification for clinician
             if clinician_username:
-                # Send alert to clinician
+                _resp_mins = alert_config.get('response_time_minutes', 60)
+                _notif_msg = (
+                    f"🚨 SAFETY ALERT: {username} completed C-SSRS — risk level {risk_data['risk_level'].upper()}. "
+                    f"Score {risk_data['total_score']}/30. Respond within {_resp_mins} min."
+                )
+                send_notification(clinician_username, _notif_msg, 'risk_alert')
+
+        if alert_config['should_alert']:
+            if clinician_username:
                 subject = f"[URGENT] Patient {username} - C-SSRS Risk Assessment {risk_data['risk_level'].upper()}"
                 body = f"""
 C-SSRS Assessment Alert
@@ -22092,27 +22267,23 @@ Response Details:
 
 REQUIRED ACTION: Respond within {alert_config['response_time_minutes']} minutes
 
-Link: [Assessment Dashboard]
-
 Emergency: 999 | Samaritans: 116 123
 """
                 try:
                     send_email(clinician_username, subject, body)
-                    
-                    # Mark alert as sent
                     cur.execute("""
-                        UPDATE c_ssrs_assessments 
+                        UPDATE c_ssrs_assessments
                         SET alert_sent = TRUE, alert_sent_at = NOW()
                         WHERE id = %s
                     """, (assessment_id,))
                     conn.commit()
                     alert_sent = True
-                except:
+                except Exception:
                     pass  # Email failure shouldn't block submission
-        
+
         # Get patient-facing message
         patient_message = CSSRSAssessment.format_for_patient(risk_data)
-        
+
         conn.close()
         
         response = {
@@ -23530,6 +23701,41 @@ def patient_submit_outcome_measure():
         ))
         row = cur.fetchone()
         conn.commit()
+
+        # RISK ALERT: flag clinically severe outcome measure scores
+        _severe_scales = {'core_10': 25, 'core_om': 2.0, 'ors': 20, 'phq9': 15, 'gad7': 10}
+        _scale_key = scale_name.lower().replace('-','_').replace(' ','_')
+        _sev_threshold = _severe_scales.get(_scale_key)
+        _is_risk_score = (
+            _sev_threshold is not None and scored['score'] is not None and
+            (scale_name.lower() in ('ors',) and float(scored['score']) < _sev_threshold or
+             scale_name.lower() not in ('ors',) and float(scored['score']) >= _sev_threshold)
+        )
+        if _is_risk_score or scored.get('severity','').lower() in ('severe','high','very high'):
+            try:
+                _clu2 = cur.execute("SELECT clinician_id FROM users WHERE username=%s", (patient_username,)).fetchone()
+                _clinician2 = _clu2[0] if _clu2 and _clu2[0] else None
+                cur.execute("""
+                    INSERT INTO risk_alerts
+                        (patient_username, clinician_username, alert_type, severity, title, details, source)
+                    VALUES (%s,%s,'outcome_measure','high',%s,%s,%s)
+                """, (
+                    patient_username, _clinician2,
+                    f"{scale_name.upper()} Score — {scored['severity']}",
+                    f"Score: {scored['score']} ({scored['severity']}). Clinical review recommended.",
+                    scale_name.lower()
+                ))
+                conn.commit()
+                if _clinician2:
+                    send_notification(
+                        _clinician2,
+                        f"⚠️ {patient_username} scored {scored['score']} on {scale_name} ({scored['severity']}). Review recommended.",
+                        'clinical_concern'
+                    )
+            except Exception as _oe:
+                conn.rollback()
+                print(f"[WARN] Outcome measure risk alert failed: {_oe}")
+
         conn.close()
         log_event(patient_username, 'clinical', 'outcome_measure_submitted', f'scale={scale_name} score={scored["score"]}')
         return jsonify({'id': row[0], 'score': scored['score'], 'severity': scored['severity'],

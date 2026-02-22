@@ -3581,6 +3581,14 @@
             min-height: 44px;
         }
 
+        /* Override global .btn width:100% for inline wellness submit buttons */
+        .wellness-submit-btn {
+            width: auto !important;
+            flex-shrink: 0;
+            padding: 10px 20px !important;
+            min-width: 48px;
+        }
+
         .wellness-text-input:focus {
             outline: none;
             border-color: var(--primary-color);
@@ -14606,19 +14614,32 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         
         async function submitSafetyAssessmentToBackend() {
             try {
+                // Map responses array (index 0=q1, 1=q2, …) to q1-q6 keys the backend expects
+                const r = safetyAssessmentState.responses;
+                const payload = {
+                    q1: r[0]?.score ?? 0,
+                    q2: r[1]?.score ?? 0,
+                    q3: r[2]?.score ?? 0,
+                    q4: r[3]?.score ?? 0,
+                    q5: r[4]?.score ?? 0,
+                    q6: r[5]?.score ?? 0,
+                    timestamp: safetyAssessmentState.timestamp
+                };
                 const response = await fetch('/api/c-ssrs/submit', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username: currentUser,
-                        responses: safetyAssessmentState.responses,
-                        timestamp: safetyAssessmentState.timestamp
-                    })
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': CSRF_TOKEN()
+                    },
+                    body: JSON.stringify(payload)
                 });
-                
+
                 const data = await response.json();
                 if (!response.ok) {
                     console.error('Assessment submission error:', data);
+                } else {
+                    console.log('Safety assessment submitted. Risk level:', data.risk_level);
                 }
             } catch (error) {
                 console.error('Safety assessment submission error:', error);
@@ -17864,13 +17885,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                     ${data.recent_wins.slice(0,6).map(w => `<span style="background:rgba(99,102,241,0.1);color:#6366f1;border:1px solid rgba(99,102,241,0.3);padding:4px 12px;border-radius:20px;font-size:13px;">🏅 ${sanitizeHTML(w.text || w.type || '')}</span>`).join('')}
                                 </div></div>` : ''}`;
                         break;
-                    case 'moods':
-                        html = moods.length === 0
+                    case 'moods': {
+                        const wellnessLogs = data.wellness_logs || [];
+                        const _moodHtml = moods.length === 0
                             ? `<div class="card"><p style="color:var(--text-muted);padding:24px;text-align:center;">😊 No mood logs recorded yet for this patient.</p></div>`
-                            : `<div class="card"><h4>😊 Mood Logs — Last 30 Days (${moods.length})</h4>
+                            : `<div class="card" style="margin-bottom:12px;"><h4>😊 Mood Logs (${moods.length})</h4>
                                 <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:500px;">
                                     <thead><tr style="background:var(--bg-secondary);border-bottom:2px solid var(--border-color);">
-                                        ${['Date','Mood','Sleep','Exercise','Notes'].map(h => `<th style="padding:10px 12px;text-align:${h==='Date'||h==='Notes'?'left':'center'};color:var(--text-secondary);font-size:13px;font-weight:600;">${h}</th>`).join('')}
+                                        ${['Date','Mood','Sleep','Exercise','Water','Notes'].map(h => `<th style="padding:10px 12px;text-align:${h==='Date'||h==='Notes'?'left':'center'};color:var(--text-secondary);font-size:13px;font-weight:600;">${h}</th>`).join('')}
                                     </tr></thead><tbody>
                                     ${moods.map(m => {
                                         const mv = Number(m.mood)||0;
@@ -17881,28 +17903,83 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                             <td style="padding:10px 12px;text-align:center;"><span style="background:${mc};color:white;font-weight:700;padding:2px 10px;border-radius:20px;font-size:13px;">${mv}/10</span></td>
                                             <td style="padding:10px 12px;text-align:center;color:var(--text-primary);font-size:13px;">${m.sleep||0}h</td>
                                             <td style="padding:10px 12px;text-align:center;color:var(--text-primary);font-size:13px;">${m.exercise||0}min</td>
-                                            <td style="padding:10px 12px;color:var(--text-secondary);font-size:13px;max-width:250px;word-break:break-word;">${sanitizeHTML(m.notes||'—')}</td>
+                                            <td style="padding:10px 12px;text-align:center;color:var(--text-primary);font-size:13px;">${m.water||0}pts</td>
+                                            <td style="padding:10px 12px;color:var(--text-secondary);font-size:13px;max-width:200px;word-break:break-word;">${sanitizeHTML(m.notes||'—')}</td>
                                         </tr>`;
                                     }).join('')}
                                     </tbody></table></div></div>`;
+                        const _wellnessHtml = wellnessLogs.length === 0 ? '' :
+                            `<div class="card"><h4>🌿 Wellness Ritual Logs (${wellnessLogs.length})</h4>
+                            <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+                            ${wellnessLogs.map(w => {
+                                const ds = w.timestamp ? new Date(w.timestamp).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+                                const mv = w.mood||0; const mc = mv>=7?'#28a745':mv>=4?'#f59e0b':'#dc3545';
+                                return `<div style="padding:12px 14px;background:var(--bg-secondary);border-radius:10px;border-left:4px solid ${mc};">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+                                        <span style="font-weight:600;color:var(--text-primary);">${ds}</span>
+                                        <span style="background:${mc};color:white;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;">Mood: ${mv}/10</span>
+                                    </div>
+                                    <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text-secondary);margin-bottom:${w.emotional_narrative?'8':'0'}px;">
+                                        ${w.sleep_quality?`<span>😴 Sleep: ${sanitizeHTML(w.sleep_quality)}</span>`:''}
+                                        ${w.exercise_duration?`<span>🏃 Exercise: ${w.exercise_duration}min</span>`:''}
+                                        ${w.social_contact?`<span>👥 Social: ${sanitizeHTML(w.social_contact)}</span>`:''}
+                                        ${w.energy_level?`<span>⚡ Energy: ${w.energy_level}/10</span>`:''}
+                                        ${w.medication_taken!==null?`<span>💊 Meds: ${w.medication_taken?'Taken':'Missed'}</span>`:''}
+                                        ${w.homework_completed!==null?`<span>📚 Homework: ${w.homework_completed?'Done':'Not done'}</span>`:''}
+                                    </div>
+                                    ${w.emotional_narrative?`<div style="padding:8px;background:rgba(0,0,0,0.04);border-radius:6px;"><span style="font-size:12px;font-weight:600;color:var(--text-secondary);">Emotional narrative: </span><span style="font-size:13px;color:var(--text-primary);font-style:italic;">"${sanitizeHTML(w.emotional_narrative)}"</span></div>`:''}
+                                </div>`;
+                            }).join('')}
+                            </div></div>`;
+                        html = _moodHtml + _wellnessHtml;
                         break;
-                    case 'assessments':
-                        html = scales.length === 0
-                            ? `<div class="card"><p style="color:var(--text-muted);padding:24px;text-align:center;">📋 No clinical assessments completed yet.</p></div>`
-                            : `<div class="card"><h4>📋 Clinical Assessments (${scales.length})</h4><div style="display:grid;gap:12px;margin-top:12px;">
+                    }
+                    case 'assessments': {
+                        const cssrs = data.cssrs_assessments || [];
+                        const _rlColor = {none:'#28a745',low:'#28a745',moderate:'#f59e0b',high:'#e65100',very_high:'#dc3545',extreme:'#dc3545'};
+                        const _cssrsHtml = cssrs.length === 0 ? '' : `<div class="card" style="margin-top:12px;">
+                            <h4 style="margin-bottom:12px;">🛡️ Safety Check History (C-SSRS) — ${cssrs.length} assessment${cssrs.length!==1?'s':''}</h4>
+                            ${cssrs.map(c => {
+                                const rl = (c.risk_level||'none').toLowerCase().replace(' ','_');
+                                const col = _rlColor[rl]||'#6366f1';
+                                const ds = c.assessed_at ? new Date(c.assessed_at).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+                                const flags = [c.has_planning&&'Planning',c.has_intent&&'Intent',c.has_behavior&&'Prior behaviour'].filter(Boolean);
+                                return `<div style="padding:12px 14px;border-left:5px solid ${col};background:rgba(0,0,0,0.03);border-radius:0 8px 8px 0;margin-bottom:10px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+                                        <div style="display:flex;gap:8px;align-items:center;">
+                                            <span style="background:${col};color:white;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">${sanitizeHTML(c.risk_level?.toUpperCase()||'N/A')}</span>
+                                            <span style="font-weight:600;color:var(--text-primary);">Score: ${c.total_score??'—'}/30</span>
+                                            ${c.alert_sent ? '<span style="color:#28a745;font-size:12px;">✓ Clinician alerted</span>' : ''}
+                                        </div>
+                                        <span style="color:var(--text-muted);font-size:12px;">${ds}</span>
+                                    </div>
+                                    ${flags.length ? `<div style="margin-bottom:4px;">${flags.map(f=>`<span style="background:#dc354520;color:#dc3545;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px;">⚠ ${f}</span>`).join('')}</div>` : ''}
+                                    <p style="margin:0;color:var(--text-secondary);font-size:13px;">${sanitizeHTML(c.reasoning||'')}</p>
+                                </div>`;
+                            }).join('')}
+                        </div>`;
+                        const _scalesHtml = scales.length === 0
+                            ? `<div class="card"><p style="color:var(--text-muted);padding:24px;text-align:center;">📋 No standardised assessments completed yet.</p></div>`
+                            : `<div class="card"><h4>📋 Standardised Assessments (${scales.length})</h4><div style="display:grid;gap:10px;margin-top:12px;">
                                 ${scales.map(s => {
                                     const sc = getSeverityColor(s.severity);
                                     const ds = s.timestamp ? new Date(s.timestamp).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
                                     return `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 16px;background:var(--bg-secondary);border-radius:10px;border-left:4px solid ${sc};">
                                         <div><div style="font-weight:700;color:var(--text-primary);">${sanitizeHTML(s.name||'Assessment')}</div>
                                         <div style="color:var(--text-muted);font-size:12px;">Completed: ${ds}</div></div>
-                                        <div style="text-align:center;"><div style="font-size:32px;font-weight:800;color:${sc};line-height:1;">${s.score??'—'}</div>
+                                        <div style="text-align:center;"><div style="font-size:28px;font-weight:800;color:${sc};line-height:1;">${s.score??'—'}</div>
                                         <span style="background:${sc};color:white;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">${sanitizeHTML(s.severity||'N/A')}</span></div>
                                     </div>`;
                                 }).join('')}
                             </div></div>`;
+                        html = _scalesHtml + _cssrsHtml;
                         break;
-                    case 'therapy':
+                    }
+                    case 'therapy': {
+                        const cbtRecs = data.cbt_records || [];
+                        const gratRecs = data.gratitude_entries || [];
+                        const chatRecs = data.chat_history || [];
+                        const suggestions = data.patient_suggestions || [];
                         html = `<div class="card" style="margin-bottom:16px;">
                             <h4>📝 Add Clinical Note</h4>
                             <textarea id="newClinicianNote" rows="5" placeholder="Session notes, clinical observations, appointment summaries..." style="width:100%;padding:12px;border:2px solid var(--border-color);border-radius:8px;font-size:14px;font-family:inherit;background:var(--bg-secondary);color:var(--text-primary);resize:vertical;box-sizing:border-box;"></textarea>
@@ -17910,7 +17987,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-primary);font-size:14px;"><input type="checkbox" id="highlightNote"> ⭐ Highlight as important</label>
                                 <button class="btn btn-primary" onclick="saveClinicianNote()" style="margin-left:auto;">💾 Save Note</button>
                             </div></div>
-                        <div class="card"><h4>🗒️ Note History (${cNotes.length})</h4>
+                        <div class="card" style="margin-bottom:12px;"><h4>🗒️ Note History (${cNotes.length})</h4>
                             <div id="clinicianNotesContainer" style="margin-top:12px;">
                             ${cNotes.length===0
                                 ? '<p style="color:var(--text-muted);text-align:center;padding:20px;font-size:14px;">No clinical notes yet — add your first note above.</p>'
@@ -17924,24 +18001,94 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                         <button onclick="deleteNote(${n.id})" style="margin-top:8px;padding:4px 12px;background:transparent;border:1px solid #dc3545;color:#dc3545;border-radius:6px;cursor:pointer;font-size:12px;">🗑️ Delete</button>
                                     </div>`;
                                 }).join('')
-                            }</div></div>`;
+                            }</div></div>
+                        ${cbtRecs.length ? `<div class="card" style="margin-bottom:12px;">
+                            <h4>🧠 CBT Records (${cbtRecs.length})</h4>
+                            <div style="margin-top:10px;">
+                            ${cbtRecs.map(r => {
+                                const ds = r.timestamp ? new Date(r.timestamp).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+                                return `<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;margin-bottom:8px;border-left:4px solid #6366f1;">
+                                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">📅 ${ds}</div>
+                                    <div style="margin-bottom:4px;"><span style="font-weight:600;color:var(--text-primary);font-size:13px;">Situation: </span><span style="color:var(--text-primary);font-size:13px;">${sanitizeHTML(r.situation||'')}</span></div>
+                                    <div style="margin-bottom:4px;"><span style="font-weight:600;color:var(--text-primary);font-size:13px;">Thought: </span><span style="color:var(--text-secondary);font-size:13px;">${sanitizeHTML(r.thought||'')}</span></div>
+                                    ${r.evidence?`<div><span style="font-weight:600;color:var(--text-primary);font-size:13px;">Evidence/Reframe: </span><span style="color:var(--text-secondary);font-size:13px;">${sanitizeHTML(r.evidence)}</span></div>`:''}
+                                </div>`;
+                            }).join('')}
+                            </div></div>` : ''}
+                        ${gratRecs.length ? `<div class="card" style="margin-bottom:12px;">
+                            <h4>🙏 Gratitude Journal (${gratRecs.length} entries)</h4>
+                            <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+                            ${gratRecs.map(g => {
+                                const ds = g.timestamp ? new Date(g.timestamp).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+                                return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:var(--bg-secondary);border-radius:8px;">
+                                    <span style="color:#f59e0b;flex-shrink:0;">✨</span>
+                                    <div style="flex:1;"><span style="color:var(--text-primary);font-size:13px;">${sanitizeHTML(g.entry||'')}</span>
+                                    <span style="color:var(--text-muted);font-size:11px;margin-left:8px;">${ds}</span></div>
+                                </div>`;
+                            }).join('')}
+                            </div></div>` : ''}
+                        ${suggestions.length ? `<div class="card" style="margin-bottom:12px;">
+                            <h4>💡 AI Wellbeing Suggestions (active)</h4>
+                            <ul style="margin:10px 0 0;padding-left:20px;">
+                            ${suggestions.map(s => `<li style="color:var(--text-primary);font-size:13px;margin-bottom:4px;">${sanitizeHTML(s.text||'')}</li>`).join('')}
+                            </ul></div>` : ''}
+                        ${chatRecs.length ? `<div class="card">
+                            <h4>💬 AI Therapy Chat History (last ${chatRecs.length} messages)</h4>
+                            <div style="max-height:350px;overflow-y:auto;margin-top:10px;display:flex;flex-direction:column;gap:8px;">
+                            ${chatRecs.slice().reverse().map(c => {
+                                const isUser = (c.sender||'').toLowerCase()==='user';
+                                const ds = c.timestamp ? new Date(c.timestamp).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '';
+                                return `<div style="display:flex;${isUser?'justify-content:flex-end':'justify-content:flex-start'};">
+                                    <div style="max-width:80%;padding:8px 12px;border-radius:${isUser?'16px 16px 4px 16px':'16px 16px 16px 4px'};background:${isUser?'rgba(99,102,241,0.12)':'var(--bg-secondary)'};border:1px solid var(--border-color);">
+                                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">${isUser?'Patient':'AI Therapist'} ${ds}</div>
+                                        <div style="font-size:13px;color:var(--text-primary);line-height:1.5;">${sanitizeHTML((c.message||'').substring(0,500))}</div>
+                                    </div>
+                                </div>`;
+                            }).join('')}
+                            </div></div>` : ''}`;
                         break;
-                    case 'alerts':
-                        html = alertsList.length===0
+                    }
+                    case 'alerts': {
+                        const _sevColor = {critical:'#dc3545',high:'#e65100',moderate:'#f59e0b',low:'#6366f1'};
+                        const _sevBg    = {critical:'rgba(220,53,69,0.09)',high:'rgba(230,81,0,0.08)',moderate:'rgba(245,158,11,0.08)',low:'rgba(99,102,241,0.08)'};
+                        const _sevLabel = {critical:'🚨 CRITICAL',high:'🔴 HIGH',moderate:'⚠️ MODERATE',low:'🔵 LOW'};
+                        const _srcLabel = {c_ssrs:'Safety Check',phq9:'PHQ-9',gad7:'GAD-7',mood_log:'Mood Log',
+                                           outcome_measure:'Outcome Measure',chat:'Chat Risk','assessment':'Assessment'};
+                        const unacked = alertsList.filter(a => !a.acknowledged);
+                        html = alertsList.length === 0
                             ? `<div class="card" style="border-left:4px solid #28a745;"><p style="color:#28a745;padding:16px;text-align:center;font-weight:600;">✅ No recent safety alerts — patient appears stable.</p></div>`
-                            : `<div class="card"><h4>🚨 Safety Alerts (${alertsList.length})</h4><div style="margin-top:12px;">
+                            : `<div class="card">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+                                    <h4 style="margin:0;">🚨 Safety &amp; Risk Alerts (${alertsList.length})</h4>
+                                    ${unacked.length > 0 ? `<span style="background:#dc3545;color:white;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;">${unacked.length} unacknowledged</span>` : '<span style="background:#28a745;color:white;padding:4px 12px;border-radius:20px;font-size:13px;">All reviewed</span>'}
+                                </div>
+                                <div>
                                 ${alertsList.map(a => {
-                                    const ds = a.timestamp ? new Date(a.timestamp).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
-                                    return `<div style="padding:14px;background:rgba(220,53,69,0.07);border-left:4px solid #dc3545;border-radius:0 8px 8px 0;margin-bottom:10px;">
-                                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
-                                            <strong style="color:#dc3545;">${sanitizeHTML(a.type||'Alert')}</strong>
-                                            <span style="color:var(--text-muted);font-size:12px;">${ds}</span>
+                                    const sev = (a.severity||'moderate').toLowerCase();
+                                    const col = _sevColor[sev]||'#6366f1';
+                                    const bg  = _sevBg[sev]||'rgba(99,102,241,0.07)';
+                                    const lbl = _sevLabel[sev]||sev.toUpperCase();
+                                    const src = _srcLabel[a.source||'']||sanitizeHTML(a.source||'');
+                                    const ds  = a.timestamp ? new Date(a.timestamp).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+                                    const ackBadge = a.acknowledged
+                                        ? `<span style="font-size:11px;color:#28a745;font-weight:600;">✓ Acknowledged</span>`
+                                        : `<span style="font-size:11px;color:#dc3545;font-weight:600;">● Needs review</span>`;
+                                    return `<div style="padding:14px 16px;background:${bg};border-left:5px solid ${col};border-radius:0 10px 10px 0;margin-bottom:12px;">
+                                        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+                                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                                <span style="background:${col};color:white;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">${lbl}</span>
+                                                ${src ? `<span style="background:var(--bg-secondary);color:var(--text-secondary);padding:2px 8px;border-radius:12px;font-size:11px;">${src}</span>` : ''}
+                                                ${ackBadge}
+                                            </div>
+                                            <span style="color:var(--text-muted);font-size:12px;white-space:nowrap;">${ds}</span>
                                         </div>
-                                        <p style="margin:0;color:var(--text-primary);font-size:14px;">${sanitizeHTML(a.message||'')}</p>
+                                        <div style="font-weight:600;color:${col};margin-bottom:4px;font-size:14px;">${sanitizeHTML(a.title||a.type||'Alert')}</div>
+                                        <p style="margin:0;color:var(--text-primary);font-size:13px;line-height:1.5;">${sanitizeHTML(a.message||'')}</p>
                                     </div>`;
                                 }).join('')}
-                            </div></div>`;
+                                </div></div>`;
                         break;
+                    }
                 }
             } catch(err) {
                 console.error('_renderPatientTabContent error for', tabName, ':', err);
@@ -22923,14 +23070,15 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const inputDiv = document.createElement('div');
             inputDiv.style.display = 'flex';
             inputDiv.style.gap = '8px';
-            
+            inputDiv.style.alignItems = 'center';
+
             const input = document.createElement('input');
             input.type = 'text';
             input.placeholder = placeholder;
             input.className = 'wellness-text-input';
-            
+
             const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
+            btn.className = 'btn btn-primary wellness-submit-btn';
             btn.textContent = '→';
             btn.onclick = () => {
                 if (input.value.trim()) {
@@ -22983,16 +23131,17 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const inputDiv = document.createElement('div');
             inputDiv.style.display = 'flex';
             inputDiv.style.gap = '8px';
-            
+            inputDiv.style.alignItems = 'center';
+
             const input = document.createElement('input');
             input.type = 'text';
             input.placeholder = placeholder;
             input.className = 'wellness-text-input';
-            
+
             let selectedScale = null;
-            
+
             const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
+            btn.className = 'btn btn-primary wellness-submit-btn';
             btn.textContent = '→';
             btn.onclick = () => {
                 const text = input.value.trim();
@@ -23023,16 +23172,17 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const inputDiv = document.createElement('div');
             inputDiv.style.display = 'flex';
             inputDiv.style.gap = '8px';
-            
+            inputDiv.style.alignItems = 'center';
+
             const input = document.createElement('input');
             input.type = 'number';
             input.placeholder = placeholder;
             input.className = 'wellness-text-input';
             input.min = '0';
             input.step = '0.5';
-            
+
             const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
+            btn.className = 'btn btn-primary wellness-submit-btn';
             btn.textContent = '→';
             btn.onclick = () => {
                 const value = input.value.trim();
@@ -23083,14 +23233,15 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             const inputDiv = document.createElement('div');
             inputDiv.style.display = 'none';
             inputDiv.style.gap = '8px';
-            
+            inputDiv.style.alignItems = 'center';
+
             const input = document.createElement('input');
             input.type = 'text';
             input.placeholder = textPlaceholder;
             input.className = 'wellness-text-input';
-            
+
             const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
+            btn.className = 'btn btn-primary wellness-submit-btn';
             btn.textContent = '→';
             btn.onclick = () => {
                 const text = input.value.trim();
@@ -23234,7 +23385,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     hoursInputDiv.style.display = 'none';
                     hoursInputDiv.style.gap = '8px';
                     hoursInputDiv.style.marginTop = '8px';
-                    
+                    hoursInputDiv.style.alignItems = 'center';
+
                     const hoursInput = document.createElement('input');
                     hoursInput.type = 'number';
                     hoursInput.placeholder = 'How many hours of sleep? (e.g. 6.5)';
@@ -23242,9 +23394,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     hoursInput.min = '0';
                     hoursInput.step = '0.5';
                     hoursInput.max = '24';
-                    
+
                     const submitSleepBtn = document.createElement('button');
-                    submitSleepBtn.className = 'btn btn-primary';
+                    submitSleepBtn.className = 'btn btn-primary wellness-submit-btn';
                     submitSleepBtn.textContent = '→';
                     submitSleepBtn.onclick = () => {
                         if (hoursInput.value) {
@@ -23337,14 +23489,15 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     const medNameDiv = document.createElement('div');
                     medNameDiv.style.display = 'none';
                     medNameDiv.style.gap = '8px';
-                    
+                    medNameDiv.style.alignItems = 'center';
+
                     const medNameInput = document.createElement('input');
                     medNameInput.type = 'text';
                     medNameInput.placeholder = 'What medication? (e.g. Sertraline 50mg)';
                     medNameInput.className = 'wellness-text-input';
-                    
+
                     const submitMedBtn = document.createElement('button');
-                    submitMedBtn.className = 'btn btn-primary';
+                    submitMedBtn.className = 'btn btn-primary wellness-submit-btn';
                     submitMedBtn.textContent = '→';
                     submitMedBtn.onclick = () => {
                         if (medNameInput.value) {
@@ -23403,14 +23556,15 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     const energyNotesDiv = document.createElement('div');
                     energyNotesDiv.style.display = 'none';
                     energyNotesDiv.style.gap = '8px';
-                    
+                    energyNotesDiv.style.alignItems = 'center';
+
                     const energyNotesInput = document.createElement('input');
                     energyNotesInput.type = 'text';
                     energyNotesInput.placeholder = 'Any notes? (what\'s affecting your energy?)';
                     energyNotesInput.className = 'wellness-text-input';
-                    
+
                     const submitEnergyBtn = document.createElement('button');
-                    submitEnergyBtn.className = 'btn btn-primary';
+                    submitEnergyBtn.className = 'btn btn-primary wellness-submit-btn';
                     submitEnergyBtn.textContent = '→';
                     submitEnergyBtn.onclick = () => {
                         wellnessRitualState.data.energy_level = selectedEnergy;
