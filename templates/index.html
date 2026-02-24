@@ -19368,10 +19368,11 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
             
             try {
+                const _csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
                 const response = await fetch('/api/professional/notes', {
                     method: 'POST',
                     credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _csrf },
                     body: JSON.stringify({
                         clinician_username: currentUser,
                         patient_username: currentPatientData.username,

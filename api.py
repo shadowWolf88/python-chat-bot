@@ -3635,9 +3635,9 @@ class RiskScoringEngine:
         # Medication non-adherence
         try:
             adh = cur.execute(
-                """SELECT AVG(CASE WHEN taken THEN 1.0 ELSE 0.0 END)
+                """SELECT AVG(CASE WHEN status = 'taken' THEN 1.0 ELSE 0.0 END)
                    FROM medication_adherence_logs
-                   WHERE username = %s AND logged_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'""",
+                   WHERE username = %s AND log_date >= CURRENT_DATE - 7""",
                 (username,)
             ).fetchone()
             if adh and adh[0] is not None and float(adh[0]) < 0.70:
@@ -4340,7 +4340,7 @@ def run_predictive_signals(username, cur, conn):
     # Medication non-adherence
     try:
         adh = cur.execute(
-            "SELECT AVG(CASE WHEN taken THEN 1.0 ELSE 0.0 END) FROM medication_adherence_logs WHERE username=%s AND logged_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'",
+            "SELECT AVG(CASE WHEN status = 'taken' THEN 1.0 ELSE 0.0 END) FROM medication_adherence_logs WHERE username=%s AND log_date >= CURRENT_DATE - 7",
             (username,)
         ).fetchone()
         if adh and adh[0] is not None and float(adh[0]) < 0.70:
@@ -16546,7 +16546,8 @@ def get_risk_dashboard():
                 'recent_alerts': []
             }), 200
 
-        # Get latest risk assessment for each patient
+        # Get latest risk assessment for each patient — recalculate if missing or >1h stale
+        from datetime import timedelta as _td
         patient_risks = []
         for p_user, p_name in patients:
             latest = cur.execute(
@@ -16556,10 +16557,35 @@ def get_risk_dashboard():
                 (p_user,)
             ).fetchone()
 
+            needs_calc = (
+                latest is None or
+                (latest[2] is not None and (datetime.now() - (latest[2] if isinstance(latest[2], datetime) else datetime.fromisoformat(str(latest[2])))) > _td(hours=1))
+            )
+
+            if needs_calc:
+                try:
+                    fresh = RiskScoringEngine.calculate_risk_score(p_user)
+                    risk_score = fresh['risk_score']
+                    risk_level = fresh['risk_level']
+                    last_assessed = datetime.now().isoformat()
+                    # Re-open cur/conn since calculate_risk_score opens/closes its own
+                    conn2 = get_db_connection()
+                    cur2 = get_wrapped_cursor(conn2)
+                except Exception as _rce:
+                    risk_score = latest[0] if latest else 0
+                    risk_level = latest[1] if latest else 'low'
+                    last_assessed = latest[2].isoformat() if latest and latest[2] else None
+                    conn2, cur2 = conn, cur
+            else:
+                risk_score = latest[0]
+                risk_level = latest[1]
+                last_assessed = latest[2].isoformat() if latest[2] else None
+                conn2, cur2 = conn, cur
+
             # Get predictive flag counts for this patient
             pf_counts = {'yellow': 0, 'orange': 0, 'red': 0}
             try:
-                pf_rows = cur.execute(
+                pf_rows = cur2.execute(
                     """SELECT flag_level, COUNT(*) FROM predictive_risk_flags
                        WHERE patient_username = %s AND is_active = TRUE
                        GROUP BY flag_level""",
@@ -16570,13 +16596,19 @@ def get_risk_dashboard():
                         pf_counts[lvl] = cnt
             except Exception:
                 pass
+            finally:
+                if conn2 is not conn:
+                    try:
+                        conn2.close()
+                    except Exception:
+                        pass
 
             patient_risks.append({
                 'username': p_user,
                 'full_name': p_name,
-                'risk_score': latest[0] if latest else 0,
-                'risk_level': latest[1] if latest else 'low',
-                'last_assessed': latest[2].isoformat() if latest and latest[2] else None,
+                'risk_score': risk_score,
+                'risk_level': risk_level,
+                'last_assessed': last_assessed,
                 'predictive_flags': pf_counts
             })
 
