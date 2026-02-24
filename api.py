@@ -8983,6 +8983,63 @@ def delete_notification(notification_id):
         return handle_exception(e, request.endpoint or 'unknown')
 
 @CSRFProtection.require_csrf
+@app.route('/api/poll', methods=['GET'])
+def quick_poll():
+    """Lightweight real-time poll endpoint — returns only counts, not full data.
+    Called every 10s by the client. Must be fast: single query per count."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'authenticated': False}), 200  # Never 401 — avoids redirect loop
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        notif_count = cur.execute(
+            "SELECT COUNT(*) FROM notifications WHERE recipient_username=%s AND read=0",
+            (username,)
+        ).fetchone()[0]
+
+        msg_count = cur.execute(
+            """SELECT COUNT(*) FROM messages
+               WHERE recipient_username=%s AND is_read=0
+               AND (is_deleted_by_recipient=0 OR is_deleted_by_recipient IS NULL)""",
+            (username,)
+        ).fetchone()[0]
+
+        role_row = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        role = role_row[0] if role_row else 'user'
+
+        risk_count = 0
+        if role in ('clinician', 'developer'):
+            if role == 'clinician':
+                risk_count = cur.execute(
+                    """SELECT COUNT(*) FROM risk_alerts ra
+                       JOIN patient_approvals pa ON ra.patient_username = pa.patient_username
+                       WHERE pa.clinician_username=%s AND pa.status='approved'
+                       AND ra.acknowledged=FALSE""",
+                    (username,)
+                ).fetchone()[0]
+            else:
+                risk_count = cur.execute(
+                    "SELECT COUNT(*) FROM risk_alerts WHERE acknowledged=FALSE"
+                ).fetchone()[0]
+
+        conn.close()
+        import time as _t
+        return jsonify({
+            'authenticated': True,
+            'notifications': notif_count,
+            'messages': msg_count,
+            'risk_alerts': risk_count,
+            'role': role,
+            'ts': _t.time()
+        }), 200
+
+    except Exception:
+        return jsonify({'authenticated': True, 'notifications': 0, 'messages': 0, 'risk_alerts': 0}), 200
+
+
 @app.route('/api/notifications/clear-read', methods=['POST'])
 def clear_read_notifications():
     """Clear all read notifications for a user"""

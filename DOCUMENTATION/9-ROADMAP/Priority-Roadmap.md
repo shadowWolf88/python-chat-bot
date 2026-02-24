@@ -1,6 +1,6 @@
 # HEALING SPACE UK — MASTER PRODUCT ROADMAP
 ## World-Class Mental Health Platform: The Definitive Plan
-### Audit Date: February 22, 2026 | Full Platform Audit + Strategic Vision
+### Audit Date: February 24, 2026 | Full Platform Audit + Strategic Vision
 
 ---
 
@@ -10,19 +10,19 @@
 
 ---
 
-## CURRENT STATE SNAPSHOT (February 22, 2026)
+## CURRENT STATE SNAPSHOT (February 24, 2026)
 
 | Dimension | Status |
 |-----------|--------|
 | **Security** | ✅ TIER 0-1 complete — production-grade CSRF, rate limiting, XSS, access control |
-| **Backend** | api.py ~20,000 lines, Flask/PostgreSQL/Groq, 340+ endpoints |
-| **Frontend** | index.html ~24,000 lines, monolithic SPA |
+| **Backend** | api.py ~25,000 lines, Flask/PostgreSQL/Groq, 350+ endpoints |
+| **Frontend** | index.html ~26,000 lines, monolithic SPA |
 | **Database** | 55+ tables, PostgreSQL (local dev + Railway production) |
 | **Patient Features** | 14 tabs, 17 CBT tools, AI therapy, pet, community, messaging, CORE-OM/ORS/SRS, SOS button, medication tracker, recovery milestones, wellness ritual |
 | **Clinician Features** | Dashboard, session notes, treatment plans, outcome tracker, risk monitor, messaging, patient detail view (all 5 subtabs), medications view, progress view |
 | **Developer Features** | Terminal, AI chat, inbox, broadcast, QA, user mgmt, Post Update |
 | **AI** | Groq-powered therapy chat, AI memory, risk detection, summaries, content-filter fallback |
-| **Risk Pipeline** | ✅ Unified: C-SSRS → risk_alerts + notification; PHQ-9/GAD-7 → risk_alerts + notification; mood ≤ 3 → alert; outcome measures (severe) → alert |
+| **Risk Pipeline** | ✅ Unified + Predictive: C-SSRS → risk_alerts + notification; PHQ-9/GAD-7 → risk_alerts + notification; mood ≤ 3 → alert; outcome measures (severe) → alert; 27-signal predictive engine → yellow/orange/red flags |
 | **Compliance** | GDPR foundations in place, NHS compliance not yet started |
 | **Mobile** | Capacitor configured, not production-ready |
 | **Tests** | 180+ passing, gaps in clinical logic coverage |
@@ -76,6 +76,32 @@ Visual milestone achievements, mood/PHQ-9/GAD-7 Canvas charts, streak tracking, 
 - Moods tab: mood logs + full wellness ritual logs (emotional narrative, homework, energy, social)
 - Therapy tab: clinician notes + CBT records + gratitude journal + AI suggestions + full chat history
 - Alerts tab: rich display with severity badges, source labels, acknowledged status
+
+### 2.1 — AI-Powered Predictive Crisis Detection ✅ (Feb 24, 2026)
+27-signal predictive engine across clinical + behavioral domains. `predictive_risk_flags` table with yellow/orange/red three-tier system, ON CONFLICT upsert, auto-resolve when conditions clear.
+
+**Clinical signals** (15): CORE-10 elevated, CORE-OM risk domain, WEMWBS low wellbeing, ORS all-domain distress, C-SSRS escalation, PHQ-9 rapid deterioration, GAD-7 rapid deterioration, severe CORE-10/PHQ-9/ORS/C-SSRS threshold crossings, assessment gap (>14 days without any assessment)
+
+**Behavioral signals** (12): Login recency drop, 7-day mood average decline, medication non-adherence, poor sleep quality, social isolation (community withdrawal), gratitude journal abandonment, CBT tool abandonment, quest disengagement, wellness log gap, low engagement composite
+
+**Platform integration**: Hooked into `calculate_risk_score()` (runs on every risk calculation). `detect_patterns_endpoint()` scans all patients. `get_risk_dashboard()` triggers score recalculation for patients with missing/stale (>1h) assessments. Risk Monitor shows ⚡ Early Warning Signals card with tier counts. Patient rows show 🔴🟠🟡 pill counts. Patient Alerts tab renders full flag cards with AI reasoning, recommended action, and dismiss workflow. `/api/risk/predictive/<username>` and `/api/risk/predictive/<flag_id>/dismiss` endpoints.
+
+### Real-Time Smart Polling Engine ✅ (Feb 24, 2026)
+Replaced scattered 60s `setInterval` calls with a centralised smart polling engine.
+
+- `/api/poll` lightweight endpoint returns counts-only (notifications, messages, risk_alerts, role) in ~3 fast DB queries — never returns 401
+- Polls at **10s** when tab is visible, **60s** when tab is hidden (Visibility API)
+- On tab focus: immediate re-poll + notification reload
+- **Toast notifications** bottom-right: new message/risk alert toasts are clickable to navigate directly to the relevant tab
+- **Browser Notification API**: clinicians get OS-level alerts for new messages even when Healing Space is in the background (permission requested on login)
+- Immediate re-poll after sending a message (instant badge update for recipient)
+- Risk Monitor auto-refreshes every 2 minutes when active tab
+- `showToast()` upgraded to support `onClick` navigation, all color types (info/success/warning/error), proper fade animation
+
+### Bug Fixes ✅ (Feb 24, 2026)
+- **Risk dashboard staleness**: `get_risk_dashboard()` now triggers `calculate_risk_score()` for patients with missing or >1h stale assessments — patients with severe PHQ-9/CORE-10 scores now immediately appear at correct risk level
+- **CSRF on therapy note save**: `saveClinicianNote()` now includes `X-CSRF-Token` header (was causing "CSRF token invalid" error)
+- **Medication adherence columns**: Fixed `taken` / `logged_at` → `status='taken'` / `log_date` in both `calculate_behavioral_score()` and `run_predictive_signals()` (schema mismatch was silently causing 0% adherence readings)
 
 ---
 
@@ -251,7 +277,7 @@ A visual timeline of the entire therapeutic journey — from the first day to to
 
 ---
 
-### 2.1 AI-POWERED PREDICTIVE CRISIS DETECTION
+### 2.1 AI-POWERED PREDICTIVE CRISIS DETECTION ✅ COMPLETE (Feb 24, 2026)
 **Priority: CRITICAL — Could save lives**
 
 Extend current real-time detection to predictive detection BEFORE crisis:
@@ -928,7 +954,7 @@ Migration strategy: zero-downtime, backward-compatible.
 | Safeguarding workflow | ⏳ Missing |
 | AI weekly patient summaries | ⏳ Missing |
 | AI session prep brief | ⏳ Missing |
-| Predictive crisis alerts | ⏳ Missing |
+| Predictive crisis alerts | ✅ Complete (Feb 24) |
 | Video therapy integration | ⏳ Missing |
 | CPD tracker | ⏳ Missing |
 
@@ -976,8 +1002,9 @@ Migration strategy: zero-downtime, backward-compatible.
 | Mood ≤ 3/10 | ✅ risk_alerts | ✅ in-app |
 | Outcome measure severe | ✅ risk_alerts | ✅ in-app |
 | Chat risk keywords | ✅ risk_alerts | ✅ email |
-| Mood trend decline (predictive) | ⏳ Not yet built | ⏳ |
-| Engagement drop (predictive) | ⏳ Not yet built | ⏳ |
+| Mood trend decline (predictive) | ✅ predictive_risk_flags | ✅ in-app toast + Risk Monitor |
+| Engagement drop (predictive) | ✅ predictive_risk_flags | ✅ in-app toast + Risk Monitor |
+| Real-time badge/notification updates | ✅ smart polling (10s) | ✅ OS browser notification |
 
 ---
 
@@ -1011,8 +1038,10 @@ Migration strategy: zero-downtime, backward-compatible.
 | Phase | Priority | Effort | Impact | Target |
 |-------|----------|--------|--------|--------|
 | Healing Journey (HJ.1–HJ.3) ✅ | **DONE** | Medium | Very High | Feb 2026 |
+| 2.1 Predictive Crisis Detection ✅ | **DONE** | High | Critical | Feb 2026 |
+| Real-Time Polling Engine ✅ | **DONE** | Medium | High | Feb 2026 |
 | Healing Journey (HJ.4–HJ.7) | **Q2 2026** | Medium | High | Q2 2026 |
-| 2 — Clinical Excellence | **Q2 2026** | High | Very High | Q2–Q3 2026 |
+| 2.2–2.7 — Clinical Excellence | **Q2 2026** | High | Very High | Q2–Q3 2026 |
 | 3.0 — Onboarding Redesign | **Q2 2026** | Medium | Very High | Q2 2026 |
 | 3 — Patient Empowerment | **Q2–Q3 2026** | Medium | High | Q3 2026 |
 | 4 — AI & Intelligence | **Q3 2026** | High | Very High | Q3 2026 |
@@ -1065,6 +1094,6 @@ Achievable in ~1 hour:
 
 ---
 
-*Roadmap last updated: February 22, 2026 (HJ.1, HJ.2, HJ.3 completed; Section 3.0 Onboarding Redesign added).*
+*Roadmap last updated: February 24, 2026 (2.1 Predictive Crisis Detection completed; Real-Time Smart Polling Engine added; bug fixes: risk dashboard staleness, CSRF on therapy note save, medication adherence column names).*
 *Next review: April 2026.*
 *This document should be reviewed quarterly and updated after each major milestone.*

@@ -7963,6 +7963,101 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         let currentClinicianName = null; // Store assigned clinician's name
         let csrfToken = null; // CSRF token for secure requests
 
+        // ── Real-Time Smart Polling Engine ──────────────────────────────────────
+        let _pollInterval = null;
+        let _pollPrev = { notifications: -1, messages: -1, risk_alerts: -1 };
+        const POLL_FAST = 10000;  // 10s when tab visible
+        const POLL_SLOW = 60000;  // 60s when tab hidden
+        let _pollRate = POLL_FAST;
+
+        function startPolling() {
+            if (_pollInterval) clearInterval(_pollInterval);
+            _pollRun();
+            _pollInterval = setInterval(_pollRun, _pollRate);
+        }
+        function stopPolling() {
+            if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+        }
+
+        async function _pollRun() {
+            if (!currentUser) return;
+            try {
+                const r = await fetch('/api/poll', { credentials: 'include' });
+                if (!r.ok) return;
+                const d = await r.json();
+                if (!d.authenticated) return;
+
+                // Update notification badge
+                const nb = document.getElementById('notificationBadge');
+                if (nb) {
+                    nb.textContent = d.notifications || 0;
+                    nb.style.display = d.notifications > 0 ? 'flex' : 'none';
+                }
+
+                // Update inbox unread badge
+                const ib = document.getElementById('inboxUnreadBadge');
+                if (ib) {
+                    ib.textContent = d.messages || 0;
+                    ib.style.display = d.messages > 0 ? 'inline' : 'none';
+                }
+
+                // Update risk badge
+                const rb = document.getElementById('riskUnreviewedCount');
+                if (rb && d.risk_alerts > 0) rb.textContent = d.risk_alerts;
+
+                // Toast + browser notification when new messages arrive
+                if (_pollPrev.messages >= 0 && d.messages > _pollPrev.messages) {
+                    const diff = d.messages - _pollPrev.messages;
+                    showToast('💬 ' + diff + ' new message' + (diff > 1 ? 's' : '') + ' received', 'info', 5000, function() { switchTab('inbox'); });
+                    _browserNotify('New message — Healing Space', 'You have ' + d.messages + ' unread message' + (d.messages > 1 ? 's' : ''));
+                }
+
+                // Reload notifications panel when new ones arrive
+                if (_pollPrev.notifications >= 0 && d.notifications > _pollPrev.notifications) {
+                    if (typeof loadNotifications === 'function') loadNotifications();
+                }
+
+                // Toast for new risk alerts (clinicians)
+                if (_pollPrev.risk_alerts >= 0 && d.risk_alerts > _pollPrev.risk_alerts && d.role !== 'user') {
+                    showToast('🚨 New risk alert requires review', 'warning', 8000, function() { switchTab('riskmonitor'); });
+                }
+
+                _pollPrev = { notifications: d.notifications, messages: d.messages, risk_alerts: d.risk_alerts };
+            } catch (e) { /* silent — network hiccup */ }
+        }
+
+        // Slow down when tab hidden, speed up on return
+        document.addEventListener('visibilitychange', function() {
+            const newRate = document.visibilityState === 'visible' ? POLL_FAST : POLL_SLOW;
+            if (newRate !== _pollRate) {
+                _pollRate = newRate;
+                if (currentUser) startPolling();
+                if (document.visibilityState === 'visible' && currentUser) {
+                    _pollRun();
+                    if (typeof loadNotifications === 'function') loadNotifications();
+                }
+            }
+        });
+
+        // Browser Notification API
+        let _notifPermission = null;
+        function _requestBrowserNotifPermission() {
+            if (!('Notification' in window)) return;
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(function(p) { _notifPermission = p; });
+            } else {
+                _notifPermission = Notification.permission;
+            }
+        }
+        function _browserNotify(title, body) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            try {
+                const n = new Notification(title, { body: body, icon: '/static/icon-192.png', tag: 'hs-msg' });
+                setTimeout(function() { n.close(); }, 8000);
+            } catch (e) {}
+        }
+        // ── End Polling Engine ───────────────────────────────────────────────────
+
         // ========== DARK MODE / THEME SYSTEM ==========
         function initTheme() {
             // Check for saved theme preference or system preference
@@ -14178,13 +14273,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 loadPatientAppointments(); // Load appointments for patient
             }
 
-            // Refresh notifications and messages every 60 seconds
-            setInterval(() => {
-                loadNotifications();
-                if (currentUserRole !== 'developer') {
-                    loadUserMessages();
-                }
-            }, 60000);
+            // Start real-time polling engine (10s visible / 60s hidden)
+            startPolling();
+            _requestBrowserNotifPermission();
         }
         
         // Initialize patient session with chat history and greeting
@@ -21476,29 +21567,28 @@ ${reportText}
         }
 
         // Toast helper
-        function showToast(message, type='info', timeout=4000) {
+        function showToast(message, type, timeout, onClick) {
+            if (type === undefined) type = 'info';
+            if (timeout === undefined) timeout = 4000;
             try {
                 const containerId = 'hs-toast-container';
                 let container = document.getElementById(containerId);
                 if (!container) {
                     container = document.createElement('div');
                     container.id = containerId;
-                    container.style.cssText = 'position:fixed; right:20px; top:20px; z-index:20000; display:flex; flex-direction:column; gap:10px; max-width:320px;';
+                    container.style.cssText = 'position:fixed; right:20px; bottom:24px; z-index:20000; display:flex; flex-direction:column; gap:8px; max-width:340px; pointer-events:none;';
                     document.body.appendChild(container);
                 }
-
+                const bgMap = { success: '#10b981', error: '#ef4444', warning: '#e65100', info: '#6366f1' };
                 const toast = document.createElement('div');
-                toast.style.cssText = 'padding:10px 14px; border-radius:8px; color:white; box-shadow:0 6px 18px rgba(0,0,0,0.12); font-weight:600;';
-                if (type === 'success') toast.style.background = '#10b981';
-                else if (type === 'error') toast.style.background = '#ef4444';
-                else toast.style.background = '#374151';
+                toast.style.cssText = 'padding:12px 18px; border-radius:10px; color:white; box-shadow:0 4px 20px rgba(0,0,0,0.22); font-weight:600; font-size:14px; transition:opacity 0.3s; opacity:0; pointer-events:all; cursor:' + (onClick ? 'pointer' : 'default') + '; background:' + (bgMap[type] || bgMap.info) + ';';
                 toast.textContent = message;
+                if (onClick) toast.addEventListener('click', function() { onClick(); toast.remove(); });
                 container.appendChild(toast);
-
-                setTimeout(() => {
-                    toast.style.transition = 'opacity 300ms';
+                requestAnimationFrame(function() { toast.style.opacity = '1'; });
+                setTimeout(function() {
                     toast.style.opacity = '0';
-                    setTimeout(() => toast.remove(), 300);
+                    setTimeout(function() { toast.remove(); }, 300);
                 }, timeout);
             } catch (e) {
                 console.log('Toast error', e);
@@ -23669,6 +23759,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 contentEl.style.height = 'auto';
                 messageTabCache.inbox = null;
                 messageTabCache.sent = null;
+                _pollRun(); // immediate badge update for recipient
                 await openConversation(withUser);
             } catch (e) {
                 showToast('Failed to send: ' + e.message, 'error');
@@ -23718,15 +23809,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
 
-        // --- Periodic unread check (every 60s) ---
-        setInterval(function() {
-            if (document.visibilityState === 'visible' && currentUser) {
-                fetch('/api/messages/inbox', { credentials: 'include' })
-                    .then(function(r) { return r.ok ? r.json() : null; })
-                    .then(function(data) { if (data) updateUnreadBadge(data); })
-                    .catch(function(){});
-            }
-        }, 60000);
+        // Unread check is now handled by startPolling() engine above (10s interval)
 
         // --- Load messages when switching to messages tab ---
         function checkAndLoadMessages() {
