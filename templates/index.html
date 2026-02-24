@@ -7137,6 +7137,17 @@
                         </div>
                     </div>
 
+                    <!-- Early Warning Signals Section (2.1 Predictive) -->
+                    <div class="card" style="margin-bottom: 20px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                            <h4 style="margin:0;">⚡ Early Warning Signals</h4>
+                            <button onclick="loadRiskDashboard()" class="btn btn-secondary" style="padding:5px 12px;font-size:0.8em;width:auto;">Refresh</button>
+                        </div>
+                        <div id="earlyWarningSummary" style="padding:10px 0;">
+                            <p style="text-align:center;color:var(--text-muted);font-size:0.9em;">Loading...</p>
+                        </div>
+                    </div>
+
                     <!-- Active Alerts Section -->
                     <div class="card" style="margin-bottom: 20px;">
                         <h4 style="margin-top: 0;">Active Alerts</h4>
@@ -18980,7 +18991,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                     </div>`;
                                 }).join('')}
                                 </div></div>`;
-                        break;
+                        contentDiv.innerHTML = html;
+                        loadPatientPredictiveFlags(patUsername);
+                        return;
                     }
                 }
             } catch(err) {
@@ -24962,11 +24975,137 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 allRiskPatients = data.patients || [];
                 renderRiskPatients(allRiskPatients);
                 renderRiskAlerts(data.recent_alerts || []);
+                renderEarlyWarningFlags(data.flag_summary || {total_red: 0, total_orange: 0, total_yellow: 0});
             } catch (err) {
                 console.error('Risk dashboard error:', err);
                 document.getElementById('riskPatientsList').innerHTML = '<p style="text-align:center; color:#e74c3c; padding:20px;">Error loading risk data: ' + err.message + '</p>';
             }
         }
+
+        // ── 2.1 Predictive Risk Functions ────────────────────────────────────────
+
+        function renderEarlyWarningFlags(flagSummary) {
+            const el = document.getElementById('earlyWarningSummary');
+            if (!el) return;
+            const totalRed = flagSummary.total_red || 0;
+            const totalOrange = flagSummary.total_orange || 0;
+            const totalYellow = flagSummary.total_yellow || 0;
+            const total = totalRed + totalOrange + totalYellow;
+            if (total === 0) {
+                el.innerHTML = '<p style="color:#28a745;font-weight:600;text-align:center;padding:8px;">✅ No active early warning signals across your caseload.</p>';
+                return;
+            }
+            el.innerHTML =
+                '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">' +
+                (totalRed > 0 ? '<div style="background:rgba(220,53,69,0.1);border:1px solid #dc3545;border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;">' +
+                    '<div style="font-size:1.6em;font-weight:800;color:#dc3545;">' + totalRed + '</div>' +
+                    '<div style="font-size:11px;color:#dc3545;font-weight:600;">🔴 Immediate Review</div></div>' : '') +
+                (totalOrange > 0 ? '<div style="background:rgba(230,81,0,0.1);border:1px solid #e65100;border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;">' +
+                    '<div style="font-size:1.6em;font-weight:800;color:#e65100;">' + totalOrange + '</div>' +
+                    '<div style="font-size:11px;color:#e65100;font-weight:600;">🟠 Review in 24h</div></div>' : '') +
+                (totalYellow > 0 ? '<div style="background:rgba(217,119,6,0.1);border:1px solid #d97706;border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;">' +
+                    '<div style="font-size:1.6em;font-weight:800;color:#d97706;">' + totalYellow + '</div>' +
+                    '<div style="font-size:11px;color:#d97706;font-weight:600;">🟡 Monitor</div></div>' : '') +
+                '<div style="color:var(--text-muted);font-size:0.85em;margin-left:8px;">Click a patient row to view their flags in the Alerts tab.</div>' +
+                '</div>';
+        }
+
+        async function loadPatientPredictiveFlags(patientUsername) {
+            if (!patientUsername) return;
+            try {
+                const res = await fetch('/api/risk/predictive/' + encodeURIComponent(patientUsername), { credentials: 'include' });
+                const data = await res.json();
+                if (!res.ok || !data.success) return;
+                const flags = data.flags || [];
+
+                // Find or create the predictive flags section in the alerts tab
+                const alertsContent = document.getElementById('patientAlertsContent') || document.getElementById('patientAlertsTab');
+                if (!alertsContent) return;
+
+                let predSection = alertsContent.querySelector('#predictiveFlagsSection');
+                if (!predSection) {
+                    predSection = document.createElement('div');
+                    predSection.id = 'predictiveFlagsSection';
+                    predSection.style.marginTop = '16px';
+                    alertsContent.appendChild(predSection);
+                }
+
+                renderPredictiveFlags(flags, predSection, patientUsername);
+            } catch (err) {
+                console.error('loadPatientPredictiveFlags error:', err);
+            }
+        }
+
+        function renderPredictiveFlags(flags, container, patientUsername) {
+            if (!flags || flags.length === 0) {
+                container.innerHTML = '<div class="card" style="border-left:4px solid #28a745;margin-top:4px;"><p style="color:#28a745;padding:12px 16px;font-weight:600;margin:0;">⚡ No active predictive signals — all indicators within normal range.</p></div>';
+                return;
+            }
+            const levelConfig = {
+                red:    { icon: '🔴', label: 'Immediate Review', bg: 'rgba(220,53,69,0.08)', border: '#dc3545', col: '#dc3545' },
+                orange: { icon: '🟠', label: 'Review Within 24h', bg: 'rgba(230,81,0,0.08)', border: '#e65100', col: '#e65100' },
+                yellow: { icon: '🟡', label: 'Monitor', bg: 'rgba(217,119,6,0.08)', border: '#d97706', col: '#d97706' }
+            };
+            // Group by level
+            const grouped = { red: [], orange: [], yellow: [] };
+            flags.forEach(function(f) { (grouped[f.flag_level] || grouped.yellow).push(f); });
+
+            let html = '<div class="card" style="margin-top:4px;">' +
+                '<h4 style="margin-top:0;margin-bottom:16px;">⚡ Predictive Risk Signals (' + flags.length + ')</h4>';
+
+            ['red', 'orange', 'yellow'].forEach(function(lvl) {
+                grouped[lvl].forEach(function(f) {
+                    const cfg = levelConfig[lvl];
+                    const updatedDate = f.updated_at ? new Date(f.updated_at).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+                    html += '<div style="background:' + cfg.bg + ';border-left:5px solid ' + cfg.border + ';border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:12px;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px;">' +
+                            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                                '<span style="background:' + cfg.col + ';color:white;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">' + cfg.icon + ' ' + cfg.label + '</span>' +
+                                '<span style="background:var(--bg-secondary);color:var(--text-secondary);padding:2px 8px;border-radius:12px;font-size:11px;">' + sanitizeHTML(f.signal_type || '') + '</span>' +
+                            '</div>' +
+                            '<span style="color:var(--text-muted);font-size:12px;white-space:nowrap;">' + updatedDate + '</span>' +
+                        '</div>' +
+                        '<div style="font-weight:700;color:' + cfg.col + ';font-size:14px;margin-bottom:6px;">' + sanitizeHTML(f.title || '') + '</div>' +
+                        '<p style="margin:0 0 6px;color:var(--text-primary);font-size:13px;line-height:1.5;">' + sanitizeHTML(f.details || '') + '</p>' +
+                        '<details style="margin-top:8px;">' +
+                            '<summary style="cursor:pointer;color:var(--text-secondary);font-size:12px;font-weight:600;user-select:none;">▸ Clinical reasoning &amp; recommended action</summary>' +
+                            '<div style="margin-top:8px;padding:10px;background:var(--bg-secondary);border-radius:8px;font-size:12px;line-height:1.6;">' +
+                                '<strong>Reasoning:</strong> ' + sanitizeHTML(f.reasoning || '') + '<br><br>' +
+                                '<strong>Recommended action:</strong> <span style="color:' + cfg.col + ';font-weight:600;">' + sanitizeHTML(f.recommended_action || '') + '</span>' +
+                            '</div>' +
+                        '</details>' +
+                        '<div style="margin-top:10px;text-align:right;">' +
+                            '<button onclick="dismissPredictiveFlag(' + f.id + ', \'\', \'' + escapeHtml(patientUsername) + '\')" style="background:transparent;color:var(--text-muted);border:1px solid var(--border-color);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;">✓ Dismiss</button>' +
+                        '</div>' +
+                    '</div>';
+                });
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        async function dismissPredictiveFlag(flagId, resolutionNotes, patientUsername) {
+            try {
+                const csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+                const res = await fetch('/api/risk/predictive/' + flagId + '/dismiss', {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                    body: JSON.stringify({ resolution_notes: resolutionNotes || 'Dismissed by clinician' })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    console.error('Dismiss failed:', data.error);
+                    return;
+                }
+                // Reload predictive flags for this patient
+                loadPatientPredictiveFlags(patientUsername);
+            } catch (err) {
+                console.error('dismissPredictiveFlag error:', err);
+            }
+        }
+
+        // ── End 2.1 Predictive Risk Functions ─────────────────────────────────
 
         function renderRiskAlerts(alerts) {
             const container = document.getElementById('riskActiveAlertsList');
@@ -24999,9 +25138,15 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
             const levelColors = { critical: '#ff4444', high: '#ff8800', moderate: '#ccaa00', low: '#2ecc71' };
             container.innerHTML = patients.map(function(p) {
+                const pf = p.predictive_flags || {};
+                let flagPills = '';
+                if (pf.red > 0) flagPills += '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;margin-left:4px;">🔴 ' + pf.red + '</span>';
+                if (pf.orange > 0) flagPills += '<span style="background:#e65100;color:white;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;margin-left:4px;">🟠 ' + pf.orange + '</span>';
+                if (pf.yellow > 0) flagPills += '<span style="background:#d97706;color:white;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;margin-left:4px;">🟡 ' + pf.yellow + '</span>';
                 return '<div onclick="openRiskDetail(\'' + escapeHtml(p.username) + '\')" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--shadow-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background=\'rgba(99,102,241,0.05)\'" onmouseout="this.style.background=\'transparent\'">' +
                     '<div>' +
                         '<strong>' + escapeHtml(p.full_name || p.username) + '</strong>' +
+                        (flagPills ? '<span style="margin-left:8px;">' + flagPills + '</span>' : '') +
                         '<div style="font-size: 0.85em; color: var(--text-secondary);">' + (p.last_assessed ? 'Last assessed: ' + new Date(p.last_assessed).toLocaleDateString() : 'Not yet assessed') + '</div>' +
                     '</div>' +
                     '<span style="background: ' + (levelColors[p.risk_level] || '#ccc') + '; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.85em;">' + (p.risk_level || 'low').toUpperCase() + '</span>' +

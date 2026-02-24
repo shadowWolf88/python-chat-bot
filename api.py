@@ -3362,6 +3362,148 @@ class RiskScoringEngine:
             score += alert_points
             factors.append(f"Recent safety alerts: {recent_alerts[0]}")
 
+        # CORE-10
+        try:
+            core10 = cur.execute(
+                "SELECT score FROM clinical_scales WHERE username = %s AND scale_name = 'CORE-10' ORDER BY entry_timestamp DESC LIMIT 1",
+                (username,)
+            ).fetchone()
+            if core10:
+                c10 = core10[0]
+                if c10 >= 20:
+                    score += 8
+                    factors.append(f"CORE-10 severe: {c10}")
+                elif c10 >= 15:
+                    score += 4
+                    factors.append(f"CORE-10 moderate: {c10}")
+        except Exception:
+            pass
+
+        # CORE-OM risk domain (JSONB column domain_scores)
+        try:
+            core_om = cur.execute(
+                "SELECT (domain_scores->>'risk')::REAL FROM clinical_scales WHERE username = %s AND scale_name = 'CORE-OM' AND domain_scores IS NOT NULL ORDER BY entry_timestamp DESC LIMIT 1",
+                (username,)
+            ).fetchone()
+            if core_om and core_om[0] is not None:
+                risk_domain = core_om[0]
+                if risk_domain >= 2.5:
+                    score += 8
+                    factors.append(f"CORE-OM risk domain high: {risk_domain:.2f}")
+                elif risk_domain >= 1.5:
+                    score += 4
+                    factors.append(f"CORE-OM risk domain elevated: {risk_domain:.2f}")
+        except Exception:
+            pass
+
+        # WEMWBS (low wellbeing = higher risk)
+        try:
+            wemwbs = cur.execute(
+                "SELECT score FROM clinical_scales WHERE username = %s AND scale_name = 'WEMWBS' ORDER BY entry_timestamp DESC LIMIT 1",
+                (username,)
+            ).fetchone()
+            if wemwbs:
+                w = wemwbs[0]
+                if w <= 32:
+                    score += 6
+                    factors.append(f"WEMWBS low wellbeing: {w}")
+                elif w <= 40:
+                    score += 3
+                    factors.append(f"WEMWBS borderline wellbeing: {w}")
+        except Exception:
+            pass
+
+        # ORS (below clinical cutoff 25 = distress)
+        try:
+            ors = cur.execute(
+                "SELECT score FROM clinical_scales WHERE username = %s AND scale_name = 'ORS' ORDER BY entry_timestamp DESC LIMIT 1",
+                (username,)
+            ).fetchone()
+            if ors and ors[0] is not None and ors[0] <= 25:
+                score += 4
+                factors.append(f"ORS below clinical cutoff: {ors[0]}")
+        except Exception:
+            pass
+
+        # C-SSRS — check for any recent intent or planning responses
+        try:
+            cssrs = cur.execute(
+                "SELECT responses FROM clinical_scales WHERE username = %s AND scale_name = 'C-SSRS' AND responses IS NOT NULL ORDER BY entry_timestamp DESC LIMIT 1",
+                (username,)
+            ).fetchone()
+            if cssrs and cssrs[0]:
+                import json as _json
+                resp = cssrs[0] if isinstance(cssrs[0], dict) else _json.loads(cssrs[0])
+                if resp.get('intent') or resp.get('planning') or resp.get('q5'):
+                    score += 10
+                    factors.append("C-SSRS: suicidal intent reported")
+                elif resp.get('ideation') or resp.get('q4'):
+                    score += 8
+                    factors.append("C-SSRS: suicidal ideation with plan")
+        except Exception:
+            pass
+
+        # PHQ-9 upward trend (last 3 scores)
+        try:
+            phq_trend = cur.execute(
+                "SELECT score, entry_timestamp FROM clinical_scales WHERE username = %s AND scale_name = 'PHQ-9' ORDER BY entry_timestamp DESC LIMIT 3",
+                (username,)
+            ).fetchall()
+            if len(phq_trend) >= 3:
+                scores_asc = [r[0] for r in reversed(phq_trend)]
+                dates_asc = [r[1] for r in reversed(phq_trend)]
+                if scores_asc[2] > scores_asc[1] > scores_asc[0]:
+                    weeks = max(1, ((dates_asc[2] - dates_asc[0]).days) / 7) if hasattr(dates_asc[0], 'days') else 1
+                    slope = (scores_asc[2] - scores_asc[0]) / weeks
+                    if slope >= 3:
+                        score += 5
+                        factors.append(f"PHQ-9 rising trend: +{slope:.1f}/week")
+        except Exception:
+            pass
+
+        # GAD-7 upward trend (last 3 scores)
+        try:
+            gad_trend = cur.execute(
+                "SELECT score, entry_timestamp FROM clinical_scales WHERE username = %s AND scale_name = 'GAD-7' ORDER BY entry_timestamp DESC LIMIT 3",
+                (username,)
+            ).fetchall()
+            if len(gad_trend) >= 3:
+                scores_asc = [r[0] for r in reversed(gad_trend)]
+                dates_asc = [r[1] for r in reversed(gad_trend)]
+                if scores_asc[2] > scores_asc[1] > scores_asc[0]:
+                    weeks = max(1, ((dates_asc[2] - dates_asc[0]).days) / 7) if hasattr(dates_asc[0], 'days') else 1
+                    slope = (scores_asc[2] - scores_asc[0]) / weeks
+                    if slope >= 3:
+                        score += 4
+                        factors.append(f"GAD-7 rising trend: +{slope:.1f}/week")
+        except Exception:
+            pass
+
+        # Assessment gap — no PHQ-9 in 28 days for active patient
+        try:
+            last_phq_date = cur.execute(
+                "SELECT entry_timestamp FROM clinical_scales WHERE username = %s AND scale_name = 'PHQ-9' ORDER BY entry_timestamp DESC LIMIT 1",
+                (username,)
+            ).fetchone()
+            has_mood = cur.execute(
+                "SELECT COUNT(*) FROM mood_logs WHERE username = %s AND entrestamp >= CURRENT_TIMESTAMP - INTERVAL '14 days'",
+                (username,)
+            ).fetchone()
+            if has_mood and has_mood[0] > 0:
+                if not last_phq_date:
+                    score += 3
+                    factors.append("Assessment gap: no PHQ-9 on record for active patient")
+                else:
+                    from datetime import datetime as _dt
+                    ts = last_phq_date[0]
+                    if not isinstance(ts, _dt):
+                        ts = _dt.fromisoformat(str(ts))
+                    if (_dt.now() - ts).days > 28:
+                        score += 3
+                        factors.append(f"Assessment gap: no PHQ-9 in {(_dt.now() - ts).days} days")
+        except Exception:
+            pass
+
         return min(score, 40), factors
 
     @staticmethod
@@ -3450,6 +3592,143 @@ class RiskScoringEngine:
         if late_night and late_night[0] >= 3:
             score += 5
             factors.append(f"Late-night activity: {late_night[0]} sessions (2-5am)")
+
+        # Login recency
+        try:
+            last_login = cur.execute(
+                "SELECT last_login FROM users WHERE username = %s",
+                (username,)
+            ).fetchone()
+            if last_login and last_login[0]:
+                from datetime import datetime as _dt
+                ll = last_login[0]
+                if not isinstance(ll, _dt):
+                    ll = _dt.fromisoformat(str(ll))
+                days_absent = (_dt.now() - ll).days
+                if days_absent >= 14:
+                    score += 10
+                    factors.append(f"No login in {days_absent} days")
+                elif days_absent >= 7:
+                    score += 6
+                    factors.append(f"No login in {days_absent} days")
+        except Exception:
+            pass
+
+        # 7-day vs prior 7-day mood average drop
+        try:
+            avg_recent = cur.execute(
+                "SELECT AVG(mood_val) FROM mood_logs WHERE username = %s AND entrestamp >= CURRENT_TIMESTAMP - INTERVAL '7 days'",
+                (username,)
+            ).fetchone()
+            avg_prior = cur.execute(
+                "SELECT AVG(mood_val) FROM mood_logs WHERE username = %s AND entrestamp >= CURRENT_TIMESTAMP - INTERVAL '14 days' AND entrestamp < CURRENT_TIMESTAMP - INTERVAL '7 days'",
+                (username,)
+            ).fetchone()
+            if avg_recent and avg_prior and avg_recent[0] is not None and avg_prior[0] is not None:
+                drop = float(avg_prior[0]) - float(avg_recent[0])
+                if drop >= 2.0:
+                    score += 5
+                    factors.append(f"Mood average dropped {drop:.1f} pts vs prior week")
+        except Exception:
+            pass
+
+        # Medication non-adherence
+        try:
+            adh = cur.execute(
+                """SELECT AVG(CASE WHEN taken THEN 1.0 ELSE 0.0 END)
+                   FROM medication_adherence_logs
+                   WHERE username = %s AND logged_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'""",
+                (username,)
+            ).fetchone()
+            if adh and adh[0] is not None and float(adh[0]) < 0.70:
+                score += 5
+                factors.append(f"Medication adherence low: {float(adh[0])*100:.0f}% last 7 days")
+        except Exception:
+            pass
+
+        # Poor sleep quality
+        try:
+            sleep = cur.execute(
+                "SELECT AVG(sleep_quality) FROM wellness_logs WHERE username = %s AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '7 days' AND sleep_quality IS NOT NULL",
+                (username,)
+            ).fetchone()
+            if sleep and sleep[0] is not None and float(sleep[0]) < 4.0:
+                score += 3
+                factors.append(f"Poor sleep quality avg: {float(sleep[0]):.1f}/10 last 7 days")
+        except Exception:
+            pass
+
+        # Social isolation — no community posts in 14 days
+        try:
+            comm = cur.execute(
+                """SELECT COUNT(*) FROM (
+                    SELECT id FROM community_posts WHERE author_username = %s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '14 days'
+                    UNION ALL
+                    SELECT id FROM community_comments WHERE author_username = %s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '14 days'
+                ) AS community_activity""",
+                (username, username)
+            ).fetchone()
+            had_prior = cur.execute(
+                """SELECT COUNT(*) FROM (
+                    SELECT id FROM community_posts WHERE author_username = %s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '60 days' AND created_at < CURRENT_TIMESTAMP - INTERVAL '14 days'
+                    UNION ALL
+                    SELECT id FROM community_comments WHERE author_username = %s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '60 days' AND created_at < CURRENT_TIMESTAMP - INTERVAL '14 days'
+                ) AS prior_community""",
+                (username, username)
+            ).fetchone()
+            if comm and comm[0] == 0 and had_prior and had_prior[0] > 0:
+                score += 3
+                factors.append("Social isolation: no community activity in 14 days (was previously active)")
+        except Exception:
+            pass
+
+        # Gratitude abandonment
+        try:
+            grat_recent = cur.execute(
+                "SELECT COUNT(*) FROM gratitude_logs WHERE username = %s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '14 days'",
+                (username,)
+            ).fetchone()
+            grat_prior = cur.execute(
+                "SELECT COUNT(*) FROM gratitude_logs WHERE username = %s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '60 days' AND created_at < CURRENT_TIMESTAMP - INTERVAL '14 days'",
+                (username,)
+            ).fetchone()
+            if grat_recent and grat_recent[0] == 0 and grat_prior and grat_prior[0] >= 3:
+                score += 2
+                factors.append("Gratitude journalling stopped (was previously active)")
+        except Exception:
+            pass
+
+        # Quest disengagement
+        try:
+            quest_recent = cur.execute(
+                "SELECT COUNT(*) FROM patient_quests WHERE username = %s AND updated_at >= CURRENT_TIMESTAMP - INTERVAL '14 days'",
+                (username,)
+            ).fetchone()
+            quest_prior = cur.execute(
+                "SELECT COUNT(*) FROM patient_quests WHERE username = %s AND updated_at >= CURRENT_TIMESTAMP - INTERVAL '60 days' AND updated_at < CURRENT_TIMESTAMP - INTERVAL '14 days'",
+                (username,)
+            ).fetchone()
+            if quest_recent and quest_recent[0] == 0 and quest_prior and quest_prior[0] > 0:
+                score += 2
+                factors.append("Quest progress stopped (was previously active)")
+        except Exception:
+            pass
+
+        # Wellness log absence
+        try:
+            wellness = cur.execute(
+                "SELECT COUNT(*) FROM wellness_logs WHERE username = %s AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '10 days'",
+                (username,)
+            ).fetchone()
+            wellness_prior = cur.execute(
+                "SELECT COUNT(*) FROM wellness_logs WHERE username = %s AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '40 days' AND timestamp < CURRENT_TIMESTAMP - INTERVAL '10 days'",
+                (username,)
+            ).fetchone()
+            if wellness and wellness[0] == 0 and wellness_prior and wellness_prior[0] > 0:
+                score += 3
+                factors.append("Wellness logging stopped (was previously active)")
+        except Exception:
+            pass
 
         return min(score, 30), factors
 
@@ -3652,6 +3931,16 @@ class RiskScoringEngine:
                 log_event(username, 'risk', f'risk_{risk_level}',
                           f"Risk score: {total_score}, Flags: {critical_flags}")
 
+            # Run predictive signal detection (non-blocking — won't affect composite score)
+            try:
+                run_predictive_signals(username, cur, conn)
+            except Exception as _ps_e:
+                print(f"Predictive signals error for {username}: {_ps_e}")
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
             conn.commit()
             conn.close()
 
@@ -3688,6 +3977,589 @@ class RiskScoringEngine:
                 'critical_flags': [],
                 'assessment_id': None
             }
+
+
+def run_predictive_signals(username, cur, conn):
+    """Run predictive risk signal detection for a patient.
+
+    Queries 27 clinical and behavioural signals, upserts fired flags into
+    predictive_risk_flags, auto-resolves flags whose conditions have cleared.
+
+    Returns:
+        dict: {yellow: int, orange: int, red: int, flags: list}
+    """
+    from datetime import datetime as _dt
+    import json as _json
+
+    fired_signals = []  # list of dicts
+
+    # ── CLINICAL SIGNALS ────────────────────────────────────────────────────────
+
+    # PHQ-9 severe / moderately severe
+    try:
+        phq = cur.execute(
+            "SELECT score FROM clinical_scales WHERE username=%s AND scale_name='PHQ-9' ORDER BY entry_timestamp DESC LIMIT 1",
+            (username,)
+        ).fetchone()
+        if phq:
+            if phq[0] >= 20:
+                fired_signals.append(dict(
+                    signal_type='phq9_severe', flag_level='red',
+                    title='PHQ-9 Severe Depression',
+                    details=f'Latest PHQ-9 score: {phq[0]}/27 (severe range)',
+                    reasoning='PHQ-9 ≥20 indicates severe depression requiring immediate clinical review.',
+                    recommended_action='Contact patient within 24 hours; consider crisis referral pathway.',
+                    confidence=1.0
+                ))
+            elif phq[0] >= 15:
+                fired_signals.append(dict(
+                    signal_type='phq9_severe', flag_level='orange',
+                    title='PHQ-9 Moderately Severe',
+                    details=f'Latest PHQ-9 score: {phq[0]}/27',
+                    reasoning='PHQ-9 15–19 indicates moderately severe depression.',
+                    recommended_action='Review treatment plan; consider increasing session frequency.',
+                    confidence=1.0
+                ))
+    except Exception:
+        pass
+
+    # PHQ-9 upward trend
+    try:
+        phq_rows = cur.execute(
+            "SELECT score, entry_timestamp FROM clinical_scales WHERE username=%s AND scale_name='PHQ-9' ORDER BY entry_timestamp DESC LIMIT 3",
+            (username,)
+        ).fetchall()
+        if len(phq_rows) >= 3:
+            scores_asc = [r[0] for r in reversed(phq_rows)]
+            dates_asc = [r[1] for r in reversed(phq_rows)]
+            if scores_asc[2] > scores_asc[1] > scores_asc[0]:
+                span_days = max(1, (dates_asc[2] - dates_asc[0]).days if hasattr(dates_asc[0], 'days') else 1)
+                slope = (scores_asc[2] - scores_asc[0]) / max(1, span_days / 7)
+                if slope >= 3:
+                    fired_signals.append(dict(
+                        signal_type='phq9_trend_up', flag_level='orange',
+                        title='PHQ-9 Rising Trend',
+                        details=f'Scores: {scores_asc[0]} → {scores_asc[1]} → {scores_asc[2]} (+{slope:.1f}/week)',
+                        reasoning='Three consecutive PHQ-9 increases suggest progressive deterioration.',
+                        recommended_action='Discuss treatment response at next session; consider medication review.',
+                        confidence=0.9
+                    ))
+    except Exception:
+        pass
+
+    # GAD-7 severe
+    try:
+        gad = cur.execute(
+            "SELECT score FROM clinical_scales WHERE username=%s AND scale_name='GAD-7' ORDER BY entry_timestamp DESC LIMIT 1",
+            (username,)
+        ).fetchone()
+        if gad:
+            if gad[0] >= 15:
+                fired_signals.append(dict(
+                    signal_type='gad7_severe', flag_level='orange',
+                    title='GAD-7 Severe Anxiety',
+                    details=f'Latest GAD-7 score: {gad[0]}/21',
+                    reasoning='GAD-7 ≥15 indicates severe anxiety.',
+                    recommended_action='Review anxiety management strategies; consider referral review.',
+                    confidence=1.0
+                ))
+    except Exception:
+        pass
+
+    # GAD-7 trend
+    try:
+        gad_rows = cur.execute(
+            "SELECT score, entry_timestamp FROM clinical_scales WHERE username=%s AND scale_name='GAD-7' ORDER BY entry_timestamp DESC LIMIT 3",
+            (username,)
+        ).fetchall()
+        if len(gad_rows) >= 3:
+            scores_asc = [r[0] for r in reversed(gad_rows)]
+            dates_asc = [r[1] for r in reversed(gad_rows)]
+            if scores_asc[2] > scores_asc[1] > scores_asc[0]:
+                span_days = max(1, (dates_asc[2] - dates_asc[0]).days if hasattr(dates_asc[0], 'days') else 1)
+                slope = (scores_asc[2] - scores_asc[0]) / max(1, span_days / 7)
+                if slope >= 3:
+                    fired_signals.append(dict(
+                        signal_type='gad7_trend_up', flag_level='yellow',
+                        title='GAD-7 Rising Trend',
+                        details=f'Scores: {scores_asc[0]} → {scores_asc[1]} → {scores_asc[2]} (+{slope:.1f}/week)',
+                        reasoning='Three consecutive GAD-7 increases suggest worsening anxiety.',
+                        recommended_action='Explore stressors at next session; review coping strategies.',
+                        confidence=0.85
+                    ))
+    except Exception:
+        pass
+
+    # CORE-10
+    try:
+        c10 = cur.execute(
+            "SELECT score FROM clinical_scales WHERE username=%s AND scale_name='CORE-10' ORDER BY entry_timestamp DESC LIMIT 1",
+            (username,)
+        ).fetchone()
+        if c10:
+            if c10[0] >= 20:
+                fired_signals.append(dict(
+                    signal_type='core10_severe', flag_level='red',
+                    title='CORE-10 Severe Distress',
+                    details=f'CORE-10 score: {c10[0]}/40 (severe range)',
+                    reasoning='CORE-10 ≥20 indicates severe psychological distress.',
+                    recommended_action='Immediate clinical review; consider crisis pathway.',
+                    confidence=1.0
+                ))
+            elif c10[0] >= 15:
+                fired_signals.append(dict(
+                    signal_type='core10_moderate', flag_level='orange',
+                    title='CORE-10 Moderate-Severe Distress',
+                    details=f'CORE-10 score: {c10[0]}/40',
+                    reasoning='CORE-10 15–19 indicates moderate-severe distress.',
+                    recommended_action='Review treatment plan; increase monitoring frequency.',
+                    confidence=1.0
+                ))
+    except Exception:
+        pass
+
+    # CORE-OM risk domain
+    try:
+        core_om = cur.execute(
+            "SELECT (domain_scores->>'risk')::REAL FROM clinical_scales WHERE username=%s AND scale_name='CORE-OM' AND domain_scores IS NOT NULL ORDER BY entry_timestamp DESC LIMIT 1",
+            (username,)
+        ).fetchone()
+        if core_om and core_om[0] is not None:
+            rd = core_om[0]
+            if rd >= 2.5:
+                fired_signals.append(dict(
+                    signal_type='core_om_risk_high', flag_level='red',
+                    title='CORE-OM High Risk Domain Score',
+                    details=f'Risk domain score: {rd:.2f}/4.0',
+                    reasoning='CORE-OM risk domain ≥2.5 indicates significant self-harm/suicidal risk.',
+                    recommended_action='Immediate safety assessment; contact patient today.',
+                    confidence=1.0
+                ))
+            elif rd >= 1.5:
+                fired_signals.append(dict(
+                    signal_type='core_om_risk_moderate', flag_level='orange',
+                    title='CORE-OM Elevated Risk Domain',
+                    details=f'Risk domain score: {rd:.2f}/4.0',
+                    reasoning='CORE-OM risk domain 1.5–2.4 indicates elevated risk.',
+                    recommended_action='Review safety plan at next session; consider earlier appointment.',
+                    confidence=1.0
+                ))
+    except Exception:
+        pass
+
+    # WEMWBS
+    try:
+        wem = cur.execute(
+            "SELECT score FROM clinical_scales WHERE username=%s AND scale_name='WEMWBS' ORDER BY entry_timestamp DESC LIMIT 1",
+            (username,)
+        ).fetchone()
+        if wem:
+            if wem[0] <= 32:
+                fired_signals.append(dict(
+                    signal_type='wemwbs_low', flag_level='orange',
+                    title='WEMWBS Low Wellbeing',
+                    details=f'WEMWBS score: {wem[0]}/70 (low wellbeing range)',
+                    reasoning='WEMWBS ≤32 indicates low mental wellbeing, associated with higher risk.',
+                    recommended_action='Focus on wellbeing-building activities; review positive psychology interventions.',
+                    confidence=0.9
+                ))
+            elif wem[0] <= 40:
+                fired_signals.append(dict(
+                    signal_type='wemwbs_borderline', flag_level='yellow',
+                    title='WEMWBS Borderline Wellbeing',
+                    details=f'WEMWBS score: {wem[0]}/70',
+                    reasoning='WEMWBS 33–40 indicates below-average wellbeing.',
+                    recommended_action='Monitor closely; encourage engagement with wellness activities.',
+                    confidence=0.85
+                ))
+    except Exception:
+        pass
+
+    # ORS
+    try:
+        ors = cur.execute(
+            "SELECT score FROM clinical_scales WHERE username=%s AND scale_name='ORS' ORDER BY entry_timestamp DESC LIMIT 1",
+            (username,)
+        ).fetchone()
+        if ors and ors[0] is not None and ors[0] <= 25:
+            fired_signals.append(dict(
+                signal_type='ors_below_cutoff', flag_level='orange',
+                title='ORS Below Clinical Cutoff',
+                details=f'Outcome Rating Scale: {ors[0]}/40 (clinical cutoff is 25)',
+                reasoning='ORS ≤25 indicates the patient is in the clinical range for distress.',
+                recommended_action='Review therapeutic alliance and treatment progress; adjust approach if needed.',
+                confidence=0.95
+            ))
+    except Exception:
+        pass
+
+    # C-SSRS
+    try:
+        cssrs = cur.execute(
+            "SELECT responses FROM clinical_scales WHERE username=%s AND scale_name='C-SSRS' AND responses IS NOT NULL ORDER BY entry_timestamp DESC LIMIT 1",
+            (username,)
+        ).fetchone()
+        if cssrs and cssrs[0]:
+            resp = cssrs[0] if isinstance(cssrs[0], dict) else _json.loads(cssrs[0])
+            if resp.get('intent') or resp.get('planning') or resp.get('q5'):
+                fired_signals.append(dict(
+                    signal_type='cssrs_intent', flag_level='red',
+                    title='C-SSRS: Suicidal Intent Reported',
+                    details='Patient reported suicidal intent or planning on C-SSRS',
+                    reasoning='Any C-SSRS intent/planning response requires immediate clinical action.',
+                    recommended_action='IMMEDIATE: Contact patient, activate safety protocol, consider emergency referral.',
+                    confidence=1.0
+                ))
+            elif resp.get('ideation') or resp.get('q4'):
+                fired_signals.append(dict(
+                    signal_type='cssrs_planning', flag_level='red',
+                    title='C-SSRS: Suicidal Ideation with Plan',
+                    details='Patient endorsed active suicidal ideation with a plan on C-SSRS',
+                    reasoning='Suicidal ideation with plan is a high-risk indicator requiring urgent response.',
+                    recommended_action='Contact patient within 24 hours; review safety plan; consider crisis referral.',
+                    confidence=1.0
+                ))
+    except Exception:
+        pass
+
+    # Assessment gap
+    try:
+        last_phq = cur.execute(
+            "SELECT entry_timestamp FROM clinical_scales WHERE username=%s AND scale_name='PHQ-9' ORDER BY entry_timestamp DESC LIMIT 1",
+            (username,)
+        ).fetchone()
+        mood_active = cur.execute(
+            "SELECT COUNT(*) FROM mood_logs WHERE username=%s AND entrestamp >= CURRENT_TIMESTAMP - INTERVAL '14 days'",
+            (username,)
+        ).fetchone()
+        if mood_active and mood_active[0] > 0:
+            if not last_phq:
+                fired_signals.append(dict(
+                    signal_type='assessment_gap_phq9', flag_level='yellow',
+                    title='No PHQ-9 on Record',
+                    details='Active patient has not completed a PHQ-9 assessment',
+                    reasoning='Baseline assessment missing — cannot track depression severity.',
+                    recommended_action='Request patient completes PHQ-9 before next session.',
+                    confidence=0.8
+                ))
+            else:
+                ts = last_phq[0]
+                if not isinstance(ts, _dt):
+                    ts = _dt.fromisoformat(str(ts))
+                gap = (_dt.now() - ts).days
+                if gap > 28:
+                    fired_signals.append(dict(
+                        signal_type='assessment_gap_phq9', flag_level='yellow',
+                        title=f'PHQ-9 Assessment Gap ({gap} days)',
+                        details=f'Last PHQ-9 completed {gap} days ago',
+                        reasoning='Regular PHQ-9 monitoring recommended every 2–4 weeks for active patients.',
+                        recommended_action='Request patient completes PHQ-9 before or at next session.',
+                        confidence=0.8
+                    ))
+    except Exception:
+        pass
+
+    # ── BEHAVIOURAL SIGNALS ──────────────────────────────────────────────────────
+
+    # Login absence
+    try:
+        ll_row = cur.execute("SELECT last_login FROM users WHERE username=%s", (username,)).fetchone()
+        if ll_row and ll_row[0]:
+            ll = ll_row[0]
+            if not isinstance(ll, _dt):
+                ll = _dt.fromisoformat(str(ll))
+            days_absent = (_dt.now() - ll).days
+            if days_absent >= 14:
+                fired_signals.append(dict(
+                    signal_type='login_absent_14d', flag_level='orange',
+                    title=f'No App Login for {days_absent} Days',
+                    details=f'Last login: {ll.strftime("%d %b %Y")}',
+                    reasoning='Extended absence from the platform may indicate disengagement or deterioration.',
+                    recommended_action='Reach out to patient via message or phone to check in.',
+                    confidence=0.85
+                ))
+            elif days_absent >= 7:
+                fired_signals.append(dict(
+                    signal_type='login_absent_7d', flag_level='yellow',
+                    title=f'No App Login for {days_absent} Days',
+                    details=f'Last login: {ll.strftime("%d %b %Y")}',
+                    reasoning='7-day absence may indicate reduced engagement.',
+                    recommended_action='Consider sending a check-in message.',
+                    confidence=0.75
+                ))
+    except Exception:
+        pass
+
+    # Mood log 7-day absence
+    try:
+        last_ml = cur.execute(
+            "SELECT entrestamp FROM mood_logs WHERE username=%s ORDER BY entrestamp DESC LIMIT 1",
+            (username,)
+        ).fetchone()
+        if last_ml and last_ml[0]:
+            ml_dt = last_ml[0]
+            if not isinstance(ml_dt, _dt):
+                ml_dt = _dt.fromisoformat(str(ml_dt))
+            ml_days = (_dt.now() - ml_dt).days
+            if ml_days >= 7:
+                fired_signals.append(dict(
+                    signal_type='mood_log_absent_7d', flag_level='yellow',
+                    title=f'No Mood Log for {ml_days} Days',
+                    details=f'Last mood entry: {ml_dt.strftime("%d %b %Y")}',
+                    reasoning='Mood tracking gap may reflect avoidance or low motivation.',
+                    recommended_action='Encourage mood logging; explore barriers at next session.',
+                    confidence=0.7
+                ))
+    except Exception:
+        pass
+
+    # Significant mood drop
+    try:
+        avg_r = cur.execute(
+            "SELECT AVG(mood_val) FROM mood_logs WHERE username=%s AND entrestamp >= CURRENT_TIMESTAMP - INTERVAL '7 days'",
+            (username,)
+        ).fetchone()
+        avg_p = cur.execute(
+            "SELECT AVG(mood_val) FROM mood_logs WHERE username=%s AND entrestamp >= CURRENT_TIMESTAMP - INTERVAL '14 days' AND entrestamp < CURRENT_TIMESTAMP - INTERVAL '7 days'",
+            (username,)
+        ).fetchone()
+        if avg_r and avg_p and avg_r[0] is not None and avg_p[0] is not None:
+            drop = float(avg_p[0]) - float(avg_r[0])
+            if drop >= 2.0:
+                fired_signals.append(dict(
+                    signal_type='mood_drop_significant', flag_level='orange',
+                    title=f'Significant Mood Drop (-{drop:.1f} points)',
+                    details=f'7-day avg: {float(avg_r[0]):.1f} vs prior week: {float(avg_p[0]):.1f}',
+                    reasoning='A drop of ≥2 points in average mood over one week is clinically significant.',
+                    recommended_action='Explore triggers at next session; consider bringing appointment forward.',
+                    confidence=0.9
+                ))
+    except Exception:
+        pass
+
+    # Medication non-adherence
+    try:
+        adh = cur.execute(
+            "SELECT AVG(CASE WHEN taken THEN 1.0 ELSE 0.0 END) FROM medication_adherence_logs WHERE username=%s AND logged_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'",
+            (username,)
+        ).fetchone()
+        if adh and adh[0] is not None and float(adh[0]) < 0.70:
+            pct = float(adh[0]) * 100
+            fired_signals.append(dict(
+                signal_type='medication_low_adherence', flag_level='orange',
+                title=f'Medication Adherence Low ({pct:.0f}%)',
+                details=f'Patient took {pct:.0f}% of medications in the past 7 days',
+                reasoning='Medication non-adherence is associated with symptom relapse and increased risk.',
+                recommended_action='Discuss barriers to adherence; coordinate with prescribing clinician if needed.',
+                confidence=0.95
+            ))
+    except Exception:
+        pass
+
+    # Poor sleep
+    try:
+        slp = cur.execute(
+            "SELECT AVG(sleep_quality) FROM wellness_logs WHERE username=%s AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '7 days' AND sleep_quality IS NOT NULL",
+            (username,)
+        ).fetchone()
+        if slp and slp[0] is not None and float(slp[0]) < 4.0:
+            fired_signals.append(dict(
+                signal_type='poor_sleep_sustained', flag_level='yellow',
+                title=f'Poor Sleep Quality (avg {float(slp[0]):.1f}/10)',
+                details=f'Average sleep quality last 7 days: {float(slp[0]):.1f}/10',
+                reasoning='Sustained poor sleep is both a symptom and risk factor for deterioration.',
+                recommended_action='Address sleep hygiene; consider referral for sleep intervention.',
+                confidence=0.8
+            ))
+    except Exception:
+        pass
+
+    # Social isolation
+    try:
+        comm_r = cur.execute(
+            """SELECT COUNT(*) FROM (
+                SELECT id FROM community_posts WHERE author_username=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '14 days'
+                UNION ALL SELECT id FROM community_comments WHERE author_username=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '14 days'
+            ) AS t""",
+            (username, username)
+        ).fetchone()
+        comm_p = cur.execute(
+            """SELECT COUNT(*) FROM (
+                SELECT id FROM community_posts WHERE author_username=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '60 days' AND created_at < CURRENT_TIMESTAMP - INTERVAL '14 days'
+                UNION ALL SELECT id FROM community_comments WHERE author_username=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '60 days' AND created_at < CURRENT_TIMESTAMP - INTERVAL '14 days'
+            ) AS t""",
+            (username, username)
+        ).fetchone()
+        if comm_r and comm_r[0] == 0 and comm_p and comm_p[0] > 0:
+            fired_signals.append(dict(
+                signal_type='social_isolation', flag_level='yellow',
+                title='Social Withdrawal Detected',
+                details='No community activity in 14 days (was previously active)',
+                reasoning='Withdrawal from peer support communities may indicate social isolation or shame.',
+                recommended_action='Explore social engagement barriers; encourage community interaction.',
+                confidence=0.75
+            ))
+    except Exception:
+        pass
+
+    # CBT abandonment
+    try:
+        cbt_r = cur.execute(
+            "SELECT COUNT(*) FROM cbt_tool_entries WHERE username=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'",
+            (username,)
+        ).fetchone()
+        cbt_p = cur.execute(
+            "SELECT COUNT(*) FROM cbt_tool_entries WHERE username=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days' AND created_at < CURRENT_TIMESTAMP - INTERVAL '7 days'",
+            (username,)
+        ).fetchone()
+        if cbt_p and cbt_p[0] >= 3 and cbt_r and cbt_r[0] == 0:
+            fired_signals.append(dict(
+                signal_type='cbt_abandoned', flag_level='yellow',
+                title='CBT Tools Abandoned',
+                details='No CBT tool use in 7 days (previously active)',
+                reasoning='Stopping CBT homework between sessions is associated with poorer outcomes.',
+                recommended_action='Explore barriers to CBT engagement; adjust homework difficulty if needed.',
+                confidence=0.8
+            ))
+    except Exception:
+        pass
+
+    # Wellness log absence
+    try:
+        wel_r = cur.execute(
+            "SELECT COUNT(*) FROM wellness_logs WHERE username=%s AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '10 days'",
+            (username,)
+        ).fetchone()
+        wel_p = cur.execute(
+            "SELECT COUNT(*) FROM wellness_logs WHERE username=%s AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '40 days' AND timestamp < CURRENT_TIMESTAMP - INTERVAL '10 days'",
+            (username,)
+        ).fetchone()
+        if wel_r and wel_r[0] == 0 and wel_p and wel_p[0] > 0:
+            fired_signals.append(dict(
+                signal_type='wellness_log_absent', flag_level='yellow',
+                title='Wellness Logging Stopped',
+                details='No wellness logs in 10 days (was previously active)',
+                reasoning='Stopping wellness tracking may reflect low motivation or avoidance.',
+                recommended_action='Gently explore what has changed; lower barriers to engagement.',
+                confidence=0.7
+            ))
+    except Exception:
+        pass
+
+    # Late-night pattern
+    try:
+        ln = cur.execute(
+            """SELECT COUNT(*) FROM chat_history WHERE session_id LIKE %s
+               AND EXTRACT(HOUR FROM timestamp) BETWEEN 2 AND 4
+               AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '7 days'""",
+            (f"{username}_%",)
+        ).fetchone()
+        if ln and ln[0] >= 3:
+            fired_signals.append(dict(
+                signal_type='late_night_pattern', flag_level='yellow',
+                title='Repeated Late-Night App Use (2–5am)',
+                details=f'{ln[0]} late-night sessions in the past 7 days',
+                reasoning='Late-night usage pattern may indicate insomnia, rumination, or crisis states.',
+                recommended_action='Check in on sleep and nighttime distress at next session.',
+                confidence=0.75
+            ))
+    except Exception:
+        pass
+
+    # Gratitude abandonment
+    try:
+        gr_r = cur.execute(
+            "SELECT COUNT(*) FROM gratitude_logs WHERE username=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '14 days'",
+            (username,)
+        ).fetchone()
+        gr_p = cur.execute(
+            "SELECT COUNT(*) FROM gratitude_logs WHERE username=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '60 days' AND created_at < CURRENT_TIMESTAMP - INTERVAL '14 days'",
+            (username,)
+        ).fetchone()
+        if gr_r and gr_r[0] == 0 and gr_p and gr_p[0] >= 3:
+            fired_signals.append(dict(
+                signal_type='gratitude_abandoned', flag_level='yellow',
+                title='Gratitude Practice Stopped',
+                details='No gratitude entries in 14 days (was previously active)',
+                reasoning='Stopping gratitude practice may reflect anhedonia or low motivation.',
+                recommended_action='Revisit positive psychology exercises at next session.',
+                confidence=0.65
+            ))
+    except Exception:
+        pass
+
+    # ── UPSERT & AUTO-RESOLVE ─────────────────────────────────────────────────────
+
+    fired_types = [s['signal_type'] for s in fired_signals]
+
+    # Get clinician for this patient
+    try:
+        clin_row = cur.execute(
+            "SELECT clinician_id FROM users WHERE username=%s", (username,)
+        ).fetchone()
+        clinician_username = clin_row[0] if clin_row and clin_row[0] else None
+    except Exception:
+        clinician_username = None
+
+    # Upsert each fired signal
+    for sig in fired_signals:
+        try:
+            cur.execute(
+                """INSERT INTO predictive_risk_flags
+                       (patient_username, clinician_username, flag_level, signal_type, title,
+                        details, reasoning, recommended_action, confidence)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (patient_username, signal_type) WHERE is_active = TRUE
+                   DO UPDATE SET
+                       flag_level = EXCLUDED.flag_level,
+                       title = EXCLUDED.title,
+                       details = EXCLUDED.details,
+                       reasoning = EXCLUDED.reasoning,
+                       recommended_action = EXCLUDED.recommended_action,
+                       confidence = EXCLUDED.confidence,
+                       updated_at = NOW()""",
+                (username, clinician_username, sig['flag_level'], sig['signal_type'],
+                 sig['title'], sig['details'], sig['reasoning'],
+                 sig['recommended_action'], sig['confidence'])
+            )
+        except Exception as _e:
+            pass
+
+    # Auto-resolve flags whose conditions have cleared
+    if fired_types:
+        try:
+            placeholders = ','.join(['%s'] * len(fired_types))
+            cur.execute(
+                f"""UPDATE predictive_risk_flags
+                    SET is_active = FALSE, auto_resolved = TRUE, resolved_at = NOW()
+                    WHERE patient_username = %s
+                      AND signal_type NOT IN ({placeholders})
+                      AND is_active = TRUE""",
+                [username] + fired_types
+            )
+        except Exception:
+            pass
+    else:
+        # No signals fired — auto-resolve all active flags
+        try:
+            cur.execute(
+                """UPDATE predictive_risk_flags
+                   SET is_active = FALSE, auto_resolved = TRUE, resolved_at = NOW()
+                   WHERE patient_username = %s AND is_active = TRUE""",
+                (username,)
+            )
+        except Exception:
+            pass
+
+    conn.commit()
+
+    # Count by level
+    counts = {'yellow': 0, 'orange': 0, 'red': 0}
+    for s in fired_signals:
+        lvl = s.get('flag_level', 'yellow')
+        counts[lvl] = counts.get(lvl, 0) + 1
+
+    return {**counts, 'flags': fired_signals}
 
 
 def analyze_conversation_risk(username, message, recent_history):
@@ -5507,7 +6379,46 @@ def init_db():
             print(f"Failsafe ensure note (spell_mastery): {_e}")
             conn.rollback()
 
-        print("✓ Failsafe ensures complete")
+        # 2.1: Predictive risk flags table
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS predictive_risk_flags (
+                    id SERIAL PRIMARY KEY,
+                    patient_username TEXT NOT NULL,
+                    clinician_username TEXT,
+                    flag_level TEXT NOT NULL DEFAULT 'yellow',
+                    signal_type TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    details TEXT,
+                    reasoning TEXT,
+                    recommended_action TEXT,
+                    confidence REAL DEFAULT 1.0,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    auto_resolved BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    resolved_at TIMESTAMP,
+                    resolved_by TEXT,
+                    resolution_notes TEXT,
+                    CONSTRAINT valid_flag_level CHECK (flag_level IN ('yellow', 'orange', 'red'))
+                )
+            """)
+            conn.commit()
+        except Exception as _e:
+            print(f"Failsafe ensure note (predictive_risk_flags): {_e}")
+            conn.rollback()
+        for _pidx in [
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_predictive_flags_active ON predictive_risk_flags(patient_username, signal_type) WHERE is_active = TRUE",
+            "CREATE INDEX IF NOT EXISTS idx_predictive_flags_patient ON predictive_risk_flags(patient_username)",
+            "CREATE INDEX IF NOT EXISTS idx_predictive_flags_active_bool ON predictive_risk_flags(is_active) WHERE is_active = TRUE",
+        ]:
+            try:
+                cursor.execute(_pidx)
+                conn.commit()
+            except Exception as _e:
+                conn.rollback()
+
+        print("\u2713 Failsafe ensures complete")
         # ── END FAILSAFE ENSURES ────────────────────────────────────────────────
 
         # Verify the database is accessible
@@ -15645,12 +16556,28 @@ def get_risk_dashboard():
                 (p_user,)
             ).fetchone()
 
+            # Get predictive flag counts for this patient
+            pf_counts = {'yellow': 0, 'orange': 0, 'red': 0}
+            try:
+                pf_rows = cur.execute(
+                    """SELECT flag_level, COUNT(*) FROM predictive_risk_flags
+                       WHERE patient_username = %s AND is_active = TRUE
+                       GROUP BY flag_level""",
+                    (p_user,)
+                ).fetchall()
+                for lvl, cnt in pf_rows:
+                    if lvl in pf_counts:
+                        pf_counts[lvl] = cnt
+            except Exception:
+                pass
+
             patient_risks.append({
                 'username': p_user,
                 'full_name': p_name,
                 'risk_score': latest[0] if latest else 0,
                 'risk_level': latest[1] if latest else 'low',
-                'last_assessed': latest[2].isoformat() if latest and latest[2] else None
+                'last_assessed': latest[2].isoformat() if latest and latest[2] else None,
+                'predictive_flags': pf_counts
             })
 
         # Sort by risk score descending
@@ -15693,16 +16620,104 @@ def get_risk_dashboard():
             'patient_name': r[6]
         } for r in recent]
 
+        # Compute flag summary totals
+        flag_summary = {'total_red': 0, 'total_orange': 0, 'total_yellow': 0}
+        for p in patient_risks:
+            pf = p.get('predictive_flags', {})
+            flag_summary['total_red'] += pf.get('red', 0)
+            flag_summary['total_orange'] += pf.get('orange', 0)
+            flag_summary['total_yellow'] += pf.get('yellow', 0)
+
         return jsonify({
             'success': True,
             'summary': summary,
             'unreviewed_alerts': unreviewed,
             'patients': patient_risks,
-            'recent_alerts': recent_alerts
+            'recent_alerts': recent_alerts,
+            'flag_summary': flag_summary
         }), 200
 
     except Exception as e:
         return handle_exception(e, 'get_risk_dashboard')
+
+
+# ==================== PREDICTIVE RISK FLAG ENDPOINTS ====================
+
+@app.route('/api/risk/predictive/<patient_username>', methods=['GET'])
+def get_predictive_flags(patient_username):
+    """Get active predictive risk flags for a patient (clinician only)."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username = %s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician role required'}), 403
+        flags = cur.execute(
+            """SELECT id, flag_level, signal_type, title, details, reasoning,
+                      recommended_action, confidence, created_at, updated_at
+               FROM predictive_risk_flags
+               WHERE patient_username = %s AND is_active = TRUE
+               ORDER BY
+                   CASE flag_level WHEN 'red' THEN 1 WHEN 'orange' THEN 2 ELSE 3 END,
+                   created_at DESC""",
+            (patient_username,)
+        ).fetchall()
+        conn.close()
+        return jsonify({
+            'success': True,
+            'flags': [{
+                'id': r[0],
+                'flag_level': r[1],
+                'signal_type': r[2],
+                'title': r[3],
+                'details': r[4],
+                'reasoning': r[5],
+                'recommended_action': r[6],
+                'confidence': r[7],
+                'created_at': r[8].isoformat() if r[8] else None,
+                'updated_at': r[9].isoformat() if r[9] else None
+            } for r in flags]
+        }), 200
+    except Exception as e:
+        return handle_exception(e, 'get_predictive_flags')
+
+
+@app.route('/api/risk/predictive/<int:flag_id>/dismiss', methods=['PATCH'])
+@CSRFProtection.require_csrf
+def dismiss_predictive_flag(flag_id):
+    """Dismiss (resolve) a predictive risk flag."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username = %s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician role required'}), 403
+        data = request.get_json() or {}
+        resolution_notes = data.get('resolution_notes', '')
+        updated = cur.execute(
+            """UPDATE predictive_risk_flags
+               SET is_active = FALSE, auto_resolved = FALSE,
+                   resolved_at = NOW(), resolved_by = %s,
+                   resolution_notes = %s, updated_at = NOW()
+               WHERE id = %s AND is_active = TRUE
+               RETURNING id, signal_type, flag_level""",
+            (username, resolution_notes, flag_id)
+        ).fetchone()
+        conn.commit()
+        conn.close()
+        if not updated:
+            return jsonify({'error': 'Flag not found or already resolved'}), 404
+        return jsonify({'success': True, 'flag_id': updated[0]}), 200
+    except Exception as e:
+        return handle_exception(e, 'dismiss_predictive_flag')
 
 
 # ==================== ENHANCED SAFETY PLAN ENDPOINTS ====================
@@ -21016,8 +22031,7 @@ def detect_patterns_endpoint():
         cur = get_wrapped_cursor(conn)
 
         active_users = cur.execute("""
-            SELECT DISTINCT username FROM ai_activity_log
-            WHERE activity_timestamp >= NOW() - INTERVAL '24 hours'
+            SELECT username FROM users WHERE role = 'user' OR role = 'patient'
         """).fetchall()
 
         users_analyzed = 0
@@ -21090,15 +22104,21 @@ def detect_patterns_endpoint():
             except Exception as e:
                 print(f"Escalation pattern error for {username}: {e}")
 
+            # Run predictive signals for this user
+            try:
+                run_predictive_signals(username, cur, conn)
+            except Exception as _ps_e:
+                print(f"Predictive signals error for {username}: {_ps_e}")
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
             users_analyzed += 1
 
         conn.commit()
         conn.close()
-
-        return jsonify({
-            'success': True,
-            'users_analyzed': users_analyzed
-        }), 200
+        return jsonify({'success': True, 'users_analyzed': users_analyzed}), 200
 
     except Exception as e:
         print(f"Pattern detection error: {e}")
