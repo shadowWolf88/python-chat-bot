@@ -2901,26 +2901,49 @@
             padding-right: 45px;
         }
         
-        @media (max-width: 768px) {
+        /* ── Mobile: sidebar becomes a horizontal scroll bar at the top ── */
+        @media (max-width: 900px) {
             .app-content {
                 flex-direction: column;
                 height: auto;
+                min-height: calc(100vh - 80px);
             }
             .sidebar {
-                width: 100%;
-                display: flex;
+                width: 100% !important;
+                min-width: 0;
+                display: flex !important;
+                flex-direction: row !important;
                 overflow-x: auto;
-                padding: 10px 0;
+                overflow-y: hidden;
+                padding: 8px 4px;
+                box-shadow: 0 2px 8px var(--shadow-color);
+                /* Prevent sidebar from collapsing on flex-column parent */
+                flex-shrink: 0;
+                /* Scrollbar styling */
+                scrollbar-width: thin;
+                scrollbar-color: rgba(255,255,255,0.3) transparent;
             }
+            .sidebar::-webkit-scrollbar { height: 4px; }
+            .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
             .tab-btn {
-                min-width: 140px;
-                border-left: none;
-                border-bottom: 4px solid transparent;
-                margin: 0 5px;
+                min-width: 120px;
+                max-width: 160px;
+                white-space: nowrap;
+                border-left: none !important;
+                border-bottom: 3px solid transparent;
+                border-radius: 8px 8px 0 0;
+                margin: 0 3px;
+                padding: 10px 14px;
+                font-size: 13px;
+                flex-shrink: 0;
             }
             .tab-btn.active {
-                border-bottom-color: #ffd700;
-                border-left-color: transparent;
+                border-bottom-color: #ffd700 !important;
+                border-left-color: transparent !important;
+                background: rgba(255,255,255,0.22) !important;
+            }
+            .main-content {
+                padding: 16px 12px;
             }
             .mood-scale {
                 grid-template-columns: repeat(2, 1fr);
@@ -2929,6 +2952,15 @@
                 right: 10px;
                 left: 10px;
                 width: auto;
+            }
+        }
+
+        /* Extra-small screens — tighter tab labels */
+        @media (max-width: 480px) {
+            .tab-btn {
+                min-width: 90px;
+                font-size: 12px;
+                padding: 8px 10px;
             }
         }
 
@@ -2956,6 +2988,24 @@
 
         .dev-subtab-content {
             display: none;
+        }
+
+        /* Log level filter chips */
+        .log-level-chip {
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color, #e0e0e0);
+            background: var(--bg-secondary, #f8f9fa);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .log-level-chip:hover { opacity: 0.8; }
+        .log-level-chip.active {
+            background: #2c3e50;
+            color: #fff;
+            border-color: #2c3e50;
         }
 
         /* Developer messages sub-tabs */
@@ -6871,6 +6921,7 @@
                     <button class="clinical-subtab-btn" onclick="switchClinicalTab('waitinglist', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                         📋 Waiting List
                     </button>
+                <button class="clinical-subtab-btn" onclick="switchClinicalTab('safeguarding', this)" id="safeguardingSubtabBtn" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">🛡️ Safeguarding</button>
                 </div>
                 
                 <!-- Overview Subtab -->
@@ -7249,6 +7300,72 @@
                     </div>
                 </div>
 
+                <!-- ══ SAFEGUARDING & DUTY OF CARE TAB ═══════════════════════════════ -->
+                <div id="clinicalSafeguardingTab" class="clinical-subtab-content" style="display: none;">
+
+                    <!-- Legal Disclaimer Banner -->
+                    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px;">
+                        <span style="font-size: 1.5em; flex-shrink: 0;">&#x2696;&#xfe0f;</span>
+                        <div>
+                            <strong style="color: #856404; display: block; margin-bottom: 3px;">Legal Notice — Safeguarding Records</strong>
+                            <p style="margin: 0; font-size: 0.88em; color: #856404;">Safeguarding records are permanent legal documents subject to disclosure. Record facts only — no opinion, speculation or clinical interpretation. All entries are timestamped and attributed to the recording clinician.</p>
+                        </div>
+                    </div>
+
+                    <!-- Stats Row -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div class="card" style="text-align: center; padding: 20px; border-top: 4px solid #dc3545;">
+                            <div id="sgStatOpen" style="font-size: 2.2em; font-weight: 700; color: #dc3545;">—</div>
+                            <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 4px;">Open</div>
+                        </div>
+                        <div class="card" style="text-align: center; padding: 20px; border-top: 4px solid #fd7e14;">
+                            <div id="sgStatReferred" style="font-size: 2.2em; font-weight: 700; color: #fd7e14;">—</div>
+                            <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 4px;">Referred</div>
+                        </div>
+                        <div class="card" style="text-align: center; padding: 20px; border-top: 4px solid #6f42c1;">
+                            <div id="sgStatMonitoring" style="font-size: 2.2em; font-weight: 700; color: #6f42c1;">—</div>
+                            <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 4px;">Monitoring</div>
+                        </div>
+                        <div class="card" style="text-align: center; padding: 20px; border-top: 4px solid #dc3545;">
+                            <div id="sgStatImmediate" style="font-size: 2.2em; font-weight: 700; color: #dc3545;">—</div>
+                            <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 4px;">⚠️ Immediate Risk</div>
+                        </div>
+                    </div>
+
+                    <!-- Main Grid: Duty Widget + Concerns List -->
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px;">
+
+                        <!-- Duty Clinician Widget -->
+                        <div class="card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 8px;">
+                                <h4 style="margin: 0;">📞 Duty Clinician</h4>
+                                <button class="btn" style="padding: 6px 14px; font-size: 0.85em; width: auto;" onclick="openDutyModal()">Set Duty</button>
+                            </div>
+                            <div id="dutyClinicianWidget" style="margin-bottom: 15px;">
+                                <div style="color: var(--text-secondary); font-size: 0.9em; padding: 10px 0;">Loading...</div>
+                            </div>
+                            <div>
+                                <strong style="font-size: 0.85em; color: var(--text-secondary); display: block; margin-bottom: 8px;">7-Day Rota</strong>
+                                <div id="dutyRotaList" style="font-size: 0.85em;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Active Concerns -->
+                        <div class="card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 8px;">
+                                <h4 style="margin: 0;">🛡️ Active Concerns</h4>
+                                <button class="btn" style="padding: 6px 14px; font-size: 0.85em; width: auto; background: #dc3545;" onclick="openLogConcernModal(null)">+ Log Concern</button>
+                            </div>
+                            <div id="sgConcernsList" style="max-height: 500px; overflow-y: auto;">
+                                <div style="color: var(--text-secondary); text-align: center; padding: 20px;">Loading...</div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+                <!-- ══ END SAFEGUARDING TAB ════════════════════════════════════ -->
+
                 <!-- Risk Detail Modal -->
                 <div id="riskDetailModal" class="modal" style="display:none;">
                     <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
@@ -7308,6 +7425,7 @@
                         <button class="patient-subtab-btn" onclick="switchPatientTab('progress', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">
                             🏆 Progress
                         </button>
+                        <button class="patient-subtab-btn" onclick="switchPatientTab('safeguarding', this)" style="background: transparent; color: #6366f1; border: 2px solid #6366f1; padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap;">🛡️ Safeguarding</button>
                     </div>
                     
                     <!-- Summary Subtab -->
@@ -7412,6 +7530,18 @@
                     <div id="patientProgressTab" class="patient-subtab-content" style="display: none;">
                         <div id="patientProgressContent"></div>
                     </div>
+                    <!-- Patient Safeguarding Tab -->
+                    <div id="patientSafeguardingTab" class="patient-subtab-content" style="display: none;">
+                        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+                            <span style="font-size: 0.88em; color: #856404;">&#x2696;&#xfe0f; Safeguarding records are permanent legal documents. Record facts only — no opinion or speculation. All entries are attributed to the recording clinician.</span>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                            <button class="btn" style="padding: 8px 18px; font-size: 0.9em; width: auto; background: #dc3545;" onclick="openLogConcernModal(currentPatientData && currentPatientData.username)">+ Log New Concern</button>
+                        </div>
+                        <div id="patientSafeguardingContent">
+                            <div style="text-align: center; padding: 30px; color: var(--text-secondary);">Loading safeguarding records...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -7450,6 +7580,12 @@
                     </button>
                     <button class="dev-subtab-btn" onclick="switchDevTab('jobs', this)" id="devJobsSubtabBtn">
                         🔧 Jobs
+                    </button>
+                    <button class="dev-subtab-btn" onclick="switchDevTab('logs', this)" id="devLogsSubtabBtn">
+                        📋 Logs
+                    </button>
+                    <button class="dev-subtab-btn" onclick="switchDevTab('diagnostics', this)" id="devDiagnosticsSubtabBtn">
+                        🔬 Diagnostics
                     </button>
                 </div>
 
@@ -7796,13 +7932,21 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 <!-- QA Tests Subtab -->
                 <div id="devQaTab" class="dev-subtab-content" style="display: none;">
                     <div class="card" style="background: var(--bg-card); color: var(--text-primary);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h4>🧪 QA Test Runner</h4>
-                            <div style="display: flex; gap: 8px;">
-                                <button class="btn" onclick="runQATests('all')" id="qa-btn-all">Run All Tests</button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                            <h4 style="margin:0;">🧪 QA Test Runner</h4>
+                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                <select id="qaTracebackLevel" style="padding:6px 10px; border:1px solid var(--border-color,#e0e0e0); border-radius:6px; font-size:13px; background:var(--bg-input,white); color:var(--text-primary);" title="Traceback verbosity">
+                                    <option value="short">tb: short</option>
+                                    <option value="long" selected>tb: long</option>
+                                    <option value="full">tb: full</option>
+                                    <option value="no">tb: none</option>
+                                </select>
+                                <button class="btn" onclick="runQATests('all')" id="qa-btn-all">Run All</button>
                                 <button class="btn btn-secondary" onclick="runQATests('backend')" id="qa-btn-backend">Backend</button>
                                 <button class="btn btn-secondary" onclick="runQATests('e2e')" id="qa-btn-e2e">E2E</button>
                                 <button class="btn btn-secondary" onclick="runQATests('security')" id="qa-btn-security">Security</button>
+                                <button class="btn btn-secondary" onclick="runQATests('safeguarding')" id="qa-btn-safeguarding">🛡️ Safeguarding</button>
+                                <button class="btn" id="qa-btn-suggest-fix" onclick="suggestTestFix()" style="display:none; background:#8e44ad; border-color:#8e44ad;">🤖 Suggest Fix</button>
                             </div>
                         </div>
 
@@ -7884,8 +8028,74 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                 <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> E2E Patient Journey</div>
                                 <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> E2E Clinician Journey</div>
                                 <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> E2E Developer Journey</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> 🛡️ Safeguarding Workflow</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Predictive Crisis Detection</div>
+                                <div style="break-inside: avoid; padding: 3px 0;"><span style="color: #27ae60;">●</span> Real-Time Polling Engine</div>
                             </div>
                         </details>
+                    </div>
+                </div>
+
+                <!-- Logs Subtab -->
+                <div id="devLogsTab" class="dev-subtab-content" style="display: none;">
+                    <div class="card" style="background: var(--bg-card); color: var(--text-primary);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+                            <h4 style="margin:0;">📋 System Log Viewer</h4>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span id="logFileSizeLabel" style="font-size:12px; color:var(--text-muted);">-</span>
+                                <button class="btn btn-secondary" onclick="loadSystemLogs()" style="padding:6px 12px; font-size:13px;">🔄 Refresh</button>
+                                <button class="btn" id="logTailBtn" onclick="toggleLogTail()" style="padding:6px 12px; font-size:13px;">▶ Live Tail</button>
+                            </div>
+                        </div>
+                        <!-- Level filter chips -->
+                        <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
+                            <span style="font-size:13px; font-weight:600; align-self:center; color:var(--text-muted);">Level:</span>
+                            <button class="log-level-chip active" id="logChip-ALL" onclick="setLogLevel('ALL')">ALL</button>
+                            <button class="log-level-chip" id="logChip-DEBUG" onclick="setLogLevel('DEBUG')" style="color:#3498db;">DEBUG</button>
+                            <button class="log-level-chip" id="logChip-INFO" onclick="setLogLevel('INFO')" style="color:#27ae60;">INFO</button>
+                            <button class="log-level-chip" id="logChip-WARNING" onclick="setLogLevel('WARNING')" style="color:#f39c12;">WARNING</button>
+                            <button class="log-level-chip" id="logChip-ERROR" onclick="setLogLevel('ERROR')" style="color:#e74c3c;">ERROR</button>
+                            <button class="log-level-chip" id="logChip-CRITICAL" onclick="setLogLevel('CRITICAL')" style="color:#8e44ad;">CRITICAL</button>
+                        </div>
+                        <!-- Search + line limit + auto-scroll -->
+                        <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center;">
+                            <input type="text" id="logSearchInput" placeholder="Search logs..." oninput="debounceLogSearch()" style="flex:1; min-width:180px; padding:8px 12px; border:1px solid var(--border-color,#e0e0e0); border-radius:6px; font-size:13px; background:var(--bg-input,white); color:var(--text-primary);">
+                            <select id="logLineLimit" onchange="loadSystemLogs()" style="padding:8px 10px; border:1px solid var(--border-color,#e0e0e0); border-radius:6px; font-size:13px; background:var(--bg-input,white); color:var(--text-primary);">
+                                <option value="100">100 lines</option>
+                                <option value="200" selected>200 lines</option>
+                                <option value="500">500 lines</option>
+                                <option value="1000">1000 lines</option>
+                            </select>
+                            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;white-space:nowrap;">
+                                <input type="checkbox" id="logAutoScroll" checked> Auto-scroll
+                            </label>
+                        </div>
+                        <!-- Stats bar -->
+                        <div style="display:flex;gap:20px;font-size:12px;color:var(--text-muted);margin-bottom:8px;flex-wrap:wrap;">
+                            <span>Showing: <strong id="logShowing">-</strong></span>
+                            <span>Matched: <strong id="logMatched">-</strong></span>
+                            <span>File: <strong id="logFileSize">-</strong></span>
+                            <span>Refreshed: <strong id="logLastRefresh">-</strong></span>
+                        </div>
+                        <!-- Log output -->
+                        <div id="logOutput" style="background:#1a1a2e;color:#d4d4d4;font-family:'Courier New',monospace;padding:16px;border-radius:8px;height:520px;overflow-y:auto;white-space:pre-wrap;font-size:12px;line-height:1.6;">
+                            <span style="color:#3498db;">Click Refresh or switch to this tab to load logs.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diagnostics Subtab -->
+                <div id="devDiagnosticsTab" class="dev-subtab-content" style="display: none;">
+                    <div class="card" style="background: var(--bg-card); color: var(--text-primary);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h4 style="margin:0;">🔬 System Diagnostics</h4>
+                            <button class="btn btn-secondary" onclick="loadDiagnostics()" style="padding:6px 14px; font-size:13px;">🔄 Run Diagnostics</button>
+                        </div>
+                        <div id="diagnosticsContent">
+                            <div style="text-align:center; color:var(--text-muted); padding:60px 0; font-size:15px;">
+                                🔬 Click <strong>Run Diagnostics</strong> to inspect the live system.
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -8035,6 +8245,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 if (document.visibilityState === 'visible' && currentUser) {
                     _pollRun();
                     if (typeof loadNotifications === 'function') loadNotifications();
+                    _refreshActiveTabContent();
                 }
             }
         });
@@ -8055,6 +8266,43 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 const n = new Notification(title, { body: body, icon: '/static/icon-192.png', tag: 'hs-msg' });
                 setTimeout(function() { n.close(); }, 8000);
             } catch (e) {}
+        }
+        function _refreshActiveTabContent() {
+            // Called on tab focus return and on clinical tab switch.
+            // Refreshes whatever content section is currently visible.
+            if (!currentUser) return;
+            try {
+                // Which main tab is active?
+                const activeMain = document.querySelector('.tab-content[style*="display: block"]');
+                if (!activeMain) return;
+                const mainId = activeMain.id;
+
+                if (mainId === 'professionalTab' || mainId === 'clinicianTab') {
+                    // Which clinical subtab is active?
+                    const activeSub = document.querySelector('.clinical-subtab-content[style*="display: block"]');
+                    if (!activeSub) return;
+                    const subId = activeSub.id;
+                    if (subId === 'clinicalRiskmonitorTab' && typeof loadRiskDashboard === 'function') {
+                        loadRiskDashboard();
+                    } else if (subId === 'clinicalSafeguardingTab' && typeof loadSafeguardingDashboard === 'function') {
+                        loadSafeguardingDashboard();
+                    } else if (subId === 'clinicalOverviewTab' && typeof loadAnalyticsDashboard === 'function') {
+                        loadAnalyticsDashboard();
+                    } else if (subId === 'clinicalWaitinglistTab' && typeof loadWaitingList === 'function') {
+                        loadWaitingList();
+                    } else if (subId === 'clinicalAppointmentsTab' && typeof loadAppointments === 'function') {
+                        loadAppointments();
+                    }
+                } else if (mainId === 'inboxTab' || mainId === 'messagesTab') {
+                    if (typeof loadUserMessages === 'function') loadUserMessages();
+                } else if (mainId === 'communityTab') {
+                    if (typeof loadCommunityPosts === 'function') loadCommunityPosts();
+                } else if (mainId === 'notificationsTab') {
+                    if (typeof loadNotifications === 'function') loadNotifications();
+                }
+            } catch(e) {
+                // Silent — refresh is best-effort
+            }
         }
         // ── End Polling Engine ───────────────────────────────────────────────────
 
@@ -14908,6 +15156,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             patient_assessment:   '📋 Patient Assessment',
                             clinical_concern:     '⚠️ Clinical Concern',
                             risk_alert:           '🚨 Risk Alert',
+                            safeguarding_concern: '🛡️ Safeguarding Concern',
+                            safeguarding_concern: '🛡️ Safeguarding Concern',
                             session_note:         '📝 Session Note',
                             treatment_plan:       '🗺️ Treatment Plan',
                             outcome_measure:      '📈 Outcome Measure',
@@ -15207,6 +15457,9 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 // Stop auto-refresh when leaving community tab
                 stopCommunityAutoRefresh();
             }
+
+            // Refresh content on tab switch (smart refresh)
+            setTimeout(_refreshActiveTabContent, 100);
         }
         
         // Navigate to Risk Monitor with High filter pre-selected
@@ -15254,6 +15507,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 loadRiskDashboard();
             } else if (subtabName === 'waitinglist') {
                 loadWaitingList();
+            } else if (subtabName === 'safeguarding') {
+                loadSafeguardingDashboard();
             }
         }
         
@@ -19414,6 +19669,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             } else if (subtabName === 'progress') {
                 const patientUsername = document.getElementById('patientDetailName').textContent.trim();
                 if (patientUsername) loadClinicianPatientProgress(patientUsername);
+            } else if (subtabName === 'safeguarding') {
+                if (currentPatientData && currentPatientData.username) {
+                    loadPatientSafeguarding(currentPatientData.username);
+                }
             }
         }
         
@@ -21808,6 +22067,10 @@ ${reportText}
                 loadDevJobs();
             } else if (subtabName === 'qa') {
                 // QA tab - no auto-load needed
+            } else if (subtabName === 'logs') {
+                loadSystemLogs();
+            } else if (subtabName === 'diagnostics') {
+                loadDiagnostics();
             }
         }
 
@@ -21878,50 +22141,66 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             if (qaRunning) return;
             qaRunning = true;
 
-            const btns = ['qa-btn-all', 'qa-btn-backend', 'qa-btn-e2e', 'qa-btn-security'];
-            btns.forEach(id => { const b = document.getElementById(id); if (b) b.disabled = true; });
+            const allBtnIds = ['qa-btn-all', 'qa-btn-backend', 'qa-btn-e2e', 'qa-btn-security', 'qa-btn-safeguarding'];
+            allBtnIds.forEach(id => { const b = document.getElementById(id); if (b) b.disabled = true; });
+            const suggestBtn = document.getElementById('qa-btn-suggest-fix');
+            if (suggestBtn) suggestBtn.style.display = 'none';
 
             const output = document.getElementById('qaTestOutput');
-            const cmdMap = {
-                'all': 'python -m pytest tests/ -v --tb=short',
-                'backend': 'python -m pytest tests/backend/ -v --tb=short',
-                'e2e': 'python -m pytest tests/e2e/ -v --tb=short',
-                'security': 'python -m pytest tests/backend/test_auth.py tests/backend/test_security.py tests/backend/test_safety.py -v --tb=short'
-            };
+            const tbLevel = (document.getElementById('qaTracebackLevel') || {}).value || 'long';
 
-            output.innerHTML = `<span style="color: #3498db;">Running ${scope} tests...</span>\n\n`;
+            output.innerHTML = `<span style="color: #3498db;">⏳ Running ${scope} tests (tb=${tbLevel})…</span>\n\n`;
 
             try {
-                const resp = await fetch('/api/developer/terminal/execute', {
+                const resp = await fetch('/api/developer/tests/verbose', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
                     credentials: 'include',
-                    body: JSON.stringify({
-                        username: currentUser,
-                        command: cmdMap[scope] || cmdMap['all']
-                    })
+                    body: JSON.stringify({ scope, traceback: tbLevel, capture: false })
                 });
 
                 const data = await resp.json();
 
                 if (data.error) {
                     output.innerHTML += `<span style="color: #e74c3c;">Error: ${sanitizeHTML(data.error)}</span>`;
-                    qaRunning = false;
-                    btns.forEach(id => { const b = document.getElementById(id); if (b) b.disabled = false; });
-                    return;
+                } else {
+                    const raw = data.output || '';
+                    output.innerHTML = colorizeTestOutput(raw);
+                    parseTestResults(raw);
+                    if (data.command) {
+                        output.innerHTML = `<span style="color:#555;">$ ${sanitizeHTML(data.command)}</span>\n\n` + output.innerHTML;
+                    }
+                    document.getElementById('qaLastRun').textContent = 'Last run: ' + new Date().toLocaleTimeString();
+                    if (data.failed > 0 || data.errors > 0) {
+                        if (suggestBtn) suggestBtn.style.display = '';
+                    }
                 }
-
-                const raw = data.output || '';
-                output.innerHTML = colorizeTestOutput(raw);
-                parseTestResults(raw);
-                document.getElementById('qaLastRun').textContent = 'Last run: ' + new Date().toLocaleTimeString();
-
             } catch (err) {
                 output.innerHTML += `<span style="color: #e74c3c;">Network error: ${sanitizeHTML(err.message)}</span>`;
             }
 
             qaRunning = false;
-            btns.forEach(id => { const b = document.getElementById(id); if (b) b.disabled = false; });
+            allBtnIds.forEach(id => { const b = document.getElementById(id); if (b) b.disabled = false; });
+        }
+
+        async function suggestTestFix() {
+            const raw = lastRawTestOutput;
+            if (!raw) { if (typeof showToast === 'function') showToast('No test output to analyse', 'warning'); return; }
+            // Extract failed/error section only (last 3000 chars to stay within context)
+            const excerpt = raw.length > 3000 ? raw.slice(-3000) : raw;
+            const devAiInput = document.getElementById('devAiInput');
+            const devAiTab = document.getElementById('devAiSubtabBtn') || document.querySelector('[onclick*="switchDevTab(\'ai\'"]');
+            if (devAiInput) {
+                devAiInput.value = `The following test failures were detected. Please identify root causes and suggest exact fixes:\n\n\`\`\`\n${excerpt}\n\`\`\``;
+                if (typeof switchDevTab === 'function') {
+                    // Find the AI button element
+                    const aiBtn = document.querySelector('.dev-subtab-btn[onclick*="\'ai\'"]');
+                    switchDevTab('ai', aiBtn);
+                }
+                if (typeof showToast === 'function') showToast('Failure context loaded into AI Assistant', 'success');
+            } else {
+                if (typeof showToast === 'function') showToast('Switch to AI Assistant tab to get fix suggestions', 'info');
+            }
         }
 
         // Store raw test output for filtering
@@ -22102,6 +22381,196 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             document.getElementById('qaDuration').textContent = '-';
             document.getElementById('qaPassRate').textContent = 'Pass rate: -';
             document.getElementById('qaProgressBar').style.width = '0%';
+            const sb = document.getElementById('qa-btn-suggest-fix');
+            if (sb) sb.style.display = 'none';
+        }
+
+        // ========== LOG VIEWER FUNCTIONS ==========
+        let _activeLogLevel = 'ALL';
+        let _logTailInterval = null;
+        let _logSearchTimer = null;
+
+        async function loadSystemLogs() {
+            const level = _activeLogLevel;
+            const search = (document.getElementById('logSearchInput') || {}).value || '';
+            const lines = (document.getElementById('logLineLimit') || {}).value || '200';
+            const outputEl = document.getElementById('logOutput');
+            if (!outputEl) return;
+
+            outputEl.innerHTML = '<span style="color:#3498db;">⏳ Loading logs…</span>';
+
+            try {
+                const params = new URLSearchParams({ level, lines });
+                if (search) params.set('search', search);
+                const resp = await fetch(`/api/developer/logs/view?${params}`, { credentials: 'include' });
+                const data = await resp.json();
+
+                if (data.error) {
+                    outputEl.innerHTML = `<span style="color:#e74c3c;">Error: ${sanitizeHTML(data.error)}</span>`;
+                    return;
+                }
+
+                const logLines = data.lines || [];
+                if (logLines.length === 0) {
+                    outputEl.innerHTML = `<span style="color:#888;">No log entries found${search ? ` matching "${sanitizeHTML(search)}"` : ''} at level ${level}.</span>`;
+                } else {
+                    outputEl.innerHTML = logLines.map(e => colorizeLogLine(e.text, e.level)).join('\n');
+                }
+
+                // Update stats
+                const showing = document.getElementById('logShowing');
+                const matched = document.getElementById('logMatched');
+                const fileSize = document.getElementById('logFileSize');
+                const lastRefresh = document.getElementById('logLastRefresh');
+                const fileSizeLabel = document.getElementById('logFileSizeLabel');
+                if (showing) showing.textContent = data.showing || 0;
+                if (matched) matched.textContent = data.total_matched || 0;
+                if (fileSize) fileSize.textContent = `${data.file_size_kb || 0} KB`;
+                if (fileSizeLabel) fileSizeLabel.textContent = `${data.file_size_kb || 0} KB`;
+                if (lastRefresh) lastRefresh.textContent = new Date().toLocaleTimeString();
+
+                // Auto-scroll to bottom
+                const autoScroll = document.getElementById('logAutoScroll');
+                if (!autoScroll || autoScroll.checked) {
+                    outputEl.scrollTop = outputEl.scrollHeight;
+                }
+            } catch (err) {
+                outputEl.innerHTML = `<span style="color:#e74c3c;">Network error: ${sanitizeHTML(err.message)}</span>`;
+            }
+        }
+
+        function colorizeLogLine(text, level) {
+            const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const colors = { CRITICAL: '#e74c3c', ERROR: '#e74c3c', WARNING: '#f39c12', INFO: '#d4d4d4', DEBUG: '#3498db' };
+            const col = colors[level] || '#d4d4d4';
+            return `<span style="color:${col};">${escaped}</span>`;
+        }
+
+        function setLogLevel(level) {
+            _activeLogLevel = level;
+            document.querySelectorAll('.log-level-chip').forEach(chip => chip.classList.remove('active'));
+            const chip = document.getElementById(`logChip-${level}`);
+            if (chip) chip.classList.add('active');
+            loadSystemLogs();
+        }
+
+        function debounceLogSearch() {
+            clearTimeout(_logSearchTimer);
+            _logSearchTimer = setTimeout(loadSystemLogs, 400);
+        }
+
+        function toggleLogTail() {
+            const btn = document.getElementById('logTailBtn');
+            if (_logTailInterval) {
+                clearInterval(_logTailInterval);
+                _logTailInterval = null;
+                if (btn) { btn.textContent = '▶ Live Tail'; btn.style.background = ''; btn.style.borderColor = ''; }
+            } else {
+                loadSystemLogs();
+                _logTailInterval = setInterval(loadSystemLogs, 5000);
+                if (btn) { btn.textContent = '⏹ Stop Tail'; btn.style.background = '#e74c3c'; btn.style.borderColor = '#e74c3c'; }
+                if (typeof showToast === 'function') showToast('Live tail started — refreshing every 5s', 'info');
+            }
+        }
+
+        // ========== DIAGNOSTICS FUNCTIONS ==========
+        async function loadDiagnostics() {
+            const el = document.getElementById('diagnosticsContent');
+            if (!el) return;
+            el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">⏳ Running diagnostics…</div>';
+
+            try {
+                const resp = await fetch('/api/developer/diagnostics', { credentials: 'include' });
+                const data = await resp.json();
+                if (data.error) {
+                    el.innerHTML = `<div style="color:#e74c3c;padding:20px;">Error: ${sanitizeHTML(data.error)}</div>`;
+                    return;
+                }
+                renderDiagnostics(el, data);
+            } catch (err) {
+                el.innerHTML = `<div style="color:#e74c3c;padding:20px;">Network error: ${sanitizeHTML(err.message)}</div>`;
+            }
+        }
+
+        function renderDiagnostics(el, data) {
+            const db = data.database || {};
+            const logs = data.logs || {};
+            const tests = data.tests || {};
+            const server = data.server || {};
+
+            const latest = tests.latest_run;
+            const latestHtml = latest
+                ? `<span style="color:#27ae60;">✔ ${latest.passed} passed</span> · <span style="color:#e74c3c;">${latest.failed} failed</span> · <span style="color:#f39c12;">${latest.errors} errors</span> <small style="color:var(--text-muted);">(${latest.run_at ? new Date(latest.run_at).toLocaleString() : 'unknown'})</small>`
+                : '<span style="color:var(--text-muted);">No test runs recorded yet</span>';
+
+            const tableSizes = db.table_sizes || {};
+            const sizesHtml = Object.entries(tableSizes).map(([t, s]) =>
+                `<tr><td style="padding:4px 12px 4px 0;">${sanitizeHTML(t)}</td><td style="color:#3498db;">${sanitizeHTML(s)}</td></tr>`
+            ).join('');
+
+            const tableCounts = db.table_counts || {};
+            const countsHtml = Object.entries(tableCounts).map(([t, c]) =>
+                `<tr><td style="padding:4px 12px 4px 0;">${sanitizeHTML(t)}</td><td style="text-align:right;color:var(--text-muted);">${c === null ? '<span style="color:#e74c3c;">N/A</span>' : c.toLocaleString()}</td></tr>`
+            ).join('');
+
+            const recentErrors = logs.recent_errors || [];
+            const errorsHtml = recentErrors.length === 0
+                ? '<div style="color:#27ae60;padding:8px 0;">✔ No recent errors in last 500 log lines</div>'
+                : recentErrors.map(e => `<div style="font-family:monospace;font-size:12px;color:#e74c3c;margin-bottom:4px;word-break:break-all;">${sanitizeHTML(e)}</div>`).join('');
+
+            el.innerHTML = `
+                <!-- Top stats row -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;">
+                    <div class="stat-card">
+                        <div class="stat-value" style="color:${db.active_connections > 10 ? '#e74c3c' : '#27ae60'};">${db.active_connections ?? '–'}</div>
+                        <div class="stat-label">DB Connections</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${server.routes ?? '–'}</div>
+                        <div class="stat-label">API Routes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="color:${logs.error_count > 0 ? '#e74c3c' : '#27ae60'};">${logs.error_count}</div>
+                        <div class="stat-label">Recent Errors</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="font-size:14px;">${sanitizeHTML(server.environment || '–')}</div>
+                        <div class="stat-label">Environment</div>
+                    </div>
+                </div>
+
+                <!-- DB version -->
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
+                    🐘 ${sanitizeHTML(db.version || 'PostgreSQL')}
+                </div>
+
+                <!-- Two columns: table counts + table sizes -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+                    <div>
+                        <h5 style="margin:0 0 10px 0;font-size:14px;">📊 Key Table Row Counts</h5>
+                        <table style="width:100%;font-size:13px;border-collapse:collapse;">${countsHtml}</table>
+                    </div>
+                    <div>
+                        <h5 style="margin:0 0 10px 0;font-size:14px;">💾 Table Sizes (Top 10)</h5>
+                        <table style="width:100%;font-size:13px;border-collapse:collapse;">${sizesHtml || '<tr><td style="color:var(--text-muted);">Unable to retrieve (requires pg_tables access)</td></tr>'}</table>
+                    </div>
+                </div>
+
+                <!-- Latest test run -->
+                <div style="margin-bottom:20px;">
+                    <h5 style="margin:0 0 8px 0;font-size:14px;">🧪 Latest Test Run</h5>
+                    <div style="font-size:13px;">${latestHtml}</div>
+                </div>
+
+                <!-- Recent errors -->
+                <div>
+                    <h5 style="margin:0 0 8px 0;font-size:14px;">🔴 Recent Log Errors (last 500 lines)</h5>
+                    <div style="max-height:200px;overflow-y:auto;background:var(--bg-secondary,#f8f9fa);border-radius:8px;padding:12px;">${errorsHtml}</div>
+                </div>
+
+                <div style="margin-top:12px;font-size:11px;color:var(--text-muted);text-align:right;">
+                    Refreshed ${new Date(data.timestamp).toLocaleString()}
+                </div>`;
         }
 
         // AI Assistant Functions
@@ -25191,6 +25660,383 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
         // ── End 2.1 Predictive Risk Functions ─────────────────────────────────
 
+        // ══ Safeguarding & Duty of Care ══════════════════════════════════════════
+
+        async function loadSafeguardingDashboard() {
+            try {
+                const [statsRes, concernsRes, dutyRes] = await Promise.all([
+                    fetch('/api/safeguarding/stats', { credentials: 'include' }),
+                    fetch('/api/safeguarding/concerns', { credentials: 'include' }),
+                    fetch('/api/safeguarding/duty', { credentials: 'include' })
+                ]);
+                const stats = await statsRes.json();
+                const concerns = await concernsRes.json();
+                const duty = await dutyRes.json();
+
+                if (stats.success) {
+                    const s = stats.stats;
+                    document.getElementById('sgStatOpen').textContent = s.open ?? '—';
+                    document.getElementById('sgStatReferred').textContent = s.referred ?? '—';
+                    document.getElementById('sgStatMonitoring').textContent = s.monitoring ?? '—';
+                    document.getElementById('sgStatImmediate').textContent = s.immediate_risk_open ?? '—';
+                }
+                if (duty.success) renderDutyWidget(duty);
+                if (concerns.success) renderSafeguardingConcerns(concerns.concerns, 'sgConcernsList');
+            } catch(e) {
+                console.error('Safeguarding dashboard error:', e);
+                const el = document.getElementById('sgConcernsList');
+                if (el) el.innerHTML = '<p style="color:#dc3545;text-align:center;padding:20px;">Error loading safeguarding data</p>';
+            }
+        }
+
+        function renderDutyWidget(duty) {
+            const widget = document.getElementById('dutyClinicianWidget');
+            const rota = document.getElementById('dutyRotaList');
+            if (!widget) return;
+            const today = duty.today;
+            if (today && today.clinician_username) {
+                widget.innerHTML =
+                    '<div style="background:var(--bg-secondary);border-radius:8px;padding:14px;border:1px solid var(--border-color);">' +
+                        '<div style="font-size:1.1em;font-weight:700;color:var(--text-primary);">' + escapeHtml(today.full_name || today.clinician_username) + '</div>' +
+                        '<div style="font-size:0.85em;color:var(--text-secondary);margin-top:4px;">' +
+                            (today.duty_start || '08:00') + ' – ' + (today.duty_end || '18:00') +
+                            (today.is_out_of_hours ? ' <span style="background:#6f42c1;color:white;padding:1px 7px;border-radius:4px;font-size:0.8em;">OOH</span>' : '') +
+                        '</div>' +
+                        (today.contact_phone ? '<div style="margin-top:8px;"><a href="tel:' + escapeHtml(today.contact_phone) + '" style="color:#6366f1;font-weight:600;text-decoration:none;">📞 ' + escapeHtml(today.contact_phone) + '</a></div>' : '') +
+                    '</div>';
+            } else {
+                widget.innerHTML = '<div style="color:var(--text-secondary);font-size:0.9em;padding:10px 0;text-align:center;">No duty clinician set for today</div>';
+            }
+            if (rota) {
+                if (duty.rota && duty.rota.length) {
+                    rota.innerHTML = duty.rota.slice(0, 7).map(function(r) {
+                        var d = new Date(r.duty_date);
+                        var label = d.toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'});
+                        return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--shadow-color);">' +
+                            '<span style="color:var(--text-secondary);">' + label + '</span>' +
+                            '<span style="font-weight:600;">' + escapeHtml(r.full_name || r.clinician_username) + (r.is_out_of_hours ? ' <span style="color:#6f42c1;font-size:0.85em;">(OOH)</span>' : '') + '</span>' +
+                        '</div>';
+                    }).join('');
+                } else {
+                    rota.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85em;">No upcoming rota entries</div>';
+                }
+            }
+        }
+
+        function renderSafeguardingConcerns(concerns, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            if (!concerns || !concerns.length) {
+                container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px;">No active safeguarding concerns</p>';
+                return;
+            }
+            const statusColors = { open:'#dc3545', referred:'#fd7e14', monitoring:'#6f42c1', closed:'#198754' };
+            const catLabels = {
+                child_protection:'Child Protection', adult_safeguarding:'Adult Safeguarding',
+                domestic_abuse:'Domestic Abuse', honour_based_abuse:'HBA/FGM',
+                modern_slavery:'Modern Slavery', radicalisation:'Radicalisation (Prevent)',
+                self_neglect:'Self-Neglect', financial_abuse:'Financial Abuse',
+                institutional_abuse:'Institutional Abuse', other:'Other'
+            };
+            container.innerHTML = concerns.map(function(c) {
+                return '<div style="border-left:4px solid ' + (statusColors[c.status] || '#6c757d') + ';padding:12px;margin-bottom:10px;background:var(--bg-secondary);border-radius:0 8px 8px 0;cursor:pointer;transition:opacity 0.2s;" onclick="openConcernDetail(' + c.id + ')" onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:6px;">' +
+                        '<div>' +
+                            '<strong>' + escapeHtml(c.patient_full_name || c.patient_username) + '</strong>' +
+                            (c.immediate_risk ? ' <span style="background:#dc3545;color:white;padding:1px 7px;border-radius:10px;font-size:0.75em;font-weight:700;">⚠️ IMMEDIATE</span>' : '') +
+                            '<div style="font-size:0.85em;color:var(--text-secondary);margin-top:3px;">' + (catLabels[c.concern_category] || c.concern_category) + ' · ' + (c.disclosure_date ? new Date(c.disclosure_date).toLocaleDateString('en-GB') : new Date(c.created_at).toLocaleDateString('en-GB')) + '</div>' +
+                        '</div>' +
+                        '<span style="background:' + (statusColors[c.status] || '#6c757d') + ';color:white;padding:3px 10px;border-radius:10px;font-size:0.8em;font-weight:600;white-space:nowrap;">' + (c.status || 'open').toUpperCase() + '</span>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        async function loadPatientSafeguarding(username) {
+            const container = document.getElementById('patientSafeguardingContent');
+            if (!container) return;
+            container.innerHTML = '<p style="text-align:center;padding:20px;color:var(--text-secondary);">Loading safeguarding records...</p>';
+            try {
+                const r = await fetch('/api/safeguarding/patient/' + encodeURIComponent(username), { credentials: 'include' });
+                const d = await r.json();
+                if (d.success) {
+                    renderSafeguardingConcerns(d.concerns, 'patientSafeguardingContent');
+                } else {
+                    container.innerHTML = '<p style="color:#dc3545;padding:20px;">' + escapeHtml(d.error || 'Failed to load') + '</p>';
+                }
+            } catch(e) {
+                container.innerHTML = '<p style="color:#dc3545;padding:20px;">Error loading safeguarding records</p>';
+            }
+        }
+
+        function openLogConcernModal(patientUsername) {
+            document.getElementById('sgPatientUsername').value = patientUsername || '';
+            document.getElementById('sgPatientUsername').readOnly = !!(patientUsername);
+            document.getElementById('sgPatientUsername').style.background = patientUsername ? 'var(--bg-secondary)' : '';
+            document.getElementById('sgDisclosureDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('sgConcernCategory').value = '';
+            document.getElementById('sgStatutoryFramework').value = '';
+            document.getElementById('sgDisclosureMethod').value = 'clinician_observed';
+            document.getElementById('sgImmediateRisk').checked = false;
+            document.getElementById('sgDescription').value = '';
+            document.getElementById('sgImmediateAction').value = '';
+            document.getElementById('sgUnder18').checked = false;
+            document.getElementById('sgGillickCompetent').checked = false;
+            document.getElementById('sgGillickLabel').style.display = 'none';
+            document.getElementById('sgCapacityAssessed').checked = false;
+            document.getElementById('sgCapacityNotes').value = '';
+            document.getElementById('sgReferralRequired').checked = false;
+            document.getElementById('sgReferralFields').style.display = 'none';
+            document.getElementById('sgReferralAgency').value = '';
+            document.getElementById('sgReferralReference').value = '';
+            document.getElementById('sgReferralDate').value = '';
+            document.getElementById('sgReferralNotes').value = '';
+            document.getElementById('sgSupervisorConsulted').checked = false;
+            document.getElementById('sgSupervisorUsername').value = '';
+            document.getElementById('sgSupervisorNotes').value = '';
+            document.getElementById('sgSubmitStatus').style.display = 'none';
+            document.getElementById('sgSubmitStatus').textContent = '';
+            document.getElementById('safeguardingConcernModal').style.display = 'flex';
+        }
+
+        function closeSafeguardingModal() {
+            document.getElementById('safeguardingConcernModal').style.display = 'none';
+        }
+
+        function toggleGillickField() {
+            var under18 = document.getElementById('sgUnder18').checked;
+            document.getElementById('sgGillickLabel').style.display = under18 ? 'flex' : 'none';
+        }
+
+        function toggleReferralFields() {
+            var required = document.getElementById('sgReferralRequired').checked;
+            document.getElementById('sgReferralFields').style.display = required ? 'block' : 'none';
+        }
+
+        async function submitSafeguardingConcern() {
+            const statusEl = document.getElementById('sgSubmitStatus');
+            const patientUsername = document.getElementById('sgPatientUsername').value.trim();
+            const description = document.getElementById('sgDescription').value.trim();
+            const category = document.getElementById('sgConcernCategory').value;
+
+            if (!patientUsername || !description || !category) {
+                statusEl.style.display = 'block';
+                statusEl.style.color = '#fd7e14';
+                statusEl.textContent = '⚠️ Patient username, concern category and description are all required.';
+                return;
+            }
+
+            statusEl.style.display = 'block';
+            statusEl.style.color = '#6366f1';
+            statusEl.textContent = 'Saving safeguarding concern...';
+
+            const body = {
+                patient_username: patientUsername,
+                concern_category: category,
+                statutory_framework: document.getElementById('sgStatutoryFramework').value || null,
+                disclosure_method: document.getElementById('sgDisclosureMethod').value,
+                disclosure_date: document.getElementById('sgDisclosureDate').value || null,
+                description: description,
+                immediate_risk: document.getElementById('sgImmediateRisk').checked,
+                immediate_action_taken: document.getElementById('sgImmediateAction').value.trim() || null,
+                patient_under_18: document.getElementById('sgUnder18').checked,
+                gillick_competent: document.getElementById('sgUnder18').checked ? document.getElementById('sgGillickCompetent').checked : null,
+                capacity_assessed: document.getElementById('sgCapacityAssessed').checked,
+                capacity_assessment_notes: document.getElementById('sgCapacityNotes').value.trim() || null,
+                referral_required: document.getElementById('sgReferralRequired').checked,
+                referral_agency: document.getElementById('sgReferralAgency').value || null,
+                referral_reference: document.getElementById('sgReferralReference').value.trim() || null,
+                referral_made_at: document.getElementById('sgReferralDate').value || null,
+                referral_notes: document.getElementById('sgReferralNotes').value.trim() || null,
+                supervisor_consulted: document.getElementById('sgSupervisorConsulted').checked,
+                supervisor_username: document.getElementById('sgSupervisorUsername').value.trim() || null,
+                supervisor_notes: document.getElementById('sgSupervisorNotes').value.trim() || null
+            };
+
+            try {
+                const r = await fetch('/api/safeguarding/concerns', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify(body)
+                });
+                const d = await r.json();
+                if (d.success) {
+                    statusEl.style.color = '#198754';
+                    statusEl.textContent = '✅ Safeguarding concern logged successfully.';
+                    showToast('🛡️ Safeguarding concern logged', 'success', 4000);
+                    setTimeout(function() {
+                        closeSafeguardingModal();
+                        if (document.getElementById('clinicalSafeguardingTab') &&
+                            document.getElementById('clinicalSafeguardingTab').style.display !== 'none') {
+                            loadSafeguardingDashboard();
+                        }
+                        if (currentPatientData && currentPatientData.username === patientUsername) {
+                            loadPatientSafeguarding(patientUsername);
+                        }
+                    }, 1500);
+                } else {
+                    statusEl.style.color = '#dc3545';
+                    statusEl.textContent = '❌ ' + (d.error || 'Failed to save concern');
+                }
+            } catch(e) {
+                statusEl.style.color = '#dc3545';
+                statusEl.textContent = '❌ Network error. Please try again.';
+            }
+        }
+
+        async function openConcernDetail(concernId) {
+            try {
+                const r = await fetch('/api/safeguarding/concerns/' + concernId, { credentials: 'include' });
+                const d = await r.json();
+                if (!d.success) { showToast('Could not load concern detail', 'error', 3000); return; }
+                var c = d.concern;
+                const statusColors = { open:'#dc3545', referred:'#fd7e14', monitoring:'#6f42c1', closed:'#198754' };
+                const catLabels = {
+                    child_protection:'Child Protection', adult_safeguarding:'Adult Safeguarding',
+                    domestic_abuse:'Domestic Abuse', honour_based_abuse:'HBA/FGM',
+                    modern_slavery:'Modern Slavery', radicalisation:'Radicalisation (Prevent)',
+                    self_neglect:'Self-Neglect', financial_abuse:'Financial Abuse',
+                    institutional_abuse:'Institutional Abuse', other:'Other'
+                };
+                var html = '<h3 style="margin-top:0;">🛡️ Safeguarding Concern #' + c.id + '</h3>';
+                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:15px;">';
+                html += '<div><strong>Patient:</strong> ' + escapeHtml(c.patient_username) + '</div>';
+                html += '<div><strong>Status:</strong> <span style="background:' + (statusColors[c.status]||'#6c757d') + ';color:white;padding:2px 10px;border-radius:10px;font-size:0.85em;">' + (c.status||'').toUpperCase() + '</span></div>';
+                html += '<div><strong>Category:</strong> ' + (catLabels[c.concern_category] || escapeHtml(c.concern_category)) + '</div>';
+                html += '<div><strong>Disclosure Date:</strong> ' + (c.disclosure_date ? new Date(c.disclosure_date).toLocaleDateString('en-GB') : '—') + '</div>';
+                html += '<div><strong>Recorded by:</strong> ' + escapeHtml(c.recording_clinician) + '</div>';
+                html += '<div><strong>Logged:</strong> ' + (c.created_at ? new Date(c.created_at).toLocaleString('en-GB') : '—') + '</div>';
+                if (c.immediate_risk) {
+                    html += '<div style="grid-column:1/-1;background:#fee2e2;padding:10px 14px;border-radius:8px;color:#dc3545;font-weight:700;border:1px solid #fca5a5;">⚠️ IMMEDIATE RISK OF HARM WAS PRESENT AT TIME OF LOGGING</div>';
+                }
+                html += '</div>';
+                html += '<div style="margin-bottom:15px;"><strong>Description:</strong><div style="background:var(--bg-secondary);padding:12px;border-radius:8px;margin:8px 0 0;white-space:pre-wrap;font-size:0.9em;border:1px solid var(--border-color);">' + escapeHtml(c.description) + '</div></div>';
+                if (c.immediate_action_taken) {
+                    html += '<div style="margin-bottom:15px;"><strong>Immediate Action Taken:</strong><p style="background:var(--bg-secondary);padding:12px;border-radius:8px;margin:6px 0 0;font-size:0.9em;">' + escapeHtml(c.immediate_action_taken) + '</p></div>';
+                }
+                if (c.referral_required) {
+                    html += '<div style="margin-bottom:15px;padding:12px;background:#fff3cd;border-radius:8px;border:1px solid #ffc107;">' +
+                        '<strong>Referral:</strong> ' + escapeHtml(c.referral_agency || '—') +
+                        (c.referral_reference ? ' | Ref: <strong>' + escapeHtml(c.referral_reference) + '</strong>' : '') +
+                        (c.referral_made_at ? ' | ' + new Date(c.referral_made_at).toLocaleDateString('en-GB') : '') +
+                        (c.referral_notes ? '<div style="margin-top:5px;font-size:0.88em;">' + escapeHtml(c.referral_notes) + '</div>' : '') +
+                    '</div>';
+                }
+                if (c.supervisor_consulted) {
+                    html += '<div style="margin-bottom:15px;font-size:0.9em;color:var(--text-secondary);">Supervisor consulted: ' + escapeHtml(c.supervisor_username || 'Yes') + (c.supervisor_notes ? ' — ' + escapeHtml(c.supervisor_notes) : '') + '</div>';
+                }
+                if (c.status !== 'closed') {
+                    html += '<div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border-color);">';
+                    html += '<strong style="display:block;margin-bottom:10px;">Update Status</strong>';
+                    html += '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">';
+                    html += '<select id="sgUpdateStatus_' + c.id + '" style="padding:8px 12px;border:2px solid var(--border-color);border-radius:8px;font-size:14px;">';
+                    ['open','referred','monitoring','closed'].forEach(function(s) {
+                        html += '<option value="' + s + '"' + (c.status === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
+                    });
+                    html += '</select>';
+                    html += '<button class="btn" onclick="updateConcernStatus(' + c.id + ')" style="padding:8px 18px;width:auto;">Update Status</button>';
+                    html += '</div></div>';
+                } else {
+                    html += '<div style="color:#198754;font-weight:600;margin-top:15px;">✅ Closed: ' + (c.closed_at ? new Date(c.closed_at).toLocaleDateString('en-GB') : '') + (c.closure_notes ? ' — ' + escapeHtml(c.closure_notes) : '') + '</div>';
+                }
+                document.getElementById('riskDetailContent').innerHTML = html;
+                document.getElementById('riskDetailModal').style.display = 'flex';
+            } catch(e) {
+                showToast('Error loading concern detail', 'error', 3000);
+            }
+        }
+
+        async function updateConcernStatus(concernId) {
+            const selectEl = document.getElementById('sgUpdateStatus_' + concernId);
+            if (!selectEl) return;
+            var newStatus = selectEl.value;
+            var closureNotes = null;
+            if (newStatus === 'closed') {
+                closureNotes = prompt('Closure notes (required when closing a concern):');
+                if (!closureNotes || !closureNotes.trim()) return;
+            }
+            try {
+                const r = await fetch('/api/safeguarding/concerns/' + concernId, {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ status: newStatus, closure_notes: closureNotes ? closureNotes.trim() : null, closed_by: currentUser })
+                });
+                const d = await r.json();
+                if (d.success) {
+                    document.getElementById('riskDetailModal').style.display = 'none';
+                    showToast('Concern status updated to ' + newStatus, 'success', 3000);
+                    loadSafeguardingDashboard();
+                } else {
+                    showToast('Update failed: ' + (d.error || 'Unknown error'), 'error', 4000);
+                }
+            } catch(e) {
+                showToast('Network error', 'error', 3000);
+            }
+        }
+
+        function openDutyModal() {
+            document.getElementById('dutyClinUsername').value = '';
+            document.getElementById('dutyClinDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('dutyClinStart').value = '08:00';
+            document.getElementById('dutyClinEnd').value = '18:00';
+            document.getElementById('dutyClinOOH').checked = false;
+            document.getElementById('dutyClinPhone').value = '';
+            document.getElementById('dutyClinNotes').value = '';
+            document.getElementById('dutySubmitStatus').style.display = 'none';
+            document.getElementById('dutyClinicianModal').style.display = 'flex';
+        }
+
+        function closeDutyModal() {
+            document.getElementById('dutyClinicianModal').style.display = 'none';
+        }
+
+        async function setDutyClinician() {
+            var statusEl = document.getElementById('dutySubmitStatus');
+            var clinUsername = document.getElementById('dutyClinUsername').value.trim();
+            var dutyDate = document.getElementById('dutyClinDate').value;
+            if (!clinUsername || !dutyDate) {
+                statusEl.style.display = 'block';
+                statusEl.style.color = '#fd7e14';
+                statusEl.textContent = '⚠️ Clinician username and date are required.';
+                return;
+            }
+            statusEl.style.display = 'block';
+            statusEl.style.color = '#6366f1';
+            statusEl.textContent = 'Saving...';
+            try {
+                const r = await fetch('/api/safeguarding/duty', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({
+                        clinician_username: clinUsername,
+                        duty_date: dutyDate,
+                        duty_start: document.getElementById('dutyClinStart').value,
+                        duty_end: document.getElementById('dutyClinEnd').value,
+                        is_out_of_hours: document.getElementById('dutyClinOOH').checked,
+                        contact_phone: document.getElementById('dutyClinPhone').value.trim() || null,
+                        notes: document.getElementById('dutyClinNotes').value.trim() || null
+                    })
+                });
+                var d = await r.json();
+                if (d.success) {
+                    statusEl.style.color = '#198754';
+                    statusEl.textContent = '✅ Duty clinician saved.';
+                    setTimeout(function() { closeDutyModal(); loadSafeguardingDashboard(); }, 1200);
+                } else {
+                    statusEl.style.color = '#dc3545';
+                    statusEl.textContent = '❌ ' + (d.error || 'Failed to save');
+                }
+            } catch(e) {
+                statusEl.style.color = '#dc3545';
+                statusEl.textContent = '❌ Network error';
+            }
+        }
+
+        // ══ End Safeguarding ═════════════════════════════════════════════════════
+
         function renderRiskAlerts(alerts) {
             const container = document.getElementById('riskActiveAlertsList');
             if (!alerts || !alerts.length) {
@@ -25594,5 +26440,207 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
     </div>
     <!-- === END SOS CRISIS BUTTON === -->
 
+
+    <!-- ══ SAFEGUARDING CONCERN MODAL ══════════════════════════════════════════ -->
+    <div id="safeguardingConcernModal" class="modal" style="display: none; align-items: flex-start; padding-top: 20px;">
+        <div class="modal-content" style="max-width: 720px; max-height: 90vh; overflow-y: auto; margin: 0 auto;">
+            <span class="close" onclick="closeSafeguardingModal()" style="float: right; font-size: 28px; cursor: pointer; color: #aaa;">&times;</span>
+            <h3 style="margin-top: 0; color: var(--text-primary);">🛡️ Log Safeguarding Concern</h3>
+            <div style="background: #fff3cd; padding: 10px 14px; border-radius: 6px; font-size: 0.88em; color: #856404; margin-bottom: 20px; border: 1px solid #ffc107;">
+                ⚖️ This is a permanent legal record. State facts only — use the patient's own words in quotes where applicable. Do not include opinion, interpretation or clinical hypothesis.
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Patient Username *</label>
+                    <input type="text" id="sgPatientUsername" placeholder="Patient username" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 14px;">
+                </div>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Date of Disclosure / Observation *</label>
+                    <input type="date" id="sgDisclosureDate" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 14px;">
+                </div>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Concern Category *</label>
+                    <select id="sgConcernCategory" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 14px;">
+                        <option value="">Select category...</option>
+                        <option value="child_protection">Child Protection (Working Together 2018)</option>
+                        <option value="adult_safeguarding">Adult Safeguarding (Care Act 2014)</option>
+                        <option value="domestic_abuse">Domestic Abuse / Coercive Control</option>
+                        <option value="honour_based_abuse">Honour-Based Abuse / FGM</option>
+                        <option value="modern_slavery">Modern Slavery / Human Trafficking</option>
+                        <option value="radicalisation">Radicalisation (Prevent Duty)</option>
+                        <option value="self_neglect">Self-Neglect</option>
+                        <option value="financial_abuse">Financial / Material Abuse</option>
+                        <option value="institutional_abuse">Institutional / Organisational Abuse</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Statutory Framework</label>
+                    <select id="sgStatutoryFramework" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 14px;">
+                        <option value="">Select if applicable...</option>
+                        <option value="working_together_2018">Working Together to Safeguard Children 2018</option>
+                        <option value="care_act_2014">Care Act 2014</option>
+                        <option value="mca_2005">Mental Capacity Act 2005</option>
+                        <option value="mental_health_act_1983">Mental Health Act 1983</option>
+                        <option value="section_47">Section 47 Enquiry (Child)</option>
+                        <option value="section_17">Section 17 (Child in Need)</option>
+                        <option value="marac">MARAC (Multi-Agency Risk Assessment Conference)</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">How Identified / Disclosed *</label>
+                    <select id="sgDisclosureMethod" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 14px;">
+                        <option value="patient_disclosed">Patient disclosed directly</option>
+                        <option value="clinician_observed">Clinician observed indicators</option>
+                        <option value="third_party_report">Third party report</option>
+                        <option value="anonymous_report">Anonymous report</option>
+                    </select>
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+                    <label style="font-weight: 600; display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 0;">
+                        <input type="checkbox" id="sgImmediateRisk" style="width: 18px; height: 18px; accent-color: #dc3545; flex-shrink: 0;">
+                        <span>⚠️ Immediate risk of harm present</span>
+                    </label>
+                    <p style="font-size: 0.78em; color: #dc3545; margin: 0 0 0 28px;">Creates critical risk alert + notifies duty clinician</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Factual Description * <span style="font-weight: 400; color: var(--text-secondary);">(what was said or observed — facts and direct quotes only)</span></label>
+                <textarea id="sgDescription" rows="5" placeholder='Record exactly what was said or observed. Use the patient&apos;s own words in quotes, e.g. "She said..."  Do not include opinion, interpretation or diagnosis.' style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Immediate Action Taken</label>
+                <textarea id="sgImmediateAction" rows="3" placeholder="What action was taken immediately following this disclosure or observation?" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
+            </div>
+
+            <!-- Capacity / Gillick -->
+            <div style="margin-top: 15px; padding: 14px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+                <h5 style="margin: 0 0 12px 0; font-size: 0.9em;">Mental Capacity / Gillick Competence</h5>
+                <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9em;">
+                        <input type="checkbox" id="sgUnder18" style="width: 16px; height: 16px;" onchange="toggleGillickField()">
+                        Patient is under 18
+                    </label>
+                    <label id="sgGillickLabel" style="display: none; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9em;">
+                        <input type="checkbox" id="sgGillickCompetent" style="width: 16px; height: 16px;">
+                        Gillick competent (Fraser guidelines met)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9em;">
+                        <input type="checkbox" id="sgCapacityAssessed" style="width: 16px; height: 16px;">
+                        MCA 2005 capacity assessment completed
+                    </label>
+                </div>
+                <textarea id="sgCapacityNotes" rows="2" placeholder="Capacity / Gillick assessment notes (optional)" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 13px; box-sizing: border-box;"></textarea>
+            </div>
+
+            <!-- Referral -->
+            <div style="margin-top: 15px; padding: 14px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 0.9em; margin-bottom: 5px;">
+                    <input type="checkbox" id="sgReferralRequired" style="width: 16px; height: 16px;" onchange="toggleReferralFields()">
+                    Referral to external agency required / made
+                </label>
+                <div id="sgReferralFields" style="display: none; margin-top: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.88em;">Agency *</label>
+                            <select id="sgReferralAgency" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 13px;">
+                                <option value="">Select agency...</option>
+                                <option value="mash">MASH (Multi-Agency Safeguarding Hub)</option>
+                                <option value="local_authority_social_services">Local Authority Social Services</option>
+                                <option value="police">Police</option>
+                                <option value="camhs">CAMHS</option>
+                                <option value="independent_safeguarding_authority">Independent Safeguarding Authority</option>
+                                <option value="nhs_111">NHS 111</option>
+                                <option value="marac">MARAC</option>
+                                <option value="prevent">Prevent Team</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.88em;">Reference Number</label>
+                            <input type="text" id="sgReferralReference" placeholder="Agency reference / CAF number" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.88em;">Date Referral Made</label>
+                            <input type="date" id="sgReferralDate" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.88em;">Referral Notes</label>
+                            <input type="text" id="sgReferralNotes" placeholder="Key outcome / agency response..." style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 13px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supervisor -->
+            <div style="margin-top: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 0.9em; margin-bottom: 8px;">
+                    <input type="checkbox" id="sgSupervisorConsulted" style="width: 16px; height: 16px;">
+                    Clinical supervisor consulted
+                </label>
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+                    <input type="text" id="sgSupervisorUsername" placeholder="Supervisor username (optional)" style="padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 13px;">
+                    <textarea id="sgSupervisorNotes" rows="2" placeholder="Summary of supervision discussion..." style="padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 13px; resize: vertical;"></textarea>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="closeSafeguardingModal()" style="padding: 10px 20px; width: auto;">Cancel</button>
+                <button class="btn" onclick="submitSafeguardingConcern()" style="background: #dc3545; padding: 10px 24px; width: auto; font-weight: 700;">🛡️ Log Safeguarding Concern</button>
+            </div>
+            <div id="sgSubmitStatus" style="margin-top: 10px; font-size: 0.9em; display: none;"></div>
+        </div>
+    </div>
+    <!-- ══ END SAFEGUARDING CONCERN MODAL ═══════════════════════════════════════ -->
+
+    <!-- ══ DUTY CLINICIAN MODAL ══════════════════════════════════════════════ -->
+    <div id="dutyClinicianModal" class="modal" style="display: none; align-items: center;">
+        <div class="modal-content" style="max-width: 480px; margin: 0 auto;">
+            <span class="close" onclick="closeDutyModal()" style="float: right; font-size: 28px; cursor: pointer; color: #aaa;">&times;</span>
+            <h3 style="margin-top: 0;">📞 Set Duty Clinician</h3>
+            <div style="display: grid; gap: 14px;">
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Clinician Username *</label>
+                    <input type="text" id="dutyClinUsername" placeholder="Username of clinician on duty" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; box-sizing: border-box;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Date *</label>
+                        <input type="date" id="dutyClinDate" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Contact Phone</label>
+                        <input type="tel" id="dutyClinPhone" placeholder="Mobile number" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Duty Start</label>
+                        <input type="time" id="dutyClinStart" value="08:00" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Duty End</label>
+                        <input type="time" id="dutyClinEnd" value="18:00" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; box-sizing: border-box;">
+                    </div>
+                </div>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9em;">
+                    <input type="checkbox" id="dutyClinOOH" style="width: 16px; height: 16px;">
+                    Out-of-hours / weekend / bank holiday slot
+                </label>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.9em;">Notes</label>
+                    <input type="text" id="dutyClinNotes" placeholder="e.g. covering for Dr Smith" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; box-sizing: border-box;">
+                </div>
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeDutyModal()" style="padding: 10px 20px; width: auto;">Cancel</button>
+                <button class="btn" onclick="setDutyClinician()" style="padding: 10px 24px; width: auto;">💾 Save Duty</button>
+            </div>
+            <div id="dutySubmitStatus" style="margin-top: 8px; font-size: 0.9em; display: none;"></div>
+        </div>
+    </div>
+    <!-- ══ END DUTY CLINICIAN MODAL ══════════════════════════════════════════ -->
 </body>
 </html>

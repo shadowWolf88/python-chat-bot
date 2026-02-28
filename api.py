@@ -5303,6 +5303,14 @@ def init_db():
         except Exception as e:
             print(f"clinical_scales migration note: {e}")
             conn.rollback()
+        # spell_mastery: ensure first_cast_at column exists on older databases
+        try:
+            cursor.execute("ALTER TABLE spell_mastery ADD COLUMN IF NOT EXISTS first_cast_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            conn.commit()
+            print("\u2713 spell_mastery: first_cast_at column ready")
+        except Exception as e:
+            print(f"spell_mastery migration note: {e}")
+            conn.rollback()
         # Lock session notes that were signed off >24 hours ago
         try:
             cursor.execute("UPDATE session_notes SET status = 'locked', locked_at = NOW() WHERE status = 'signed_off' AND signed_off_at < NOW() - INTERVAL '24 hours'")
@@ -6454,6 +6462,75 @@ def init_db():
         print("Pet database initialized successfully")
     except Exception as e:
         print(f"Pet database initialization error: {e}")
+
+    # ══ Safeguarding & Duty of Care (2.5) ══════════════════════════════════════
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS safeguarding_concerns (
+                id                        SERIAL PRIMARY KEY,
+                patient_username          TEXT NOT NULL,
+                recording_clinician       TEXT NOT NULL,
+                duty_clinician_username   TEXT,
+                concern_category          TEXT NOT NULL,
+                statutory_framework       TEXT,
+                disclosure_method         TEXT NOT NULL DEFAULT 'clinician_observed',
+                disclosure_date           DATE NOT NULL DEFAULT CURRENT_DATE,
+                description               TEXT NOT NULL,
+                immediate_risk            BOOLEAN NOT NULL DEFAULT FALSE,
+                immediate_action_taken    TEXT,
+                patient_under_18          BOOLEAN DEFAULT FALSE,
+                gillick_competent         BOOLEAN,
+                capacity_assessed         BOOLEAN DEFAULT FALSE,
+                capacity_assessment_notes TEXT,
+                referral_required         BOOLEAN DEFAULT FALSE,
+                referral_agency           TEXT,
+                referral_made_at          TIMESTAMP,
+                referral_reference        TEXT,
+                referral_notes            TEXT,
+                supervisor_consulted      BOOLEAN DEFAULT FALSE,
+                supervisor_username       TEXT,
+                supervisor_notes          TEXT,
+                status                    TEXT NOT NULL DEFAULT 'open',
+                closed_at                 TIMESTAMP,
+                closed_by                 TEXT,
+                closure_notes             TEXT,
+                created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT valid_sg_status CHECK (status IN ('open','referred','monitoring','closed'))
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sg_patient ON safeguarding_concerns(patient_username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sg_clinician ON safeguarding_concerns(recording_clinician)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sg_status ON safeguarding_concerns(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sg_immediate ON safeguarding_concerns(immediate_risk) WHERE immediate_risk = TRUE")
+        conn.commit()
+        print("\u2713 Safeguarding: safeguarding_concerns table ready")
+    except Exception as e:
+        print(f"Safeguarding concerns migration note: {e}")
+        conn.rollback()
+
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS duty_clinician (
+                id                  SERIAL PRIMARY KEY,
+                clinician_username  TEXT NOT NULL,
+                duty_date           DATE NOT NULL,
+                duty_start          TIME NOT NULL DEFAULT '08:00',
+                duty_end            TIME NOT NULL DEFAULT '18:00',
+                is_out_of_hours     BOOLEAN DEFAULT FALSE,
+                contact_phone       TEXT,
+                notes               TEXT,
+                created_by          TEXT,
+                created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(duty_date, is_out_of_hours)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_duty_date ON duty_clinician(duty_date)")
+        conn.commit()
+        print("\u2713 Safeguarding: duty_clinician table ready")
+    except Exception as e:
+        print(f"Duty clinician migration note: {e}")
+        conn.rollback()
 
 
 def get_authenticated_username():
@@ -16809,6 +16886,565 @@ def dismiss_predictive_flag(flag_id):
         return handle_exception(e, 'dismiss_predictive_flag')
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# SAFEGUARDING & DUTY OF CARE (Section 2.5)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/safeguarding/stats', methods=['GET'])
+def get_safeguarding_stats():
+    """GET safeguarding stats for dashboard summary card."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        if role[0] == 'developer':
+            where_clause = ""
+            params = []
+        else:
+            where_clause = "WHERE recording_clinician = %s OR patient_username IN (SELECT patient_username FROM patient_approvals WHERE clinician_username=%s AND status='approved')"
+            params = [username, username]
+
+        row = cur.execute(f"""
+            SELECT
+                SUM(CASE WHEN status='open' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN status='referred' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN status='monitoring' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN status='closed' AND closed_at >= DATE_TRUNC('month', CURRENT_DATE) THEN 1 ELSE 0 END),
+                SUM(CASE WHEN immediate_risk=TRUE AND status != 'closed' THEN 1 ELSE 0 END),
+                COUNT(*)
+            FROM safeguarding_concerns {where_clause}
+        """, params).fetchone()
+        conn.close()
+        return jsonify({'success': True, 'stats': {
+            'open': int(row[0] or 0),
+            'referred': int(row[1] or 0),
+            'monitoring': int(row[2] or 0),
+            'closed_this_month': int(row[3] or 0),
+            'immediate_risk_open': int(row[4] or 0),
+            'total_concerns': int(row[5] or 0)
+        }}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_safeguarding_stats')
+
+
+@app.route('/api/safeguarding/concerns', methods=['GET'])
+def list_safeguarding_concerns():
+    """GET all safeguarding concerns accessible to this clinician."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        if role[0] == 'developer':
+            rows = cur.execute("""
+                SELECT sc.id, sc.patient_username, u.full_name as patient_full_name,
+                       sc.concern_category, sc.status, sc.immediate_risk,
+                       sc.disclosure_date, sc.created_at, sc.referral_required,
+                       sc.referral_agency, sc.recording_clinician
+                FROM safeguarding_concerns sc
+                LEFT JOIN users u ON sc.patient_username = u.username
+                ORDER BY sc.immediate_risk DESC, sc.created_at DESC
+            """, []).fetchall()
+        else:
+            rows = cur.execute("""
+                SELECT sc.id, sc.patient_username, u.full_name as patient_full_name,
+                       sc.concern_category, sc.status, sc.immediate_risk,
+                       sc.disclosure_date, sc.created_at, sc.referral_required,
+                       sc.referral_agency, sc.recording_clinician
+                FROM safeguarding_concerns sc
+                LEFT JOIN users u ON sc.patient_username = u.username
+                WHERE sc.recording_clinician = %s
+                   OR sc.patient_username IN (
+                       SELECT patient_username FROM patient_approvals
+                       WHERE clinician_username=%s AND status='approved'
+                   )
+                ORDER BY sc.immediate_risk DESC, sc.created_at DESC
+            """, (username, username)).fetchall()
+
+        conn.close()
+        concerns = [{
+            'id': r[0], 'patient_username': r[1], 'patient_full_name': r[2] or r[1],
+            'concern_category': r[3], 'status': r[4], 'immediate_risk': r[5],
+            'disclosure_date': r[6].isoformat() if r[6] else None,
+            'created_at': r[7].isoformat() if r[7] else None,
+            'referral_required': r[8], 'referral_agency': r[9],
+            'recording_clinician': r[10]
+        } for r in rows]
+        return jsonify({'success': True, 'concerns': concerns}), 200
+    except Exception as e:
+        return handle_exception(e, 'list_safeguarding_concerns')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/safeguarding/concerns', methods=['POST'])
+def create_safeguarding_concern():
+    """POST — Log a new safeguarding concern. immediate_risk=True triggers critical alert + notifications."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        data = request.json or {}
+        patient_username = (data.get('patient_username') or '').strip()
+        concern_category = (data.get('concern_category') or '').strip()
+        disclosure_method = (data.get('disclosure_method') or 'clinician_observed').strip()
+        description = (data.get('description') or '').strip()
+
+        if not patient_username or not concern_category or not description:
+            conn.close()
+            return jsonify({'error': 'patient_username, concern_category and description are required'}), 400
+
+        # Verify patient exists
+        patient_check = cur.execute("SELECT username FROM users WHERE username=%s", (patient_username,)).fetchone()
+        if not patient_check:
+            conn.close()
+            return jsonify({'error': 'Patient not found'}), 404
+
+        immediate_risk = bool(data.get('immediate_risk', False))
+
+        # Get today's duty clinician
+        duty_row = cur.execute(
+            "SELECT clinician_username FROM duty_clinician WHERE duty_date=CURRENT_DATE ORDER BY is_out_of_hours ASC LIMIT 1"
+        ).fetchone()
+        duty_clinician_username = duty_row[0] if duty_row else None
+
+        row = cur.execute("""
+            INSERT INTO safeguarding_concerns (
+                patient_username, recording_clinician, duty_clinician_username,
+                concern_category, statutory_framework, disclosure_method, disclosure_date,
+                description, immediate_risk, immediate_action_taken,
+                patient_under_18, gillick_competent, capacity_assessed, capacity_assessment_notes,
+                referral_required, referral_agency, referral_made_at, referral_reference, referral_notes,
+                supervisor_consulted, supervisor_username, supervisor_notes, status
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'open')
+            RETURNING id
+        """, (
+            patient_username, username, duty_clinician_username,
+            concern_category,
+            data.get('statutory_framework') or None,
+            disclosure_method,
+            data.get('disclosure_date') or None,
+            description,
+            immediate_risk,
+            data.get('immediate_action_taken') or None,
+            bool(data.get('patient_under_18', False)),
+            data.get('gillick_competent'),
+            bool(data.get('capacity_assessed', False)),
+            data.get('capacity_assessment_notes') or None,
+            bool(data.get('referral_required', False)),
+            data.get('referral_agency') or None,
+            data.get('referral_made_at') or None,
+            data.get('referral_reference') or None,
+            data.get('referral_notes') or None,
+            bool(data.get('supervisor_consulted', False)),
+            data.get('supervisor_username') or None,
+            data.get('supervisor_notes') or None
+        )).fetchone()
+        concern_id = row[0]
+        conn.commit()
+
+        # If immediate risk: create risk_alert + notify duty clinician + email
+        if immediate_risk:
+            try:
+                cur.execute("""
+                    INSERT INTO risk_alerts
+                        (patient_username, clinician_username, alert_type, severity, title, details, source)
+                    VALUES (%s,%s,'safeguarding_concern','critical',%s,%s,'safeguarding')
+                """, (
+                    patient_username, username,
+                    f"SAFEGUARDING: {concern_category.replace('_', ' ').title()} — Immediate Risk",
+                    f"Safeguarding concern logged by {username}. Category: {concern_category}. "
+                    f"Method: {disclosure_method}. See safeguarding log for full details."
+                ))
+                conn.commit()
+            except Exception as _ra_err:
+                print(f"Safeguarding risk_alert creation note: {_ra_err}")
+                try: conn.rollback()
+                except: pass
+
+            # Notify duty clinician if different from recorder
+            if duty_clinician_username and duty_clinician_username != username:
+                send_notification(
+                    duty_clinician_username,
+                    f"\U0001f6a8 IMMEDIATE SAFEGUARDING CONCERN: Patient {patient_username} — "
+                    f"{concern_category.replace('_', ' ').title()}. Logged by {username}.",
+                    'risk_alert'
+                )
+
+            # Email the recording clinician
+            try:
+                clin_email = cur.execute("SELECT email FROM users WHERE username=%s", (username,)).fetchone()
+                if clin_email and clin_email[0]:
+                    send_risk_alert_email(
+                        to_email=clin_email[0],
+                        patient_username=patient_username,
+                        clinician_username=username,
+                        severity='critical',
+                        alert_type='safeguarding_concern',
+                        details=f"Safeguarding concern: {concern_category}. Immediate risk present. See safeguarding log."
+                    )
+            except Exception as _email_err:
+                print(f"Safeguarding email note (non-critical): {_email_err}")
+
+        # Always notify the recording clinician
+        send_notification(
+            username,
+            f"Safeguarding concern logged for {patient_username}: {concern_category.replace('_', ' ').title()}",
+            'safeguarding_concern'
+        )
+
+        log_event(username, 'safeguarding', 'concern_created',
+                  f"Patient: {patient_username}, Category: {concern_category}, "
+                  f"Immediate: {immediate_risk}, Referral: {data.get('referral_required', False)}, "
+                  f"ID: {concern_id}")
+
+        conn.close()
+        return jsonify({'success': True, 'concern_id': concern_id,
+                        'message': 'Safeguarding concern logged'}), 201
+    except Exception as e:
+        return handle_exception(e, 'create_safeguarding_concern')
+
+
+@app.route('/api/safeguarding/concerns/<int:concern_id>', methods=['GET'])
+def get_safeguarding_concern(concern_id):
+    """GET full detail for a single safeguarding concern."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        row = cur.execute("SELECT * FROM safeguarding_concerns WHERE id=%s", (concern_id,)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Concern not found'}), 404
+
+        # Verify access (clinician must have this patient)
+        if role[0] != 'developer':
+            access = cur.execute("""
+                SELECT 1 FROM patient_approvals
+                WHERE patient_username=%s AND clinician_username=%s AND status='approved'
+                UNION
+                SELECT 1 FROM safeguarding_concerns
+                WHERE id=%s AND recording_clinician=%s
+            """, (row[1], username, concern_id, username)).fetchone()
+            if not access:
+                conn.close()
+                return jsonify({'error': 'Access denied'}), 403
+
+        conn.close()
+        cols = ['id','patient_username','recording_clinician','duty_clinician_username',
+                'concern_category','statutory_framework','disclosure_method','disclosure_date',
+                'description','immediate_risk','immediate_action_taken',
+                'patient_under_18','gillick_competent','capacity_assessed','capacity_assessment_notes',
+                'referral_required','referral_agency','referral_made_at','referral_reference','referral_notes',
+                'supervisor_consulted','supervisor_username','supervisor_notes',
+                'status','closed_at','closed_by','closure_notes','created_at','updated_at']
+        concern = {}
+        for i, col in enumerate(cols):
+            v = row[i] if i < len(row) else None
+            concern[col] = v.isoformat() if hasattr(v, 'isoformat') else v
+        return jsonify({'success': True, 'concern': concern}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_safeguarding_concern')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/safeguarding/concerns/<int:concern_id>', methods=['PATCH'])
+def update_safeguarding_concern(concern_id):
+    """PATCH — Update status, referral info, or close a concern."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        existing = cur.execute("SELECT id, patient_username, recording_clinician, status FROM safeguarding_concerns WHERE id=%s", (concern_id,)).fetchone()
+        if not existing:
+            conn.close()
+            return jsonify({'error': 'Concern not found'}), 404
+
+        data = request.json or {}
+        new_status = data.get('status')
+        updates = []
+        params = []
+
+        allowed_fields = ['referral_required','referral_agency','referral_reference','referral_notes',
+                          'supervisor_consulted','supervisor_notes','immediate_action_taken',
+                          'closure_notes','closed_by']
+        for field in allowed_fields:
+            if field in data:
+                updates.append(f"{field} = %s")
+                params.append(data[field])
+
+        if new_status and new_status in ('open','referred','monitoring','closed'):
+            updates.append("status = %s")
+            params.append(new_status)
+            if new_status == 'closed':
+                updates.append("closed_at = NOW()")
+                if 'closed_by' not in data:
+                    updates.append("closed_by = %s")
+                    params.append(username)
+
+        if data.get('referral_made_at'):
+            updates.append("referral_made_at = %s")
+            params.append(data['referral_made_at'])
+
+        updates.append("updated_at = NOW()")
+        params.append(concern_id)
+
+        if updates:
+            cur.execute(f"UPDATE safeguarding_concerns SET {', '.join(updates)} WHERE id=%s", params)
+            conn.commit()
+
+        log_event(username, 'safeguarding', 'concern_updated',
+                  f"Concern ID: {concern_id}, Patient: {existing[1]}, Status: {new_status or 'unchanged'}")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Concern updated'}), 200
+    except Exception as e:
+        return handle_exception(e, 'update_safeguarding_concern')
+
+
+@app.route('/api/safeguarding/patient/<patient_username>', methods=['GET'])
+def get_patient_safeguarding(patient_username):
+    """GET all safeguarding concerns for a specific patient."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        if role[0] != 'developer':
+            access = cur.execute("""
+                SELECT 1 FROM patient_approvals
+                WHERE patient_username=%s AND clinician_username=%s AND status='approved'
+                UNION SELECT 1 FROM users WHERE username=%s AND clinician_id=%s
+            """, (patient_username, username, patient_username, username)).fetchone()
+            if not access:
+                conn.close()
+                return jsonify({'error': 'Access denied to this patient'}), 403
+
+        rows = cur.execute("""
+            SELECT id, patient_username, concern_category, status, immediate_risk,
+                   disclosure_date, created_at, referral_required, referral_agency,
+                   recording_clinician, statutory_framework
+            FROM safeguarding_concerns
+            WHERE patient_username=%s
+            ORDER BY created_at DESC
+        """, (patient_username,)).fetchall()
+        conn.close()
+
+        concerns = [{
+            'id': r[0], 'patient_username': r[1], 'patient_full_name': r[1],
+            'concern_category': r[2], 'status': r[3], 'immediate_risk': r[4],
+            'disclosure_date': r[5].isoformat() if r[5] else None,
+            'created_at': r[6].isoformat() if r[6] else None,
+            'referral_required': r[7], 'referral_agency': r[8],
+            'recording_clinician': r[9], 'statutory_framework': r[10]
+        } for r in rows]
+        return jsonify({'success': True, 'concerns': concerns, 'total': len(concerns)}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_patient_safeguarding')
+
+
+@app.route('/api/safeguarding/duty', methods=['GET'])
+def get_duty_clinician():
+    """GET today's duty clinician and next 7-day rota."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        # Today's duty clinician (prefer non-OOH for daytime)
+        today_row = cur.execute("""
+            SELECT dc.id, dc.clinician_username, dc.duty_start, dc.duty_end,
+                   dc.is_out_of_hours, dc.contact_phone, u.full_name, u.email
+            FROM duty_clinician dc
+            LEFT JOIN users u ON dc.clinician_username = u.username
+            WHERE dc.duty_date = CURRENT_DATE
+            ORDER BY dc.is_out_of_hours ASC
+            LIMIT 1
+        """).fetchone()
+
+        today = None
+        if today_row:
+            today = {
+                'id': today_row[0],
+                'clinician_username': today_row[1],
+                'duty_start': str(today_row[2]) if today_row[2] else '08:00',
+                'duty_end': str(today_row[3]) if today_row[3] else '18:00',
+                'is_out_of_hours': today_row[4],
+                'contact_phone': today_row[5],
+                'full_name': today_row[6] or today_row[1],
+                'email': today_row[7]
+            }
+
+        # 7-day rota
+        rota_rows = cur.execute("""
+            SELECT dc.id, dc.clinician_username, dc.duty_date,
+                   dc.duty_start, dc.duty_end, dc.is_out_of_hours,
+                   dc.contact_phone, u.full_name
+            FROM duty_clinician dc
+            LEFT JOIN users u ON dc.clinician_username = u.username
+            WHERE dc.duty_date >= CURRENT_DATE
+            ORDER BY dc.duty_date ASC, dc.is_out_of_hours ASC
+            LIMIT 14
+        """).fetchall()
+        conn.close()
+
+        rota = [{
+            'id': r[0], 'clinician_username': r[1],
+            'duty_date': r[2].isoformat() if r[2] else None,
+            'duty_start': str(r[3]) if r[3] else '08:00',
+            'duty_end': str(r[4]) if r[4] else '18:00',
+            'is_out_of_hours': r[5],
+            'contact_phone': r[6],
+            'full_name': r[7] or r[1]
+        } for r in rota_rows]
+
+        return jsonify({'success': True, 'today': today, 'rota': rota}), 200
+    except Exception as e:
+        return handle_exception(e, 'get_duty_clinician')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/safeguarding/duty', methods=['POST'])
+def set_duty_clinician():
+    """POST — Set a duty clinician for a given date."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        data = request.json or {}
+        clinician_username = (data.get('clinician_username') or '').strip()
+        duty_date = data.get('duty_date')
+        if not clinician_username or not duty_date:
+            conn.close()
+            return jsonify({'error': 'clinician_username and duty_date are required'}), 400
+
+        # Verify the clinician exists
+        clin_check = cur.execute("SELECT role FROM users WHERE username=%s", (clinician_username,)).fetchone()
+        if not clin_check or clin_check[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Specified user is not a clinician'}), 400
+
+        is_ooh = bool(data.get('is_out_of_hours', False))
+
+        cur.execute("""
+            INSERT INTO duty_clinician
+                (clinician_username, duty_date, duty_start, duty_end, is_out_of_hours, contact_phone, notes, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (duty_date, is_out_of_hours) DO UPDATE SET
+                clinician_username = EXCLUDED.clinician_username,
+                duty_start = EXCLUDED.duty_start,
+                duty_end = EXCLUDED.duty_end,
+                contact_phone = EXCLUDED.contact_phone,
+                notes = EXCLUDED.notes,
+                created_by = EXCLUDED.created_by
+        """, (
+            clinician_username, duty_date,
+            data.get('duty_start', '08:00'),
+            data.get('duty_end', '18:00'),
+            is_ooh,
+            data.get('contact_phone') or None,
+            data.get('notes') or None,
+            username
+        ))
+        conn.commit()
+
+        log_event(username, 'safeguarding', 'duty_set',
+                  f"Duty clinician {clinician_username} set for {duty_date} (OOH={is_ooh})")
+        conn.close()
+        return jsonify({'success': True, 'message': f'Duty clinician set for {duty_date}'}), 200
+    except Exception as e:
+        return handle_exception(e, 'set_duty_clinician')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/safeguarding/duty/<int:duty_id>', methods=['DELETE'])
+def delete_duty_assignment(duty_id):
+    """DELETE a future duty assignment."""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not role or role[0] not in ('clinician', 'developer'):
+            conn.close()
+            return jsonify({'error': 'Clinician access required'}), 403
+
+        row = cur.execute("SELECT duty_date FROM duty_clinician WHERE id=%s", (duty_id,)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Duty assignment not found'}), 404
+
+        cur.execute("DELETE FROM duty_clinician WHERE id=%s", (duty_id,))
+        conn.commit()
+        log_event(username, 'safeguarding', 'duty_deleted', f"Duty ID {duty_id} removed")
+        conn.close()
+        return jsonify({'success': True, 'message': 'Duty assignment removed'}), 200
+    except Exception as e:
+        return handle_exception(e, 'delete_duty_assignment')
+
+
 # ==================== ENHANCED SAFETY PLAN ENDPOINTS ====================
 
 @app.route('/api/safety-plan/<username>', methods=['GET'])
@@ -20061,6 +20697,288 @@ def get_developer_username():
         return jsonify({'username': ''}), 200
     except Exception as e:
         return jsonify({'username': ''}), 200
+
+
+# ── Developer: Log Viewer ─────────────────────────────────────────────────────
+@app.route('/api/developer/logs/view', methods=['GET'])
+def view_developer_logs():
+    """Read healing_space.log with level filter, search, and line limit"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        user_role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        conn.close()
+
+        if not user_role or user_role[0] != 'developer':
+            return jsonify({'error': 'Developer role required'}), 403
+
+        level_filter = request.args.get('level', 'ALL').upper()
+        search_filter = request.args.get('search', '').strip()
+        try:
+            line_limit = min(int(request.args.get('lines', 200)), 1000)
+        except (ValueError, TypeError):
+            line_limit = 200
+
+        log_path = os.path.join(os.getcwd(), 'healing_space.log')
+        if not os.path.exists(log_path):
+            return jsonify({'lines': [], 'total_matched': 0, 'showing': 0,
+                            'log_path': log_path, 'file_size_kb': 0,
+                            'message': 'Log file not found — app may be running in debug mode',
+                            'timestamp': datetime.now().isoformat()}), 200
+
+        try:
+            with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+                all_lines = f.readlines()
+        except Exception as read_err:
+            return jsonify({'error': f'Cannot read log file: {read_err}'}), 500
+
+        LEVELS = ('CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG')
+        entries = []
+        for raw in all_lines:
+            line = raw.rstrip('\n')
+            if not line.strip():
+                continue
+            if level_filter != 'ALL':
+                if not any(f' - {level_filter} - ' in line for _ in [1]):
+                    if f' {level_filter}:' not in line:
+                        continue
+            if search_filter and search_filter.lower() not in line.lower():
+                continue
+            entries.append(line)
+
+        total_matched = len(entries)
+        entries = entries[-line_limit:]
+
+        parsed = []
+        for line in entries:
+            lvl = 'INFO'
+            for candidate in LEVELS:
+                if f' - {candidate} - ' in line:
+                    lvl = candidate
+                    break
+            parsed.append({'text': line, 'level': lvl})
+
+        file_size_kb = round(os.path.getsize(log_path) / 1024, 1)
+        return jsonify({
+            'lines': parsed,
+            'total_matched': total_matched,
+            'showing': len(parsed),
+            'log_path': log_path,
+            'file_size_kb': file_size_kb,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        return handle_exception(e, 'view_developer_logs')
+
+
+# ── Developer: Verbose Test Runner ────────────────────────────────────────────
+@CSRFProtection.require_csrf
+@app.route('/api/developer/tests/verbose', methods=['POST'])
+def run_verbose_tests():
+    """Run pytest with configurable verbosity and traceback detail"""
+    import subprocess as _subprocess
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        user_role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        conn.close()
+
+        if not user_role or user_role[0] != 'developer':
+            return jsonify({'error': 'Developer role required'}), 403
+
+        data = request.get_json() or {}
+        scope = data.get('scope', 'all')
+        traceback_style = data.get('traceback', 'long')   # short | long | full
+        capture_output = data.get('capture', False)       # False → adds -s flag
+
+        SCOPE_PATHS = {
+            'all': ['tests/'],
+            'backend': ['tests/backend/'],
+            'e2e': ['tests/e2e/'],
+            'security': ['tests/backend/test_auth.py', 'tests/backend/test_security.py', 'tests/backend/test_safety.py'],
+            'safeguarding': ['tests/backend/test_safeguarding.py'],
+            'tier2': ['tests/tier2/'],
+        }
+        # Validate traceback style
+        if traceback_style not in ('short', 'long', 'full', 'no', 'line'):
+            traceback_style = 'long'
+
+        test_paths = SCOPE_PATHS.get(scope, ['tests/'])
+        cmd = [sys.executable, '-m', 'pytest', '-v', f'--tb={traceback_style}', '--no-header'] + test_paths
+        if not capture_output:
+            cmd.append('-s')
+
+        result = _subprocess.run(
+            cmd, capture_output=True, text=True, timeout=180, cwd=os.getcwd()
+        )
+
+        output = result.stdout + result.stderr
+        exit_code = result.returncode
+        passed = output.count(' PASSED')
+        failed = output.count(' FAILED')
+        errors = output.count(' ERROR')
+
+        try:
+            conn2 = get_db_connection()
+            cur2 = get_wrapped_cursor(conn2)
+            cur2.execute(
+                "INSERT INTO developer_test_runs (username, test_output, exit_code, passed_count, failed_count, error_count) VALUES (%s,%s,%s,%s,%s,%s)",
+                (username, output[:50000], exit_code, passed, failed, errors)
+            )
+            conn2.commit()
+            conn2.close()
+        except Exception:
+            pass
+
+        log_event(username, 'developer', 'verbose_test_run',
+                  {'scope': scope, 'traceback': traceback_style, 'passed': passed, 'failed': failed})
+
+        return jsonify({
+            'success': exit_code == 0,
+            'output': output,
+            'exit_code': exit_code,
+            'passed': passed,
+            'failed': failed,
+            'errors': errors,
+            'scope': scope,
+            'traceback_style': traceback_style,
+            'command': ' '.join(cmd),
+            'timestamp': datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        if 'TimeoutExpired' in type(e).__name__:
+            return jsonify({'error': 'Test suite timed out (180s limit)'}), 408
+        return handle_exception(e, 'run_verbose_tests')
+
+
+# ── Developer: Extended Diagnostics ───────────────────────────────────────────
+@app.route('/api/developer/diagnostics', methods=['GET'])
+def get_developer_diagnostics():
+    """Extended diagnostics: DB table stats, log error counts, active connections"""
+    try:
+        username = get_authenticated_username()
+        if not username:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        user_role = cur.execute("SELECT role FROM users WHERE username=%s", (username,)).fetchone()
+        if not user_role or user_role[0] != 'developer':
+            conn.close()
+            return jsonify({'error': 'Developer role required'}), 403
+
+        key_tables = [
+            'users', 'mood_entries', 'therapy_sessions', 'messages',
+            'risk_alerts', 'notifications', 'safeguarding_concerns',
+            'appointments', 'community_posts', 'developer_test_runs'
+        ]
+        table_counts = {}
+        for tbl in key_tables:
+            try:
+                row = cur.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()
+                table_counts[tbl] = row[0] if row else 0
+            except Exception:
+                table_counts[tbl] = None
+
+        table_sizes = {}
+        try:
+            size_rows = cur.execute("""
+                SELECT tablename,
+                       pg_size_pretty(pg_total_relation_size(quote_ident(tablename))) AS size,
+                       pg_total_relation_size(quote_ident(tablename)) AS bytes
+                FROM pg_tables WHERE schemaname='public'
+                ORDER BY bytes DESC LIMIT 10
+            """).fetchall()
+            for row in size_rows:
+                table_sizes[row[0]] = row[1]
+        except Exception:
+            pass
+
+        active_connections = 0
+        try:
+            row = cur.execute("""
+                SELECT COUNT(*) FROM pg_stat_activity
+                WHERE datname = current_database() AND state = 'active'
+            """).fetchone()
+            active_connections = row[0] if row else 0
+        except Exception:
+            pass
+
+        db_version = ''
+        try:
+            row = cur.execute("SELECT version()").fetchone()
+            db_version = row[0].split(',')[0] if row else ''
+        except Exception:
+            pass
+
+        latest_test = None
+        try:
+            row = cur.execute("""
+                SELECT passed_count, failed_count, error_count, exit_code, created_at
+                FROM developer_test_runs ORDER BY created_at DESC LIMIT 1
+            """).fetchone()
+            if row:
+                latest_test = {
+                    'passed': row[0], 'failed': row[1], 'errors': row[2],
+                    'exit_code': row[3],
+                    'run_at': row[4].isoformat() if row[4] else None
+                }
+        except Exception:
+            pass
+
+        conn.close()
+
+        # Scan last 500 log lines for errors
+        recent_errors = []
+        log_path = os.path.join(os.getcwd(), 'healing_space.log')
+        log_exists = os.path.exists(log_path)
+        try:
+            if log_exists:
+                with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+                    lines = f.readlines()
+                for line in lines[-500:]:
+                    if ' - ERROR - ' in line or ' - CRITICAL - ' in line:
+                        recent_errors.append(line.strip())
+                recent_errors = recent_errors[-20:]
+        except Exception:
+            pass
+
+        return jsonify({
+            'database': {
+                'version': db_version,
+                'active_connections': active_connections,
+                'table_counts': table_counts,
+                'table_sizes': table_sizes,
+            },
+            'logs': {
+                'recent_errors': recent_errors,
+                'error_count': len(recent_errors),
+                'log_path': log_path,
+                'log_exists': log_exists,
+            },
+            'tests': {
+                'latest_run': latest_test,
+            },
+            'server': {
+                'routes': len(app.url_map._rules),
+                'environment': 'production' if not DEBUG else 'development',
+            },
+            'timestamp': datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        return handle_exception(e, 'get_developer_diagnostics')
+
 
 # WELLNESS RITUAL ENDPOINTS
 # ============================================================================

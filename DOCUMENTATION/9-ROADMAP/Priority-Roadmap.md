@@ -86,6 +86,27 @@ Visual milestone achievements, mood/PHQ-9/GAD-7 Canvas charts, streak tracking, 
 
 **Platform integration**: Hooked into `calculate_risk_score()` (runs on every risk calculation). `detect_patterns_endpoint()` scans all patients. `get_risk_dashboard()` triggers score recalculation for patients with missing/stale (>1h) assessments. Risk Monitor shows ⚡ Early Warning Signals card with tier counts. Patient rows show 🔴🟠🟡 pill counts. Patient Alerts tab renders full flag cards with AI reasoning, recommended action, and dismiss workflow. `/api/risk/predictive/<username>` and `/api/risk/predictive/<flag_id>/dismiss` endpoints.
 
+### 2.5 Safeguarding & Duty of Care Workflow ✅ (Feb 28, 2026)
+Full statutory safeguarding implementation — clinically and legally defensible.
+
+- **`safeguarding_concerns` table** — permanent legal record, 27-column schema, status workflow: open → referred → monitoring → closed (never DELETE)
+- **`duty_clinician` table** — UNIQUE(duty_date, is_out_of_hours) rota, one daytime + one OOH slot per day
+- **9 API endpoints**: GET stats, LIST concerns, POST concern, GET detail, PATCH status, GET patient concerns, GET duty rota, POST duty (upsert), DELETE duty slot
+- **Immediate risk cascade**: immediate_risk=True triggers critical risk_alert INSERT + duty clinician notification + async email
+- **UK statutory frameworks**: Working Together 2018, Care Act 2014, MCA 2005, Gillick competence, MASH, MARAC, Section 47/17, Prevent
+- **Frontend**: 🛡️ Safeguarding clinical subtab (stats, duty widget, concern list) + patient-level safeguarding subtab
+- **Legal disclaimer** banner on all safeguarding screens
+- **Form**: concern category (10 options), statutory framework, disclosure method, Gillick/capacity section, multi-agency referral section (MASH/Police/CAMHS/MARAC/GP/Social Care/LA/Other), supervisor consultation
+- **AI-powered**: `openConcernDetail()` reuses risk detail modal; `suggestTestFix()` sends failures to AI assistant
+- **Audit trail**: `log_event()` on every concern creation, status change, duty assignment
+
+### Smart Refresh (Tab Visibility Engine) ✅ (Feb 28, 2026)
+Active tab content auto-refreshes when the user returns to the page (no constant 10s polling flicker).
+
+- `_refreshActiveTabContent()` called on `visibilitychange → visible` and on `switchTab()`
+- Handles: Risk Monitor, Safeguarding, Analytics, Waiting List, Appointments, Messages, Community, Notifications
+- `setTimeout(_refreshActiveTabContent, 100)` after every main tab switch
+
 ### Real-Time Smart Polling Engine ✅ (Feb 24, 2026)
 Replaced scattered 60s `setInterval` calls with a centralised smart polling engine.
 
@@ -341,16 +362,16 @@ Extend current real-time detection to predictive detection BEFORE crisis:
 
 ---
 
-### 2.5 SAFEGUARDING & DUTY OF CARE WORKFLOW
-**Priority: CRITICAL — Legal obligation**
+### 2.5 SAFEGUARDING & DUTY OF CARE WORKFLOW ✅ COMPLETE (Feb 28, 2026)
+**Priority: CRITICAL — Legal obligation** — FULLY IMPLEMENTED
 
-- Safeguarding concern structured logging
-- Multi-agency referral form generation (MASH)
-- Duty clinician system (out-of-hours coverage)
-- Escalation protocol workflow
-- Gillick competency / capacity assessment log
-- Mandatory reporting tracker
-- Encrypted inter-agency information sharing
+- ✅ Safeguarding concern structured logging (27-column permanent record)
+- ✅ Multi-agency referral tracking (MASH, Police, CAMHS, MARAC, GP, Social Care, LA)
+- ✅ Duty clinician rota system (daytime + OOH slots, upsert on conflict)
+- ✅ Escalation workflow: immediate_risk=True → critical alert + email + notification cascade
+- ✅ Gillick competency / MCA 2005 capacity assessment fields
+- ✅ Mandatory reporting tracker (status: open → referred → monitoring → closed)
+- ⏳ Encrypted inter-agency information sharing (future: secure messaging to MASH)
 
 ---
 
@@ -1039,9 +1060,13 @@ Migration strategy: zero-downtime, backward-compatible.
 |-------|----------|--------|--------|--------|
 | Healing Journey (HJ.1–HJ.3) ✅ | **DONE** | Medium | Very High | Feb 2026 |
 | 2.1 Predictive Crisis Detection ✅ | **DONE** | High | Critical | Feb 2026 |
+| 2.5 Safeguarding & Duty of Care ✅ | **DONE** | High | Critical | Feb 2026 |
 | Real-Time Polling Engine ✅ | **DONE** | Medium | High | Feb 2026 |
+| Smart Tab Refresh ✅ | **DONE** | Low | Medium | Feb 2026 |
+| Developer Dashboard (Logs/Diagnostics/Verbose Tests) ✅ | **DONE** | Medium | High | Feb 2026 |
+| Mobile Menu Fix ✅ | **DONE** | Low | High | Feb 2026 |
 | Healing Journey (HJ.4–HJ.7) | **Q2 2026** | Medium | High | Q2 2026 |
-| 2.2–2.7 — Clinical Excellence | **Q2 2026** | High | Very High | Q2–Q3 2026 |
+| 2.2–2.4, 2.6–2.7 — Clinical Excellence | **Q2 2026** | High | Very High | Q2–Q3 2026 |
 | 3.0 — Onboarding Redesign | **Q2 2026** | Medium | Very High | Q2 2026 |
 | 3 — Patient Empowerment | **Q2–Q3 2026** | Medium | High | Q3 2026 |
 | 4 — AI & Intelligence | **Q3 2026** | High | Very High | Q3 2026 |
@@ -1061,7 +1086,7 @@ Migration strategy: zero-downtime, backward-compatible.
 5. ✅ CORE-OM outcome measures
 6. ✅ Unified risk alert pipeline
 7. ✅ Full patient data visible to clinician
-8. ⏳ Safeguarding workflow
+8. ✅ Safeguarding workflow (2.5 — full implementation Feb 28, 2026)
 9. ⏳ Field-level encryption for clinical data
 10. ⏳ GDPR comprehensive implementation
 11. ⏳ Clinical risk management documentation (DCB0129)
@@ -1094,6 +1119,15 @@ Achievable in ~1 hour:
 
 ---
 
-*Roadmap last updated: February 24, 2026 (2.1 Predictive Crisis Detection completed; Real-Time Smart Polling Engine added; bug fixes: risk dashboard staleness, CSRF on therapy note save, medication adherence column names).*
+*Roadmap last updated: February 28, 2026.*
+
+**Session summary (Feb 28, 2026):**
+- ✅ **2.5 Safeguarding & Duty of Care Workflow** — full UK statutory implementation (9 endpoints, 2 tables, complete clinical form, immediate-risk cascade, duty clinician rota). Test suite: `tests/backend/test_safeguarding.py` (50+ test cases)
+- ✅ **Smart Tab Refresh** — `_refreshActiveTabContent()` on visibility restore + tab switch (Risk Monitor, Safeguarding, Analytics, Messages, Community, Notifications, Waiting List, Appointments)
+- ✅ **Developer Dashboard — Verbose Test Runner** — `POST /api/developer/tests/verbose` (configurable scope, traceback depth short/long/full, saved to DB); 🛡️ Safeguarding test scope button; 🤖 Suggest Fix button pipes failures into AI assistant
+- ✅ **Developer Dashboard — Live Log Viewer** — `GET /api/developer/logs/view` (level filter ALL/DEBUG/INFO/WARNING/ERROR/CRITICAL, search, 100–1000 line window); live tail mode (5s interval); 📋 Logs subtab; CSS chip buttons
+- ✅ **Developer Dashboard — Diagnostics Panel** — `GET /api/developer/diagnostics` (DB table counts + sizes, active PG connections, recent log errors, latest test run, route count, environment); 🔬 Diagnostics subtab with stats cards
+- ✅ **Mobile Menu Fix** — extended breakpoint to 900px; sidebar switches to horizontal scrollable tab bar at top; `flex-shrink: 0`; compact button sizing for 480px screens
+
 *Next review: April 2026.*
 *This document should be reviewed quarterly and updated after each major milestone.*
