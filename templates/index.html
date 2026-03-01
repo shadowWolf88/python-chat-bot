@@ -23,6 +23,23 @@
             // Support sanctuary theme in addition to light/dark
             var theme = saved || (prefersDark ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
+
+            // ── Mobile layout enforcer for Capacitor Android WebView ──────────
+            // Capacitor's WebView sometimes doesn't trigger CSS media queries
+            // reliably. We use a JS class toggle as a guaranteed fallback.
+            var MOBILE_BREAK = 900;
+            function applyMobileClass() {
+                if (window.innerWidth <= MOBILE_BREAK) {
+                    document.documentElement.classList.add('mobile-layout');
+                } else {
+                    document.documentElement.classList.remove('mobile-layout');
+                }
+            }
+            applyMobileClass();
+            window.addEventListener('resize', applyMobileClass);
+            window.addEventListener('orientationchange', function () {
+                setTimeout(applyMobileClass, 200);
+            });
         }());
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2902,7 +2919,8 @@
         }
         
         /* ── Mobile: sidebar becomes a horizontal scroll bar at the top ── */
-        @media (max-width: 900px) {
+        /* CSS media query (standard browsers) */
+        @media (max-width: 1024px) {
             .app-content {
                 flex-direction: column;
                 height: auto;
@@ -2917,9 +2935,7 @@
                 overflow-y: hidden;
                 padding: 8px 4px;
                 box-shadow: 0 2px 8px var(--shadow-color);
-                /* Prevent sidebar from collapsing on flex-column parent */
                 flex-shrink: 0;
-                /* Scrollbar styling */
                 scrollbar-width: thin;
                 scrollbar-color: rgba(255,255,255,0.3) transparent;
             }
@@ -2953,6 +2969,56 @@
                 left: 10px;
                 width: auto;
             }
+        }
+
+        /* ── JS-enforced mobile layout (Capacitor Android WebView fallback) ── */
+        /* Mirrors the media query above but triggered via the 'mobile-layout'  */
+        /* class added by the inline head script — guarantees correct layout     */
+        /* even when the WebView doesn't fire the CSS media query correctly.     */
+        html.mobile-layout .app-content {
+            flex-direction: column !important;
+            height: auto !important;
+            min-height: calc(100vh - 80px) !important;
+        }
+        html.mobile-layout .sidebar {
+            width: 100% !important;
+            min-width: 0 !important;
+            display: flex !important;
+            flex-direction: row !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            padding: 8px 4px !important;
+            box-shadow: 0 2px 8px var(--shadow-color) !important;
+            flex-shrink: 0 !important;
+            scrollbar-width: thin !important;
+        }
+        html.mobile-layout .tab-btn {
+            min-width: 120px !important;
+            max-width: 160px !important;
+            white-space: nowrap !important;
+            border-left: none !important;
+            border-bottom: 3px solid transparent !important;
+            border-radius: 8px 8px 0 0 !important;
+            margin: 0 3px !important;
+            padding: 10px 14px !important;
+            font-size: 13px !important;
+            flex-shrink: 0 !important;
+            display: block !important;
+            width: auto !important;
+            text-align: left !important;
+        }
+        html.mobile-layout .tab-btn.active {
+            border-bottom-color: #ffd700 !important;
+            border-left-color: transparent !important;
+            background: rgba(255,255,255,0.22) !important;
+        }
+        html.mobile-layout .main-content {
+            padding: 16px 12px !important;
+        }
+        html.mobile-layout .notification-panel {
+            right: 10px !important;
+            left: 10px !important;
+            width: auto !important;
         }
 
         /* Extra-small screens — tighter tab labels */
