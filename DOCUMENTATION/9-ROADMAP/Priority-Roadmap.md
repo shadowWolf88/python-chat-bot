@@ -100,6 +100,24 @@ Full statutory safeguarding implementation — clinically and legally defensible
 - **AI-powered**: `openConcernDetail()` reuses risk detail modal; `suggestTestFix()` sends failures to AI assistant
 - **Audit trail**: `log_event()` on every concern creation, status change, duty assignment
 
+### 2.6 — Appointment System Upgrade ✅ (Feb 28, 2026)
+World-class appointment management replacing the basic clinician-only scheduling with a full clinical workflow.
+
+- **DB schema**: 12 new columns on `appointments` (duration_minutes, location_type, video_link, is_recurring, recurring_pattern, recurring_until, recurring_group_id, recurring_index, cancelled_by, cancellation_reason, reminder_48h_sent, reminder_24h_sent) — all idempotent `ALTER TABLE IF NOT EXISTS` migrations
+- **`clinician_availability` table** — recurring weekly slots (day_of_week) and specific-date blocks (is_blocked), with slot_duration_minutes and index for fast querying
+- **Recurring appointments** — up to 12 occurrences linked by UUID `recurring_group_id`, pure stdlib month arithmetic (no external deps). Cancel entire series or single occurrence
+- **Location types**: In-Person 🏢, Video Call 📹, Phone 📞 — with location badge on all appointment cards
+- **Video call link field** — clinician pastes Zoom/Whereby/Teams URL; "📹 Join Video Call →" button appears on patient card and clinician day-view tile (sanitized URL, rel=noopener)
+- **Automated reminders** (dispatched via `/api/poll`, idempotent): 48h reminder (in-app + email to patient + clinician), 24h reminder with video link included. UPDATE...RETURNING pattern prevents duplicate sends
+- **Availability Manager modal** — clinician sets recurring weekly slots (day, start/end, slot duration) and blocks specific dates (holidays, training). Rules persist in `clinician_availability`
+- **Patient self-booking** — slot picker grid (7-day view, week navigation); available=green, taken=grey-disabled. Patient requests via POST /api/appointments with preferred location; clinician notification sent
+- **DNA Report modal** — last 90 days: dna_count, total appointments, DNA rate per patient. ⚠️ banner auto-shows when ≥3-DNA patients detected (fires silently on `loadAppointments`)
+- **Calendar enhancements**: month/week/day views now colour-coded by attendance_status (attended=green, scheduled=purple, no_show/missed=red, pending=amber, declined=grey) with location icons on tiles
+- **Soft-delete on cancel**: `deleted_at` timestamp rather than hard DELETE; `cancelled_by` + `cancellation_reason` stored for audit trail
+- **6 new endpoints**: GET/POST/DELETE `/api/clinician/availability`, GET `/api/appointments/available-slots`, GET `/api/appointments/dna-report`, PATCH `/api/appointments/<id>`
+- **Patient appointment cards**: location badge, duration, "📹 Join Video Call →" link, 🔄 Recurring indicator
+- **`clinician_username` field** added to patient profile API response (enables self-booking)
+
 ### Smart Refresh (Tab Visibility Engine) ✅ (Feb 28, 2026)
 Active tab content auto-refreshes when the user returns to the page (no constant 10s polling flicker).
 

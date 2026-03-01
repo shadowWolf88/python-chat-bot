@@ -4369,6 +4369,19 @@
         [data-theme="dark"] .msg-recipient-item:hover { background: var(--hover-bg); }
         [data-theme="dark"] .msg-quick-btn { background: var(--bg-secondary); color: var(--text-primary); border-color: var(--border-color); }
         [data-theme="dark"] .msg-quick-btn:hover { border-color: var(--primary-color, #6366f1); color: var(--primary-color, #6366f1); background: rgba(99,102,241,0.1); }
+        /* ── Appointment System 2.6 ─────────────────────────────────────────── */
+        .avail-slot-chip { display:inline-flex; align-items:center; gap:6px; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:6px 10px; font-size:13px; margin:4px; }
+        .slot-btn { padding:8px 12px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:2px solid #27ae60; color:#27ae60; background:transparent; transition:all 0.15s; }
+        .slot-btn:hover, .slot-btn.selected { background:#27ae60; color:white; }
+        .slot-btn.taken { border-color:var(--border-color); color:var(--text-muted); cursor:default; background:var(--bg-secondary); }
+        .loc-badge { display:inline-block; padding:3px 8px; border-radius:12px; font-size:12px; font-weight:600; }
+        .loc-badge.in_person { background:#e8f5e9; color:#2e7d32; }
+        .loc-badge.video { background:#ede7f6; color:#512da8; }
+        .loc-badge.phone { background:#e3f2fd; color:#1565c0; }
+        .dna-warning { color:#e74c3c; font-weight:700; }
+        [data-theme="dark"] .loc-badge.in_person { background:rgba(39,174,96,0.15); color:#2ecc71; }
+        [data-theme="dark"] .loc-badge.video { background:rgba(99,102,241,0.15); color:#a78bfa; }
+        [data-theme="dark"] .loc-badge.phone { background:rgba(52,152,219,0.15); color:#60a5fa; }
     </style>
 </head>
 <body>
@@ -6741,7 +6754,10 @@
             
             <!-- Appointments Tab -->
             <div id="appointmentsTab" class="tab-content">
-                <h3>📅 My Appointments</h3>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <h3 style="margin:0;">📅 My Appointments</h3>
+                    <button class="btn" id="selfBookingBtn" onclick="openSelfBooking()" style="display:none; background:#6366f1;">📅 Request Appointment</button>
+                </div>
                 <p class="tab-description">View and manage appointments scheduled by your clinician.</p>
 
                 <div id="appointmentsList">
@@ -7005,10 +7021,18 @@
                                 <button class="btn btn-secondary" id="weekViewBtn" onclick="setCalendarView('week')">Week</button>
                                 <button class="btn btn-secondary" id="dayViewBtn" onclick="setCalendarView('day')">Day</button>
                                 <button class="btn" onclick="showNewAppointmentForm()" style="background: #2ecc71;">➕ New</button>
+                                <button class="btn btn-secondary" onclick="openAvailabilityManager()" style="white-space:nowrap;">📅 My Availability</button>
+                                <button class="btn btn-secondary" onclick="loadDnaReport()" id="dnaReportBtn" style="white-space:nowrap;">⚠️ DNA Report</button>
                             </div>
                         </div>
                     </div>
-                    
+
+                    <!-- DNA Alert Banner -->
+                    <div id="dnaAlertBanner" style="display:none; background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>⚠️ <strong id="dnaAlertText">—</strong> patients have missed 3+ appointments in the last 90 days.</span>
+                        <button class="btn btn-secondary" onclick="openDnaReportModal()" style="padding:6px 12px; font-size:13px;">View DNA Report</button>
+                    </div>
+
                     <!-- Calendar Grid -->
                     <div class="card">
                         <!-- Calendar View Container -->
@@ -7065,11 +7089,55 @@
                             <label>Duration (minutes)</label>
                             <select id="appointmentDuration" style="width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 16px;">
                                 <option value="15">15 minutes</option>
-                                <option value="30" selected>30 minutes</option>
-                                <option value="45">45 minutes</option>
+                                <option value="30">30 minutes</option>
+                                <option value="50" selected>50 minutes</option>
                                 <option value="60">1 hour</option>
                                 <option value="90">1.5 hours</option>
                             </select>
+                        </div>
+                        <!-- Location Type -->
+                        <div class="form-group">
+                            <label style="font-weight:600;">Location Type</label>
+                            <div style="display:flex; gap:16px; margin-top:8px; flex-wrap:wrap;">
+                                <label style="cursor:pointer; display:flex; align-items:center; gap:6px; font-weight:normal;">
+                                    <input type="radio" name="aptLocType" value="in_person" checked onchange="onLocationTypeChange()"> 🏢 In-Person
+                                </label>
+                                <label style="cursor:pointer; display:flex; align-items:center; gap:6px; font-weight:normal;">
+                                    <input type="radio" name="aptLocType" value="video" onchange="onLocationTypeChange()"> 📹 Video Call
+                                </label>
+                                <label style="cursor:pointer; display:flex; align-items:center; gap:6px; font-weight:normal;">
+                                    <input type="radio" name="aptLocType" value="phone" onchange="onLocationTypeChange()"> 📞 Phone
+                                </label>
+                            </div>
+                        </div>
+                        <!-- Video Link (shown when Video selected) -->
+                        <div class="form-group" id="videoLinkField" style="display:none;">
+                            <label style="font-weight:600;">Video Call Link</label>
+                            <input type="url" id="appointmentVideoLink" placeholder="Paste Zoom / Whereby / Teams / Google Meet URL..." style="width:100%; padding:12px; border:2px solid var(--border-color); border-radius:8px; font-size:14px; box-sizing:border-box;">
+                            <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">This link will be shared with the patient 24h before the appointment.</p>
+                        </div>
+                        <!-- Recurring Appointment -->
+                        <div class="form-group">
+                            <label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-weight:600;">
+                                <input type="checkbox" id="aptIsRecurring" onchange="onRecurringChange()"> 🔄 Recurring appointment
+                            </label>
+                            <div id="recurringFields" style="display:none; margin-top:10px; padding:14px; background:var(--bg-secondary); border-radius:8px; border:1px solid var(--border-color);">
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                    <div>
+                                        <label style="font-size:13px; font-weight:600;">Repeat</label>
+                                        <select id="aptRecurringPattern" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px; margin-top:4px; background:var(--card-bg); color:var(--text-primary);">
+                                            <option value="weekly">Every week</option>
+                                            <option value="fortnightly">Every 2 weeks</option>
+                                            <option value="monthly">Every month</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size:13px; font-weight:600;">Until (max 3 months)</label>
+                                        <input type="date" id="aptRecurringUntil" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px; margin-top:4px; background:var(--card-bg); color:var(--text-primary);">
+                                    </div>
+                                </div>
+                                <p style="font-size:12px; color:var(--text-muted); margin-top:8px; margin-bottom:0;">Maximum 12 occurrences will be created.</p>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>Notes (optional)</label>
@@ -15161,6 +15229,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                             session_note:         '📝 Session Note',
                             treatment_plan:       '🗺️ Treatment Plan',
                             outcome_measure:      '📈 Outcome Measure',
+                            appointment_reminder: '⏰ Appointment Reminder',
+                            appointment_cancelled:'📅 Appointment Cancelled',
                         };
 
                         list.innerHTML = headerHtml + data.notifications.map(n => {
@@ -18396,6 +18466,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         }
                     }
                     
+                    // Show self-booking button if clinician assigned
+                    const selfBookBtn = document.getElementById('selfBookingBtn');
+                    if (selfBookBtn) selfBookBtn.style.display = 'inline-flex';
+
                     listDiv.innerHTML = data.appointments.map(apt => {
                         const date = new Date(apt.appointment_date);
                         const dateStr = date.toLocaleDateString('en-GB', {
@@ -18412,11 +18486,21 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                           apt.patient_response === 'declined' ? '✗ Declined' :
                                           '⏳ Awaiting Response';
 
+                        const locLabels = { video:'📹 Video Call', phone:'📞 Phone', in_person:'🏢 In-Person' };
+                        const locLabel = locLabels[apt.location_type] || '🏢 In-Person';
+                        const locClass = apt.location_type || 'in_person';
+                        const durMins = apt.duration_minutes || 50;
+
+                        const videoJoinBtn = (apt.location_type === 'video' && apt.video_link)
+                            ? `<a href="${escapeAttr(apt.video_link)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#6366f1;color:white;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;margin-top:10px;">📹 Join Video Call →</a>`
+                            : '';
+                        const recurringBadge = apt.is_recurring ? `<span style="background:#e3f2fd;color:#1565c0;padding:3px 8px;border-radius:12px;font-size:12px;font-weight:600;margin-left:6px;">🔄 Recurring</span>` : '';
+
                         return `
                             <div class="card" style="margin-bottom: 20px; border-left: 4px solid ${statusColor};">
                                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
                                     <div>
-                                        <h4 style="margin: 0 0 5px 0; color: var(--accent-color);">📅 ${apt.appointment_type || 'Consultation'}</h4>
+                                        <h4 style="margin: 0 0 5px 0; color: var(--accent-color);">📅 ${sanitizeHTML(apt.appointment_type || 'Consultation')}${recurringBadge}</h4>
                                         <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">With ${sanitizeHTML(apt.clinician_username)}</p>
                                     </div>
                                     <span style="background: ${statusColor}; color: white; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">
@@ -18427,7 +18511,10 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                                 <div class="appointment-details-box">
                                     <p style="margin: 0 0 5px 0;"><strong>📆 Date:</strong> ${dateStr}</p>
                                     <p style="margin: 0 0 5px 0;"><strong>🕐 Time:</strong> ${timeStr}</p>
+                                    <p style="margin: 0 0 5px 0;"><strong>📍 Location:</strong> <span class="loc-badge ${locClass}">${locLabel}</span></p>
+                                    <p style="margin: 0 0 5px 0;"><strong>⏱ Duration:</strong> ${durMins} minutes</p>
                                     ${apt.notes ? `<p style="margin: 10px 0 0 0; padding-top: 10px; border-top: 1px solid var(--border-color);"><strong>Notes:</strong> ${sanitizeWithLineBreaks(apt.notes)}</p>` : ''}
+                                    ${videoJoinBtn}
                                 </div>
 
                                 ${!apt.patient_acknowledged && !isPast ? `
@@ -20957,6 +21044,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 if (response.ok && data.appointments) {
                     allAppointments = data.appointments;
                     renderCalendar();
+                    // Silently refresh DNA banner in background
+                    loadDnaReport().catch(() => {});
                 }
             } catch (error) {
                 console.error('Error loading appointments:', error);
@@ -21059,15 +21148,17 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     return aptDate.toDateString() === date.toDateString();
                 });
                 
+                const APT_STATUS_COLORS = { attended:'#27ae60', scheduled:'#6366f1', no_show:'#e74c3c', missed:'#e74c3c', declined:'#95a5a6', pending:'#f39c12' };
+                const APT_LOC_ICONS = { video:'📹', phone:'📞', in_person:'🏢' };
                 let aptHtml = '';
                 if (dayAppointments.length > 0) {
                     // Show first 3 appointments
                     const toShow = dayAppointments.slice(0, 3);
                     toShow.forEach(apt => {
                         const time = new Date(apt.appointment_date).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-                        const statusColor = apt.patient_response === 'accepted' ? '#28a745' : 
-                                          apt.patient_response === 'declined' ? '#dc3545' : '#ffc107';
-                        aptHtml += `<div style="background: ${statusColor}; color: white; padding: 2px 6px; font-size: 11px; border-radius: 3px; margin-top: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="viewDayAppointments('${dateStr}')" title="${apt.patient_username} at ${time}">${time} ${apt.patient_username}</div>`;
+                        const sc = APT_STATUS_COLORS[apt.attendance_status] || APT_STATUS_COLORS[apt.patient_response] || '#6366f1';
+                        const locIcon = APT_LOC_ICONS[apt.location_type] || '🏢';
+                        aptHtml += `<div style="background: ${sc}; color: white; padding: 2px 6px; font-size: 11px; border-radius: 3px; margin-top: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="viewDayAppointments('${dateStr}')" title="${apt.patient_username} at ${time}">${locIcon} ${time} ${apt.patient_username}</div>`;
                     });
                     if (dayAppointments.length > 3) {
                         aptHtml += `<div style="color: #6366f1; font-size: 11px; margin-top: 2px; cursor: pointer;" onclick="viewDayAppointments('${dateStr}')">+${dayAppointments.length - 3} more</div>`;
@@ -21117,12 +21208,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                         return aptDate.toDateString() === day.toDateString() && aptDate.getHours() === hour;
                     });
                     
+                    const WK_STATUS_COLORS = { attended:'#27ae60', scheduled:'#6366f1', no_show:'#e74c3c', missed:'#e74c3c', declined:'#95a5a6', pending:'#f39c12' };
+                    const WK_LOC_ICONS = { video:'📹', phone:'📞', in_person:'🏢' };
                     let cellHtml = '';
                     hourApts.forEach(apt => {
                         const time = new Date(apt.appointment_date).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-                        const statusColor = apt.patient_response === 'accepted' ? '#28a745' : 
-                                          apt.patient_response === 'declined' ? '#dc3545' : '#ffc107';
-                        cellHtml += `<div style="background: ${statusColor}; color: white; padding: 5px; margin-bottom: 3px; font-size: 11px; border-radius: 4px; cursor: pointer;" onclick="viewAppointmentDetails(${apt.id})" title="${apt.patient_username} at ${time}">${time}<br>${apt.patient_username}</div>`;
+                        const sc = WK_STATUS_COLORS[apt.attendance_status] || WK_STATUS_COLORS[apt.patient_response] || '#6366f1';
+                        const locIcon = WK_LOC_ICONS[apt.location_type] || '🏢';
+                        cellHtml += `<div style="background: ${sc}; color: white; padding: 5px; margin-bottom: 3px; font-size: 11px; border-radius: 4px; cursor: pointer;" onclick="viewAppointmentDetails(${apt.id})" title="${apt.patient_username} at ${time}">${locIcon} ${time}<br>${apt.patient_username}</div>`;
                     });
                     
                     html += `<div style="background: white; border: 1px solid #e0e0e0; min-height: 60px; padding: 5px;">${cellHtml}</div>`;
@@ -21147,45 +21240,60 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 return;
             }
             
+            const DV_STATUS_COLORS = { attended:'#27ae60', scheduled:'#6366f1', no_show:'#e74c3c', missed:'#e74c3c', declined:'#95a5a6', pending:'#f39c12' };
+            const DV_LOC_LABELS = { video:'📹 Video Call', phone:'📞 Phone', in_person:'🏢 In-Person' };
             let html = '';
             const now = new Date();
-            
+
             dayAppointments.forEach(apt => {
                 const aptDate = new Date(apt.appointment_date);
                 const time = aptDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                 const isPast = aptDate < now;
-                const isUpcoming = !isPast && (aptDate - now) < 3600000; // Within 1 hour
-                
-                const statusColor = apt.patient_response === 'accepted' ? '#28a745' : 
-                                   apt.patient_response === 'declined' ? '#dc3545' : '#ffc107';
-                const statusIcon = apt.patient_response === 'accepted' ? '✓' : 
-                                  apt.patient_response === 'declined' ? '✗' : '⏳';
-                
+                const isUpcoming = !isPast && (aptDate - now) < 3600000;
+
+                const attColor = DV_STATUS_COLORS[apt.attendance_status] || null;
+                const respColor = apt.patient_response === 'accepted' ? '#27ae60' : apt.patient_response === 'declined' ? '#e74c3c' : '#f39c12';
+                const borderColor = attColor || (isUpcoming ? '#ff9800' : isPast ? '#ccc' : respColor);
+                const statusIcon = apt.patient_response === 'accepted' ? '✓' : apt.patient_response === 'declined' ? '✗' : '⏳';
+                const locLabel = DV_LOC_LABELS[apt.location_type] || '🏢 In-Person';
+                const locClass = apt.location_type || 'in_person';
+                const durMins = apt.duration_minutes || 50;
+
+                const videoJoinBtn = (apt.location_type === 'video' && apt.video_link)
+                    ? `<a href="${escapeAttr(apt.video_link)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#6366f1;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;">📹 Join Video Call →</a>`
+                    : '';
+                const recurringBadge = apt.is_recurring ? `<span style="background:#e3f2fd;color:#1565c0;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">🔄 Recurring</span>` : '';
+
                 html += `
-                    <div style="border: 2px solid ${isUpcoming ? '#ff9800' : isPast ? '#ccc' : statusColor}; border-radius: 8px; padding: 20px; background: ${isPast ? '#f5f5f5' : isUpcoming ? '#fff3e0' : 'white'};">
-                        <div style="display: flex; justify-content: space-between; align-items: start;">
-                            <div style="flex: 1;">
-                                <div style="font-size: 24px; font-weight: bold; color: #6366f1; margin-bottom: 5px;">${time}</div>
-                                <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px;">${apt.patient_username}</div>
-                                ${apt.notes ? `<div style="color: var(--text-secondary); margin-top: 10px; padding: 10px; background: var(--bg-secondary); border-radius: 6px;">${apt.notes}</div>` : ''}
-                                <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                    <span style="background: ${statusColor}; color: white; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: bold;">
-                                        ${statusIcon} ${apt.patient_response === 'accepted' ? 'Accepted' : apt.patient_response === 'declined' ? 'Declined' : 'Pending'}
-                                    </span>
-                                    ${isUpcoming ? '<span style="background: #ff9800; color: white; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: bold;">⚡ Upcoming Soon</span>' : ''}
-                                    ${isPast ? '<span style="background: #999; color: white; padding: 6px 14px; border-radius: 20px; font-size: 14px;">📍 Completed</span>' : ''}
-                                    ${apt.patient_acknowledged ? '<span style="background: #28a745; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px;">✓ Read</span>' : '<span style="background: #999; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px;">○ Unread</span>'}
+                    <div style="border:2px solid ${borderColor};border-radius:8px;padding:20px;background:${isPast ? 'var(--bg-secondary)' : isUpcoming ? '#fff3e0' : 'var(--card-bg)'};">
+                        <div style="display:flex;justify-content:space-between;align-items:start;gap:16px;">
+                            <div style="flex:1;">
+                                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+                                    <div style="font-size:24px;font-weight:bold;color:#6366f1;">${time}</div>
+                                    <span class="loc-badge ${locClass}">${locLabel}</span>
+                                    <span style="color:var(--text-muted);font-size:13px;">${durMins} min</span>
+                                    ${recurringBadge}
+                                </div>
+                                <div style="font-size:20px;font-weight:bold;margin-bottom:10px;">${sanitizeHTML(apt.patient_username)}</div>
+                                ${apt.notes ? `<div style="color:var(--text-secondary);margin-top:8px;padding:10px;background:var(--bg-secondary);border-radius:6px;font-size:14px;">${sanitizeHTML(apt.notes)}</div>` : ''}
+                                <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                                    <span style="background:${respColor};color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:bold;">${statusIcon} ${apt.patient_response === 'accepted' ? 'Accepted' : apt.patient_response === 'declined' ? 'Declined' : 'Pending'}</span>
+                                    ${apt.attendance_status && apt.attendance_status !== 'scheduled' ? `<span style="background:${attColor};color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:bold;">${apt.attendance_status === 'attended' ? '✓ Attended' : apt.attendance_status === 'no_show' ? '✗ No Show' : apt.attendance_status}</span>` : ''}
+                                    ${isUpcoming ? '<span style="background:#ff9800;color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:bold;">⚡ Upcoming Soon</span>' : ''}
+                                    ${isPast ? '<span style="background:#999;color:white;padding:6px 14px;border-radius:20px;font-size:13px;">📍 Past</span>' : ''}
+                                    ${apt.patient_acknowledged ? '<span style="background:#27ae60;color:white;padding:4px 10px;border-radius:20px;font-size:12px;">✓ Read</span>' : '<span style="background:#999;color:white;padding:4px 10px;border-radius:20px;font-size:12px;">○ Unread</span>'}
+                                    ${videoJoinBtn}
                                 </div>
                             </div>
-                            <div style="display: flex; flex-direction: column; gap: 10px;">
-                                <button onclick="viewPatientDetail('${apt.patient_username}')" style="background: #6366f1; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; white-space: nowrap;">View Patient</button>
-                                <button onclick="cancelAppointment(${apt.id})" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; white-space: nowrap;">Cancel</button>
+                            <div style="display:flex;flex-direction:column;gap:8px;">
+                                <button onclick="viewPatientDetail('${sanitizeHTML(apt.patient_username)}')" style="background:#6366f1;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;white-space:nowrap;font-size:13px;">View Patient</button>
+                                <button onclick="cancelAppointmentEnhanced(${apt.id}, ${JSON.stringify(!!apt.recurring_group_id)})" style="background:#e74c3c;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;white-space:nowrap;font-size:13px;">Cancel</button>
                             </div>
                         </div>
                     </div>
                 `;
             });
-            
+
             content.innerHTML = html;
         }
         
@@ -21230,33 +21338,64 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             document.getElementById('appointmentNotes').value = '';
         }
         
+        function onLocationTypeChange() {
+            const locType = document.querySelector('input[name="aptLocType"]:checked')?.value || 'in_person';
+            document.getElementById('videoLinkField').style.display = locType === 'video' ? 'block' : 'none';
+        }
+
+        function onRecurringChange() {
+            const isChecked = document.getElementById('aptIsRecurring').checked;
+            document.getElementById('recurringFields').style.display = isChecked ? 'block' : 'none';
+            if (isChecked && !document.getElementById('aptRecurringUntil').value) {
+                // Set default until date to 3 months from now
+                const d = new Date();
+                d.setMonth(d.getMonth() + 3);
+                document.getElementById('aptRecurringUntil').value = d.toISOString().split('T')[0];
+            }
+        }
+
         async function createAppointment() {
             const patientUsername = document.getElementById('appointmentPatient').value;
             const dateTime = document.getElementById('appointmentDateTime').value;
             const notes = document.getElementById('appointmentNotes').value;
-            
+            const duration = parseInt(document.getElementById('appointmentDuration').value) || 50;
+            const locType = document.querySelector('input[name="aptLocType"]:checked')?.value || 'in_person';
+            const videoLink = document.getElementById('appointmentVideoLink')?.value?.trim() || '';
+            const isRecurring = document.getElementById('aptIsRecurring')?.checked || false;
+            const recurringPattern = document.getElementById('aptRecurringPattern')?.value || 'weekly';
+            const recurringUntil = document.getElementById('aptRecurringUntil')?.value || '';
+
             if (!patientUsername || !dateTime) {
                 alert('Please select a patient and appointment date/time');
                 return;
             }
-            
+
+            const body = {
+                clinician_username: currentUser,
+                patient_username: patientUsername,
+                appointment_date: dateTime,
+                notes: notes,
+                duration_minutes: duration,
+                location_type: locType,
+                video_link: videoLink,
+                is_recurring: isRecurring,
+                recurring_pattern: recurringPattern,
+                recurring_until: isRecurring ? recurringUntil : null,
+            };
+
             try {
                 const response = await fetch('/api/appointments', {
                     method: 'POST',
                     credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        clinician_username: currentUser,
-                        patient_username: patientUsername,
-                        appointment_date: dateTime,
-                        notes: notes
-                    })
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                    body: JSON.stringify(body)
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
-                    alert('✅ Appointment scheduled successfully!');
+                    const occ = data.occurrences || 1;
+                    showToast(`✅ ${occ > 1 ? occ + ' recurring appointments' : 'Appointment'} scheduled successfully!`, 'success');
                     cancelNewAppointment();
                     loadAppointments();
                 } else {
@@ -21268,21 +21407,53 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             }
         }
         
+        async function cancelAppointmentEnhanced(appointmentId, isRecurring) {
+            let cancelSeries = false;
+            let reason = '';
+            if (isRecurring) {
+                const choice = confirm('This is a recurring appointment.\n\nClick OK to cancel the entire series, or Cancel to cancel only this appointment.');
+                cancelSeries = choice;
+            } else {
+                if (!confirm('Are you sure you want to cancel this appointment?')) return;
+            }
+            reason = prompt('Optional: Enter a cancellation reason (press OK to skip)') || '';
+
+            try {
+                const response = await fetch(`/api/appointments/${appointmentId}`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                    body: JSON.stringify({ cancel_series: cancelSeries, cancellation_reason: reason })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast('✅ Appointment cancelled', 'success');
+                    loadAppointments();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to cancel'));
+                }
+            } catch (e) {
+                alert('Connection error. Please try again.');
+            }
+        }
+
         async function cancelAppointment(appointmentId) {
             if (!confirm('Are you sure you want to cancel this appointment?')) {
                 return;
             }
-            
+
             try {
                 const response = await fetch(`/api/appointments/${appointmentId}`, {
                     method: 'DELETE',
-                    credentials: 'include'
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                    body: JSON.stringify({ cancel_series: false, cancellation_reason: '' })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
-                    alert('✅ Appointment cancelled');
+                    showToast('✅ Appointment cancelled', 'success');
                     loadAppointments();
                 } else {
                     alert('Error: ' + (data.error || 'Failed to cancel'));
@@ -26233,6 +26404,324 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             document.getElementById('crisisSupportModal').style.display = 'none';
         }
 
+        // ── Appointment System 2.6 helpers ────────────────────────────────────
+        function escapeAttr(str) {
+            if (!str) return '';
+            // Only allow http/https URLs for video links
+            try {
+                const url = new URL(str);
+                if (url.protocol !== 'https:' && url.protocol !== 'http:') return '#';
+            } catch(e) { return '#'; }
+            return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        }
+
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'flex';
+        }
+
+        // Close modals on backdrop click
+        ['availabilityModal','dnaReportModal','selfBookingModal'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', e => { if (e.target === el) closeModal(id); });
+        });
+
+        // ── Availability Manager ──────────────────────────────────────────────
+        async function openAvailabilityManager() {
+            openModal('availabilityModal');
+            await loadAvailability();
+        }
+
+        async function loadAvailability() {
+            const listDiv = document.getElementById('availabilityRulesList');
+            listDiv.innerHTML = '<p style="color:var(--text-muted);text-align:center;">Loading...</p>';
+            try {
+                const r = await fetch('/api/clinician/availability', { credentials: 'include' });
+                const data = await r.json();
+                renderAvailabilityRules(data.availability || []);
+            } catch(e) {
+                listDiv.innerHTML = '<p style="color:#e74c3c;text-align:center;">Failed to load availability.</p>';
+            }
+        }
+
+        function renderAvailabilityRules(rules) {
+            const listDiv = document.getElementById('availabilityRulesList');
+            if (!rules.length) {
+                listDiv.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">No availability rules set. Add slots below.</p>';
+                return;
+            }
+            const recurring = rules.filter(r => !r.is_blocked && r.day_of_week !== null && r.day_of_week !== undefined);
+            const blocked = rules.filter(r => r.is_blocked || r.specific_date);
+            let html = '';
+            if (recurring.length) {
+                html += '<h5 style="margin:0 0 10px 0;">🗓 Recurring Weekly Slots</h5>';
+                html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">';
+                recurring.forEach(r => {
+                    html += `<span class="avail-slot-chip">${r.day_name} ${r.start_time}–${r.end_time} (${r.slot_duration_minutes}min)<button onclick="deleteAvailabilityRule(${r.id})" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:16px;padding:0;margin-left:4px;" title="Remove">🗑</button></span>`;
+                });
+                html += '</div>';
+            }
+            if (blocked.length) {
+                html += '<h5 style="margin:0 0 10px 0;">🚫 Blocked Dates</h5>';
+                html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">';
+                blocked.forEach(r => {
+                    html += `<span class="avail-slot-chip" style="border-color:#e74c3c;">${r.specific_date}${r.notes ? ' — ' + sanitizeHTML(r.notes) : ''}<button onclick="deleteAvailabilityRule(${r.id})" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:16px;padding:0;margin-left:4px;" title="Remove">🗑</button></span>`;
+                });
+                html += '</div>';
+            }
+            listDiv.innerHTML = html;
+        }
+
+        async function addRecurringSlot() {
+            const day = document.getElementById('avail_day').value;
+            const start = document.getElementById('avail_start').value;
+            const end = document.getElementById('avail_end').value;
+            const dur = document.getElementById('avail_duration').value;
+            if (!start || !end || start >= end) { alert('Please enter a valid start and end time (start must be before end).'); return; }
+            try {
+                const r = await fetch('/api/clinician/availability', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                    body: JSON.stringify({ day_of_week: parseInt(day), start_time: start, end_time: end, slot_duration_minutes: parseInt(dur), is_blocked: false })
+                });
+                const data = await r.json();
+                if (r.ok) { showToast('✅ Availability slot added', 'success'); await loadAvailability(); }
+                else alert(data.error || 'Failed to add slot');
+            } catch(e) { alert('Connection error'); }
+        }
+
+        async function blockDate() {
+            const date = document.getElementById('avail_block_date').value;
+            const notes = document.getElementById('avail_block_notes').value;
+            if (!date) { alert('Please select a date to block.'); return; }
+            try {
+                const r = await fetch('/api/clinician/availability', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                    body: JSON.stringify({ specific_date: date, start_time: '00:00', end_time: '23:59', is_blocked: true, notes: notes })
+                });
+                const data = await r.json();
+                if (r.ok) { showToast('✅ Date blocked', 'success'); document.getElementById('avail_block_date').value = ''; document.getElementById('avail_block_notes').value = ''; await loadAvailability(); }
+                else alert(data.error || 'Failed to block date');
+            } catch(e) { alert('Connection error'); }
+        }
+
+        async function deleteAvailabilityRule(id) {
+            if (!confirm('Remove this availability rule?')) return;
+            try {
+                const r = await fetch(`/api/clinician/availability/${id}`, {
+                    method: 'DELETE', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() }
+                });
+                if (r.ok) { showToast('✅ Rule removed', 'success'); await loadAvailability(); }
+                else { const d = await r.json(); alert(d.error || 'Failed to remove'); }
+            } catch(e) { alert('Connection error'); }
+        }
+
+        // ── DNA Report ────────────────────────────────────────────────────────
+        async function loadDnaReport() {
+            try {
+                const r = await fetch('/api/appointments/dna-report', { credentials: 'include' });
+                const data = await r.json();
+                if (!r.ok) return;
+                const highRisk = (data.patients || []).filter(p => p.dna_count >= 3);
+                const banner = document.getElementById('dnaAlertBanner');
+                const bannerText = document.getElementById('dnaAlertText');
+                if (highRisk.length > 0 && banner) {
+                    bannerText.textContent = `${highRisk.length} patient${highRisk.length > 1 ? 's' : ''}`;
+                    banner.style.display = 'flex';
+                } else if (banner) {
+                    banner.style.display = 'none';
+                }
+                // Store for modal rendering
+                window._dnaReportData = data;
+            } catch(e) {}
+        }
+
+        function openDnaReportModal() {
+            openModal('dnaReportModal');
+            const data = window._dnaReportData;
+            renderDnaReport(data);
+        }
+
+        function renderDnaReport(data) {
+            const div = document.getElementById('dnaReportContent');
+            if (!data || !data.patients || !data.patients.length) {
+                div.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:30px;">✅ No DNA incidents in the last 90 days.</p>';
+                return;
+            }
+            let html = `<p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Showing ${data.patients.length} patient(s) with at least 1 missed appointment.</p>`;
+            html += '<table style="width:100%;border-collapse:collapse;font-size:14px;">';
+            html += '<thead><tr style="border-bottom:2px solid var(--border-color);">';
+            html += '<th style="text-align:left;padding:8px 10px;">Patient</th><th style="text-align:center;padding:8px 10px;">DNAs</th><th style="text-align:center;padding:8px 10px;">Total Apts</th><th style="text-align:center;padding:8px 10px;">DNA Rate</th><th style="text-align:left;padding:8px 10px;">Last DNA</th>';
+            html += '</tr></thead><tbody>';
+            data.patients.forEach(p => {
+                const isHigh = p.dna_count >= 3;
+                html += `<tr style="border-bottom:1px solid var(--border-color);">`;
+                html += `<td style="padding:10px;">${sanitizeHTML(p.username)}${isHigh ? ' <span class="dna-warning">⚠️</span>' : ''}</td>`;
+                html += `<td style="text-align:center;padding:10px;${isHigh ? 'color:#e74c3c;font-weight:700;' : ''}">${p.dna_count}</td>`;
+                html += `<td style="text-align:center;padding:10px;">${p.appointments_total}</td>`;
+                html += `<td style="text-align:center;padding:10px;${p.dna_rate >= 33 ? 'color:#e74c3c;font-weight:700;' : ''}">${p.dna_rate}%</td>`;
+                html += `<td style="padding:10px;color:var(--text-muted);font-size:13px;">${p.last_dna ? new Date(p.last_dna).toLocaleDateString('en-GB') : '—'}</td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            div.innerHTML = html;
+        }
+
+        // ── Patient Self-Booking ──────────────────────────────────────────────
+        let selfBookingWeekOffset = 0;
+        let selfBookingSelectedDatetime = null;
+        let selfBookingClinicianUsername = null;
+
+        async function openSelfBooking() {
+            selfBookingWeekOffset = 0;
+            selfBookingSelectedDatetime = null;
+            selfBookingClinicianUsername = null;
+            document.getElementById('selfBookingNotes').value = '';
+            document.getElementById('selectedSlotInfo').style.display = 'none';
+            document.getElementById('confirmSelfBookingBtn').disabled = true;
+            document.getElementById('confirmSelfBookingBtn').style.opacity = '0.5';
+
+            // Get clinician username from patient's profile
+            try {
+                const r = await fetch(`/api/patient/profile`, { credentials: 'include' });
+                const data = await r.json();
+                if (data.profile && data.profile.clinician_username) {
+                    selfBookingClinicianUsername = data.profile.clinician_username;
+                }
+            } catch(e) {}
+
+            openModal('selfBookingModal');
+            await loadAvailableSlots(0);
+        }
+
+        async function loadAvailableSlots(offset) {
+            if (offset !== undefined) selfBookingWeekOffset = offset;
+            const grid = document.getElementById('slotPickerGrid');
+            const label = document.getElementById('selfBookingWeekLabel');
+            grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;">Loading slots...</p>';
+
+            if (!selfBookingClinicianUsername) {
+                grid.innerHTML = '<p style="color:#e74c3c;text-align:center;">No clinician assigned. Please contact your care team.</p>';
+                return;
+            }
+
+            const fromDate = new Date();
+            fromDate.setDate(fromDate.getDate() + selfBookingWeekOffset * 7 + 1); // start tomorrow
+            const fromStr = fromDate.toISOString().split('T')[0];
+
+            const endDate = new Date(fromDate);
+            endDate.setDate(fromDate.getDate() + 6);
+            label.textContent = `${fromDate.toLocaleDateString('en-GB', {day:'numeric',month:'short'})} – ${endDate.toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})}`;
+
+            try {
+                const r = await fetch(`/api/appointments/available-slots?clinician=${encodeURIComponent(selfBookingClinicianUsername)}&from_date=${fromStr}&days=7`, { credentials: 'include' });
+                const data = await r.json();
+                renderSlotPicker(data.slots || {}, fromDate);
+            } catch(e) {
+                grid.innerHTML = '<p style="color:#e74c3c;text-align:center;">Failed to load slots.</p>';
+            }
+        }
+
+        function renderSlotPicker(slotsData, fromDate) {
+            const grid = document.getElementById('slotPickerGrid');
+            const days = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(fromDate);
+                d.setDate(fromDate.getDate() + i);
+                days.push(d);
+            }
+
+            const hasSomeSlots = days.some(d => {
+                const k = d.toISOString().split('T')[0];
+                return slotsData[k] && slotsData[k].some(s => s.available);
+            });
+
+            if (!hasSomeSlots) {
+                grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:30px;">No available slots this week. Try the next week →</p>';
+                return;
+            }
+
+            let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;">';
+            days.forEach(d => {
+                const dateStr = d.toISOString().split('T')[0];
+                const daySlots = slotsData[dateStr] || [];
+                const dayLabel = d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+                html += `<div style="text-align:center;"><div style="font-size:12px;font-weight:700;color:var(--text-primary);padding:4px 0;border-bottom:1px solid var(--border-color);margin-bottom:6px;">${dayLabel}</div>`;
+                if (!daySlots.length) {
+                    html += '<p style="font-size:12px;color:var(--text-muted);padding:8px 0;">—</p>';
+                } else {
+                    daySlots.forEach(s => {
+                        if (s.available) {
+                            const isSelected = selfBookingSelectedDatetime === s.datetime;
+                            html += `<button class="slot-btn${isSelected ? ' selected' : ''}" onclick="selectSlot('${s.datetime}','${s.time}')" style="display:block;width:100%;margin-bottom:4px;font-size:12px;">${s.time}</button>`;
+                        } else {
+                            html += `<button class="slot-btn taken" disabled style="display:block;width:100%;margin-bottom:4px;font-size:12px;">Taken</button>`;
+                        }
+                    });
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            grid.innerHTML = html;
+        }
+
+        function selectSlot(datetime, timeStr) {
+            selfBookingSelectedDatetime = datetime;
+            const d = new Date(datetime);
+            const label = d.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }) + ' at ' + timeStr;
+            document.getElementById('selectedSlotText').textContent = label;
+            document.getElementById('selectedSlotInfo').style.display = 'block';
+            const btn = document.getElementById('confirmSelfBookingBtn');
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.textContent = `📅 Request: ${label}`;
+            // Re-render to update selection highlight
+            loadAvailableSlots();
+        }
+
+        async function confirmSelfBooking() {
+            if (!selfBookingSelectedDatetime) return;
+            const locType = document.querySelector('input[name="selfBookLocType"]:checked')?.value || 'in_person';
+            const notes = document.getElementById('selfBookingNotes').value;
+            const btn = document.getElementById('confirmSelfBookingBtn');
+            btn.disabled = true; btn.textContent = 'Requesting...';
+            try {
+                const r = await fetch('/api/appointments', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                    body: JSON.stringify({
+                        clinician_username: selfBookingClinicianUsername,
+                        patient_username: currentUser,
+                        appointment_date: selfBookingSelectedDatetime,
+                        notes: notes || 'Patient self-booking request',
+                        location_type: locType,
+                        appointment_type: 'consultation',
+                    })
+                });
+                const data = await r.json();
+                if (r.ok) {
+                    closeModal('selfBookingModal');
+                    showToast('✅ Appointment request sent! Your clinician will confirm.', 'success');
+                    await loadPatientAppointments();
+                } else {
+                    btn.disabled = false; btn.style.opacity = '1';
+                    btn.textContent = '📅 Request Appointment';
+                    alert(data.error || 'Failed to request appointment');
+                }
+            } catch(e) {
+                btn.disabled = false; btn.style.opacity = '1';
+                btn.textContent = '📅 Request Appointment';
+                alert('Connection error. Please try again.');
+            }
+        }
+
     </script>
     <!-- UX Enhancement System -->
     <script src="/static/js/ux-enhancements.js"></script>
@@ -26642,5 +27131,128 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         </div>
     </div>
     <!-- ══ END DUTY CLINICIAN MODAL ══════════════════════════════════════════ -->
+
+    <!-- ══ AVAILABILITY MANAGER MODAL (2.6) ══════════════════════════════════ -->
+    <div id="availabilityModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:10002; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--card-bg); border-radius:16px; padding:28px; max-width:680px; width:100%; max-height:90vh; overflow-y:auto; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                <h3 style="margin:0;">📅 My Availability</h3>
+                <button onclick="closeModal('availabilityModal')" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-muted); line-height:1;">×</button>
+            </div>
+
+            <!-- Existing Rules -->
+            <div id="availabilityRulesList" style="margin-bottom:24px;">
+                <p style="color:var(--text-muted); text-align:center;">Loading...</p>
+            </div>
+
+            <!-- Add Recurring Slot -->
+            <div style="background:var(--bg-secondary); border-radius:10px; padding:18px; margin-bottom:16px; border:1px solid var(--border-color);">
+                <h5 style="margin:0 0 14px 0; color:var(--text-primary);">+ Add Recurring Weekly Slot</h5>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; align-items:end;">
+                    <div>
+                        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Day</label>
+                        <select id="avail_day" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px; background:var(--card-bg); color:var(--text-primary);">
+                            <option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option>
+                            <option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Start</label>
+                        <input type="time" id="avail_start" value="09:00" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px; background:var(--card-bg); color:var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">End</label>
+                        <input type="time" id="avail_end" value="17:00" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px; background:var(--card-bg); color:var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Slot (min)</label>
+                        <select id="avail_duration" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px; background:var(--card-bg); color:var(--text-primary);">
+                            <option value="30">30</option><option value="50" selected>50</option><option value="60">60</option><option value="90">90</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="addRecurringSlot()" style="margin-top:14px; background:#27ae60;">+ Add Recurring Slot</button>
+            </div>
+
+            <!-- Block Specific Date -->
+            <div style="background:var(--bg-secondary); border-radius:10px; padding:18px; border:1px solid var(--border-color);">
+                <h5 style="margin:0 0 14px 0; color:var(--text-primary);">🚫 Block a Specific Date</h5>
+                <div style="display:grid; grid-template-columns:1fr 2fr; gap:12px; align-items:end;">
+                    <div>
+                        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Date</label>
+                        <input type="date" id="avail_block_date" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px; background:var(--card-bg); color:var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">Reason (optional)</label>
+                        <input type="text" id="avail_block_notes" placeholder="e.g. Annual leave, Training day..." style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px; background:var(--card-bg); color:var(--text-primary); box-sizing:border-box;">
+                    </div>
+                </div>
+                <button class="btn" onclick="blockDate()" style="margin-top:14px; background:#e74c3c;">🚫 Block Date</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ DNA REPORT MODAL (2.6) ═════════════════════════════════════════════ -->
+    <div id="dnaReportModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:10002; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--card-bg); border-radius:16px; padding:28px; max-width:640px; width:100%; max-height:90vh; overflow-y:auto; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                <h3 style="margin:0;">⚠️ DNA Report <span style="font-size:14px;font-weight:normal;color:var(--text-muted);">(last 90 days)</span></h3>
+                <button onclick="closeModal('dnaReportModal')" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-muted); line-height:1;">×</button>
+            </div>
+            <div id="dnaReportContent">
+                <p style="color:var(--text-muted); text-align:center;">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ PATIENT SELF-BOOKING MODAL (2.6) ══════════════════════════════════ -->
+    <div id="selfBookingModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:10002; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--card-bg); border-radius:16px; padding:28px; max-width:700px; width:100%; max-height:90vh; overflow-y:auto; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0;">📅 Request an Appointment</h3>
+                <button onclick="closeModal('selfBookingModal')" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-muted); line-height:1;">×</button>
+            </div>
+
+            <!-- Week navigation -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                <button class="btn btn-secondary" onclick="selfBookingWeekOffset--; loadAvailableSlots()" style="padding:8px 16px;">←</button>
+                <span id="selfBookingWeekLabel" style="font-weight:600; color:var(--text-primary);"></span>
+                <button class="btn btn-secondary" onclick="selfBookingWeekOffset++; loadAvailableSlots()" style="padding:8px 16px;">→</button>
+            </div>
+
+            <div id="slotPickerGrid" style="margin-bottom:20px; overflow-x:auto;">
+                <p style="color:var(--text-muted); text-align:center;">Loading available slots...</p>
+            </div>
+
+            <!-- Selected slot display -->
+            <div id="selectedSlotInfo" style="display:none; background:var(--bg-secondary); border-radius:8px; padding:14px; margin-bottom:16px; border:2px solid #27ae60;">
+                <p style="margin:0; font-weight:600; color:#27ae60;">✓ Selected: <span id="selectedSlotText"></span></p>
+            </div>
+
+            <!-- Location preference -->
+            <div class="form-group" style="margin-bottom:14px;">
+                <label style="font-weight:600; display:block; margin-bottom:8px;">Preferred Location</label>
+                <div style="display:flex; gap:16px;">
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        <input type="radio" name="selfBookLocType" value="in_person" checked> 🏢 In-Person
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        <input type="radio" name="selfBookLocType" value="phone"> 📞 Phone
+                    </label>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="form-group" style="margin-bottom:20px;">
+                <label style="font-weight:600; display:block; margin-bottom:4px;">Message to clinician (optional)</label>
+                <textarea id="selfBookingNotes" rows="2" placeholder="Any specific concerns or topics you'd like to discuss..." style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-primary); box-sizing:border-box;"></textarea>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closeModal('selfBookingModal')">Cancel</button>
+                <button class="btn" id="confirmSelfBookingBtn" onclick="confirmSelfBooking()" disabled style="background:#6366f1; opacity:0.5;">📅 Request Appointment</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

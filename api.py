@@ -5324,6 +5324,49 @@ def init_db():
         cursor.execute("CREATE TABLE IF NOT EXISTS dev_messages (id SERIAL PRIMARY KEY, from_username TEXT, to_username TEXT, message TEXT, message_type TEXT DEFAULT 'message', read INTEGER DEFAULT 0, parent_message_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         conn.commit()
 
+        # ── Appointment System 2.6 migrations ─────────────────────────────────
+        _apt_migrations = [
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 50",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS location_type TEXT DEFAULT 'in_person'",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS video_link TEXT",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS recurring_pattern TEXT",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS recurring_until DATE",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS recurring_group_id TEXT",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS recurring_index INTEGER DEFAULT 0",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancelled_by TEXT",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancellation_reason TEXT",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_48h_sent BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_24h_sent BOOLEAN DEFAULT FALSE",
+        ]
+        for _sql in _apt_migrations:
+            try: cursor.execute(_sql); conn.commit()
+            except Exception: conn.rollback()
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS clinician_availability (
+                    id SERIAL PRIMARY KEY,
+                    clinician_username TEXT NOT NULL,
+                    day_of_week INTEGER,
+                    specific_date DATE,
+                    start_time TIME NOT NULL,
+                    end_time TIME NOT NULL,
+                    slot_duration_minutes INTEGER DEFAULT 50,
+                    is_blocked BOOLEAN DEFAULT FALSE,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT check_avail_type CHECK (day_of_week IS NOT NULL OR specific_date IS NOT NULL)
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_avail_clinician ON clinician_availability(clinician_username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_avail_day ON clinician_availability(day_of_week) WHERE day_of_week IS NOT NULL")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_apt_reminder ON appointments(appointment_date) WHERE deleted_at IS NULL")
+            conn.commit()
+            print("✓ clinician_availability table and appointment 2.6 migrations ready")
+        except Exception as e:
+            print(f"clinician_availability migration note: {e}")
+            conn.rollback()
+
         # Apply migrations for existing databases
         cursor.execute("""
             SELECT EXISTS (
@@ -9101,6 +9144,52 @@ def quick_poll():
                 risk_count = cur.execute(
                     "SELECT COUNT(*) FROM risk_alerts WHERE acknowledged=FALSE"
                 ).fetchone()[0]
+
+        # ── Appointment reminder dispatch (48h and 24h) ───────────────────────
+        try:
+            from datetime import timedelta as _tdr
+            _now = datetime.now()
+            _due_48h = cur.execute("""
+                UPDATE appointments SET reminder_48h_sent = TRUE
+                WHERE appointment_date BETWEEN %s AND %s
+                  AND reminder_48h_sent = FALSE
+                  AND attendance_status = 'scheduled'
+                  AND deleted_at IS NULL
+                RETURNING id, patient_username, clinician_username, appointment_date, location_type
+            """, (_now + _tdr(hours=47), _now + _tdr(hours=49))).fetchall()
+            for _r in _due_48h:
+                _apt_id, _pat, _clin, _apt_dt, _loc = _r
+                _loc_str = {'video': '📹 Video Call', 'phone': '📞 Phone', 'in_person': '🏢 In-Person'}.get(_loc or 'in_person', '🏢 In-Person')
+                _apt_str = _apt_dt.strftime('%A %d %B at %H:%M')
+                send_notification(_pat, f'⏰ Reminder: {_loc_str} appointment with {_clin} in 48 hours — {_apt_str}', 'appointment_reminder')
+                send_notification(_clin, f'⏰ Reminder: appointment with {_pat} in 48 hours — {_apt_str}', 'appointment_reminder')
+                try: send_risk_alert_email(_pat, f'Appointment Reminder: {_apt_str}', f'Your {_loc_str} appointment is in 48 hours.\n\nClinician: {_clin}\nDate: {_apt_str}', _clin)
+                except Exception: pass
+
+            _due_24h = cur.execute("""
+                UPDATE appointments SET reminder_24h_sent = TRUE
+                WHERE appointment_date BETWEEN %s AND %s
+                  AND reminder_24h_sent = FALSE
+                  AND attendance_status = 'scheduled'
+                  AND deleted_at IS NULL
+                RETURNING id, patient_username, clinician_username, appointment_date, location_type, video_link
+            """, (_now + _tdr(hours=23), _now + _tdr(hours=25))).fetchall()
+            for _r in _due_24h:
+                _apt_id, _pat, _clin, _apt_dt, _loc, _vlink = _r
+                _loc_str = {'video': '📹 Video Call', 'phone': '📞 Phone', 'in_person': '🏢 In-Person'}.get(_loc or 'in_person', '🏢 In-Person')
+                _apt_str = _apt_dt.strftime('%A %d %B at %H:%M')
+                _link_note = f'\n\nJoin link: {_vlink}' if _loc == 'video' and _vlink else ''
+                _pat_msg = f'⏰ Reminder: {_loc_str} appointment tomorrow — {_apt_str}' + (f'. Join: {_vlink}' if _loc == 'video' and _vlink else '')
+                send_notification(_pat, _pat_msg, 'appointment_reminder')
+                send_notification(_clin, f'⏰ Reminder: appointment with {_pat} tomorrow — {_apt_str}', 'appointment_reminder')
+                try: send_risk_alert_email(_pat, f'Appointment Tomorrow: {_apt_str}', f'Your {_loc_str} appointment is tomorrow.\n\nClinician: {_clin}\nDate: {_apt_str}{_link_note}', _clin)
+                except Exception: pass
+
+            if _due_48h or _due_24h:
+                conn.commit()
+        except Exception as _rem_err:
+            try: conn.rollback()
+            except Exception: pass
 
         conn.close()
         import time as _t
@@ -14975,26 +15064,32 @@ def manage_appointments():
             if clinician_username:
                 # Get appointments for clinician (show last 30 days and future)
                 appointments = cur.execute("""
-                    SELECT id, patient_username, appointment_date, appointment_type, notes, 
+                    SELECT id, patient_username, appointment_date, appointment_type, notes,
                            pdf_generated, notification_sent, created_at, patient_acknowledged,
-                           patient_response, patient_response_date, attendance_status, attendance_confirmed_by, attendance_confirmed_at
-                    FROM appointments 
+                           patient_response, patient_response_date, attendance_status, attendance_confirmed_by, attendance_confirmed_at,
+                           duration_minutes, location_type, video_link, is_recurring, recurring_pattern,
+                           recurring_group_id, recurring_index, cancelled_by, cancellation_reason
+                    FROM appointments
                     WHERE clinician_username = %s AND appointment_date >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+                      AND deleted_at IS NULL
                     ORDER BY appointment_date DESC
                 """, (clinician_username,)).fetchall()
             else:
                 # Get appointments for patient
                 appointments = cur.execute("""
-                    SELECT id, clinician_username, appointment_date, appointment_type, notes, 
+                    SELECT id, clinician_username, appointment_date, appointment_type, notes,
                            pdf_generated, notification_sent, created_at, patient_acknowledged,
-                           patient_response, patient_response_date, attendance_status, attendance_confirmed_by, attendance_confirmed_at
-                    FROM appointments 
+                           patient_response, patient_response_date, attendance_status, attendance_confirmed_by, attendance_confirmed_at,
+                           duration_minutes, location_type, video_link, is_recurring, recurring_pattern,
+                           recurring_group_id, recurring_index, cancelled_by, cancellation_reason
+                    FROM appointments
                     WHERE patient_username = %s AND appointment_date >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+                      AND deleted_at IS NULL
                     ORDER BY appointment_date ASC
                 """, (patient_username,)).fetchall()
-            
+
             conn.close()
-            
+
             results = []
             for apt in appointments:
                 result = {
@@ -15010,16 +15105,25 @@ def manage_appointments():
                     'patient_response_date': apt[10],
                     'attendance_status': apt[11] or 'scheduled',
                     'attendance_confirmed_by': apt[12],
-                    'attendance_confirmed_at': apt[13]
+                    'attendance_confirmed_at': apt[13],
+                    'duration_minutes': apt[14] or 50,
+                    'location_type': apt[15] or 'in_person',
+                    'video_link': apt[16] or '',
+                    'is_recurring': bool(apt[17]),
+                    'recurring_pattern': apt[18],
+                    'recurring_group_id': apt[19],
+                    'recurring_index': apt[20] or 0,
+                    'cancelled_by': apt[21],
+                    'cancellation_reason': apt[22],
                 }
-                
+
                 if clinician_username:
                     result['patient_username'] = apt[1]
                 else:
                     result['clinician_username'] = apt[1]
-                
+
                 results.append(result)
-            
+
             return jsonify({'appointments': results}), 200
             
         elif request.method == 'POST':
@@ -15029,36 +15133,99 @@ def manage_appointments():
             patient = data.get('patient_username')
             appt_date = data.get('appointment_date')
             notes = data.get('notes', '')
-            
+            appointment_type = data.get('appointment_type', 'consultation')
+            duration_minutes = int(data.get('duration_minutes') or 50)
+            location_type = data.get('location_type', 'in_person')
+            if location_type not in ('in_person', 'video', 'phone'):
+                location_type = 'in_person'
+            video_link = (data.get('video_link') or '').strip() or None
+            is_recurring = bool(data.get('is_recurring', False))
+            recurring_pattern = data.get('recurring_pattern', 'weekly')
+            recurring_until = data.get('recurring_until')
+
             if not all([clinician, patient, appt_date]):
                 return jsonify({'error': 'Missing required fields'}), 400
-            
+
+            from datetime import datetime as _dt2, timedelta as _td2
+            import uuid as _uuid2
+
+            appt_datetime = _dt2.fromisoformat(appt_date.replace('Z', ''))
+
+            # Build occurrences list
+            if is_recurring and recurring_until:
+                group_id = str(_uuid2.uuid4())
+                occurrences = []
+                current_dt = appt_datetime
+                until_date = _dt2.fromisoformat(recurring_until).date()
+                idx = 0
+                while current_dt.date() <= until_date and idx < 12:
+                    occurrences.append((current_dt, idx))
+                    if recurring_pattern == 'weekly':
+                        current_dt += _td2(weeks=1)
+                    elif recurring_pattern == 'fortnightly':
+                        current_dt += _td2(weeks=2)
+                    elif recurring_pattern == 'monthly':
+                        m = current_dt.month + 1
+                        y = current_dt.year + (m - 1) // 12
+                        m = ((m - 1) % 12) + 1
+                        leap = 1 if (y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)) else 0
+                        days_in_month = [31, 28 + leap, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]
+                        d = min(current_dt.day, days_in_month)
+                        current_dt = current_dt.replace(year=y, month=m, day=d)
+                    else:
+                        current_dt += _td2(weeks=1)
+                    idx += 1
+            else:
+                group_id = None
+                occurrences = [(appt_datetime, 0)]
+
             conn = get_db_connection()
             cur = get_wrapped_cursor(conn)
-            cur.execute("""
-                INSERT INTO appointments (clinician_username, patient_username, appointment_date, notes, patient_response)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (clinician, patient, appt_date, notes, 'pending'))
-            appt_id = cur.fetchone()[0]
-            
-            # Send notification to patient
-            from datetime import datetime as dt
-            appt_datetime = dt.fromisoformat(appt_date.replace('Z', '+00:00'))
+
+            first_id = None
+            for occ_dt, occ_idx in occurrences:
+                cur.execute("""
+                    INSERT INTO appointments (
+                        clinician_username, patient_username, appointment_date, appointment_type,
+                        notes, patient_response, duration_minutes, location_type, video_link,
+                        is_recurring, recurring_pattern, recurring_until, recurring_group_id, recurring_index
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    RETURNING id
+                """, (clinician, patient, occ_dt.isoformat(), appointment_type, notes, 'pending',
+                      duration_minutes, location_type, video_link,
+                      is_recurring, recurring_pattern if is_recurring else None,
+                      recurring_until if is_recurring else None,
+                      group_id, occ_idx))
+                row = cur.fetchone()
+                if first_id is None:
+                    first_id = row[0] if row else None
+
             date_str = appt_datetime.strftime('%A, %d %B %Y at %H:%M')
-            cur.execute("""
-                INSERT INTO notifications (recipient_username, message, notification_type)
-                VALUES (%s, %s, %s)
-            """, (patient, f'New appointment scheduled with {clinician} on {date_str}. Please view and respond in the Appointments tab.', 'appointment_new'))
-            
+            loc_labels = {'video': '📹 Video Call', 'phone': '📞 Phone', 'in_person': '🏢 In-Person'}
+            loc_str = loc_labels.get(location_type, 'In-Person')
+
+            if is_recurring and len(occurrences) > 1:
+                last_str = occurrences[-1][0].strftime('%d %b %Y')
+                notif_msg = (f'📅 {len(occurrences)} recurring {loc_str} appointments scheduled with '
+                             f'{clinician}, starting {date_str} (until {last_str}). Please confirm in the Appointments tab.')
+            else:
+                notif_msg = f'📅 New {loc_str} appointment with {clinician} on {date_str}. Please confirm in the Appointments tab.'
+
+            cur.execute(
+                "INSERT INTO notifications (recipient_username, message, notification_type) VALUES (%s,%s,%s)",
+                (patient, notif_msg, 'appointment_new')
+            )
+
             conn.commit()
             conn.close()
-            
-            log_event(clinician, 'clinician', 'appointment_booked', f'Booked with {patient}')
-            
+
+            log_event(clinician, 'clinician', 'appointment_booked', f'Booked {len(occurrences)} occurrence(s) with {patient}')
+
             return jsonify({
                 'success': True,
-                'appointment_id': appt_id,
-                'message': 'Appointment created and patient notified'
+                'appointment_id': first_id,
+                'occurrences': len(occurrences),
+                'message': f'{len(occurrences)} appointment(s) created and patient notified'
             }), 201
             
     except Exception as e:
@@ -15066,41 +15233,69 @@ def manage_appointments():
 
 @app.route('/api/appointments/<int:appointment_id>', methods=['DELETE'])
 def cancel_appointment(appointment_id):
-    """Cancel an appointment"""
+    """Cancel an appointment (soft-delete). Supports cancelling an entire recurring series."""
     try:
         session_user = get_authenticated_username()
         if not session_user:
             return jsonify({'error': 'Authentication required'}), 401
 
+        data = request.get_json(silent=True) or {}
+        cancel_series = bool(data.get('cancel_series', False))
+        cancellation_reason = (data.get('cancellation_reason') or '').strip() or None
+
         conn = get_db_connection()
         cur = get_wrapped_cursor(conn)
-        
-        # Get appointment details before deleting
+
         apt = cur.execute(
-            "SELECT patient_username, clinician_username, appointment_date, appointment_time FROM appointments WHERE id = %s",
+            "SELECT patient_username, clinician_username, appointment_date, recurring_group_id FROM appointments WHERE id = %s AND deleted_at IS NULL",
             (appointment_id,)
         ).fetchone()
-        
-        if apt:
-            patient_username, clinician_username, apt_date, apt_time = apt
-            
-            # Delete the appointment
-            cur.execute("DELETE FROM appointments WHERE id=%s", (appointment_id,))
-            
-            # Send notification to patient
-            cur.execute(
-                "INSERT INTO notifications (username, message, read) VALUES (%s, %s, 0)",
-                (patient_username, f"Your appointment on {apt_date} at {apt_time} with {clinician_username} has been cancelled.")
-            )
-            
-            conn.commit()
-            conn.close()
-            
-            return jsonify({'success': True, 'message': 'Appointment cancelled and patient notified'}), 200
-        else:
+
+        if not apt:
             conn.close()
             return jsonify({'error': 'Appointment not found'}), 404
-        
+
+        patient_username, clinician_username, apt_date, group_id = apt
+
+        if session_user not in (patient_username, clinician_username):
+            conn.close()
+            return jsonify({'error': 'Not authorised to cancel this appointment'}), 403
+
+        reason_note = f' Reason: {cancellation_reason}' if cancellation_reason else ''
+        apt_str = apt_date.strftime('%A %d %B at %H:%M') if hasattr(apt_date, 'strftime') else str(apt_date)
+
+        if cancel_series and group_id:
+            cur.execute("""
+                UPDATE appointments SET deleted_at = NOW(), cancelled_by = %s, cancellation_reason = %s
+                WHERE recurring_group_id = %s AND appointment_date >= NOW() AND deleted_at IS NULL
+            """, (session_user, cancellation_reason, group_id))
+            cancelled_count = cur.rowcount
+            notif_msg = (f'📅 {cancelled_count} recurring appointment(s) from {apt_str} with '
+                         f'{clinician_username} have been cancelled.{reason_note}')
+            other_user = patient_username if session_user == clinician_username else clinician_username
+            cur.execute(
+                "INSERT INTO notifications (recipient_username, message, notification_type) VALUES (%s,%s,%s)",
+                (other_user, notif_msg, 'appointment_cancelled')
+            )
+        else:
+            cur.execute("""
+                UPDATE appointments SET deleted_at = NOW(), cancelled_by = %s, cancellation_reason = %s
+                WHERE id = %s AND deleted_at IS NULL
+            """, (session_user, cancellation_reason, appointment_id))
+            notif_msg = f'📅 Your appointment on {apt_str} with {clinician_username} has been cancelled.{reason_note}'
+            other_user = patient_username if session_user == clinician_username else clinician_username
+            cur.execute(
+                "INSERT INTO notifications (recipient_username, message, notification_type) VALUES (%s,%s,%s)",
+                (other_user, notif_msg, 'appointment_cancelled')
+            )
+
+        conn.commit()
+        conn.close()
+
+        log_event(session_user, 'appointment', 'appointment_cancelled', f'Appointment {appointment_id} cancelled')
+
+        return jsonify({'success': True, 'message': 'Appointment cancelled and parties notified'}), 200
+
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
 
@@ -15234,6 +15429,330 @@ def confirm_appointment_attendance(appointment_id):
     except Exception as e:
         return handle_exception(e, request.endpoint or 'unknown')
 
+# ── Appointment System 2.6 ────────────────────────────────────────────────────
+
+@app.route('/api/clinician/availability', methods=['GET'])
+def get_clinician_availability():
+    """Return the authenticated clinician's availability rules."""
+    try:
+        session_user = get_authenticated_username()
+        if not session_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        rows = cur.execute("""
+            SELECT id, day_of_week, specific_date, start_time, end_time,
+                   slot_duration_minutes, is_blocked, notes
+            FROM clinician_availability
+            WHERE clinician_username = %s
+            ORDER BY day_of_week NULLS LAST, specific_date NULLS LAST, start_time
+        """, (session_user,)).fetchall()
+        conn.close()
+
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        availability = []
+        for r in rows:
+            availability.append({
+                'id': r[0],
+                'day_of_week': r[1],
+                'day_name': day_names[r[1]] if r[1] is not None else None,
+                'specific_date': r[2].isoformat() if r[2] else None,
+                'start_time': str(r[3]),
+                'end_time': str(r[4]),
+                'slot_duration_minutes': r[5] or 50,
+                'is_blocked': bool(r[6]),
+                'notes': r[7],
+            })
+
+        return jsonify({'availability': availability}), 200
+
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/availability', methods=['POST'])
+def add_clinician_availability():
+    """Add a recurring weekly slot or a blocked specific date."""
+    try:
+        session_user = get_authenticated_username()
+        if not session_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.json or {}
+        day_of_week = data.get('day_of_week')   # 0-6 or None
+        specific_date = data.get('specific_date')  # YYYY-MM-DD or None
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+        slot_duration = int(data.get('slot_duration_minutes') or 50)
+        is_blocked = bool(data.get('is_blocked', False))
+        notes = (data.get('notes') or '').strip() or None
+
+        if not start_time or not end_time:
+            return jsonify({'error': 'start_time and end_time are required'}), 400
+        if day_of_week is None and not specific_date:
+            return jsonify({'error': 'Either day_of_week or specific_date is required'}), 400
+        if start_time >= end_time:
+            return jsonify({'error': 'start_time must be before end_time'}), 400
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        row = cur.execute("""
+            INSERT INTO clinician_availability
+                (clinician_username, day_of_week, specific_date, start_time, end_time,
+                 slot_duration_minutes, is_blocked, notes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (session_user, day_of_week, specific_date, start_time, end_time,
+              slot_duration, is_blocked, notes)).fetchone()
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'id': row[0], 'message': 'Availability rule added'}), 201
+
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/clinician/availability/<int:avail_id>', methods=['DELETE'])
+def delete_clinician_availability(avail_id):
+    """Remove a clinician availability rule."""
+    try:
+        session_user = get_authenticated_username()
+        if not session_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+        cur.execute(
+            "DELETE FROM clinician_availability WHERE id = %s AND clinician_username = %s",
+            (avail_id, session_user)
+        )
+        deleted = cur.rowcount
+        conn.commit()
+        conn.close()
+
+        if deleted == 0:
+            return jsonify({'error': 'Rule not found or not authorised'}), 404
+
+        return jsonify({'success': True, 'message': 'Availability rule removed'}), 200
+
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+
+@app.route('/api/appointments/available-slots', methods=['GET'])
+def get_available_slots():
+    """Return available appointment slots for a clinician over the next N days.
+    Used by patients when self-booking.
+    Query params: clinician=username, from_date=YYYY-MM-DD (default today), days=14
+    """
+    try:
+        session_user = get_authenticated_username()
+        if not session_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        clinician_username = request.args.get('clinician')
+        if not clinician_username:
+            return jsonify({'error': 'clinician param required'}), 400
+
+        from datetime import date as _date2, timedelta as _td3, datetime as _dt3, time as _time2
+
+        from_date_str = request.args.get('from_date')
+        days = min(int(request.args.get('days', 14)), 28)
+        from_date = _date2.fromisoformat(from_date_str) if from_date_str else _date2.today()
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        # Get all availability rules for this clinician
+        rules = cur.execute("""
+            SELECT day_of_week, specific_date, start_time, end_time, slot_duration_minutes, is_blocked
+            FROM clinician_availability
+            WHERE clinician_username = %s
+        """, (clinician_username,)).fetchall()
+
+        to_date = from_date + _td3(days=days)
+        # Get existing appointments in date range
+        existing = cur.execute("""
+            SELECT appointment_date, duration_minutes
+            FROM appointments
+            WHERE clinician_username = %s
+              AND appointment_date >= %s AND appointment_date < %s
+              AND deleted_at IS NULL
+              AND attendance_status NOT IN ('no_show', 'missed', 'declined')
+        """, (clinician_username, from_date.isoformat(), to_date.isoformat())).fetchall()
+        conn.close()
+
+        # Build set of booked windows [(start_dt, end_dt)]
+        booked_windows = []
+        for apt_dt, dur in existing:
+            if hasattr(apt_dt, 'replace'):
+                dur = dur or 50
+                booked_windows.append((apt_dt, apt_dt + _td3(minutes=dur)))
+
+        slots_by_date = {}
+        for day_offset in range(days):
+            current_date = from_date + _td3(days=day_offset)
+            day_of_week = current_date.weekday()  # 0=Mon
+            date_str = current_date.isoformat()
+
+            # Find applicable rules: recurring (day_of_week match) or specific date
+            day_rules = [r for r in rules if (
+                (r[0] == day_of_week and r[1] is None) or
+                (r[1] is not None and r[1] == current_date)
+            )]
+
+            # Check for blocks covering this date
+            blocks = [r for r in day_rules if r[5]]
+            if blocks:
+                slots_by_date[date_str] = []
+                continue
+
+            day_slots = []
+            for rule in day_rules:
+                if rule[5]:  # is_blocked
+                    continue
+                _, _, start_t, end_t, dur_min, _ = rule
+                dur_min = dur_min or 50
+
+                # Convert time objects to minutes since midnight
+                start_mins = start_t.hour * 60 + start_t.minute
+                end_mins = end_t.hour * 60 + end_t.minute
+
+                slot_start = start_mins
+                while slot_start + dur_min <= end_mins:
+                    slot_dt = _dt3.combine(current_date, _time2(slot_start // 60, slot_start % 60))
+                    slot_end_dt = slot_dt + _td3(minutes=dur_min)
+
+                    # Check overlap with existing bookings
+                    taken = False
+                    existing_apt_id = None
+                    for bw_start, bw_end in booked_windows:
+                        if slot_dt < bw_end and slot_end_dt > bw_start:
+                            taken = True
+                            break
+
+                    day_slots.append({
+                        'time': slot_dt.strftime('%H:%M'),
+                        'datetime': slot_dt.isoformat(),
+                        'available': not taken,
+                        'duration_minutes': dur_min,
+                    })
+                    slot_start += dur_min
+
+            if day_slots:
+                slots_by_date[date_str] = day_slots
+
+        return jsonify({'slots': slots_by_date}), 200
+
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+
+@app.route('/api/appointments/dna-report', methods=['GET'])
+def get_dna_report():
+    """Return DNA (Did Not Attend) stats per patient for the authenticated clinician.
+    Covers the last 90 days. Sorted by DNA count descending.
+    """
+    try:
+        session_user = get_authenticated_username()
+        if not session_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        rows = cur.execute("""
+            SELECT
+                patient_username,
+                COUNT(*) FILTER (WHERE attendance_status IN ('no_show', 'missed')) AS dna_count,
+                MAX(appointment_date) FILTER (WHERE attendance_status IN ('no_show', 'missed')) AS last_dna,
+                COUNT(*) AS appointments_total
+            FROM appointments
+            WHERE clinician_username = %s
+              AND appointment_date >= NOW() - INTERVAL '90 days'
+              AND deleted_at IS NULL
+            GROUP BY patient_username
+            HAVING COUNT(*) FILTER (WHERE attendance_status IN ('no_show', 'missed')) >= 1
+            ORDER BY dna_count DESC, patient_username
+        """, (session_user,)).fetchall()
+        conn.close()
+
+        patients = []
+        total_dna = 0
+        for r in rows:
+            pat, dna_count, last_dna, total = r
+            dna_rate = round((dna_count / total) * 100) if total else 0
+            total_dna += dna_count
+            patients.append({
+                'username': pat,
+                'dna_count': dna_count,
+                'last_dna': last_dna.isoformat() if last_dna else None,
+                'appointments_total': total,
+                'dna_rate': dna_rate,
+            })
+
+        return jsonify({'patients': patients, 'total_dna': total_dna}), 200
+
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+
+@CSRFProtection.require_csrf
+@app.route('/api/appointments/<int:appointment_id>', methods=['PATCH'])
+def patch_appointment(appointment_id):
+    """Update mutable appointment fields: video_link, notes, location_type, duration_minutes."""
+    try:
+        session_user = get_authenticated_username()
+        if not session_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.json or {}
+
+        conn = get_db_connection()
+        cur = get_wrapped_cursor(conn)
+
+        apt = cur.execute(
+            "SELECT clinician_username FROM appointments WHERE id = %s AND deleted_at IS NULL",
+            (appointment_id,)
+        ).fetchone()
+
+        if not apt:
+            conn.close()
+            return jsonify({'error': 'Appointment not found'}), 404
+        if apt[0] != session_user:
+            conn.close()
+            return jsonify({'error': 'Not authorised'}), 403
+
+        updates = {}
+        if 'video_link' in data:
+            updates['video_link'] = (data['video_link'] or '').strip() or None
+        if 'notes' in data:
+            updates['notes'] = data['notes']
+        if 'location_type' in data and data['location_type'] in ('in_person', 'video', 'phone'):
+            updates['location_type'] = data['location_type']
+        if 'duration_minutes' in data:
+            updates['duration_minutes'] = int(data['duration_minutes'])
+
+        if not updates:
+            conn.close()
+            return jsonify({'error': 'No valid fields to update'}), 400
+
+        set_clause = ', '.join(f"{k} = %s" for k in updates)
+        values = list(updates.values()) + [appointment_id]
+        cur.execute(f"UPDATE appointments SET {set_clause} WHERE id = %s", values)
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'Appointment updated'}), 200
+
+    except Exception as e:
+        return handle_exception(e, request.endpoint or 'unknown')
+
+
 @app.route('/api/patient/profile', methods=['GET', 'PUT'])
 def patient_profile():
     """Get or update patient profile (About Me)"""
@@ -15288,6 +15807,7 @@ def patient_profile():
                     'phone': decrypt_text(profile[3]) if profile[3] else '',
                     'conditions': decrypt_text(profile[4]) if profile[4] else '',
                     'assigned_clinician': clinician_info['name'] if clinician_info else None,
+                    'clinician_username': profile[5] if profile[5] else None,
                     'clinician_email': clinician_info['email'] if clinician_info else None
                 },
                 'stats': {
