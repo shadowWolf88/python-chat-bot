@@ -4962,6 +4962,20 @@ def init_db():
             cursor.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
             cursor.execute("CREATE TABLE IF NOT EXISTS cbt_records (id SERIAL PRIMARY KEY, username TEXT, situation TEXT, thought TEXT, evidence TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
             cursor.execute("CREATE TABLE IF NOT EXISTS gratitude_logs (id SERIAL PRIMARY KEY, username TEXT, entry TEXT, entry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS cbt_tool_entries (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    tool_type TEXT NOT NULL,
+                    data JSONB DEFAULT '{}',
+                    mood_rating INTEGER,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_cbt_tool_entries_username ON cbt_tool_entries(username)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_cbt_tool_entries_tool ON cbt_tool_entries(username, tool_type)")
             cursor.execute("CREATE TABLE IF NOT EXISTS verification_codes (id SERIAL PRIMARY KEY, identifier TEXT, code TEXT, method TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMP, verified INTEGER DEFAULT 0)")
             cursor.execute("CREATE TABLE IF NOT EXISTS safety_plans (username TEXT PRIMARY KEY, triggers TEXT, coping TEXT, contacts TEXT)")
             cursor.execute("CREATE TABLE IF NOT EXISTS ai_memory (username TEXT PRIMARY KEY, memory_summary TEXT, last_updated TIMESTAMP)")
@@ -22815,7 +22829,7 @@ def get_progress_dashboard():
 
         # ── Gratitude count ────────────────────────────────────────────────
         grat_total = cur.execute(
-            "SELECT COUNT(*) FROM gratitude_entries WHERE username=%s", (username,)
+            "SELECT COUNT(*) FROM gratitude_logs WHERE username=%s", (username,)
         ).fetchone()[0]
 
         # ── Days in treatment ──────────────────────────────────────────────

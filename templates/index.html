@@ -3023,6 +3023,42 @@
             color: var(--accent-color) !important;
         }
 
+        /* ── Mobile header: compact layout, no horizontal scroll ─────────── */
+        @media (max-width: 1024px) {
+            /* Shrink the header logo text */
+            .app-header h2 { font-size: 1rem !important; }
+            .app-header h2 img { width: 28px !important; height: 28px !important; }
+
+            /* Make user-info compact — hide items that move to mobile drawer */
+            .user-info #usernameDisplay { display: none !important; }
+            .user-info .btn[onclick*="logout"] { display: none !important; }
+
+            /* Shrink remaining header buttons */
+            .user-info { gap: 6px !important; }
+            .user-info button { padding: 6px 10px !important; font-size: 15px !important; margin-right: 4px !important; }
+            #sanctuaryThemeBtn { display: none !important; }
+
+            /* Keep theme toggle aligned with the row */
+            .theme-toggle { vertical-align: middle !important; }
+        }
+
+        /* JS mobile-layout class fallback (Capacitor) */
+        html.mobile-layout .user-info #usernameDisplay { display: none !important; }
+        html.mobile-layout .user-info .btn[onclick*="logout"] { display: none !important; }
+        html.mobile-layout .app-header h2 { font-size: 1rem !important; }
+        html.mobile-layout .user-info { gap: 6px !important; }
+        html.mobile-layout .user-info button { padding: 6px 10px !important; font-size: 15px !important; margin-right: 4px !important; }
+        html.mobile-layout #sanctuaryThemeBtn { display: none !important; }
+
+        /* Ensure app-header z-index is always above all tab content */
+        .app-header { z-index: 200 !important; }
+
+        /* Ensure no tab content floats above the header */
+        .tab-content, .tab-content * {
+            z-index: auto;
+        }
+        .tab-content .card { position: static !important; }
+
         /* Extra-small screens — tighter tab labels */
         @media (max-width: 480px) {
             .tab-btn {
@@ -5233,6 +5269,18 @@
                     <button class="tab-btn mobile-drawer-btn" onclick="switchTab('updates', this)" data-tab="updates">🆕 Updates</button>
                     <button class="tab-btn mobile-drawer-btn" id="mobileProfessionalTabBtn" onclick="switchTab('professional', this)" data-tab="professional" style="display:none;">👨‍⚕️ Professional</button>
                     <button class="tab-btn mobile-drawer-btn" id="mobileDeveloperTabBtn" onclick="switchTab('developer', this)" data-tab="developer" style="display:none;">⚙️ Developer</button>
+                </div>
+                <!-- Drawer footer: theme toggles + logout -->
+                <div style="border-top:1px solid var(--border-color); padding:16px; margin-top:auto;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                        <span style="font-size:13px; color:var(--text-muted); font-weight:600;">🌙 Dark Mode</span>
+                        <label class="theme-toggle" style="vertical-align:middle; margin:0;">
+                            <input type="checkbox" id="darkModeToggleMobile" onchange="toggleDarkMode(); document.getElementById('darkModeToggle').checked = this.checked;">
+                            <span class="theme-toggle-slider"></span>
+                        </label>
+                    </div>
+                    <button onclick="toggleSanctuaryTheme()" style="width:100%;background:linear-gradient(135deg,#2d6a4f,#40916c);color:white;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:600;margin-bottom:10px;">🌿 Sanctuary Theme</button>
+                    <button class="btn" onclick="closeMobileMenu();logout();" style="width:100%;padding:10px;background:#e74c3c;border:none;">🚪 Logout</button>
                 </div>
             </div>
             <!-- ── End Mobile Nav Drawer ──────────────────────────────────────── -->
@@ -8543,12 +8591,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 localStorage.setItem('theme', 'dark');
             }
 
-            // Sync both toggles
+            // Sync all toggles (header, auth page, mobile drawer)
             const darkModeToggle = document.getElementById('darkModeToggle');
             const authDarkModeToggle = document.getElementById('authDarkModeToggle');
+            const darkModeToggleMobile = document.getElementById('darkModeToggleMobile');
             const isNowDark = document.documentElement.getAttribute('data-theme') === 'dark';
             if (darkModeToggle) darkModeToggle.checked = isNowDark;
             if (authDarkModeToggle) authDarkModeToggle.checked = isNowDark;
+            if (darkModeToggleMobile) darkModeToggleMobile.checked = isNowDark;
 
             // Update theme-color meta for Android Chrome address bar
             const themeMeta = document.querySelector('meta[name="theme-color"]');
@@ -14617,13 +14667,16 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
             // Show professional tab only for clinicians
             if (currentUserRole === 'clinician') {
+                // Show professional tab on both desktop sidebar and mobile drawer
                 document.getElementById('professionalTabBtn').style.display = 'block';
+                var _mobProf = document.getElementById('mobileProfessionalTabBtn');
+                if (_mobProf) _mobProf.style.display = 'block';
                 // Hide sidebar entirely for clinicians — not needed
                 document.getElementById('appScreen').classList.add('sidebar-hidden');
 
-                // Hide all patient-facing tab buttons for clinicians
+                // Hide all patient-facing tab buttons for clinicians (desktop + mobile drawer)
                 document.querySelectorAll('.tab-btn').forEach(btn => {
-                    if (btn.id !== 'professionalTabBtn') {
+                    if (btn.id !== 'professionalTabBtn' && btn.id !== 'mobileProfessionalTabBtn') {
                         btn.style.display = 'none';
                     }
                 });
@@ -14647,14 +14700,16 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     switchClinicalTab('overview', document.getElementById('overviewSubtabBtn'));
                 }, 100);
             } else if (currentUserRole === 'developer') {
-                // DEVELOPER: Show only developer tab
+                // DEVELOPER: Show only developer tab (desktop sidebar + mobile drawer)
                 document.getElementById('developerTabBtn').style.display = 'block';
+                var _mobDev = document.getElementById('mobileDeveloperTabBtn');
+                if (_mobDev) _mobDev.style.display = 'block';
                 // Hide sidebar entirely for developers — not needed
                 document.getElementById('appScreen').classList.add('sidebar-hidden');
 
-                // Hide patient and clinician tabs
+                // Hide patient and clinician tabs (desktop + mobile drawer)
                 document.querySelectorAll('.tab-btn').forEach(btn => {
-                    if (btn.id !== 'developerTabBtn') {
+                    if (btn.id !== 'developerTabBtn' && btn.id !== 'mobileDeveloperTabBtn') {
                         btn.style.display = 'none';
                     }
                 });
@@ -14665,17 +14720,23 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     switchDevTab('terminal', document.getElementById('terminalSubtabBtn'));
                 }, 100);
             } else {
-                // PATIENT: Hide professional tab, SHOW all patient tabs including messages
-                document.getElementById('professionalTabBtn').style.display = 'none';
+                // PATIENT: Hide professional + developer tabs (desktop sidebar AND mobile drawer)
+                ['professionalTabBtn', 'developerTabBtn',
+                 'mobileProfessionalTabBtn', 'mobileDeveloperTabBtn'].forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
                 document.getElementById('professionalTab').style.display = 'none';
                 // Show SOS crisis button for patients
                 var sosBtn = document.getElementById('sosCrisisBtn');
                 if (sosBtn) sosBtn.style.display = 'flex';
 
-                // Ensure patient tab buttons are visible (including messages)
+                // Show all patient-facing tab buttons (sidebar + mobile drawer)
+                var _hideForPatient = new Set(['professionalTabBtn','developerTabBtn','mobileProfessionalTabBtn','mobileDeveloperTabBtn']);
                 document.querySelectorAll('.tab-btn').forEach(btn => {
-                    if (btn.id !== 'professionalTabBtn' && btn.id !== 'developerTabBtn') {
-                        btn.style.display = 'inline-block';
+                    if (!_hideForPatient.has(btn.id)) {
+                        // Mobile drawer buttons use display:block; sidebar uses inline-block
+                        btn.style.display = btn.classList.contains('mobile-drawer-btn') ? 'block' : 'inline-block';
                     }
                 });
 
@@ -15619,9 +15680,15 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 loadMoodTabHistory();
             }
 
+            // Scroll therapy chat to bottom when opening therapy tab
+            if (tabName === 'therapy') {
+                setTimeout(scrollChatToBottom, 50);
+            }
+
             // Load pet when switching to pet tab
             if (tabName === 'pet') {
                 loadPetStatus();
+                restorePetCountdown();
             }
             
             // Load profile when switching to About Me tab
@@ -16184,6 +16251,14 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         let isVoiceListening = false;
         let speechRecognition = null;
 
+        // Scroll therapy chat to the very latest message
+        function scrollChatToBottom() {
+            const messagesDiv = document.getElementById('chatMessages');
+            if (messagesDiv) {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        }
+
         async function sendMessage() {
             const input = document.getElementById('chatInput');
             const message = input.value.trim();
@@ -16227,6 +16302,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
             addMessage(message, 'user', null, new Date().toISOString());
             input.value = '';
             input.style.height = 'auto'; // Reset textarea height
+            // Immediately scroll to bottom so user sees their message + thinking dots
+            scrollChatToBottom();
 
             // Show thinking animation
             const thinkingId = Date.now();
@@ -16239,6 +16316,7 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 </div>
             `;
             addMessage(thinkingHtml, 'ai', thinkingId, null, true);
+            scrollChatToBottom();
 
             const startTime = Date.now();
 
@@ -16276,12 +16354,8 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                 if (response.ok) {
                     const aiMessageEl = addMessage(data.response, 'ai', null, new Date().toISOString());
 
-                    // Scroll so the AI response beginning is visible
-                    if (aiMessageEl) {
-                        setTimeout(() => {
-                            aiMessageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }, 100);
-                    }
+                    // Scroll to bottom so AI response is visible
+                    scrollChatToBottom();
                     
                     // === NEW: Handle risk analysis from AI ===
                     if (data.risk_analysis) {
@@ -17506,23 +17580,30 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
         function startWalkCountdown(returnTime) {
             const walkBtn = document.getElementById('walkBtn');
             const countdownDiv = document.getElementById('walkCountdown');
-            
+            if (!walkBtn || !countdownDiv) return;
+
+            // Persist so countdown survives page reload
+            try { localStorage.setItem('petAdventureEnd_' + currentUser, returnTime); } catch(e) {}
+
             walkBtn.disabled = true;
             walkBtn.style.opacity = '0.5';
             walkBtn.style.cursor = 'not-allowed';
+            walkBtn.textContent = '🌲 On a Walk...';
             countdownDiv.style.display = 'block';
-            
+
             if (walkCountdownInterval) clearInterval(walkCountdownInterval);
-            
+
             walkCountdownInterval = setInterval(() => {
                 const now = Date.now() / 1000;
                 const remaining = returnTime - now;
-                
+
                 if (remaining <= 0) {
                     clearInterval(walkCountdownInterval);
+                    try { localStorage.removeItem('petAdventureEnd_' + currentUser); } catch(e) {}
                     walkBtn.disabled = false;
                     walkBtn.style.opacity = '1';
                     walkBtn.style.cursor = 'pointer';
+                    walkBtn.textContent = '🌲 Walk (30m)';
                     countdownDiv.style.display = 'none';
                     checkPetReturn();
                 } else {
@@ -17531,6 +17612,21 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
                     countdownDiv.textContent = `🌲 Pet returns in: ${minutes}m ${seconds}s`;
                 }
             }, 1000);
+        }
+
+        // Restore pet countdown if page reloaded mid-walk
+        function restorePetCountdown() {
+            try {
+                const stored = localStorage.getItem('petAdventureEnd_' + currentUser);
+                if (stored) {
+                    const endTime = parseFloat(stored);
+                    if (endTime > Date.now() / 1000) {
+                        startWalkCountdown(endTime);
+                    } else {
+                        localStorage.removeItem('petAdventureEnd_' + currentUser);
+                    }
+                }
+            } catch(e) {}
         }
         
         // Auto-refresh pet when tab is active
