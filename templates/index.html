@@ -2971,54 +2971,56 @@
             }
         }
 
-        /* ── JS-enforced mobile layout (Capacitor Android WebView fallback) ── */
-        /* Mirrors the media query above but triggered via the 'mobile-layout'  */
-        /* class added by the inline head script — guarantees correct layout     */
-        /* even when the WebView doesn't fire the CSS media query correctly.     */
+        /* ── Mobile layout: hide sidebar, show ⋮ button (Capacitor + media) ── */
+        @media (max-width: 1024px) {
+            #sidebarNav { display: none !important; }
+            #mobileNavBtn { display: block !important; }
+            .app-content { flex-direction: column !important; height: auto !important; }
+            .main-content { padding: 16px 12px !important; }
+        }
+        /* JS class fallback for Capacitor Android WebView */
+        html.mobile-layout #sidebarNav { display: none !important; }
+        html.mobile-layout #mobileNavBtn { display: block !important; }
         html.mobile-layout .app-content {
             flex-direction: column !important;
             height: auto !important;
             min-height: calc(100vh - 80px) !important;
         }
-        html.mobile-layout .sidebar {
-            width: 100% !important;
-            min-width: 0 !important;
-            display: flex !important;
-            flex-direction: row !important;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            padding: 8px 4px !important;
-            box-shadow: 0 2px 8px var(--shadow-color) !important;
-            flex-shrink: 0 !important;
-            scrollbar-width: thin !important;
-        }
-        html.mobile-layout .tab-btn {
-            min-width: 120px !important;
-            max-width: 160px !important;
-            white-space: nowrap !important;
-            border-left: none !important;
-            border-bottom: 3px solid transparent !important;
-            border-radius: 8px 8px 0 0 !important;
-            margin: 0 3px !important;
-            padding: 10px 14px !important;
-            font-size: 13px !important;
-            flex-shrink: 0 !important;
-            display: block !important;
-            width: auto !important;
-            text-align: left !important;
-        }
-        html.mobile-layout .tab-btn.active {
-            border-bottom-color: #ffd700 !important;
-            border-left-color: transparent !important;
-            background: rgba(255,255,255,0.22) !important;
-        }
-        html.mobile-layout .main-content {
-            padding: 16px 12px !important;
-        }
+        html.mobile-layout .main-content { padding: 16px 12px !important; }
         html.mobile-layout .notification-panel {
             right: 10px !important;
             left: 10px !important;
             width: auto !important;
+        }
+
+        /* ── Mobile Nav Drawer ──────────────────────────────────────────────── */
+        #mobileNavDrawer.open {
+            display: flex !important;
+        }
+        #mobileNavBackdrop.open {
+            display: block !important;
+        }
+        .mobile-drawer-btn {
+            width: 100% !important;
+            text-align: left !important;
+            border-radius: 0 !important;
+            border-left: 4px solid transparent !important;
+            border-bottom: none !important;
+            padding: 14px 20px !important;
+            font-size: 15px !important;
+            white-space: nowrap !important;
+            background: transparent !important;
+            color: var(--text-primary) !important;
+            transition: background 0.15s, border-color 0.15s !important;
+        }
+        .mobile-drawer-btn:hover {
+            background: var(--bg-secondary) !important;
+        }
+        .mobile-drawer-btn.active {
+            border-left-color: var(--accent-color) !important;
+            background: var(--bg-secondary) !important;
+            font-weight: 700 !important;
+            color: var(--accent-color) !important;
         }
 
         /* Extra-small screens — tighter tab labels */
@@ -5133,8 +5135,8 @@
     <!-- Main App -->
     <div id="appScreen" class="app-container">
         <div class="app-header">
-            <button id="sidebarToggle" aria-label="Open navigation menu" aria-controls="sidebarNav" aria-expanded="false" style="display:none; background:transparent; border:none; font-size:2rem; margin-right:15px; cursor:pointer;">
-                ☰
+            <button id="mobileNavBtn" aria-label="Open navigation menu" aria-expanded="false" style="display:none; background:transparent; border:2px solid var(--accent-color); color:var(--accent-color); border-radius:8px; font-size:1.5rem; line-height:1; padding:6px 10px; margin-right:10px; cursor:pointer; font-weight:700;">
+                ⋮
             </button>
             <h2><img src="/static/images/logo-64.png" alt="" class="header-logo-img" aria-hidden="true"> Healing Space UK</h2>
             <div class="user-info">
@@ -5195,53 +5197,125 @@
                 <button class="tab-btn" id="professionalTabBtn" onclick="switchTab('professional', this)" style="display:none;">👨‍⚕️ Professional</button>
                 <button class="tab-btn" id="developerTabBtn" onclick="switchTab('developer', this)" style="display:none;">⚙️ Developer</button>
             </nav>
-                <script>
-                // Hamburger menu toggle for mobile sidebar
-                const sidebar = document.getElementById('sidebarNav');
-                const sidebarToggle = document.getElementById('sidebarToggle');
-                function closeSidebar() {
-                    sidebar.classList.remove('open');
-                    sidebarToggle.setAttribute('aria-expanded', 'false');
-                    document.body.classList.remove('sidebar-open');
-                }
-                function openSidebar() {
-                    sidebar.classList.add('open');
-                    sidebarToggle.setAttribute('aria-expanded', 'true');
-                    document.body.classList.add('sidebar-open');
-                    sidebar.focus();
-                }
-                sidebarToggle.addEventListener('click', function() {
-                    if (sidebar.classList.contains('open')) {
-                        closeSidebar();
-                    } else {
-                        openSidebar();
+
+            <!-- ── Mobile Nav Drawer ─────────────────────────────────────────── -->
+            <div id="mobileNavBackdrop" onclick="closeMobileMenu()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:10010;"></div>
+            <div id="mobileNavDrawer" style="display:none; position:fixed; top:0; right:0; height:100%; width:82vw; max-width:320px; background:var(--bg-card); z-index:10011; box-shadow:-4px 0 24px rgba(0,0,0,0.28); overflow-y:auto; flex-direction:column; padding:0;">
+                <!-- Drawer header -->
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:18px 16px 14px; border-bottom:1px solid var(--border-color); background:var(--sidebar-bg, var(--bg-secondary));">
+                    <span style="font-weight:700; font-size:1em; color:var(--text-primary);">Navigation</span>
+                    <button onclick="closeMobileMenu()" aria-label="Close menu" style="background:transparent; border:none; font-size:1.6rem; cursor:pointer; color:var(--text-muted); line-height:1; padding:0 4px;">×</button>
+                </div>
+                <!-- Drawer nav buttons — mirrors #sidebarNav -->
+                <div id="mobileNavItems" style="display:flex; flex-direction:column; padding:10px 0;">
+                    <button class="tab-btn mobile-drawer-btn active" onclick="switchTab('home', this)" data-tab="home">🏠 Home</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('therapy', this)" data-tab="therapy">🤖 AI Therapy</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('mood', this)" data-tab="mood">📊 Mood &amp; Habits</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('safety', this)" data-tab="safety">🛡️ Safety Check</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('gratitude', this)" data-tab="gratitude">🙏 Gratitude</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('cbt', this)" data-tab="cbt">🧠 CBT Tools</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('pet', this)" data-tab="pet">🐶 My Pet</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('clinical', this)" data-tab="clinical">📋 Assessments</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('community', this)" data-tab="community">👥 Community</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('messages', this)" data-tab="messages">
+                        📬 Messages
+                        <span id="mobileMessagesBadge" style="background:#e74c3c; color:white; border-radius:10px; padding:2px 6px; font-size:11px; margin-left:5px; display:none;"></span>
+                    </button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('insights', this)" data-tab="insights">💡 Insights</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('appointments', this)" data-tab="appointments">
+                        📅 Appointments
+                        <span id="mobileAppointmentBadge" style="background:#e74c3c; color:white; border-radius:10px; padding:2px 6px; font-size:11px; margin-left:5px; display:none;">!</span>
+                    </button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('medications', this)" data-tab="medications">💊 Medications</button>
+                    <button class="tab-btn mobile-drawer-btn" id="mobileProgressTabBtn" onclick="switchTab('progress', this)" data-tab="progress">🏆 Progress</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('aboutme', this)" data-tab="aboutme">👤 About Me</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('history', this)" data-tab="history">📈 History</button>
+                    <button class="tab-btn mobile-drawer-btn" onclick="switchTab('updates', this)" data-tab="updates">🆕 Updates</button>
+                    <button class="tab-btn mobile-drawer-btn" id="mobileProfessionalTabBtn" onclick="switchTab('professional', this)" data-tab="professional" style="display:none;">👨‍⚕️ Professional</button>
+                    <button class="tab-btn mobile-drawer-btn" id="mobileDeveloperTabBtn" onclick="switchTab('developer', this)" data-tab="developer" style="display:none;">⚙️ Developer</button>
+                </div>
+            </div>
+            <!-- ── End Mobile Nav Drawer ──────────────────────────────────────── -->
+            <script>
+            // ── Mobile ⋮ menu drawer ─────────────────────────────────────────
+            (function() {
+                var btn      = document.getElementById('mobileNavBtn');
+                var drawer   = document.getElementById('mobileNavDrawer');
+                var backdrop = document.getElementById('mobileNavBackdrop');
+
+                function openMobileMenu() {
+                    drawer.classList.add('open');
+                    backdrop.classList.add('open');
+                    btn.setAttribute('aria-expanded', 'true');
+                    // Sync active state into drawer
+                    var activeTab = document.querySelector('.tab-btn.active:not(.mobile-drawer-btn)');
+                    if (activeTab) {
+                        var tabName = activeTab.getAttribute('onclick') || '';
+                        var match = tabName.match(/switchTab\('(\w+)'/);
+                        if (match) {
+                            document.querySelectorAll('.mobile-drawer-btn').forEach(function(b) {
+                                b.classList.toggle('active', b.getAttribute('data-tab') === match[1]);
+                            });
+                        }
                     }
+                }
+                window.closeMobileMenu = function() {
+                    drawer.classList.remove('open');
+                    backdrop.classList.remove('open');
+                    btn.setAttribute('aria-expanded', 'false');
+                };
+                window.openMobileMenu = openMobileMenu;
+
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (drawer.classList.contains('open')) { window.closeMobileMenu(); } else { openMobileMenu(); }
                 });
-                // Close sidebar on ESC
-                sidebar.addEventListener('keydown', function(e) {
-                    if (e.key === 'Escape') closeSidebar();
+
+                // Close on ESC
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') window.closeMobileMenu();
                 });
-                // Hide sidebar on click outside (mobile)
-                document.addEventListener('click', function(e) {
-                    if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
-                        if (!sidebar.contains(e.target) && e.target !== sidebarToggle) closeSidebar();
+
+                // Show/hide ⋮ button based on MOBILE_BREAK
+                function updateMobileBtn() {
+                    var isMobile = window.innerWidth <= (window.MOBILE_BREAK || 900);
+                    btn.style.display = isMobile ? 'block' : 'none';
+                    if (!isMobile) window.closeMobileMenu();
+                }
+                updateMobileBtn();
+                window.addEventListener('resize', updateMobileBtn);
+
+                // Mirror badge counts into drawer
+                function mirrorBadges() {
+                    var msgBadge = document.getElementById('messagesBadge');
+                    var mMsgBadge = document.getElementById('mobileMessagesBadge');
+                    if (msgBadge && mMsgBadge) {
+                        mMsgBadge.textContent = msgBadge.textContent;
+                        mMsgBadge.style.display = msgBadge.style.display;
                     }
-                });
-                // Responsive: show/hide hamburger
-                function updateSidebarToggle() {
-                    if (window.innerWidth <= 768) {
-                        sidebarToggle.style.display = '';
-                        sidebar.classList.remove('open');
-                        document.body.classList.remove('sidebar-open');
-                    } else {
-                        sidebarToggle.style.display = 'none';
-                        sidebar.classList.remove('open');
-                        document.body.classList.remove('sidebar-open');
+                    var aptBadge = document.getElementById('appointmentBadge');
+                    var mAptBadge = document.getElementById('mobileAppointmentBadge');
+                    if (aptBadge && mAptBadge) {
+                        mAptBadge.textContent = aptBadge.textContent;
+                        mAptBadge.style.display = aptBadge.style.display;
                     }
                 }
-                window.addEventListener('resize', updateSidebarToggle);
-                window.addEventListener('DOMContentLoaded', updateSidebarToggle);
-                </script>
+                // Mirror on open
+                var _origOpen = window.openMobileMenu;
+                window.openMobileMenu = function() { mirrorBadges(); _origOpen(); };
+
+                // Also mirror professional/developer tab visibility
+                function mirrorTabVisibility() {
+                    ['professional','developer','progress'].forEach(function(t) {
+                        var src = document.getElementById(t + 'TabBtn');
+                        var dst = document.getElementById('mobile' + t.charAt(0).toUpperCase() + t.slice(1) + 'TabBtn');
+                        if (src && dst) dst.style.display = src.style.display;
+                    });
+                }
+                window.addEventListener('mirrorMobileNav', mirrorTabVisibility);
+                setTimeout(mirrorTabVisibility, 1000);
+            })();
+            </script>
             
             <div class="main-content">
             <!-- Home Tab — The Sanctuary -->
@@ -15519,6 +15593,12 @@ $ <input type="text" id="terminalCommand" placeholder="type command here..."
 
             document.getElementById(tabName + 'Tab').classList.add('active');
             if (buttonEl) buttonEl.classList.add('active');
+
+            // Sync active state in mobile drawer and close it
+            document.querySelectorAll('.mobile-drawer-btn').forEach(function(b) {
+                b.classList.toggle('active', b.getAttribute('data-tab') === tabName);
+            });
+            if (typeof closeMobileMenu === 'function') closeMobileMenu();
 
             // Log tab change to activity logger
             try {
