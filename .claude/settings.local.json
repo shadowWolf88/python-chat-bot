@@ -7,7 +7,8 @@
       "Bash(python3:*)",
       "Bash(railway up:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(grep -c \"function\\\\|class\\\\|const \" /home/richard-t-martin/Documents/Healing-Space-UK-main/static/js/*.js)"
     ]
   }
 }
